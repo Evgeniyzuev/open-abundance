@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
@@ -8,6 +8,7 @@ import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequire
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import type { Tables } from "@/lib/database.types";
 
 type WalletTab = "wallet" | "core";
 type CoreAccrualRow = {
@@ -105,6 +106,8 @@ const BENCHMARKS: MarketBenchmark[] = [
   }
 ];
 
+type WalletRow = Tables<"wallet_accounts">;
+
 export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; refreshNonce: number; onRefresh: () => Promise<void> }) {
   const { core, wallet, user, loading, error, locale, applyServerData, t } = useUserContext();
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -130,6 +133,7 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
   const [targetCore, setTargetCore] = useState("1000000");
   const [targetDailyIncome, setTargetDailyIncome] = useState("10");
   const [targetCalculationTouched, setTargetCalculationTouched] = useState(false);
+  const [topupOpen, setTopupOpen] = useState(false);
 
   useEffect(() => {
     if (activeTab !== "core") setHistoryOpen(false);
@@ -322,6 +326,11 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
   const summaryGoalLabel = calculatorMode === "target" ? formatTargetSummary(targetCalculation, t) : calculatorMode === "compare" ? formatDuration(simulation.days, t) : formatMoney(futureCore, locale);
   const summaryDailyLabel = calculatorMode === "target" ? formatMoney(requestedTargetCore, locale) : calculatorMode === "compare" ? formatMoney(futureCore, locale) : `${formatMoney(futureDailyIncome.gross, locale)}/${t("app.common.day")}`;
 
+  const handleTopupSuccess = useCallback(async (newCore: Tables<"core_accounts">, newWallet: Tables<"wallet_accounts">) => {
+    applyServerData({ core: newCore, wallet: newWallet });
+    await onRefresh();
+  }, [applyServerData, onRefresh]);
+
   return (
     <section className="finance-screen">
       {!user && !loading ? (
@@ -338,6 +347,13 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
             meta={wallet ? t("app.common.updated", { date: formatDate(wallet.updated_at, locale) }) : t("app.common.created")}
             adaptiveAmount
           />
+          {wallet && core ? (
+            <div className="topup-panel">
+              <button className="challenge-primary-action" type="button" onClick={() => setTopupOpen(true)}>
+                ⚛️ {t("wallet.topup.button")}
+              </button>
+            </div>
+          ) : null}
           <HistoryPanel
             title={t("wallet.history.wallet")}
             open={walletHistoryOpen}
@@ -369,15 +385,7 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
 
       {user && activeTab === "core" ? (
         <>
-          {/* <BalancePanel
-            title={t("wallet.core")}
-            label={t("wallet.core")}
-            amount={core?.balance ?? 0}
-            locale={locale}
-            meta={core ? t("wallet.coreMeta", { level: core.level, percent: core.reinvest_percent, date: formatDate(core.updated_at, locale) }) : t("app.common.created")}
-            adaptiveAmount
-          /> */}
-          {core ? <CoreLevelProgress core={core} locale={locale} t={t} /> : null}
+          {core ? <CoreLevelProgress core={core} locale={locale} t={t} wallet={wallet} onTopup={() => setTopupOpen(true)} /> : null}
           <ReinvestPanel
             value={reinvestValue}
             savedPercent={savedReinvestPercent}
@@ -471,6 +479,17 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
       ) : null}
 
       {error ? <p className="finance-error">{error}</p> : null}
+
+      {topupOpen && core && wallet ? (
+        <TopupCoreModal
+          core={core}
+          wallet={wallet}
+          locale={locale}
+          t={t}
+          onClose={() => setTopupOpen(false)}
+          onSuccess={handleTopupSuccess}
+        />
+      ) : null}
     </section>
   );
 }
@@ -901,11 +920,15 @@ function BalancePanel({
 function CoreLevelProgress({
   core,
   locale,
-  t
+  t,
+  wallet,
+  onTopup
 }: {
   core: CoreAccount;
   locale: AppLocale;
   t: TFunction;
+  wallet: WalletRow | null;
+  onTopup: () => void;
 }) {
   const threshold = Number.isFinite(core.next_level_threshold ?? NaN) && (core.next_level_threshold ?? 0) > 0 ? core.next_level_threshold ?? null : null;
   const progress = threshold ? clamp((core.balance / threshold) * 100, 0, 100) : 100;
@@ -943,7 +966,111 @@ function CoreLevelProgress({
           <span>{threshold ? `${t("app.common.level")} ${nextLevel}` : t("wallet.coreProgress.max")}</span>
         </div>
       </div>
+      {wallet && wallet.balance > 0 ? (
+        <button className="finance-small-icon-button primary topup-core-button" type="button" title={t("wallet.topup.title")} onClick={onTopup}>
+          ⚛️
+        </button>
+      ) : null}
     </section>
+  );
+}
+
+function TopupCoreModal({
+  core,
+  wallet,
+  locale,
+  t,
+  onClose,
+  onSuccess
+}: {
+  core: CoreAccount;
+  wallet: WalletRow;
+  locale: AppLocale;
+  t: TFunction;
+  onClose: () => void;
+  onSuccess: (newCore: Tables<"core_accounts">, newWallet: Tables<"wallet_accounts">) => Promise<void>;
+}) {
+  const [amount, setAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const parsedAmount = parseNumber(amount);
+  const isValid = Number.isFinite(parsedAmount) && parsedAmount > 0 && parsedAmount <= wallet.balance;
+
+  async function handleConfirm() {
+    if (!isValid) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/core/topup", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: parsedAmount })
+      });
+      const payload = await response.json();
+
+      if (!response.ok || payload.error) {
+        throw new Error(payload.error ?? "Failed to top up core.");
+      }
+
+      await onSuccess(payload.core, payload.wallet);
+      onClose();
+    } catch (topupError) {
+      setError(topupError instanceof Error ? topupError.message : "Failed to top up core.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.topup.title")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+          <h2>{t("wallet.topup.title")}</h2>
+          <span />
+        </div>
+        <div className="topup-modal-body">
+          <div className="topup-balance-info">
+            <div className="topup-balance-card">
+              <span>{t("wallet.availableBalance")}</span>
+              <strong className="wallet-color">{formatAdaptiveMoney(wallet.balance, locale)}</strong>
+            </div>
+            <div className="topup-balance-card">
+              <span>{t("wallet.core")}</span>
+              <strong className="core-color">{formatAdaptiveMoney(core.balance, locale)}</strong>
+            </div>
+          </div>
+          <div className="topup-field">
+            <span>{t("wallet.topup.amount")}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="0"
+              autoFocus
+            />
+          </div>
+          {error ? <p className="topup-error">{error}</p> : null}
+          <div className="topup-modal-actions">
+            <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+            <button className="challenge-primary-action" type="button" disabled={!isValid || saving} onClick={handleConfirm}>
+              {saving ? t("app.common.loading") : t("wallet.topup.confirm")}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 

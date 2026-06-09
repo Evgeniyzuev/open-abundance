@@ -227,6 +227,8 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .comparison-chart { display: grid; gap: 9px; }
 .comparison-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .comparison-head span { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; }
+.comparison-title-row { display: inline-flex; align-items: center; gap: 6px; }
+.comparison-info-button { width: 22px; height: 22px; flex: 0 0 auto; font-size: 13px; }
 .comparison-head strong { min-width: 0; overflow: hidden; color: var(--text); font-size: 14px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .comparison-svg { width: 100%; min-height: 188px; display: block; overflow: visible; }
 .comparison-svg line { stroke: rgba(142,142,147,0.18); stroke-width: 1; }
@@ -237,6 +239,9 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .comparison-legend span { min-height: 28px; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 0 8px; background: #f7f8fb; color: var(--text); font-size: 12px; font-weight: 850; }
 .comparison-legend i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 999px; }
 .comparison-legend strong { color: var(--muted); font-size: 12px; }
+.comparison-info-body { display: grid; gap: 10px; }
+.comparison-info-body p { margin: 0; color: var(--text); font-size: 15px; line-height: 1.38; }
+.comparison-info-body p:first-child { color: var(--blue); font-weight: 850; }
 .profile-panel { justify-items: center; text-align: center; }
 .profile-avatar { width: 82px; height: 82px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 999px; background: #eef6ff; color: var(--blue); }
 .profile-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }

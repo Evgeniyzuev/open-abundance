@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
-import { calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
+import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
@@ -42,7 +42,7 @@ type MarketBenchmark = {
   id: string;
   label: Record<AppLocale, string>;
   color: string;
-  semiannualReturns: number[];
+  annualReturn: number;
 };
 type ComparisonPoint = {
   days: number;
@@ -53,47 +53,61 @@ type ComparisonSeries = {
   label: string;
   color: string;
   points: ComparisonPoint[];
-  finalAmount: number;
   finalIndex: number;
+  annualReturn: number;
 };
 
 const HALF_YEAR_DAYS = 365.25 / 2;
+const COMPARISON_BASE_INDEX = 100;
+// Static 10-year annualized benchmark proxies, refreshed on 2026-06-09.
 const BENCHMARKS: MarketBenchmark[] = [
   {
     id: "gold",
     label: { ru: "\u0417\u043e\u043b\u043e\u0442\u043e", en: "Gold" },
     color: "#ffb020",
-    semiannualReturns: [0.245, -0.085, 0.075, 0.055, -0.07, 0.005, 0.105, 0.08, 0.17, 0.075, -0.09, 0.035, -0.035, -0.005, 0.065, 0.065, 0.045, 0.085, 0.13, 0.11]
+    annualReturn: 0.126
   },
   {
     id: "real-estate",
     label: { ru: "\u041d\u0435\u0434\u0432\u0438\u0436\u0438\u043c\u043e\u0441\u0442\u044c", en: "Real estate" },
     color: "#34c759",
-    semiannualReturns: [0.03, 0.025, 0.035, 0.03, 0.03, 0.025, 0.035, 0.04, 0.055, 0.06, 0.07, 0.065, 0.035, 0.015, 0.005, 0.02, 0.025, 0.025, 0.03, 0.03]
+    annualReturn: 0.055
   },
   {
     id: "bitcoin",
     label: { ru: "\u0411\u0438\u0442\u043a\u043e\u0438\u043d", en: "Bitcoin" },
     color: "#ff7a00",
-    semiannualReturns: [0.58, 0.9, 1.25, 0.35, -0.52, -0.2, 0.72, 0.18, 0.28, 1.7, -0.45, -0.5, -0.58, -0.12, 0.84, 0.62, 0.38, 0.56, 0.22, 0.32]
+    annualReturn: 0.671
   },
   {
     id: "bonds",
     label: { ru: "\u041e\u0431\u043b\u0438\u0433\u0430\u0446\u0438\u0438", en: "Bonds" },
     color: "#8e8e93",
-    semiannualReturns: [0.025, 0.005, 0.015, 0.01, -0.005, 0.02, 0.03, 0.01, 0.04, 0.035, -0.02, -0.04, -0.08, -0.05, 0.015, 0.025, 0.005, 0.02, 0.018, 0.018]
+    annualReturn: 0.0155
   },
   {
     id: "sp500",
     label: { ru: "S&P 500", en: "S&P 500" },
     color: "#ff5b6b",
-    semiannualReturns: [0.035, 0.09, 0.095, 0.105, 0.02, -0.045, 0.18, 0.11, -0.04, 0.165, 0.14, 0.12, -0.2, -0.01, 0.16, 0.11, 0.15, 0.105, 0.065, 0.08]
+    annualReturn: 0.137
   },
   {
     id: "nasdaq",
     label: { ru: "Nasdaq", en: "Nasdaq" },
     color: "#5ac8fa",
-    semiannualReturns: [0.055, 0.08, 0.18, 0.15, 0.085, -0.08, 0.235, 0.16, 0.105, 0.24, 0.13, 0.105, -0.28, -0.08, 0.205, 0.165, 0.205, 0.145, 0.085, 0.105]
+    annualReturn: 0.187
+  },
+  {
+    id: "world-stocks",
+    label: { ru: "World stocks", en: "World stocks" },
+    color: "#006d77",
+    annualReturn: 0.087
+  },
+  {
+    id: "emerging-markets",
+    label: { ru: "Emerging markets", en: "Emerging markets" },
+    color: "#5856d6",
+    annualReturn: 0.0998
   }
 ];
 
@@ -783,8 +797,6 @@ function CoreCalculatorPanel({
                 <GrowthComparisonChart
                   locale={locale}
                   t={t}
-                  startCore={parseNumber(startCore)}
-                  dailyAdditions={parseNumber(dailyAdditions)}
                   reinvestPercent={parseNumber(simulationReinvest)}
                   days={daysFromTerm(parseNumber(termValue), termUnit)}
                 />
@@ -943,42 +955,27 @@ function CoreLevelProgress({
 
 function buildComparisonSeries({
   locale,
-  startCore,
-  dailyAdditions,
   reinvestPercent,
   days
 }: {
   locale: AppLocale;
-  startCore: number;
-  dailyAdditions: number;
   reinvestPercent: number;
   days: number;
 }): ComparisonSeries[] {
-  const cleanStartCore = Math.max(0, Number.isFinite(startCore) ? startCore : 0);
-  const cleanDailyAdditions = Math.max(0, Number.isFinite(dailyAdditions) ? dailyAdditions : 0);
   const cleanDays = Math.max(0, Number.isFinite(days) ? days : 0);
   const cleanReinvestPercent = normalizePercent(reinvestPercent);
-  const baseAmount = Math.max(1, cleanStartCore);
   const pointDays = buildComparisonDays(cleanDays);
   const corePoints = pointDays.map((pointDay) => {
     const amount = calculateFutureCore({
-      startCore: cleanStartCore,
-      dailyAdditions: cleanDailyAdditions,
+      startCore: COMPARISON_BASE_INDEX,
+      dailyAdditions: 0,
       reinvestPercent: cleanReinvestPercent,
       days: pointDay
     });
-    return {
-      days: pointDay,
-      value: ((amount + baseAmount - cleanStartCore) / baseAmount) * 100
-    };
+    return { days: pointDay, value: amount };
   });
 
-  const coreFinalAmount = calculateFutureCore({
-    startCore: cleanStartCore,
-    dailyAdditions: cleanDailyAdditions,
-    reinvestPercent: cleanReinvestPercent,
-    days: cleanDays
-  });
+  const coreAnnualReturn = Math.pow(1 + (DAILY_CORE_RATE * (cleanReinvestPercent / 100)), 365.25) - 1;
 
   return [
     {
@@ -986,30 +983,22 @@ function buildComparisonSeries({
       label: "Core",
       color: "#0a84ff",
       points: corePoints,
-      finalAmount: coreFinalAmount,
-      finalIndex: corePoints.at(-1)?.value ?? 100
+      finalIndex: corePoints.at(-1)?.value ?? COMPARISON_BASE_INDEX,
+      annualReturn: coreAnnualReturn
     },
     ...BENCHMARKS.map((benchmark) => {
-      const points: ComparisonPoint[] = [{ days: 0, value: 100 }];
-      let amount = baseAmount;
-      let previousDay = 0;
-
-      for (let index = 1; index < pointDays.length; index += 1) {
-        const pointDay = pointDays[index];
-        const intervalDays = Math.max(0, pointDay - previousDay);
-        amount += cleanDailyAdditions * intervalDays;
-        amount *= Math.pow(1 + benchmark.semiannualReturns[(index - 1) % benchmark.semiannualReturns.length], intervalDays / HALF_YEAR_DAYS);
-        points.push({ days: pointDay, value: (amount / baseAmount) * 100 });
-        previousDay = pointDay;
-      }
+      const points = pointDays.map((pointDay) => ({
+        days: pointDay,
+        value: COMPARISON_BASE_INDEX * Math.pow(1 + benchmark.annualReturn, pointDay / 365.25)
+      }));
 
       return {
         id: benchmark.id,
         label: benchmark.label[locale],
         color: benchmark.color,
         points,
-        finalAmount: amount,
-        finalIndex: points.at(-1)?.value ?? 100
+        finalIndex: points.at(-1)?.value ?? COMPARISON_BASE_INDEX,
+        annualReturn: benchmark.annualReturn
       };
     })
   ];
@@ -1029,19 +1018,16 @@ function buildComparisonDays(days: number): number[] {
 function GrowthComparisonChart({
   locale,
   t,
-  startCore,
-  dailyAdditions,
   reinvestPercent,
   days
 }: {
   locale: AppLocale;
   t: TFunction;
-  startCore: number;
-  dailyAdditions: number;
   reinvestPercent: number;
   days: number;
 }) {
-  const series = buildComparisonSeries({ locale, startCore, dailyAdditions, reinvestPercent, days });
+  const [infoOpen, setInfoOpen] = useState(false);
+  const series = buildComparisonSeries({ locale, reinvestPercent, days });
   const maxValue = Math.max(125, ...series.flatMap((line) => line.points.map((point) => point.value)));
   const yMax = Math.ceil(maxValue / 25) * 25;
   const width = 320;
@@ -1053,7 +1039,10 @@ function GrowthComparisonChart({
   return (
     <div className="comparison-chart">
       <div className="comparison-head">
-        <span>{t("wallet.calculator.comparisonTitle")}</span>
+        <span className="comparison-title-row">
+          {t("wallet.calculator.comparisonTitle")}
+          <button className="info-button comparison-info-button" type="button" aria-label={t("wallet.calculator.comparisonInfoButton")} onClick={() => setInfoOpen(true)}>i</button>
+        </span>
         <strong>{t("wallet.calculator.comparisonPeriod", { period: formatDuration(days, t) })}</strong>
       </div>
       <svg className="comparison-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t("wallet.calculator.comparisonChartAria")}>
@@ -1073,7 +1062,7 @@ function GrowthComparisonChart({
         ))}
         {series.map((line) => (
           <path key={line.id} d={linePath(line.points, days, yMax, plot)} stroke={line.color}>
-            <title>{`${line.label}: ${formatIndexValue(line.finalIndex, locale)}`}</title>
+            <title>{`${line.label}: ${formatIndexValue(line.finalIndex, locale)} - ${formatAnnualReturn(line.annualReturn, locale, t)}`}</title>
           </path>
         ))}
       </svg>
@@ -1082,10 +1071,31 @@ function GrowthComparisonChart({
           <span key={line.id}>
             <i style={{ backgroundColor: line.color }} />
             {line.label}
-            <strong>{formatIndexValue(line.finalIndex, locale)}</strong>
+            <strong>{formatIndexValue(line.finalIndex, locale)} - {formatAnnualReturn(line.annualReturn, locale, t)}</strong>
           </span>
         ))}
       </div>
+      {infoOpen ? <ComparisonInfoModal t={t} onClose={() => setInfoOpen(false)} /> : null}
+    </div>
+  );
+}
+
+function ComparisonInfoModal({ t, onClose }: { t: TFunction; onClose: () => void }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small comparison-info-modal" role="dialog" aria-modal="true" aria-label={t("wallet.calculator.comparisonInfoTitle")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
+          <h2>{t("wallet.calculator.comparisonInfoTitle")}</h2>
+          <span />
+        </div>
+        <div className="comparison-info-body">
+          <p>{t("wallet.calculator.comparisonInfoIntro")}</p>
+          <p>{t("wallet.calculator.comparisonInfoFormula")}</p>
+          <p>{t("wallet.calculator.comparisonInfoCore")}</p>
+          <p>{t("wallet.calculator.comparisonInfoBenchmarks")}</p>
+        </div>
+      </section>
     </div>
   );
 }
@@ -1114,11 +1124,22 @@ function roundSvg(value: number): number {
 }
 
 function formatIndexTick(value: number, locale: AppLocale): string {
-  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 0 }).format(value);
+  return formatCompactNumber(value, locale, 0);
 }
 
 function formatIndexValue(value: number, locale: AppLocale): string {
-  return `x${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 2 }).format(value / 100)}`;
+  return `x${formatCompactNumber(value / COMPARISON_BASE_INDEX, locale, 2)}`;
+}
+
+function formatAnnualReturn(value: number, locale: AppLocale, t: TFunction): string {
+  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 1 }).format(value * 100)}%/${t("wallet.calculator.perYear")}`;
+}
+
+function formatCompactNumber(value: number, locale: AppLocale, maximumFractionDigits: number): string {
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    maximumFractionDigits,
+    notation: Math.abs(value) >= 10000 ? "compact" : "standard"
+  }).format(value);
 }
 
 function formatChartTick(days: number, t: TFunction): string {

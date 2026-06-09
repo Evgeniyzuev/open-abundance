@@ -206,7 +206,7 @@ Current status, 2026-06-04:
 
 Current status, 2026-06-09:
 
-- `components/WalletApp.tsx` now includes a third calculator tab for Core-vs-market comparison. It uses the scenario term as the period, starts every line from index 100, and compares Core against built-in 10-year average annual growth assumptions for gold, real estate, Bitcoin, bonds, S&P 500, Nasdaq, world stocks, and emerging markets without changing real balances. The chart has an info modal describing the formula and assumptions.
+- `components/WalletApp.tsx` now includes a third calculator tab for Core-vs-market comparison. It uses the scenario term as the period, starts every line from index 100, and compares Core against built-in 10-year average annual growth assumptions for gold, real estate, bonds, S&P 500, Nasdaq, world stocks, and emerging markets without changing real balances. The chart has an info modal describing the formula and assumptions.
 
 Калькулятор не должен менять Core, Wallet или любые ledger/balance значения. Расчет срока может записать только proof для челленджа `calculate_time_to_goal`.
 

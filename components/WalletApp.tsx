@@ -74,12 +74,6 @@ const BENCHMARKS: MarketBenchmark[] = [
     annualReturn: 0.055
   },
   {
-    id: "bitcoin",
-    label: { ru: "\u0411\u0438\u0442\u043a\u043e\u0438\u043d", en: "Bitcoin" },
-    color: "#ff7a00",
-    annualReturn: 0.671
-  },
-  {
     id: "bonds",
     label: { ru: "\u041e\u0431\u043b\u0438\u0433\u0430\u0446\u0438\u0438", en: "Bonds" },
     color: "#8e8e93",

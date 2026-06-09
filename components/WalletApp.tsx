@@ -34,10 +34,68 @@ type WalletHistoryRow = {
 type ChallengeProgressResponse = {
   error?: string;
 };
-type CalculatorMode = "future" | "target";
+type CalculatorMode = "future" | "target" | "compare";
 type TargetKind = "core" | "daily";
 type TermUnit = "days" | "months" | "years";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
+type MarketBenchmark = {
+  id: string;
+  label: Record<AppLocale, string>;
+  color: string;
+  semiannualReturns: number[];
+};
+type ComparisonPoint = {
+  days: number;
+  value: number;
+};
+type ComparisonSeries = {
+  id: string;
+  label: string;
+  color: string;
+  points: ComparisonPoint[];
+  finalAmount: number;
+  finalIndex: number;
+};
+
+const HALF_YEAR_DAYS = 365.25 / 2;
+const BENCHMARKS: MarketBenchmark[] = [
+  {
+    id: "gold",
+    label: { ru: "\u0417\u043e\u043b\u043e\u0442\u043e", en: "Gold" },
+    color: "#ffb020",
+    semiannualReturns: [0.245, -0.085, 0.075, 0.055, -0.07, 0.005, 0.105, 0.08, 0.17, 0.075, -0.09, 0.035, -0.035, -0.005, 0.065, 0.065, 0.045, 0.085, 0.13, 0.11]
+  },
+  {
+    id: "real-estate",
+    label: { ru: "\u041d\u0435\u0434\u0432\u0438\u0436\u0438\u043c\u043e\u0441\u0442\u044c", en: "Real estate" },
+    color: "#34c759",
+    semiannualReturns: [0.03, 0.025, 0.035, 0.03, 0.03, 0.025, 0.035, 0.04, 0.055, 0.06, 0.07, 0.065, 0.035, 0.015, 0.005, 0.02, 0.025, 0.025, 0.03, 0.03]
+  },
+  {
+    id: "bitcoin",
+    label: { ru: "\u0411\u0438\u0442\u043a\u043e\u0438\u043d", en: "Bitcoin" },
+    color: "#ff7a00",
+    semiannualReturns: [0.58, 0.9, 1.25, 0.35, -0.52, -0.2, 0.72, 0.18, 0.28, 1.7, -0.45, -0.5, -0.58, -0.12, 0.84, 0.62, 0.38, 0.56, 0.22, 0.32]
+  },
+  {
+    id: "bonds",
+    label: { ru: "\u041e\u0431\u043b\u0438\u0433\u0430\u0446\u0438\u0438", en: "Bonds" },
+    color: "#8e8e93",
+    semiannualReturns: [0.025, 0.005, 0.015, 0.01, -0.005, 0.02, 0.03, 0.01, 0.04, 0.035, -0.02, -0.04, -0.08, -0.05, 0.015, 0.025, 0.005, 0.02, 0.018, 0.018]
+  },
+  {
+    id: "sp500",
+    label: { ru: "S&P 500", en: "S&P 500" },
+    color: "#ff5b6b",
+    semiannualReturns: [0.035, 0.09, 0.095, 0.105, 0.02, -0.045, 0.18, 0.11, -0.04, 0.165, 0.14, 0.12, -0.2, -0.01, 0.16, 0.11, 0.15, 0.105, 0.065, 0.08]
+  },
+  {
+    id: "nasdaq",
+    label: { ru: "Nasdaq", en: "Nasdaq" },
+    color: "#5ac8fa",
+    semiannualReturns: [0.055, 0.08, 0.18, 0.15, 0.085, -0.08, 0.235, 0.16, 0.105, 0.24, 0.13, 0.105, -0.28, -0.08, 0.205, 0.165, 0.205, 0.145, 0.085, 0.105]
+  }
+];
 
 export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; refreshNonce: number; onRefresh: () => Promise<void> }) {
   const { core, wallet, user, loading, error, locale, applyServerData, t } = useUserContext();
@@ -253,8 +311,8 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
   const futureDailyIncome = calculateDailyIncome(futureCore, simulation.reinvestPercent);
   const requestedTargetCore = targetKind === "daily" ? coreRequiredForDailyIncome(parseNumber(targetDailyIncome)) : parseNumber(targetCore);
   const targetCalculation = findDaysToTarget({ ...simulation, days: 0, targetCore: requestedTargetCore });
-  const summaryGoalLabel = calculatorMode === "target" ? formatTargetSummary(targetCalculation, t) : formatMoney(futureCore, locale);
-  const summaryDailyLabel = calculatorMode === "target" ? formatMoney(requestedTargetCore, locale) : `${formatMoney(futureDailyIncome.gross, locale)}/${t("app.common.day")}`;
+  const summaryGoalLabel = calculatorMode === "target" ? formatTargetSummary(targetCalculation, t) : calculatorMode === "compare" ? formatDuration(simulation.days, t) : formatMoney(futureCore, locale);
+  const summaryDailyLabel = calculatorMode === "target" ? formatMoney(requestedTargetCore, locale) : calculatorMode === "compare" ? formatMoney(futureCore, locale) : `${formatMoney(futureDailyIncome.gross, locale)}/${t("app.common.day")}`;
 
   return (
     <section className="finance-screen">
@@ -617,11 +675,11 @@ function CoreCalculatorPanel({
         </span>
         <span className="calculator-metrics">
           <span>
-            <small>{mode === "target" ? t("wallet.calculator.goal") : t("wallet.calculator.futureCore")}</small>
+            <small>{mode === "target" ? t("wallet.calculator.goal") : mode === "compare" ? t("wallet.calculator.period") : t("wallet.calculator.futureCore")}</small>
             <strong>{summaryGoalLabel}</strong>
           </span>
           <span>
-            <small>{mode === "target" ? t("wallet.calculator.requiredCore") : t("wallet.calculator.daily")}</small>
+            <small>{mode === "target" ? t("wallet.calculator.requiredCore") : mode === "compare" ? t("wallet.calculator.futureCore") : t("wallet.calculator.daily")}</small>
             <strong>{summaryDailyLabel}</strong>
           </span>
         </span>
@@ -630,12 +688,15 @@ function CoreCalculatorPanel({
 
       {open ? (
         <div className="calculator-body">
-          <div className="finance-segmented compact">
+          <div className="finance-segmented calculator-tabs">
             <button className={mode === "future" ? "active" : ""} type="button" onClick={() => onModeChange("future")}>
               {t("wallet.calculator.futureAmount")}
             </button>
             <button className={mode === "target" ? "active" : ""} type="button" onClick={() => onModeChange("target")}>
               {t("wallet.calculator.timeToGoal")}
+            </button>
+            <button className={mode === "compare" ? "active" : ""} type="button" onClick={() => onModeChange("compare")}>
+              {t("wallet.calculator.comparison")}
             </button>
           </div>
 
@@ -661,7 +722,7 @@ function CoreCalculatorPanel({
                 <input type="number" min="0" max="100" step="0.01" inputMode="decimal" value={simulationReinvest} onChange={(event) => onSimulationReinvestChange(event.target.value)} />
               </label>
 
-              {mode === "future" ? (
+              {mode !== "target" ? (
                 <div className="term-row">
                   <label className="finance-field">
                     <span>{t("wallet.calculator.term")}</span>
@@ -711,13 +772,22 @@ function CoreCalculatorPanel({
                   <MetricRow label={t("wallet.calculator.addedManually")} value={formatMoney(manualAdded, locale)} />
                   <MetricRow label={t("wallet.calculator.reinvestGrowth")} value={formatMoney(reinvestGrowth, locale)} />
                 </>
-              ) : (
+              ) : mode === "target" ? (
                 <>
                   <MetricRow label={t("wallet.calculator.requiredCore")} value={formatMoney(requestedTargetCore, locale)} strong />
                   {targetReady ? <TargetResult calculation={targetCalculation} locale={locale} t={t} /> : (
                     <p className="calculator-hint">{t("wallet.calculator.targetHint")}</p>
                   )}
                 </>
+              ) : (
+                <GrowthComparisonChart
+                  locale={locale}
+                  t={t}
+                  startCore={parseNumber(startCore)}
+                  dailyAdditions={parseNumber(dailyAdditions)}
+                  reinvestPercent={parseNumber(simulationReinvest)}
+                  days={daysFromTerm(parseNumber(termValue), termUnit)}
+                />
               )}
             </div>
           </div>
@@ -869,6 +939,192 @@ function CoreLevelProgress({
       </div>
     </section>
   );
+}
+
+function buildComparisonSeries({
+  locale,
+  startCore,
+  dailyAdditions,
+  reinvestPercent,
+  days
+}: {
+  locale: AppLocale;
+  startCore: number;
+  dailyAdditions: number;
+  reinvestPercent: number;
+  days: number;
+}): ComparisonSeries[] {
+  const cleanStartCore = Math.max(0, Number.isFinite(startCore) ? startCore : 0);
+  const cleanDailyAdditions = Math.max(0, Number.isFinite(dailyAdditions) ? dailyAdditions : 0);
+  const cleanDays = Math.max(0, Number.isFinite(days) ? days : 0);
+  const cleanReinvestPercent = normalizePercent(reinvestPercent);
+  const baseAmount = Math.max(1, cleanStartCore);
+  const pointDays = buildComparisonDays(cleanDays);
+  const corePoints = pointDays.map((pointDay) => {
+    const amount = calculateFutureCore({
+      startCore: cleanStartCore,
+      dailyAdditions: cleanDailyAdditions,
+      reinvestPercent: cleanReinvestPercent,
+      days: pointDay
+    });
+    return {
+      days: pointDay,
+      value: ((amount + baseAmount - cleanStartCore) / baseAmount) * 100
+    };
+  });
+
+  const coreFinalAmount = calculateFutureCore({
+    startCore: cleanStartCore,
+    dailyAdditions: cleanDailyAdditions,
+    reinvestPercent: cleanReinvestPercent,
+    days: cleanDays
+  });
+
+  return [
+    {
+      id: "core",
+      label: "Core",
+      color: "#0a84ff",
+      points: corePoints,
+      finalAmount: coreFinalAmount,
+      finalIndex: corePoints.at(-1)?.value ?? 100
+    },
+    ...BENCHMARKS.map((benchmark) => {
+      const points: ComparisonPoint[] = [{ days: 0, value: 100 }];
+      let amount = baseAmount;
+      let previousDay = 0;
+
+      for (let index = 1; index < pointDays.length; index += 1) {
+        const pointDay = pointDays[index];
+        const intervalDays = Math.max(0, pointDay - previousDay);
+        amount += cleanDailyAdditions * intervalDays;
+        amount *= Math.pow(1 + benchmark.semiannualReturns[(index - 1) % benchmark.semiannualReturns.length], intervalDays / HALF_YEAR_DAYS);
+        points.push({ days: pointDay, value: (amount / baseAmount) * 100 });
+        previousDay = pointDay;
+      }
+
+      return {
+        id: benchmark.id,
+        label: benchmark.label[locale],
+        color: benchmark.color,
+        points,
+        finalAmount: amount,
+        finalIndex: points.at(-1)?.value ?? 100
+      };
+    })
+  ];
+}
+
+function buildComparisonDays(days: number): number[] {
+  if (days <= 0) return [0];
+
+  const pointDays = [0];
+  for (let pointDay = HALF_YEAR_DAYS; pointDay < days; pointDay += HALF_YEAR_DAYS) {
+    pointDays.push(pointDay);
+  }
+  pointDays.push(days);
+  return pointDays;
+}
+
+function GrowthComparisonChart({
+  locale,
+  t,
+  startCore,
+  dailyAdditions,
+  reinvestPercent,
+  days
+}: {
+  locale: AppLocale;
+  t: TFunction;
+  startCore: number;
+  dailyAdditions: number;
+  reinvestPercent: number;
+  days: number;
+}) {
+  const series = buildComparisonSeries({ locale, startCore, dailyAdditions, reinvestPercent, days });
+  const maxValue = Math.max(125, ...series.flatMap((line) => line.points.map((point) => point.value)));
+  const yMax = Math.ceil(maxValue / 25) * 25;
+  const width = 320;
+  const height = 188;
+  const plot = { left: 38, top: 14, width: 266, height: 126 };
+  const gridValues = [0, 0.25, 0.5, 0.75, 1].map((ratio) => yMax * ratio);
+  const ticks = Array.from(new Set([0, Math.round(days / 2), Math.round(days)]));
+
+  return (
+    <div className="comparison-chart">
+      <div className="comparison-head">
+        <span>{t("wallet.calculator.comparisonTitle")}</span>
+        <strong>{t("wallet.calculator.comparisonPeriod", { period: formatDuration(days, t) })}</strong>
+      </div>
+      <svg className="comparison-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t("wallet.calculator.comparisonChartAria")}>
+        {gridValues.map((value) => {
+          const y = yForValue(value, yMax, plot);
+          return (
+            <g key={value}>
+              <line x1={plot.left} y1={y} x2={plot.left + plot.width} y2={y} />
+              <text x={plot.left - 8} y={y + 4}>{formatIndexTick(value, locale)}</text>
+            </g>
+          );
+        })}
+        {ticks.map((value) => (
+          <text className="comparison-x-label" key={value} x={xForDay(value, days, plot)} y={height - 12}>
+            {formatChartTick(value, t)}
+          </text>
+        ))}
+        {series.map((line) => (
+          <path key={line.id} d={linePath(line.points, days, yMax, plot)} stroke={line.color}>
+            <title>{`${line.label}: ${formatIndexValue(line.finalIndex, locale)}`}</title>
+          </path>
+        ))}
+      </svg>
+      <div className="comparison-legend">
+        {series.map((line) => (
+          <span key={line.id}>
+            <i style={{ backgroundColor: line.color }} />
+            {line.label}
+            <strong>{formatIndexValue(line.finalIndex, locale)}</strong>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function linePath(points: ComparisonPoint[], totalDays: number, yMax: number, plot: { left: number; top: number; width: number; height: number }): string {
+  return points
+    .map((point, index) => {
+      const x = xForDay(point.days, totalDays, plot);
+      const y = yForValue(point.value, yMax, plot);
+      return `${index === 0 ? "M" : "L"} ${roundSvg(x)} ${roundSvg(y)}`;
+    })
+    .join(" ");
+}
+
+function xForDay(days: number, totalDays: number, plot: { left: number; width: number }): number {
+  if (totalDays <= 0) return plot.left;
+  return plot.left + (clamp(days / totalDays, 0, 1) * plot.width);
+}
+
+function yForValue(value: number, yMax: number, plot: { top: number; height: number }): number {
+  return plot.top + ((1 - clamp(value / yMax, 0, 1)) * plot.height);
+}
+
+function roundSvg(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function formatIndexTick(value: number, locale: AppLocale): string {
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatIndexValue(value: number, locale: AppLocale): string {
+  return `x${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 2 }).format(value / 100)}`;
+}
+
+function formatChartTick(days: number, t: TFunction): string {
+  if (days <= 0) return "0";
+  if (days < 365) return `${Math.max(1, Math.round(days))}${t("app.common.days.short")}`;
+  return `${Math.round((days / 365.25) * 10) / 10}${t("app.common.years.short")}`;
 }
 
 function FinanceState({ title, description }: { title: string; description: string }) {

@@ -204,6 +204,10 @@ Current status, 2026-06-04:
 - `/api/challenges/check` now accepts calculator proof recorded on the current challenge row or on another active challenge with the same `verification_logic`.
 - The calculator challenge still completes only through `/api/challenges/check`, so reward payout stays behind the explicit challenge check flow.
 
+Current status, 2026-06-09:
+
+- `components/WalletApp.tsx` now includes a third calculator tab for Core-vs-market comparison. It uses the scenario term as the period, plots semiannual points, and compares Core against built-in benchmark patterns for gold, real estate, Bitcoin, bonds, S&P 500, and Nasdaq without changing real balances.
+
 Калькулятор не должен менять Core, Wallet или любые ledger/balance значения. Расчет срока может записать только proof для челленджа `calculate_time_to_goal`.
 
 Правильный flow:

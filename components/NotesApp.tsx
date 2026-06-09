@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteList,
   deleteNote,
@@ -81,14 +81,17 @@ export default function NotesApp() {
     });
   }, [activeView, notes]);
 
-  async function refreshData() {
+  const refreshData = useCallback(async () => {
     const [storedNotes, storedLists] = await Promise.all([getNotes(), getLists()]);
     setNotes(storedNotes);
     setLists(storedLists);
-    if (!storedLists.some((list) => list.id === noteForm.listId)) {
-      setNoteForm((current) => ({ ...current, listId: "" }));
-    }
-  }
+    setNoteForm((current) => {
+      if (!current.listId || storedLists.some((list) => list.id === current.listId)) {
+        return current;
+      }
+      return { ...current, listId: "" };
+    });
+  }, []);
 
   useEffect(() => {
     setConnection(navigator.onLine ? "online" : "offline");
@@ -104,7 +107,7 @@ export default function NotesApp() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, []);
+  }, [refreshData]);
 
   function openList(view: ViewId) {
     setDetailView(view);

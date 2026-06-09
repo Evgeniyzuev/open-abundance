@@ -348,28 +348,58 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
             adaptiveAmount
           />
           {wallet && core ? (
-            <div className="wallet-actions">
-              <button className="wallet-action-button" type="button" aria-label="Transfer">
-                <span className="wallet-action-icon">↗️</span>
-                <span className="wallet-action-label">Transfer</span>
-              </button>
-              <button className="wallet-action-button primary" type="button" onClick={() => setTopupOpen(true)} aria-label={t("wallet.topup.title")}>
-                <span className="wallet-action-icon">⚛️</span>
-                <span className="wallet-action-label">{t("wallet.core")}</span>
-              </button>
-              <button className="wallet-action-button" type="button" aria-label="Deposit">
-                <span className="wallet-action-icon">📥</span>
-                <span className="wallet-action-label">Deposit</span>
-              </button>
-              <button className="wallet-action-button" type="button" aria-label="Withdraw">
-                <span className="wallet-action-icon">📤</span>
-                <span className="wallet-action-label">Withdraw</span>
-              </button>
-              <button className="wallet-action-button" type="button" aria-label="History">
-                <span className="wallet-action-icon">📊</span>
-                <span className="wallet-action-label">History</span>
-              </button>
-            </div>
+            <>
+              <div className="wallet-action-grid">
+                <button className="wallet-action-button" type="button" aria-label="Transfer">
+                  <div className="wallet-action-icon-wrap">
+                    <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 5v14M5 12l7-7 7 7" />
+                    </svg>
+                  </div>
+                  <span className="wallet-action-label">Transfer</span>
+                </button>
+                <button className="wallet-action-button" type="button" onClick={() => setTopupOpen(true)} aria-label={t("wallet.topup.title")}>
+                  <div className="wallet-action-icon-wrap">
+                    <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                  </div>
+                  <span className="wallet-action-label">{t("wallet.topup.title")}</span>
+                </button>
+                <button className="wallet-action-button" type="button" aria-label="Deposit">
+                  <div className="wallet-action-icon-wrap">
+                    <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 5v14M5 12l7 7 7-7" />
+                    </svg>
+                  </div>
+                  <span className="wallet-action-label">Deposit</span>
+                </button>
+                <button className="wallet-action-button" type="button" aria-label="Withdraw">
+                  <div className="wallet-action-icon-wrap">
+                    <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 5v14M19 12l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <span className="wallet-action-label">Withdraw</span>
+                </button>
+              </div>
+              <div className="px-4 mb-6" style={{ marginTop: 8 }}>
+                <button className="wallet-core-button" type="button" onClick={() => setTopupOpen(true)}>
+                  <span>
+                    <span className="wallet-core-icon">⚛️</span>
+                    <span className="wallet-core-text">
+                      <span>Abundance Core</span>
+                      <span>Tap to stash cash & grow</span>
+                    </span>
+                  </span>
+                  <span className="wallet-core-arrow">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 17l9.2-9.2M17 17V7H7" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </>
           ) : null}
           <HistoryPanel
             title={t("wallet.history.wallet")}

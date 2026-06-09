@@ -348,9 +348,26 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
             adaptiveAmount
           />
           {wallet && core ? (
-            <div className="topup-panel">
-              <button className="challenge-primary-action" type="button" onClick={() => setTopupOpen(true)}>
-                ⚛️ {t("wallet.topup.button")}
+            <div className="wallet-actions">
+              <button className="wallet-action-button" type="button" aria-label="Transfer">
+                <span className="wallet-action-icon">↗️</span>
+                <span className="wallet-action-label">Transfer</span>
+              </button>
+              <button className="wallet-action-button primary" type="button" onClick={() => setTopupOpen(true)} aria-label={t("wallet.topup.title")}>
+                <span className="wallet-action-icon">⚛️</span>
+                <span className="wallet-action-label">{t("wallet.core")}</span>
+              </button>
+              <button className="wallet-action-button" type="button" aria-label="Deposit">
+                <span className="wallet-action-icon">📥</span>
+                <span className="wallet-action-label">Deposit</span>
+              </button>
+              <button className="wallet-action-button" type="button" aria-label="Withdraw">
+                <span className="wallet-action-icon">📤</span>
+                <span className="wallet-action-label">Withdraw</span>
+              </button>
+              <button className="wallet-action-button" type="button" aria-label="History">
+                <span className="wallet-action-icon">📊</span>
+                <span className="wallet-action-label">History</span>
               </button>
             </div>
           ) : null}

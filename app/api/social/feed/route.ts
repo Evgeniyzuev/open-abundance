@@ -41,8 +41,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("feed_posts")
       .select("id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at")
-      .is("deleted_at", null)
-      .limit(limit);
+      .is("deleted_at", null);
 
     if (scope === "feed") {
       query = query
@@ -65,6 +64,8 @@ export async function GET(request: NextRequest) {
     } else {
       query = query.order("created_at", { ascending: false });
     }
+
+    query = query.limit(limit);
 
     const { data: posts, error: postsError } = await query;
     if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });

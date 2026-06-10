@@ -42,18 +42,28 @@ export async function GET(request: NextRequest) {
       .from("feed_posts")
       .select("id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at")
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
       .limit(limit);
 
     if (scope === "feed") {
-      query = query.eq("status", "published").eq("visibility", "public");
+      query = query
+        .eq("status", "published")
+        .eq("visibility", "public")
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
     } else if (authorUserId === user.id) {
-      query = query.eq("author_user_id", authorUserId);
+      query = query
+        .eq("author_user_id", authorUserId)
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
     } else if (authorUserId) {
       query = query
         .eq("author_user_id", authorUserId)
         .eq("status", "published")
-        .eq("visibility", "public");
+        .eq("visibility", "public")
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
+    } else {
+      query = query.order("created_at", { ascending: false });
     }
 
     const { data: posts, error: postsError } = await query;

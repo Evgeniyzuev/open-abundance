@@ -523,7 +523,7 @@ export default function SocialApp({
       });
       const payload = (await response.json()) as { post?: FeedPost; error?: string };
       if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to create daily draft.");
-      setDailyDraft(payload.post);
+      setDailyDraft(payload.post.status === "draft" ? payload.post : null);
       await Promise.all([loadFeed(), loadBlog()]);
     } catch (draftError) {
       console.warn("Daily draft create failed", draftError);
@@ -587,7 +587,7 @@ export default function SocialApp({
       const payload = (await response.json()) as { post?: FeedPost; error?: string };
       if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to publish post.");
       const updatedPost = payload.post;
-      setDailyDraft((current) => current?.id === updatedPost.id ? updatedPost : current);
+      setDailyDraft((current) => current?.id === updatedPost.id ? null : current);
       setSelectedPost((current) => current?.id === updatedPost.id ? updatedPost : current);
       await Promise.all([loadFeed(), loadBlog()]);
     } catch (publishError) {

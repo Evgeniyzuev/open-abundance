@@ -1129,7 +1129,7 @@ function FeedView({
   onPublish: (post: FeedPost) => void;
   onToggleDraftBlock: (blockKey: string) => void;
 }) {
-  const posts = feedPayload?.posts ?? [];
+  const posts = sortPostsForDisplay(feedPayload?.posts ?? []);
 
   return (
     <section className="feed-layout">
@@ -1245,7 +1245,7 @@ function BlogView({
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
-  const posts = blogPayload?.posts ?? [];
+  const posts = sortPostsForDisplay(blogPayload?.posts ?? []);
   const author = blogPayload?.author ?? posts[0]?.author ?? null;
   const title = selectedBlogAuthorId ? formatProfileName(author, selectedBlogAuthorId) : t("social.blog.mine");
 
@@ -1375,26 +1375,33 @@ function PostList({
   if (!posts.length) return <p className="feed-empty">{emptyText}</p>;
 
   return (
-    <div className="feed-post-list">
-      {posts.map((post) => (
-        <PostCard
-          copyingWishId={copyingWishId}
-          currentUserId={currentUserId}
-          key={post.id}
-          locale={locale}
-          post={post}
-          saving={Boolean(saving)}
-          showBlogAction={showBlogAction}
-          t={t}
-          onCopyWish={onCopyWish}
-          onOpenAuthor={onOpenAuthor}
-          onOpenBlog={onOpenBlog}
-          onOpenPost={onOpenPost}
-          onDeletePost={onDeletePost}
-          onPublish={onPublish}
-        />
-      ))}
-    </div>
+    <section className="feed-post-section" aria-label={t("social.post.list")}>
+      <div className="feed-post-section-heading">
+        <span>{t("social.post.list")}</span>
+        <strong>{t("social.post.count", { count: posts.length })}</strong>
+      </div>
+      <div className="feed-post-list" role="list">
+        {posts.map((post) => (
+          <div className="feed-post-list-item" key={post.id} role="listitem">
+            <PostCard
+              copyingWishId={copyingWishId}
+              currentUserId={currentUserId}
+              locale={locale}
+              post={post}
+              saving={Boolean(saving)}
+              showBlogAction={showBlogAction}
+              t={t}
+              onCopyWish={onCopyWish}
+              onOpenAuthor={onOpenAuthor}
+              onOpenBlog={onOpenBlog}
+              onOpenPost={onOpenPost}
+              onDeletePost={onDeletePost}
+              onPublish={onPublish}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1810,6 +1817,14 @@ function statBlockLabelKey(blockKey: string): MessageKey {
 
 function formatPostDate(post: FeedPost, locale: AppLocale): string {
   return formatDate(post.published_at ?? post.created_at, locale);
+}
+
+function sortPostsForDisplay(posts: FeedPost[]): FeedPost[] {
+  return [...posts].sort((left, right) => getPostSortTime(right) - getPostSortTime(left));
+}
+
+function getPostSortTime(post: FeedPost): number {
+  return new Date(post.published_at ?? post.created_at).getTime();
 }
 
 function formatWishAmount(wish: PublicWish, locale: AppLocale): string {

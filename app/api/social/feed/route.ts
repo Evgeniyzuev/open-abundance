@@ -38,25 +38,44 @@ export async function GET(request: NextRequest) {
     const authorUserId = scope === "blog" ? requestedAuthorId ?? user.id : null;
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
 
-    let query = supabase
-      .from("feed_posts")
-      .select("id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at");
-
-    if (scope === "feed") {
-      query = query.eq("status", "published").eq("visibility", "public");
-    } else if (authorUserId) {
-      query = query.eq("author_user_id", authorUserId);
-      if (authorUserId !== user.id) {
-        query = query.eq("status", "published").eq("visibility", "public");
-      }
+    // Build PostgREST URL directly to work around Supabase JS SDK query building bug
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json({ error: "Server misconfigured." }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
-    query = query.is("deleted_at", null).order("created_at", { ascending: false }).limit(limit);
+    const select = "id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at";
+    let filters = `deleted_at=is.null`;
+    if (scope === "feed") {
+      filters += `&status=eq.published&visibility=eq.public`;
+    } else if (authorUserId) {
+      filters += `&author_user_id=eq.${authorUserId}`;
+      if (authorUserId !== user.id) {
+        filters += `&status=eq.published&visibility=eq.public`;
+      }
+    }
+    const order = "order=created_at.desc";
+    const limitParam = `limit=${limit}`;
+    const url = `${supabaseUrl}/rest/v1/feed_posts?select=${encodeURIComponent(select)}&${filters}&${order}&${limitParam}`;
 
-    const { data: posts, error: postsError } = await query;
-    if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    const response = await fetch(url, {
+      headers: {
+        "apikey": serviceRoleKey,
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "Accept": "application/json"
+      },
+      cache: "no-store"
+    });
 
-    const postRows = (posts ?? []) as FeedPostRow[];
+    if (!response.ok) {
+      const body = await response.text();
+      console.error("[FEED_DEBUG] PostgREST error:", response.status, body);
+      return NextResponse.json({ error: "Failed to load feed from database." }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+
+    const posts = (await response.json()) as FeedPostRow[];
+    const postRows = posts ?? [];
     console.log("[FEED_DEBUG] scope:", scope, "| userId:", user.id, "| postRows count:", postRows.length);
     console.log("[FEED_DEBUG] postIds:", postRows.map((p) => p.id).join(","));
     console.log("[FEED_DEBUG] postAuthorIds:", postRows.map((p) => p.author_user_id).join(","));

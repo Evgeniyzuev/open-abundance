@@ -364,7 +364,12 @@ export const messages = {
     "tasks.weekday.sat": "\u0421\u0431",
     "tasks.weekday.sun": "\u0412\u0441",
     "levelUp.title": "Новый уровень",
-    "levelUp.description": "Ваш Core достиг порога уровня {level}. Открываются новые возможности и челленджи."
+    "levelUp.description": "Ваш Core достиг порога уровня {level}. Открываются новые возможности и челленджи.",
+    "ai.chat.title": "AI-помощник",
+    "ai.chat.placeholder": "Задайте вопрос...",
+    "ai.chat.send": "Отправить",
+    "ai.chat.clear": "Очистить чат",
+    "ai.chat.error": "Не удалось получить ответ. Попробуйте еще раз."
   },
   en: {
     "app.pull.release": "Release",
@@ -716,7 +721,12 @@ export const messages = {
     "tasks.weekday.sat": "Sat",
     "tasks.weekday.sun": "Sun",
     "levelUp.title": "New level",
-    "levelUp.description": "Your Core reached level {level}. New opportunities and challenges are now available."
+    "levelUp.description": "Your Core reached level {level}. New opportunities and challenges are now available.",
+    "ai.chat.title": "AI Assistant",
+    "ai.chat.placeholder": "Ask a question...",
+    "ai.chat.send": "Send",
+    "ai.chat.clear": "Clear chat",
+    "ai.chat.error": "Failed to get response. Try again."
   }
 } satisfies Record<AppLocale, Record<string, string>>;
 

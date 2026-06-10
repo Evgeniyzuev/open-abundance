@@ -3,6 +3,7 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { BookOpen, CheckSquare, FileText, Heart, Landmark, Map, Newspaper, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp from "@/components/ChallengesApp";
 import SocialApp from "@/components/SocialApp";
 import TasksApp from "@/components/TasksApp";
@@ -219,6 +220,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const showNotes = activeMainTab === "goals" && activeGoalTab === "notes";
   const showWishes = activeMainTab === "goals" && activeGoalTab === "desires";
   const showChecks = activeMainTab === "goals" && activeGoalTab === "checks";
+  const showSpark = activeMainTab === "spark";
   const showChallenges = activeMainTab === "challenges";
   const showWallet = activeMainTab === "wallet";
   const showPeople = activeMainTab === "people";
@@ -255,6 +257,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
             <WishesApp active={showWishes} refreshNonce={refreshNonce} />
           </div>
         ) : null}
+        {showSpark ? <AiChatApp active={showSpark} /> : null}
         {showChecks ? <TasksApp /> : null}
         {showChallenges || visitedServerViews.challenges ? (
           <div className="app-view" hidden={!showChallenges}>
@@ -271,7 +274,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
             <SocialApp active={showPeople} activeTab={activeSocialTab} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} />
           </div>
         ) : null}
-        {!showNotes && !showWishes && !showChecks && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
+        {!showNotes && !showWishes && !showChecks && !showSpark && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
       <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} onTabChange={setActiveMainTab} />
     </>

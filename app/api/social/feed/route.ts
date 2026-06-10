@@ -38,53 +38,28 @@ export async function GET(request: NextRequest) {
     const authorUserId = scope === "blog" ? requestedAuthorId ?? user.id : null;
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
 
-    // Build PostgREST URL directly to work around Supabase JS SDK query building bug
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: "Server misconfigured." }, { status: 500, headers: NO_STORE_HEADERS });
-    }
+    let query = supabase
+      .from("feed_posts")
+      .select("id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-    const select = "id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at";
-    let filters = `deleted_at=is.null`;
     if (scope === "feed") {
-      filters += `&status=eq.published&visibility=eq.public`;
+      query = query.eq("status", "published").eq("visibility", "public");
+    } else if (authorUserId === user.id) {
+      query = query.eq("author_user_id", authorUserId);
     } else if (authorUserId) {
-      filters += `&author_user_id=eq.${authorUserId}`;
-      if (authorUserId !== user.id) {
-        filters += `&status=eq.published&visibility=eq.public`;
-      }
-    }
-    const order = "order=published_at.desc.nullslast,created_at.desc";
-    const limitParam = `limit=${limit}`;
-    const url = `${supabaseUrl}/rest/v1/feed_posts?select=${encodeURIComponent(select)}&${filters}&${order}&${limitParam}`;
-    console.log("[FEED_DEBUG] PostgREST URL:", url);
-
-    const response = await fetch(url, {
-      headers: {
-        "apikey": serviceRoleKey,
-        "Authorization": `Bearer ${serviceRoleKey}`,
-        "Accept": "application/json",
-        "Accept-Profile": "public"
-      },
-      cache: "no-store"
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      console.error("[FEED_DEBUG] PostgREST error:", response.status, body, "| URL:", url);
-      return NextResponse.json({ error: "Failed to load feed from database." }, { status: 500, headers: NO_STORE_HEADERS });
+      query = query
+        .eq("author_user_id", authorUserId)
+        .eq("status", "published")
+        .eq("visibility", "public");
     }
 
-    const posts = (await response.json()) as FeedPostRow[];
-    const postRows = posts ?? [];
-    console.log("[FEED_DEBUG] scope:", scope, "| userId:", user.id, "| postRows count:", postRows.length);
-    console.log("[FEED_DEBUG] postIds:", postRows.map((p) => p.id).join(","));
-    console.log("[FEED_DEBUG] postAuthorIds:", postRows.map((p) => p.author_user_id).join(","));
-    console.log("[FEED_DEBUG] postStatuses:", postRows.map((p) => p.status).join(","));
-    console.log("[FEED_DEBUG] postVisibilities:", postRows.map((p) => p.visibility).join(","));
-    console.log("[FEED_DEBUG] postPublishedAt:", postRows.map((p) => p.published_at).join(","));
-    console.log("[FEED_DEBUG] response.status:", response.status, "| Content-Range:", response.headers.get("content-range"));
+    const { data: posts, error: postsError } = await query;
+    if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });
+
+    const postRows = (posts ?? []) as FeedPostRow[];
     const [profiles, statBlocks, externalLinks, wishPosts] = await Promise.all([
       loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id)))),
       loadStatBlocks(supabase, postRows.map((post) => post.id), scope === "blog" && authorUserId === user.id),
@@ -491,7 +466,6 @@ function filterStatBlocksForViewer(post: FeedPostRow, statBlocks: FeedStatBlockR
 }
 
 function clampLimit(value: string | null): number {
-  if (value === null || value === undefined) return 30;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 30;
   return Math.max(1, Math.min(60, Math.floor(parsed)));

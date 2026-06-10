@@ -523,7 +523,7 @@ export default function SocialApp({
       });
       const payload = (await response.json()) as { post?: FeedPost; error?: string };
       if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to create daily draft.");
-      setDailyDraft(payload.post.status === "draft" ? payload.post : null);
+      setDailyDraft(payload.post);
       await Promise.all([loadFeed(), loadBlog()]);
     } catch (draftError) {
       console.warn("Daily draft create failed", draftError);
@@ -587,7 +587,7 @@ export default function SocialApp({
       const payload = (await response.json()) as { post?: FeedPost; error?: string };
       if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to publish post.");
       const updatedPost = payload.post;
-      setDailyDraft((current) => current?.id === updatedPost.id ? null : current);
+      setDailyDraft((current) => current?.id === updatedPost.id ? updatedPost : current);
       setSelectedPost((current) => current?.id === updatedPost.id ? updatedPost : current);
       await Promise.all([loadFeed(), loadBlog()]);
     } catch (publishError) {
@@ -1129,7 +1129,7 @@ function FeedView({
   onPublish: (post: FeedPost) => void;
   onToggleDraftBlock: (blockKey: string) => void;
 }) {
-  const posts = sortPostsForDisplay(feedPayload?.posts ?? []);
+  const posts = feedPayload?.posts ?? [];
 
   return (
     <section className="feed-layout">
@@ -1245,7 +1245,7 @@ function BlogView({
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
-  const posts = sortPostsForDisplay(blogPayload?.posts ?? []);
+  const posts = blogPayload?.posts ?? [];
   const author = blogPayload?.author ?? posts[0]?.author ?? null;
   const title = selectedBlogAuthorId ? formatProfileName(author, selectedBlogAuthorId) : t("social.blog.mine");
 
@@ -1375,33 +1375,26 @@ function PostList({
   if (!posts.length) return <p className="feed-empty">{emptyText}</p>;
 
   return (
-    <section className="feed-post-section" aria-label={t("social.post.list")}>
-      <div className="feed-post-section-heading">
-        <span>{t("social.post.list")}</span>
-        <strong>{t("social.post.count", { count: posts.length })}</strong>
-      </div>
-      <div className="feed-post-list" role="list">
-        {posts.map((post) => (
-          <div className="feed-post-list-item" key={post.id} role="listitem">
-            <PostCard
-              copyingWishId={copyingWishId}
-              currentUserId={currentUserId}
-              locale={locale}
-              post={post}
-              saving={Boolean(saving)}
-              showBlogAction={showBlogAction}
-              t={t}
-              onCopyWish={onCopyWish}
-              onOpenAuthor={onOpenAuthor}
-              onOpenBlog={onOpenBlog}
-              onOpenPost={onOpenPost}
-              onDeletePost={onDeletePost}
-              onPublish={onPublish}
-            />
-          </div>
-        ))}
-      </div>
-    </section>
+    <div className="feed-post-list">
+      {posts.map((post) => (
+        <PostCard
+          copyingWishId={copyingWishId}
+          currentUserId={currentUserId}
+          key={post.id}
+          locale={locale}
+          post={post}
+          saving={Boolean(saving)}
+          showBlogAction={showBlogAction}
+          t={t}
+          onCopyWish={onCopyWish}
+          onOpenAuthor={onOpenAuthor}
+          onOpenBlog={onOpenBlog}
+          onOpenPost={onOpenPost}
+          onDeletePost={onDeletePost}
+          onPublish={onPublish}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -1817,14 +1810,6 @@ function statBlockLabelKey(blockKey: string): MessageKey {
 
 function formatPostDate(post: FeedPost, locale: AppLocale): string {
   return formatDate(post.published_at ?? post.created_at, locale);
-}
-
-function sortPostsForDisplay(posts: FeedPost[]): FeedPost[] {
-  return [...posts].sort((left, right) => getPostSortTime(right) - getPostSortTime(left));
-}
-
-function getPostSortTime(post: FeedPost): number {
-  return new Date(post.published_at ?? post.created_at).getTime();
 }
 
 function formatWishAmount(wish: PublicWish, locale: AppLocale): string {

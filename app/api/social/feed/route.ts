@@ -70,6 +70,12 @@ export async function GET(request: NextRequest) {
     if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
     const postRows = (posts ?? []) as FeedPostRow[];
+    console.log("[FEED_DEBUG] scope:", scope, "| userId:", user.id, "| postRows count:", postRows.length);
+    console.log("[FEED_DEBUG] postIds:", postRows.map((p) => p.id).join(","));
+    console.log("[FEED_DEBUG] postAuthorIds:", postRows.map((p) => p.author_user_id).join(","));
+    console.log("[FEED_DEBUG] postStatuses:", postRows.map((p) => p.status).join(","));
+    console.log("[FEED_DEBUG] postVisibilities:", postRows.map((p) => p.visibility).join(","));
+    console.log("[FEED_DEBUG] postPublishedAt:", postRows.map((p) => p.published_at).join(","));
     const [profiles, statBlocks, externalLinks, wishPosts] = await Promise.all([
       loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id)))),
       loadStatBlocks(supabase, postRows.map((post) => post.id), scope === "blog" && authorUserId === user.id),

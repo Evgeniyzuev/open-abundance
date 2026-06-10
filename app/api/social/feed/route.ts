@@ -40,35 +40,18 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("feed_posts")
-      .select("id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at")
-      .is("deleted_at", null);
+      .select("id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at");
 
     if (scope === "feed") {
-      query = query
-        .eq("status", "published")
-        .eq("visibility", "public")
-        .order("published_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .limit(limit);
-    } else if (authorUserId === user.id) {
-      query = query
-        .eq("author_user_id", authorUserId)
-        .order("published_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .limit(limit);
+      query = query.eq("status", "published").eq("visibility", "public");
     } else if (authorUserId) {
-      query = query
-        .eq("author_user_id", authorUserId)
-        .eq("status", "published")
-        .eq("visibility", "public")
-        .order("published_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .limit(limit);
-    } else {
-      query = query
-        .order("created_at", { ascending: false })
-        .limit(limit);
+      query = query.eq("author_user_id", authorUserId);
+      if (authorUserId !== user.id) {
+        query = query.eq("status", "published").eq("visibility", "public");
+      }
     }
+
+    query = query.is("deleted_at", null).order("created_at", { ascending: false }).limit(limit);
 
     const { data: posts, error: postsError } = await query;
     if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });

@@ -48,24 +48,27 @@ export async function GET(request: NextRequest) {
         .eq("status", "published")
         .eq("visibility", "public")
         .order("published_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(limit);
     } else if (authorUserId === user.id) {
       query = query
         .eq("author_user_id", authorUserId)
         .order("published_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(limit);
     } else if (authorUserId) {
       query = query
         .eq("author_user_id", authorUserId)
         .eq("status", "published")
         .eq("visibility", "public")
         .order("published_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(limit);
     } else {
-      query = query.order("created_at", { ascending: false });
+      query = query
+        .order("created_at", { ascending: false })
+        .limit(limit);
     }
-
-    query = query.limit(limit);
 
     const { data: posts, error: postsError } = await query;
     if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });

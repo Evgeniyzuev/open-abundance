@@ -466,6 +466,7 @@ function filterStatBlocksForViewer(post: FeedPostRow, statBlocks: FeedStatBlockR
 }
 
 function clampLimit(value: string | null): number {
+  if (value === null || value === undefined) return 30;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 30;
   return Math.max(1, Math.min(60, Math.floor(parsed)));

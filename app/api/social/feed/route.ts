@@ -55,22 +55,24 @@ export async function GET(request: NextRequest) {
         filters += `&status=eq.published&visibility=eq.public`;
       }
     }
-    const order = "order=created_at.desc";
+    const order = "order=published_at.desc.nullslast,created_at.desc";
     const limitParam = `limit=${limit}`;
     const url = `${supabaseUrl}/rest/v1/feed_posts?select=${encodeURIComponent(select)}&${filters}&${order}&${limitParam}`;
+    console.log("[FEED_DEBUG] PostgREST URL:", url);
 
     const response = await fetch(url, {
       headers: {
         "apikey": serviceRoleKey,
         "Authorization": `Bearer ${serviceRoleKey}`,
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "Accept-Profile": "public"
       },
       cache: "no-store"
     });
 
     if (!response.ok) {
       const body = await response.text();
-      console.error("[FEED_DEBUG] PostgREST error:", response.status, body);
+      console.error("[FEED_DEBUG] PostgREST error:", response.status, body, "| URL:", url);
       return NextResponse.json({ error: "Failed to load feed from database." }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
@@ -82,6 +84,7 @@ export async function GET(request: NextRequest) {
     console.log("[FEED_DEBUG] postStatuses:", postRows.map((p) => p.status).join(","));
     console.log("[FEED_DEBUG] postVisibilities:", postRows.map((p) => p.visibility).join(","));
     console.log("[FEED_DEBUG] postPublishedAt:", postRows.map((p) => p.published_at).join(","));
+    console.log("[FEED_DEBUG] response.status:", response.status, "| Content-Range:", response.headers.get("content-range"));
     const [profiles, statBlocks, externalLinks, wishPosts] = await Promise.all([
       loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id)))),
       loadStatBlocks(supabase, postRows.map((post) => post.id), scope === "blog" && authorUserId === user.id),

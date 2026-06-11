@@ -150,16 +150,29 @@ async function verifyChallenge(
   }
 
   if (challenge.verification_logic === "calculate_time_to_goal") {
-    const progress = await getChallengeProgressProof(supabase, userId, challenge);
+    const progress = await getChallengeProgressProof(supabase, userId, challenge, "calculated");
     if (progress.error) {
       return { ok: false, reason: "Could not check calculator progress. Try again." };
     }
 
-    if (progress.calculated) {
+    if (progress.proved) {
       return { ok: true };
     }
 
     return { ok: false, reason: "Use the Core calculator first, then check this challenge." };
+  }
+
+  if (challenge.verification_logic === "ai_message_sent") {
+    const progress = await getChallengeProgressProof(supabase, userId, challenge, "ai_message_sent");
+    if (progress.error) {
+      return { ok: false, reason: "Could not check AI progress. Try again." };
+    }
+
+    if (progress.proved) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Send one message to AI first, then check this challenge." };
   }
 
   if (challenge.verification_logic === "has_wish") {
@@ -182,14 +195,153 @@ async function verifyChallenge(
     return { ok: false, reason: "Create a wish first, then check this challenge." };
   }
 
+  if (challenge.verification_logic === "profile_strengths_filled") {
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("bio")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      return { ok: false, reason: "Could not check your profile. Try again." };
+    }
+
+    if (wordCount(data?.bio) >= 20) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Add a short profile bio with your skills, interests, and experience first." };
+  }
+
+  if (challenge.verification_logic === "skill_profile_completed") {
+    const [profileResult, linksResult] = await Promise.all([
+      supabase.from("user_profiles").select("bio").eq("user_id", userId).maybeSingle(),
+      supabase.from("user_profile_links").select("id").eq("user_id", userId).limit(1)
+    ]);
+
+    if (profileResult.error || linksResult.error) {
+      return { ok: false, reason: "Could not check your skill profile. Try again." };
+    }
+
+    if (wordCount(profileResult.data?.bio) >= 20 && (linksResult.data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Add a profile bio and at least one public or private proof link first." };
+  }
+
+  if (challenge.verification_logic === "wish_steps_created") {
+    const { data, error } = await supabase
+      .from("wishes")
+      .select("description")
+      .eq("owner_user_id", userId)
+      .is("deleted_at", null)
+      .in("status", ["active", "completed"]);
+
+    if (error) {
+      return { ok: false, reason: "Could not check wish steps. Try again." };
+    }
+
+    if ((data ?? []).some((wish) => hasThreeSteps(wish.description))) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Add at least three clear steps to one wish description first." };
+  }
+
+  if (challenge.verification_logic === "first_growth_post_published") {
+    const { data, error } = await supabase
+      .from("feed_posts")
+      .select("id")
+      .eq("author_user_id", userId)
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .limit(1);
+
+    if (error) {
+      return { ok: false, reason: "Could not check published posts. Try again." };
+    }
+
+    if ((data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Publish one progress, wish, or manual post first." };
+  }
+
+  if (challenge.verification_logic === "reinvest_enabled") {
+    const { data, error } = await supabase
+      .from("core_accounts")
+      .select("reinvest_percent")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      return { ok: false, reason: "Could not check reinvest settings. Try again." };
+    }
+
+    if (Number(data?.reinvest_percent ?? 0) > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Set reinvest above 0% first." };
+  }
+
+  if (challenge.verification_logic === "has_referral") {
+    const { data, error } = await supabase
+      .from("referral_edges")
+      .select("referral_user_id")
+      .eq("referrer_user_id", userId)
+      .limit(1);
+
+    if (error) {
+      return { ok: false, reason: "Could not check referrals. Try again." };
+    }
+
+    if ((data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Invite one person who completes registration first." };
+  }
+
+  if (challenge.verification_logic === "team_contact_active") {
+    const { data, error } = await supabase
+      .from("user_contacts")
+      .select("contact_user_id")
+      .eq("owner_user_id", userId)
+      .eq("status", "active")
+      .in("source", ["team_leader", "team_member"])
+      .limit(1);
+
+    if (error) {
+      return { ok: false, reason: "Could not check team contacts. Try again." };
+    }
+
+    if ((data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Join or invite a team member first." };
+  }
+
+  if (challenge.verification_type === "manual") {
+    return { ok: false, reason: "This challenge needs manual review before it can be completed." };
+  }
+
+  if (challenge.verification_type === "community") {
+    return { ok: false, reason: "This challenge needs confirmation from another participant." };
+  }
+
   return { ok: false, reason: "Verification is not connected for this challenge yet." };
 }
 
 async function getChallengeProgressProof(
   supabase: ReturnType<typeof createClient<Database>>,
   userId: string,
-  challenge: ChallengeRow
-): Promise<{ calculated: boolean; error?: string }> {
+  challenge: ChallengeRow,
+  proofKey: string
+): Promise<{ proved: boolean; error?: string }> {
   const directProgress = await supabase
     .from("user_challenges")
     .select("verification_data")
@@ -198,15 +350,15 @@ async function getChallengeProgressProof(
     .limit(1);
 
   if (directProgress.error) {
-    return { calculated: false, error: directProgress.error.message };
+    return { proved: false, error: directProgress.error.message };
   }
 
-  if (hasCalculatedProof(directProgress.data?.[0]?.verification_data)) {
-    return { calculated: true };
+  if (hasProof(directProgress.data?.[0]?.verification_data, proofKey)) {
+    return { proved: true };
   }
 
   if (!challenge.verification_logic) {
-    return { calculated: false };
+    return { proved: false };
   }
 
   const relatedChallenges = await supabase
@@ -216,12 +368,12 @@ async function getChallengeProgressProof(
     .eq("verification_logic", challenge.verification_logic);
 
   if (relatedChallenges.error) {
-    return { calculated: false, error: relatedChallenges.error.message };
+    return { proved: false, error: relatedChallenges.error.message };
   }
 
   const relatedChallengeIds = Array.from(new Set((relatedChallenges.data ?? []).map((row) => row.id)));
   if (relatedChallengeIds.length === 0) {
-    return { calculated: false };
+    return { proved: false };
   }
 
   const relatedProgress = await supabase
@@ -233,16 +385,35 @@ async function getChallengeProgressProof(
     .limit(10);
 
   if (relatedProgress.error) {
-    return { calculated: false, error: relatedProgress.error.message };
+    return { proved: false, error: relatedProgress.error.message };
   }
 
   return {
-    calculated: (relatedProgress.data ?? []).some((row) => hasCalculatedProof(row.verification_data))
+    proved: (relatedProgress.data ?? []).some((row) => hasProof(row.verification_data, proofKey))
   };
 }
 
-function hasCalculatedProof(value: unknown): boolean {
-  return isRecord(value) && value.calculated === true;
+function hasProof(value: unknown, proofKey: string): boolean {
+  return isRecord(value) && value[proofKey] === true;
+}
+
+function wordCount(value: string | null | undefined): number {
+  return (value ?? "").trim().split(/\s+/).filter(Boolean).length;
+}
+
+function hasThreeSteps(value: string | null | undefined): boolean {
+  const text = (value ?? "").trim();
+  if (!text) return false;
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 3);
+
+  if (lines.length >= 3) return true;
+
+  const numbered = text.match(/(?:^|\s)(?:[1-3][.)]|шаг\s*[1-3]|step\s*[1-3])/gi) ?? [];
+  return new Set(numbered.map((item) => item.replace(/\s+/g, "").toLowerCase())).size >= 3;
 }
 
 function getRewardAmount(value: Json): number {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, Sparkles, Trash2 } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
 import { SUGGESTED_PROMPTS, WELCOME_MESSAGES } from "@/lib/ai/knowledge";
+import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -30,6 +31,28 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   useEffect(() => {
     if (active && !isLoading) textareaRef.current?.focus();
   }, [active, isLoading]);
+
+  const recordAiChallengeProgress = useCallback(async () => {
+    try {
+      const supabase = getBrowserSupabaseClient();
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) return;
+
+      await fetch("/api/challenges/progress", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ verificationLogic: "ai_message_sent" })
+      });
+    } catch (progressError) {
+      console.warn("AI challenge progress was not recorded.", progressError);
+    }
+  }, []);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -91,6 +114,10 @@ export default function AiChatApp({ active }: AiChatAppProps) {
             }
           }
         }
+
+        if (acc.trim()) {
+          void recordAiChallengeProgress();
+        }
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === "AbortError") return;
         setMessages((prev) => {
@@ -106,7 +133,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         abortRef.current = null;
       }
     },
-    [isLoading, messages, locale]
+    [isLoading, messages, locale, recordAiChallengeProgress]
   );
 
   const handleKeyDown = useCallback(

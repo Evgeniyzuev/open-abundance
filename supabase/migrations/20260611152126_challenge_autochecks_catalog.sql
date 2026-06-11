@@ -1,0 +1,128 @@
+update public.challenges
+set
+  verification_type = 'manual',
+  verification_logic = 'app_testing_review',
+  reward_label = '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  requirements = '{"en":"A written review from a real app pass is required.","ru":"Нужен письменный отзыв после реального прохода по приложению."}'::jsonb
+where title->>'en' = 'App Testing';
+
+insert into public.challenges (
+  id,
+  title,
+  description,
+  instructions,
+  requirements,
+  reward_label,
+  category,
+  difficulty_level,
+  duration_days,
+  image_url,
+  verification_type,
+  verification_logic,
+  sort_order
+) values
+(
+  'd7ffef03-9e67-4cc1-bdd3-ba298cd82c87',
+  '{"en":"Personal Value Map","ru":"Карта сильных сторон"}'::jsonb,
+  '{"en":"Write a compact profile bio: what you know, what you can help with, what you want to grow into.","ru":"Заполните короткое описание профиля: что вы знаете, чем можете помочь и куда хотите расти."}'::jsonb,
+  '{"en":"Open Social -> Profile -> edit the public profile bio. Add at least 20 words about your skills, interests and experience.","ru":"Откройте Социум -> Профиль -> редактирование публичного описания. Добавьте минимум 20 слов о навыках, интересах и опыте."}'::jsonb,
+  '{"en":"Profile bio has at least 20 words.","ru":"В описании профиля минимум 20 слов."}'::jsonb,
+  '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  'self_discovery',
+  1,
+  1,
+  null,
+  'auto',
+  'profile_strengths_filled',
+  25
+),
+(
+  'c3f69d11-e240-4171-9a23-cf203e40ea8c',
+  '{"en":"Turn Wish Into 3 Steps","ru":"Разбей желание на 3 шага"}'::jsonb,
+  '{"en":"Make one wish actionable by adding three clear next steps to its description.","ru":"Сделайте одно желание практичным: добавьте в описание три понятных следующих шага."}'::jsonb,
+  '{"en":"Open one wish and edit its description. Add three separate lines or numbered steps.","ru":"Откройте одно желание и отредактируйте описание. Добавьте три отдельные строки или пронумерованные шага."}'::jsonb,
+  '{"en":"One active or completed wish has at least three clear steps in description.","ru":"У одного активного или выполненного желания есть минимум три понятных шага в описании."}'::jsonb,
+  '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  'goal_setting',
+  1,
+  1,
+  null,
+  'auto',
+  'wish_steps_created',
+  26
+),
+(
+  '26c433ec-a2fe-46e7-8a5d-2a7c3a571947',
+  '{"en":"First Growth Story","ru":"Первая история прогресса"}'::jsonb,
+  '{"en":"Publish your first visible progress, wish or growth post.","ru":"Опубликуйте первый видимый пост о прогрессе, желании или росте."}'::jsonb,
+  '{"en":"Publish a public post from Social, a daily progress draft or a public wish.","ru":"Опубликуйте публичный пост в Социуме, daily progress draft или публичное желание."}'::jsonb,
+  '{"en":"At least one published feed post exists.","ru":"Есть хотя бы один опубликованный пост в ленте."}'::jsonb,
+  '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  'social',
+  1,
+  1,
+  null,
+  'auto',
+  'first_growth_post_published',
+  45
+),
+(
+  '326889cd-98ba-4dd0-946c-78c632c1a26c',
+  '{"en":"Enable Reinvestment","ru":"Включи реинвестирование"}'::jsonb,
+  '{"en":"Route part of daily Core income back into Core so growth compounds automatically.","ru":"Направьте часть ежедневного дохода Core обратно в Core, чтобы рост автоматически усиливался."}'::jsonb,
+  '{"en":"Open Wallet -> Core and set reinvest above 0%.","ru":"Откройте Кошелек -> Core и поставьте реинвестирование выше 0%."}'::jsonb,
+  '{"en":"Core reinvest percent is above 0.","ru":"Процент реинвестирования Core выше 0."}'::jsonb,
+  '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  'finance',
+  2,
+  1,
+  null,
+  'auto',
+  'reinvest_enabled',
+  60
+),
+(
+  'de56d24c-9d7c-4228-b5d7-4c0ff49408d9',
+  '{"en":"Skill Passport","ru":"Паспорт навыков"}'::jsonb,
+  '{"en":"Add a proof link to your profile so future collaborators can understand your skills.","ru":"Добавьте ссылку-доказательство в профиль, чтобы будущие участники понимали ваши навыки."}'::jsonb,
+  '{"en":"Keep your profile bio filled and add at least one link: portfolio, social page, case, work sample or website.","ru":"Оставьте заполненное описание профиля и добавьте хотя бы одну ссылку: портфолио, соцстраницу, кейс, пример работы или сайт."}'::jsonb,
+  '{"en":"Profile bio has at least 20 words and at least one profile link exists.","ru":"В описании профиля минимум 20 слов и есть хотя бы одна ссылка профиля."}'::jsonb,
+  '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  'skills',
+  2,
+  1,
+  null,
+  'auto',
+  'skill_profile_completed',
+  65
+),
+(
+  '697e280e-1cb0-4662-b8bf-45db03723b77',
+  '{"en":"Team Welcome","ru":"Первый контакт команды"}'::jsonb,
+  '{"en":"Create the first real team relation: join a leader or invite a member who completes registration.","ru":"Создайте первую реальную командную связь: присоединитесь к лиду или пригласите участника, который завершит регистрацию."}'::jsonb,
+  '{"en":"Use your invite link or join through another member. The check passes after an active team contact appears.","ru":"Используйте свою ссылку или присоединитесь через другого участника. Проверка пройдет после появления активного командного контакта."}'::jsonb,
+  '{"en":"At least one active team contact exists.","ru":"Есть хотя бы один активный командный контакт."}'::jsonb,
+  '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  'social',
+  2,
+  1,
+  null,
+  'auto',
+  'team_contact_active',
+  75
+)
+on conflict (id) do update
+set
+  title = excluded.title,
+  description = excluded.description,
+  instructions = excluded.instructions,
+  requirements = excluded.requirements,
+  reward_label = excluded.reward_label,
+  category = excluded.category,
+  difficulty_level = excluded.difficulty_level,
+  duration_days = excluded.duration_days,
+  image_url = excluded.image_url,
+  verification_type = excluded.verification_type,
+  verification_logic = excluded.verification_logic,
+  sort_order = excluded.sort_order,
+  is_active = true;

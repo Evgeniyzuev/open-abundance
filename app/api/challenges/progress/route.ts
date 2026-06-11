@@ -6,6 +6,11 @@ type ProgressRequest = {
   verificationLogic?: string;
 };
 
+const PROGRESS_PROOF_KEYS: Record<string, string> = {
+  calculate_time_to_goal: "calculated",
+  ai_message_sent: "ai_message_sent"
+};
+
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -20,7 +25,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json().catch(() => ({}))) as ProgressRequest;
-  if (body.verificationLogic !== "calculate_time_to_goal") {
+  const proofKey = body.verificationLogic ? PROGRESS_PROOF_KEYS[body.verificationLogic] : undefined;
+  if (!body.verificationLogic || !proofKey) {
     return NextResponse.json({ error: "Unsupported challenge progress." }, { status: 400 });
   }
 
@@ -74,8 +80,8 @@ export async function POST(request: NextRequest) {
 
   const verificationData = {
     ...(isRecord(existing?.verification_data) ? existing.verification_data : {}),
-    calculated: true,
-    calculated_at: new Date().toISOString()
+    [proofKey]: true,
+    [`${proofKey}_at`]: new Date().toISOString()
   };
   const nextStatus = existing?.status && existing.status !== "declined" ? existing.status : "accepted";
 

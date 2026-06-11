@@ -150,16 +150,25 @@ async function verifyChallenge(
   }
 
   if (challenge.verification_logic === "calculate_time_to_goal") {
-    const progress = await getChallengeProgressProof(supabase, userId, challenge, "calculated");
-    if (progress.error) {
+    const [calculatorProgress, quizProgress] = await Promise.all([
+      getChallengeProgressProof(supabase, userId, challenge, "calculated"),
+      getChallengeProgressProof(supabase, userId, challenge, "compound_quiz_passed")
+    ]);
+    if (calculatorProgress.error || quizProgress.error) {
       return { ok: false, reason: "Could not check calculator progress. Try again." };
     }
 
-    if (progress.proved) {
-      return { ok: true };
+    if (!calculatorProgress.proved) {
+      return { ok: false, reason: "Use the Core calculator first, then check this challenge." };
     }
 
-    return { ok: false, reason: "Use the Core calculator first, then check this challenge." };
+    if (!quizProgress.proved) {
+      return { ok: false, reason: "Pass the compound interest test first, then check this challenge." };
+    }
+
+    if (calculatorProgress.proved && quizProgress.proved) {
+      return { ok: true };
+    }
   }
 
   if (challenge.verification_logic === "ai_message_sent") {

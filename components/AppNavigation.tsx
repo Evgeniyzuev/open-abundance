@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp from "@/components/ChallengesApp";
 import SocialApp from "@/components/SocialApp";
+import ResultsApp from "@/components/ResultsApp";
 import TasksApp from "@/components/TasksApp";
 import { useUserContext } from "@/components/UserProvider";
 import WalletApp from "@/components/WalletApp";
@@ -13,7 +14,7 @@ import WishesApp from "@/components/WishesApp";
 import type { MessageKey } from "@/lib/i18n";
 
 type MainTabId = "goals" | "challenges" | "spark" | "wallet" | "people";
-type GoalTabId = "desires" | "notes" | "checks" | "map" | "growth";
+type GoalTabId = "desires" | "notes" | "checks" | "map" | "results";
 type WalletTabId = "wallet" | "core";
 type SocialTabId = "feed" | "blog" | "teams" | "profile";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -53,7 +54,7 @@ const goalTabs: GoalTab[] = [
   { id: "notes", titleKey: "app.nav.notes", icon: FileText },
   { id: "checks", titleKey: "app.nav.checks", icon: CheckSquare },
   { id: "map", titleKey: "app.nav.map", icon: Map },
-  { id: "growth", titleKey: "app.nav.growth", icon: TrendingUp }
+  { id: "results", titleKey: "app.nav.results", icon: TrendingUp }
 ];
 
 const walletTabs: TopTab[] = [
@@ -220,6 +221,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const showNotes = activeMainTab === "goals" && activeGoalTab === "notes";
   const showWishes = activeMainTab === "goals" && activeGoalTab === "desires";
   const showChecks = activeMainTab === "goals" && activeGoalTab === "checks";
+  const showResults = activeMainTab === "goals" && activeGoalTab === "results";
   const showSpark = activeMainTab === "spark";
   const showChallenges = activeMainTab === "challenges";
   const showWallet = activeMainTab === "wallet";
@@ -259,6 +261,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
         ) : null}
         {showSpark ? <AiChatApp active={showSpark} /> : null}
         {showChecks ? <TasksApp /> : null}
+        {showResults ? <ResultsApp /> : null}
         {showChallenges || visitedServerViews.challenges ? (
           <div className="app-view" hidden={!showChallenges}>
             <ChallengesApp active={showChallenges} refreshNonce={refreshNonce} onRefresh={() => requestServerRefresh("challenges")} />
@@ -274,7 +277,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
             <SocialApp active={showPeople} activeTab={activeSocialTab} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} />
           </div>
         ) : null}
-        {!showNotes && !showWishes && !showChecks && !showSpark && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
+        {!showNotes && !showWishes && !showChecks && !showResults && !showSpark && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
       <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} onTabChange={setActiveMainTab} />
     </>

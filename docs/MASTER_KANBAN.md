@@ -23,7 +23,9 @@
 - [ ] Levels: уровень и следующий порог считаются из Core/DB и показываются в Core UI.
 - [ ] Reinvest control: настройка `reinvest_percent` 0-100%, сохранение через API, split Core/Wallet.
 - [ ] Growth calculator: Future amount, Time to goal, Core-vs-markets chart, методика через `i` modal.
+- [ ] Results offer/brochure: Goals -> Results, оффер $1,000,000 Core за 20 уровней, локальная книга-брошюра в инвентаре результата после первого прочтения.
 - [ ] Starter challenges: принятие/проверка, reward flow, proof для калькулятора.
+- [ ] Compound interest challenge quiz: `calculate_time_to_goal` требует калькуляторный proof + тест 4/5, сохраняет `compound_quiz_passed` в `verification_data`, повторы без ограничения; UI вынесен в reusable `ChallengeQuiz` с пошаговыми вопросами и optional image.
 - [ ] Wishes MVP: personal wishes CRUD, recommended -> my wish, фильтрация уже добавленных recommendations, `has_wish` server check.
 - [ ] Social feed/blog MVP: public feed, personal blog, daily growth draft, publish/archive/delete, post detail.
 - [ ] Daily growth autopost draft: черновик за завершенный период с блоками `level`, `total_core_growth`, `team_strength`, настройка видимости блоков.
@@ -48,6 +50,7 @@
 
 1. [ ] Starter challenge catalog hardening
    - Реализовано в коде: Personal Value Map, Turn Wish Into 3 Steps, First Growth Story, Enable Reinvestment, Skill Passport, Team Welcome.
+   - Реализовано в коде: тест понимания сложного процента для `calculate_time_to_goal`.
    - Осталось вручную проверить UX и тексты в приложении.
    - Не вводить marketplace-челленджи раньше базовой верификации, публичных профилей, Wallet-to-Wallet и подтверждений от участников.
 

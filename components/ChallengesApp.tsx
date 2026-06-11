@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Clock3, ShieldCheck, Trophy } from "lucide-react";
+import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
@@ -52,6 +53,39 @@ type CheckChallengeResponse = {
 
 const DEFAULT_USER_LEVEL = 1;
 const VISIBLE_REFRESH_COOLDOWN_MS = 30_000;
+const COMPOUND_QUIZ_PASS_SCORE = 4;
+const COMPOUND_QUIZ_QUESTIONS: ChallengeQuizQuestion[] = [
+  {
+    answerIndex: 0,
+    id: "thirty-year-core",
+    optionKeys: ["challenges.quiz.q1.a", "challenges.quiz.q1.b", "challenges.quiz.q1.c"],
+    questionKey: "challenges.quiz.q1"
+  },
+  {
+    answerIndex: 1,
+    id: "daily-ten",
+    optionKeys: ["challenges.quiz.q2.a", "challenges.quiz.q2.b", "challenges.quiz.q2.c"],
+    questionKey: "challenges.quiz.q2"
+  },
+  {
+    answerIndex: 1,
+    id: "daily-twenty-target",
+    optionKeys: ["challenges.quiz.q3.a", "challenges.quiz.q3.b", "challenges.quiz.q3.c"],
+    questionKey: "challenges.quiz.q3"
+  },
+  {
+    answerIndex: 2,
+    id: "zero-reinvest",
+    optionKeys: ["challenges.quiz.q4.a", "challenges.quiz.q4.b", "challenges.quiz.q4.c"],
+    questionKey: "challenges.quiz.q4"
+  },
+  {
+    answerIndex: 0,
+    id: "daily-rewards",
+    optionKeys: ["challenges.quiz.q5.a", "challenges.quiz.q5.b", "challenges.quiz.q5.c"],
+    questionKey: "challenges.quiz.q5"
+  }
+];
 
 type ChallengesAppProps = {
   active: boolean;
@@ -445,10 +479,16 @@ function ChallengeDetailModal({
   const completed = challenge.user_challenge_status === "completed";
   const accepted = isActiveChallenge(challenge);
   const locked = !accepted && challenge.difficulty_level > userLevel;
+  const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
+  const [compoundQuizPassed, setCompoundQuizPassed] = useState(false);
+
+  useEffect(() => {
+    setCompoundQuizPassed(false);
+  }, [challenge.id]);
 
   async function handleSignup() {
     setAuthStatus("loading");
@@ -462,6 +502,12 @@ function ChallengeDetailModal({
   }
 
   async function handleCheck() {
+    if (needsCompoundQuiz && !compoundQuizPassed) {
+      setCheckMessage(t("challenges.quiz.required"));
+      setCheckStatus("idle");
+      return;
+    }
+
     setCheckStatus("loading");
     setCheckMessage(null);
     try {
@@ -525,6 +571,29 @@ function ChallengeDetailModal({
       console.error(error);
       setCheckMessage(error instanceof Error ? error.message : t("challenges.checkFailed"));
       setAcceptStatus("error");
+    }
+  }
+
+  async function recordCompoundQuizPass(score: number) {
+    setCheckMessage(null);
+    const token = await getAccessToken();
+    const response = await fetch("/api/challenges/progress", {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        verificationLogic: "calculate_time_to_goal",
+        proofKey: "compound_quiz_passed",
+        score
+      })
+    });
+    const payload = (await response.json()) as { error?: string };
+
+    if (!response.ok || payload.error) {
+      throw new Error(payload.error ?? t("challenges.quiz.recordFailed"));
     }
   }
 
@@ -594,6 +663,17 @@ function ChallengeDetailModal({
             <button className="challenge-primary-action" type="button" disabled={authStatus === "loading"} onClick={handleSignup}>
               {authStatus === "loading" ? t("challenges.openingGoogle") : t("challenges.signInGoogle")}
             </button>
+          ) : null}
+
+          {needsCompoundQuiz ? (
+            <ChallengeQuiz
+              passScore={COMPOUND_QUIZ_PASS_SCORE}
+              questions={COMPOUND_QUIZ_QUESTIONS}
+              t={t}
+              onError={setCheckMessage}
+              onPass={recordCompoundQuizPass}
+              onPassedChange={setCompoundQuizPassed}
+            />
           ) : null}
 
           {!completed && !locked && accepted ? (

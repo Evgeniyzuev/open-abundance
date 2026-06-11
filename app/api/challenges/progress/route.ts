@@ -3,12 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 
 type ProgressRequest = {
+  proofKey?: string;
+  score?: number;
   verificationLogic?: string;
 };
 
-const PROGRESS_PROOF_KEYS: Record<string, string> = {
-  calculate_time_to_goal: "calculated",
-  ai_message_sent: "ai_message_sent"
+const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
+  calculate_time_to_goal: ["calculated", "compound_quiz_passed"],
+  ai_message_sent: ["ai_message_sent"]
 };
 
 export async function POST(request: NextRequest) {
@@ -25,9 +27,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json().catch(() => ({}))) as ProgressRequest;
-  const proofKey = body.verificationLogic ? PROGRESS_PROOF_KEYS[body.verificationLogic] : undefined;
+  const allowedProofKeys = body.verificationLogic ? PROGRESS_PROOF_KEYS[body.verificationLogic] : undefined;
+  const proofKey = body.proofKey ?? allowedProofKeys?.[0];
   if (!body.verificationLogic || !proofKey) {
     return NextResponse.json({ error: "Unsupported challenge progress." }, { status: 400 });
+  }
+
+  if (!allowedProofKeys?.includes(proofKey)) {
+    return NextResponse.json({ error: "Unsupported challenge proof." }, { status: 400 });
   }
 
   const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
@@ -81,7 +88,8 @@ export async function POST(request: NextRequest) {
   const verificationData = {
     ...(isRecord(existing?.verification_data) ? existing.verification_data : {}),
     [proofKey]: true,
-    [`${proofKey}_at`]: new Date().toISOString()
+    [`${proofKey}_at`]: new Date().toISOString(),
+    ...(proofKey === "compound_quiz_passed" ? { compound_quiz_score: normalizeScore(body.score) } : {})
   };
   const nextStatus = existing?.status && existing.status !== "declined" ? existing.status : "accepted";
 
@@ -105,4 +113,8 @@ export async function POST(request: NextRequest) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeScore(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(5, Math.round(value))) : 0;
 }

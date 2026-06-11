@@ -208,6 +208,11 @@ Current status, 2026-06-09:
 
 - `components/WalletApp.tsx` now includes a third calculator tab for Core-vs-market comparison. It uses the scenario term as the period, starts every line from index 100, and compares Core against built-in 10-year average annual growth assumptions for gold, real estate, bonds, S&P 500, Nasdaq, world stocks, and emerging markets without changing real balances. The chart has an info modal describing the formula and assumptions.
 
+Current status, 2026-06-11:
+
+- The `calculate_time_to_goal` challenge now requires two proofs: calculator usage (`calculated`) and a 5-question compound interest quiz (`compound_quiz_passed`) with a 4/5 pass threshold. The quiz can be retried without limit and stores its score in `user_challenges.verification_data.compound_quiz_score`.
+- Quiz UI is implemented through reusable `components/ChallengeQuiz.tsx`: sequential question screens, configurable pass score, translated question/answer keys, and optional `imageUrl`/`imageAltKey` before a question for future challenge-specific visuals.
+
 Калькулятор не должен менять Core, Wallet или любые ledger/balance значения. Расчет срока может записать только proof для челленджа `calculate_time_to_goal`.
 
 Правильный flow:
@@ -216,7 +221,7 @@ Current status, 2026-06-09:
 - если записи `user_challenges` еще нет, proof-запись создается со статусом `accepted`, чтобы челлендж появился в "Принятые";
 - баланс не меняется от использования калькулятора;
 - пользователь открывает челлендж и нажимает "Проверить";
-- `/api/challenges/check` читает proof из `verification_data`;
+- `/api/challenges/check` читает proof из `verification_data`; для `calculate_time_to_goal` нужны `calculated = true` и `compound_quiz_passed = true`;
 - только после успешной проверки вызывается `complete_user_challenge`, показывается поздравление и начисляется reward.
 
 ## Implementation Steps

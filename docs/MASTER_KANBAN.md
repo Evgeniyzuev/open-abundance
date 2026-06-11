@@ -67,6 +67,7 @@
    - Baseline tracking for growth-threshold challenges.
    - Rule: no Wallet challenge rewards for now; reputation waits for a dedicated Trust system.
    - Plan community/manual checks for App Testing, Help Someone Move, goal funding, marketplace deal completion and skill income.
+   - Trust/reciprocity roadmap lives in `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
 
 4. [ ] Task editing and undo completion
    - Edit existing local task.
@@ -105,14 +106,23 @@
     - Verification for `profile_strengths_filled` and `skill_profile_completed`.
     - Prepares marketplace without launching full marketplace scope.
 
-11. [ ] Afterburn MVP
+11. [ ] Trust-lite and reciprocity foundation
+   - `trust_events`, `mutual_confirmations`, `reciprocity_balances`.
+   - Phase 1 migration created: `20260611161340_trust_reciprocity_foundation.sql`.
+   - Phase 2 API foundation created: `lib/trust.ts`, `/api/trust/confirmations`, `/api/trust/confirmations/[confirmationId]/confirm`, `/api/trust/confirmations/[confirmationId]/decline`, `/api/trust/summary`.
+   - Mutual confirmations for help, community checks and simple deals.
+   - Soft reciprocity signal for recommendations and promotion, without public numeric reputation.
+   - Inventory artifacts for confirmed milestones.
+   - See `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
+
+12. [ ] Afterburn MVP
    - Off by default.
    - One-shot/manual setting that routes part of Wallet to Core before accrual.
    - Limit or non-reducible Wallet remainder.
 
-12. [ ] Marketplace challenge implementation
+13. [ ] Marketplace challenge implementation
     - Create offer, complete deal, fund goal and earn from skill.
-    - Requires Wallet-to-Wallet, public profiles, basic moderation, anti-abuse rules and participant confirmations.
+    - Requires Wallet-to-Wallet, public profiles, basic moderation, Trust-lite, anti-abuse rules and participant confirmations.
 
 ## Today Screen MVP: что еще осталось
 

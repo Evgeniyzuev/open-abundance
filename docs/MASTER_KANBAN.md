@@ -39,6 +39,7 @@
 - [ ] First Wallet -> Core challenge: `wallet_core_topup` RPC, `/api/core/topup` ledger write, `/api/challenges/check` case `first_wallet_to_core`, migration `20260612082405_first_wallet_to_core_challenge.sql`.
 - [ ] Wallet-to-Wallet transfer MVP: `wallet_transfer` RPC, `/api/wallet/transfer`, debit/credit `wallet_ledger` rows, Wallet transfer modal, `/api/challenges/check` case `first_wallet_transfer`, migration `20260612101807_first_wallet_transfer_challenge.sql`.
 - [ ] Marketplace listings Phase 2: `marketplace_listings`, `/api/marketplace/listings`, `/api/marketplace/listings/[listingId]/cancel`, Wallet -> Market tab, listing grid, user-created product/service/skill cards and sell item modal.
+- [ ] Open Projects MVP: second Challenges tab, `/api/projects`, `/api/projects/apply`, `projects`, `project_applications`, `project_tasks`, RLS, seed projects for verifiable voting, personal sovereignty, making the world better, and ИИ-безработица: конец зарплатного рабства; migrations `20260612194859_open_projects_catalog.sql` and `20260612204321_open_projects_advisor_fixes.sql`.
 
 ## В работе
 
@@ -54,6 +55,17 @@
   - План: `docs/MARKETPLACE_ESCROW_PLAN.md`.
 
 ## Очередь
+
+1. [ ] Today daily challenge MVP
+   - План: `docs/TODAY_DAILY_CHALLENGE_PLAN.md`.
+   - Auto-accept Today при первом входе за день, первый info screen, затем Today виден в принятых челленджах.
+   - Прогресс `Today $current / $target` берется из дневного плана Core-калькулятора и серверных ledger/reward источников.
+   - Первый узкий шаг: сохранить активный сценарий калькулятора, добавить `/api/today`, показать карточку Today и простой чек-лист.
+
+1. [ ] Project participation loop
+   - Turn project tasks into actionable user work: accept task, submit proof, community/manual confirmation, status in project modal.
+   - Connect approved project participation to feed/trust/reward later, after anti-abuse rules are explicit.
+   - Keep current Open Projects MVP in `Реализовано / проверить` until UX is manually reviewed in the app.
 
 1. [ ] Starter challenge catalog hardening
    - Реализовано в коде: Personal Value Map, Turn Wish Into 3 Steps, First Growth Story, Enable Reinvestment, Skill Passport, Team Welcome.

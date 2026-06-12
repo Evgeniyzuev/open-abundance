@@ -149,9 +149,9 @@
 
 **Стратегическая задача:** увеличение Core без зависимости от внешнего onramp. Пользователь делает первый финансовый шаг внутри системы и видит, как его Core растёт. Внешнее пополнение можно добавить позже отдельным челленджем, когда платежная инфраструктура будет готова.
 
-**Верификация (реализация):** проверять наличие серверной ledger-операции `wallet_to_core` с суммой > 0 для данного `user_id`. Логика добавляется в `verifyChallenge()` через новый case `first_wallet_to_core`.
+**Верификация (реализация):** проверять наличие серверной ledger-операции `wallet_core_topup` / `core_topup` с суммой > 0 для данного `user_id`. Логика добавлена в `verifyChallenge()` через case `first_wallet_to_core`.
 
-**Статус:** не включать до появления отдельной ledger-записи Wallet -> Core. Сейчас технический перевод балансов есть, но надежного источника для автопроверки именно первого перевода нет.
+**Статус:** реализовано технически 2026-06-12: Wallet -> Core проходит через atomic `wallet_core_topup` RPC, пишет `wallet_ledger`, челлендж добавлен миграцией `20260612082405_first_wallet_to_core_challenge.sql`. Осталось вручную проверить UX в приложении.
 
 ---
 
@@ -404,7 +404,7 @@
 
 ### Доработки API
 - `app/api/challenges/check/route.ts` — новые cases в `verifyChallenge()`:
-  - `first_wallet_to_core` — проверка ledger-операции Wallet -> Core после появления ledger;
+  - `first_wallet_to_core` — реализовано через `wallet_ledger` (`wallet_core_topup` / `core_topup`);
   - `first_wallet_transfer` — проверка таблицы переводов
   - `reinvest_enabled` — проверка `core_accounts.reinvest_percent > 0`
   - `core_growth_threshold` — проверка прироста Core от baseline челленджа
@@ -434,7 +434,7 @@
 | P0 | Enable Reinvestment | активация главной механики системы |
 | P0 | Team Welcome | первая проверяемая командная связь |
 | P1 | Daily Streak: 7 Days | формирование привычки после серверного источника completions |
-| P1 | First Wallet To Core | после появления ledger-операции Wallet -> Core |
+| P1 | First Wallet To Core | реализовано технически; нужна ручная UX-проверка |
 | P1 | Send Your First Transfer | после Wallet-to-Wallet ledger и non-self проверок |
 | P1 | Earn Your First $5 | демонстрация роста капитала после baseline tracking |
 | P1 | Skill Passport | готовит монетизацию навыков без полного marketplace |

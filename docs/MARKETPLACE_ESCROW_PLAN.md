@@ -9,6 +9,22 @@
 - предмет от продавца покупателю;
 - оплату из Wallet покупателя в Wallet продавца.
 
+## Current Status
+
+2026-06-12:
+
+- Phase 1 database foundation added and applied:
+  - `20260612072754_marketplace_phase1_ownership_ledger.sql`;
+  - `20260612073116_wallet_ledger_counterparty_index.sql`.
+- Added `user_artifacts` with ownership, visibility, transferability, source metadata and future `locked_by_deal_id`.
+- Added `wallet_ledger` with direction, amount, operation/source markers, `balance_after`, idempotency key and counterparty support.
+- Added RLS: authenticated users can read own Wallet ledger rows and own/public artifacts; writes remain server-side/service-role.
+- Added and applied `20260612082003_wallet_core_topup_rpc.sql`: `wallet_core_topup` RPC moves Wallet -> Core atomically, writes `wallet_ledger`, is `SECURITY INVOKER`, and grants execute only to `service_role`.
+- `/api/core/topup` now uses `wallet_core_topup` instead of parallel table updates.
+- Added and applied `20260612082405_first_wallet_to_core_challenge.sql`; `/api/challenges/check` verifies `first_wallet_to_core` through `wallet_ledger`.
+- Regenerated `lib/database.types.ts`.
+- Remaining Phase 1 app work: use the same ledger pattern for future Wallet-to-Wallet and marketplace escrow operations.
+
 ## Принципы
 
 - Оплата только внутренним Wallet balance, без внешнего onramp/offramp.
@@ -271,10 +287,11 @@
 
 ### Phase 1. Ownership And Ledger
 
-- `user_artifacts` с `transferable` и `locked_by_deal_id`.
-- `wallet_ledger`.
-- Серверные helpers для atomic Wallet balance changes.
-- RLS: пользователи читают свои предметы и публичные transferable listings, но не могут напрямую менять ledger.
+- Done: `user_artifacts` с `transferable` и `locked_by_deal_id`.
+- Done: `wallet_ledger`.
+- Done for Wallet -> Core: `wallet_core_topup` RPC and `/api/core/topup`.
+- Серверные helpers для следующих atomic Wallet balance changes: Wallet-to-Wallet, escrow hold, marketplace payment, refund.
+- Done: RLS, пользователи читают свои ledger rows и свои/публичные предметы, но не могут напрямую менять ledger.
 
 ### Phase 2. Listings
 

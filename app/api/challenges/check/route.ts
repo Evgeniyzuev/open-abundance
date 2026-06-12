@@ -296,6 +296,28 @@ async function verifyChallenge(
     return { ok: false, reason: "Set reinvest above 0% first." };
   }
 
+  if (challenge.verification_logic === "first_wallet_to_core") {
+    const { data, error } = await supabase
+      .from("wallet_ledger")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("operation_type", "wallet_core_topup")
+      .eq("source_type", "core_topup")
+      .eq("direction", "debit")
+      .gt("amount", 0)
+      .limit(1);
+
+    if (error) {
+      return { ok: false, reason: "Could not check Wallet to Core transfer. Try again." };
+    }
+
+    if ((data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Move any amount from Wallet to Core first." };
+  }
+
   if (challenge.verification_logic === "has_referral") {
     const { data, error } = await supabase
       .from("referral_edges")

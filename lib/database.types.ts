@@ -720,6 +720,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_artifacts: {
+        Row: {
+          artifact_type: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          locked_by_deal_id: string | null
+          metadata: Json
+          rarity: string
+          source_id: string | null
+          source_type: string
+          title: string
+          transferable: boolean
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          artifact_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          locked_by_deal_id?: string | null
+          metadata?: Json
+          rarity?: string
+          source_id?: string | null
+          source_type?: string
+          title: string
+          transferable?: boolean
+          updated_at?: string
+          user_id: string
+          visibility?: string
+        }
+        Update: {
+          artifact_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          locked_by_deal_id?: string | null
+          metadata?: Json
+          rarity?: string
+          source_id?: string | null
+          source_type?: string
+          title?: string
+          transferable?: boolean
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       user_challenges: {
         Row: {
           challenge_id: string
@@ -926,6 +980,62 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_ledger: {
+        Row: {
+          amount: number
+          balance_after: number
+          counterparty_user_id: string | null
+          created_at: string
+          currency_code: string
+          direction: string
+          id: string
+          idempotency_key: string | null
+          metadata: Json
+          operation_type: string
+          source_id: string | null
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          counterparty_user_id?: string | null
+          created_at?: string
+          currency_code?: string
+          direction: string
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json
+          operation_type: string
+          source_id?: string | null
+          source_type?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          counterparty_user_id?: string | null
+          created_at?: string
+          currency_code?: string
+          direction?: string
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json
+          operation_type?: string
+          source_id?: string | null
+          source_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_accounts"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       wishes: {
         Row: {
           category: string | null
@@ -1062,6 +1172,17 @@ export type Database = {
       sync_team_contacts_for_member: {
         Args: { p_member_user_id: string }
         Returns: undefined
+      }
+      wallet_core_topup: {
+        Args: {
+          p_amount: number
+          p_idempotency_key?: string
+          p_source_id?: string
+          p_user_id: string
+        }
+        Returns: {
+          wallet_ledger_id: string
+        }[]
       }
     }
     Enums: {

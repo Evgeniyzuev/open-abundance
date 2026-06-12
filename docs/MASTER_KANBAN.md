@@ -19,7 +19,7 @@
 - [ ] PWA foundation: `manifest.webmanifest`, service worker, регистрация service worker.
 - [ ] Local-first IndexedDB foundation: notes, lists, tasks, task completions, guest identity в общей базе `open-abundance-offline`.
 - [ ] Tasks/Streaks MVP: локальные задачи, Today/Other, schedule, finite/infinite streaks, subtasks, image upload, archive, repeat, soft mode, lives.
-- [ ] Core/Wallet base: серверные Core и Wallet, история Wallet/Core, daily Core accrual history, Wallet -> Core top-up через `/api/core/topup` и Wallet/Core UI.
+- [ ] Core/Wallet base: серверные Core и Wallet, история Wallet/Core, daily Core accrual history, Wallet -> Core top-up через `/api/core/topup` и Wallet/Core UI; top-up теперь идет через atomic `wallet_core_topup` RPC и пишет `wallet_ledger`.
 - [ ] Levels: уровень и следующий порог считаются из Core/DB и показываются в Core UI.
 - [ ] Reinvest control: настройка `reinvest_percent` 0-100%, сохранение через API, split Core/Wallet.
 - [ ] Growth calculator: Future amount, Time to goal, Core-vs-markets chart, методика через `i` modal.
@@ -35,11 +35,15 @@
 - [ ] Product docs audit: сверка `Abundance_SYS_CONCEPT` с `OPEN_ABUNDANCE_MASTER_PLAN.md`, ревизия `CHALLENGES_CATALOG.md`, актуализация ближайшего канбана.
 - [ ] Starter challenge autochecks: API-проверки для AI proof, профиля, 3 шагов желания, первого поста, реинвестирования, реферала, team contact, skill passport; миграция `20260611152126_challenge_autochecks_catalog.sql`.
 - [ ] Trust challenge checks: `trust_event_confirmed:*` in `/api/challenges/check`; migrations `20260612031017_trust_challenge_integration.sql` and `20260612031254_trust_fk_indexes.sql`.
+- [ ] Marketplace Phase 1 DB foundation: `user_artifacts` and `wallet_ledger` with RLS, grants, indexes and generated Supabase types; migrations `20260612072754_marketplace_phase1_ownership_ledger.sql` and `20260612073116_wallet_ledger_counterparty_index.sql`.
+- [ ] First Wallet -> Core challenge: `wallet_core_topup` RPC, `/api/core/topup` ledger write, `/api/challenges/check` case `first_wallet_to_core`, migration `20260612082405_first_wallet_to_core_challenge.sql`.
 
 ## В работе
 
 - [ ] Marketplace escrow / item sales MVP
-  - Продумать объявления и сделки предметов между пользователями с оплатой из Wallet.
+  - Phase 1 DB foundation готов: `user_artifacts`, `wallet_ledger`, RLS, indexes, generated types.
+  - Wallet -> Core уже переведен на atomic ledger RPC.
+  - Следующий шаг: Wallet-to-Wallet ledger helper или marketplace listing tables.
   - Условия сделки должны быть явными, версионированными и принятыми обеими сторонами.
   - После принятия актуальных условий обеими сторонами деньги и предмет переходят атомарно на сервере.
   - План: `docs/MARKETPLACE_ESCROW_PLAN.md`.
@@ -54,9 +58,9 @@
 
 2. [ ] First Wallet -> Core challenge verification
    - Сам Wallet -> Core top-up уже реализован через `/api/core/topup` и UI Wallet/Core.
-   - Осталось добавить надежный ledger/source marker для автопроверки челленджа `first_wallet_to_core`.
-   - Заодно перевести операцию на transactional helper/RPC, чтобы Wallet debit и Core credit не расходились.
-   - Проверка должна смотреть завершенную серверную операцию, а не только текущий баланс.
+   - Реализовано в коде: reliable `wallet_ledger` source marker и transactional `wallet_core_topup` RPC.
+   - Реализовано в коде: `/api/challenges/check` проверяет завершенную серверную ledger-операцию, а не текущий баланс.
+   - Осталось вручную проверить UX прохождения челленджа в приложении.
 
 3. [ ] Challenge verification and anti-abuse policy
    - Non-self checks for transfers, team actions and goal funding.

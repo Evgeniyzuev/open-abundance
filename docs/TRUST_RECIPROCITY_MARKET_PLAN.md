@@ -56,6 +56,13 @@
 - Phase 2 UX foundation added in `components/SocialApp.tsx`: profile loads incoming/outgoing confirmation requests, lets a counterparty confirm/decline pending requests, and can request a contact confirmation from the Contacts block.
 - Confirmation UI remains private to the current profile screen; no public numeric reputation is exposed.
 
+2026-06-12:
+
+- Applied Trust migrations to the linked Supabase project and regenerated `lib/database.types.ts`.
+- Added and applied `20260612031017_trust_challenge_integration.sql` with `Help Someone Move` and `Trust Proof`.
+- Added and applied `20260612031254_trust_fk_indexes.sql` for Trust foreign-key performance indexes.
+- `/api/challenges/check` now supports `trust_event_confirmed:*` verification logic.
+
 ## Core Entities
 
 ### `trust_events`

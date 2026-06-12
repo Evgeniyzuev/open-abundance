@@ -334,6 +334,21 @@ async function verifyChallenge(
     return { ok: false, reason: "Join or invite a team member first." };
   }
 
+  if (challenge.verification_logic?.startsWith("trust_event_confirmed:")) {
+    const eventType = challenge.verification_logic.slice("trust_event_confirmed:".length);
+    const trustProof = await hasConfirmedTrustEvent(supabase, userId, eventType);
+
+    if (trustProof.error) {
+      return { ok: false, reason: trustProof.error };
+    }
+
+    if (trustProof.proved) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Ask another participant to confirm this action in your Trust confirmations first." };
+  }
+
   if (challenge.verification_type === "manual") {
     return { ok: false, reason: "This challenge needs manual review before it can be completed." };
   }
@@ -343,6 +358,31 @@ async function verifyChallenge(
   }
 
   return { ok: false, reason: "Verification is not connected for this challenge yet." };
+}
+
+async function hasConfirmedTrustEvent(
+  supabase: ReturnType<typeof createClient<Database>>,
+  userId: string,
+  eventType: string
+): Promise<{ proved: boolean; error?: string }> {
+  if (!isSupportedTrustEventType(eventType)) {
+    return { proved: false, error: "Trust verification is not connected for this challenge yet." };
+  }
+
+  const trustClient = supabase as ReturnType<typeof createClient<any>>;
+  const { data, error } = await trustClient
+    .from("trust_events")
+    .select("id")
+    .eq("actor_user_id", userId)
+    .eq("event_type", eventType)
+    .eq("status", "confirmed")
+    .limit(1);
+
+  if (error) {
+    return { proved: false, error: isMissingTrustSchemaError(error) ? "Trust confirmations are not available yet." : "Could not check Trust confirmations. Try again." };
+  }
+
+  return { proved: (data ?? []).length > 0 };
 }
 
 async function getChallengeProgressProof(
@@ -451,6 +491,25 @@ function isUuid(value: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isSupportedTrustEventType(value: string): boolean {
+  return ["help_given", "help_received", "deal_completed", "challenge_confirmed", "proof_added"].includes(value);
+}
+
+function isMissingTrustSchemaError(error: unknown): boolean {
+  if (!isRecord(error)) return false;
+  const code = typeof error.code === "string" ? error.code : "";
+  const message = typeof error.message === "string" ? error.message.toLowerCase() : "";
+  return (
+    code === "42P01"
+    || code === "PGRST205"
+    || message.includes("trust_events")
+  ) && (
+    message.includes("does not exist")
+    || message.includes("schema cache")
+    || message.includes("could not find the table")
+  );
 }
 
 function getSupabaseProjectRef(supabaseUrl: string): string {

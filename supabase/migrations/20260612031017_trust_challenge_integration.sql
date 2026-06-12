@@ -1,0 +1,60 @@
+insert into public.challenges (
+  id,
+  title,
+  description,
+  instructions,
+  requirements,
+  reward_label,
+  category,
+  difficulty_level,
+  duration_days,
+  image_url,
+  verification_type,
+  verification_logic,
+  sort_order
+) values
+(
+  '84d06c78-6dc0-4a3f-a295-47333f9dbd98',
+  '{"en":"Help Someone Move","ru":"Помоги другому сделать шаг"}'::jsonb,
+  '{"en":"Help another participant with a useful action, advice or next step, then ask them to confirm it.","ru":"Помоги другому участнику полезным действием, советом или следующим шагом и попроси подтвердить помощь."}'::jsonb,
+  '{"en":"After helping someone, create a Trust confirmation request for help. The check passes after the other participant confirms it.","ru":"После помощи создай Trust-запрос подтверждения помощи. Проверка пройдет, когда другой участник подтвердит ее."}'::jsonb,
+  '{"en":"A confirmed Trust event with type help_given exists.","ru":"Есть подтвержденное Trust-событие типа help_given."}'::jsonb,
+  '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  'social',
+  2,
+  1,
+  null,
+  'community',
+  'trust_event_confirmed:help_given',
+  80
+),
+(
+  'b0d06b37-f5df-4b1a-8a3e-c37cf87d79de',
+  '{"en":"Trust Proof","ru":"Подтверди надежность"}'::jsonb,
+  '{"en":"Add one verified signal: a confirmed contact, useful result, recommendation or proof of collaboration.","ru":"Добавь один подтвержденный сигнал: контакт, полезный результат, рекомендацию или доказательство сотрудничества."}'::jsonb,
+  '{"en":"Ask a contact to confirm your interaction in Social -> Profile -> Contacts. The check passes after a proof_added Trust event appears.","ru":"Попроси контакт подтвердить взаимодействие в Social -> Profile -> Contacts. Проверка пройдет после появления Trust-события proof_added."}'::jsonb,
+  '{"en":"A confirmed Trust event with type proof_added exists.","ru":"Есть подтвержденное Trust-событие типа proof_added."}'::jsonb,
+  '{"en":"⚛️+1$","ru":"⚛️+1$"}'::jsonb,
+  'trust',
+  2,
+  1,
+  null,
+  'community',
+  'trust_event_confirmed:proof_added',
+  85
+)
+on conflict (id) do update
+set
+  title = excluded.title,
+  description = excluded.description,
+  instructions = excluded.instructions,
+  requirements = excluded.requirements,
+  reward_label = excluded.reward_label,
+  category = excluded.category,
+  difficulty_level = excluded.difficulty_level,
+  duration_days = excluded.duration_days,
+  image_url = excluded.image_url,
+  verification_type = excluded.verification_type,
+  verification_logic = excluded.verification_logic,
+  sort_order = excluded.sort_order,
+  is_active = true;

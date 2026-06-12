@@ -34,6 +34,7 @@
 - [ ] AI Coordinator MVP: AI chat с knowledge base о проекте, Gemini как основной провайдер, Groq как fallback, streaming ответов, вкладка "Идеи" в навигации.
 - [ ] Product docs audit: сверка `Abundance_SYS_CONCEPT` с `OPEN_ABUNDANCE_MASTER_PLAN.md`, ревизия `CHALLENGES_CATALOG.md`, актуализация ближайшего канбана.
 - [ ] Starter challenge autochecks: API-проверки для AI proof, профиля, 3 шагов желания, первого поста, реинвестирования, реферала, team contact, skill passport; миграция `20260611152126_challenge_autochecks_catalog.sql`.
+- [ ] Trust challenge checks: `trust_event_confirmed:*` in `/api/challenges/check`; migrations `20260612031017_trust_challenge_integration.sql` and `20260612031254_trust_fk_indexes.sql`.
 
 ## В работе
 
@@ -111,6 +112,7 @@
    - Phase 1 migration created: `20260611161340_trust_reciprocity_foundation.sql`.
    - Phase 2 API foundation created: `lib/trust.ts`, `/api/trust/confirmations`, `/api/trust/confirmations/[confirmationId]/confirm`, `/api/trust/confirmations/[confirmationId]/decline`, `/api/trust/summary`.
    - Phase 2 UX foundation created in `Social/Profile`: incoming/outgoing confirmations, confirm/decline actions, contact confirmation request from Contacts.
+   - Supabase migrations applied, generated types include Trust tables, Trust challenge verification supports `trust_event_confirmed:*`.
    - Mutual confirmations for help, community checks and simple deals.
    - Soft reciprocity signal for recommendations and promotion, without public numeric reputation.
    - Inventory artifacts for confirmed milestones.

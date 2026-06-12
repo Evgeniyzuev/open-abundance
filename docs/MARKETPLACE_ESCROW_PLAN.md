@@ -26,8 +26,11 @@
 - Added `/api/wallet/transfer` server route for Wallet-to-Wallet transfers.
 - Added and applied `20260612101807_first_wallet_transfer_challenge.sql`; `/api/challenges/check` verifies `first_wallet_transfer` through outgoing `wallet_ledger` debit rows.
 - Added Wallet transfer modal in `components/WalletApp.tsx`: contact selection, manual recipient user id fallback, amount input, explicit confirmation and Wallet refresh after success.
+- Added and applied `20260612105115_marketplace_listings_phase2.sql`: `marketplace_listings` with RLS, active/own read policy, open-listing uniqueness per item and indexes.
+- Added `/api/marketplace/listings` and `/api/marketplace/listings/[listingId]/cancel`; users can list own transferable unlocked items and cancel own active/draft listings.
+- Added first Market UI as the third Wallet top tab: active listing grid, sell item modal, own-listing cancel action.
 - Regenerated `lib/database.types.ts`.
-- Remaining Phase 1 app work: reuse the same ledger pattern for marketplace escrow hold/payment/refund.
+- Remaining app work: Phase 3 deals/escrow and atomic completion.
 
 ## Принципы
 
@@ -300,9 +303,10 @@
 
 ### Phase 2. Listings
 
-- `marketplace_listings`.
-- API create/list/cancel.
-- UI listing grid и "sell item" из Results.
+- Done: `marketplace_listings`.
+- Done: API create/list/cancel.
+- Done: UI listing grid and `Sell item` modal in Wallet -> Market.
+- Pending: optional entry point from Results/Inventory once real transferable quest items are visible there.
 
 ### Phase 3. Deals And Escrow
 
@@ -337,6 +341,6 @@
 
 ## Next Step
 
-Следующий шаг: перейти к Phase 2 `marketplace_listings`.
+Следующий шаг: перейти к Phase 3 `marketplace_deals` и escrow.
 
-Сделать таблицу объявлений, API create/list/cancel и первый UI listing grid. Escrow completion пока не включать: сначала нужно дать пользователю выставить transferable предмет и увидеть карточку объявления.
+Сделать `marketplace_deals`, `marketplace_deal_events`, buyer accept flow and Wallet escrow/reserve. Atomic Wallet + item ownership completion still stays separate until the deal state machine is visible and testable.

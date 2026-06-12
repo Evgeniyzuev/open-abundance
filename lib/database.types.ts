@@ -356,6 +356,71 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_listings: {
+        Row: {
+          artifact_id: string
+          cancelled_at: string | null
+          created_at: string
+          currency_code: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          metadata: Json
+          price_amount: number
+          seller_user_id: string
+          sold_at: string | null
+          status: string
+          terms_hash: string
+          terms_json: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          artifact_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          currency_code?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          price_amount: number
+          seller_user_id: string
+          sold_at?: string | null
+          status?: string
+          terms_hash: string
+          terms_json?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          artifact_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          currency_code?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          price_amount?: number
+          seller_user_id?: string
+          sold_at?: string | null
+          status?: string
+          terms_hash?: string
+          terms_json?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listings_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "user_artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mutual_confirmations: {
         Row: {
           confirmation_type: string

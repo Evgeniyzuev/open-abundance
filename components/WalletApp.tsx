@@ -10,7 +10,7 @@ import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import type { Tables } from "@/lib/database.types";
 
-type WalletTab = "wallet" | "core";
+type WalletTab = "wallet" | "core" | "market";
 type CoreAccrualRow = {
   accrual_date: string;
   core_before: number;
@@ -65,6 +65,27 @@ type WalletTransferContact = {
     username: string | null;
     user_id: string;
   } | null;
+};
+type MarketplaceArtifact = Tables<"user_artifacts">;
+type MarketplaceListing = Tables<"marketplace_listings"> & {
+  artifact: {
+    artifact_type: string;
+    id: string;
+    image_url: string | null;
+    rarity: string;
+    title: string;
+  } | null;
+  sellerProfile: {
+    avatar_url: string | null;
+    display_name: string | null;
+    user_id: string;
+    username: string | null;
+  } | null;
+};
+type MarketplaceResponse = {
+  error?: string;
+  listings?: MarketplaceListing[];
+  sellableArtifacts?: MarketplaceArtifact[];
 };
 
 const HALF_YEAR_DAYS = 365.25 / 2;
@@ -144,6 +165,12 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
   const [targetCalculationTouched, setTargetCalculationTouched] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [marketListings, setMarketListings] = useState<MarketplaceListing[] | null>(null);
+  const [sellableArtifacts, setSellableArtifacts] = useState<MarketplaceArtifact[]>([]);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketError, setMarketError] = useState<string | null>(null);
+  const [sellModalOpen, setSellModalOpen] = useState(false);
+  const [marketSavingId, setMarketSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeTab !== "core") setHistoryOpen(false);
@@ -227,8 +254,37 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
       setHistoryOpen(false);
       setWalletHistoryRows(null);
       setWalletHistoryOpen(false);
+      setMarketListings(null);
+      setSellableArtifacts([]);
     }
   }, [user]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadMarket() {
+      if (!active || activeTab !== "market" || !user) return;
+
+      setMarketError(null);
+      setMarketLoading(true);
+      try {
+        const payload = await loadMarketplaceData();
+        if (!mounted) return;
+        setMarketListings(payload.listings ?? []);
+        setSellableArtifacts(payload.sellableArtifacts ?? []);
+      } catch (loadError) {
+        console.warn("Marketplace listings load failed", loadError);
+        if (mounted) setMarketError(loadError instanceof Error ? loadError.message : "Failed to load marketplace.");
+      } finally {
+        if (mounted) setMarketLoading(false);
+      }
+    }
+
+    loadMarket();
+    return () => {
+      mounted = false;
+    };
+  }, [active, activeTab, refreshNonce, user]);
 
   useEffect(() => {
     if (!core) return;
@@ -347,6 +403,25 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
     setWalletHistoryOpen(false);
     await onRefresh();
   }, [applyServerData, onRefresh]);
+
+  async function handleCreateListing(artifactId: string, priceAmount: number, description: string) {
+    const listing = await createMarketplaceListing({ artifactId, description, priceAmount });
+    setMarketListings((current) => [listing, ...(current ?? [])]);
+    setSellableArtifacts((current) => current.filter((artifact) => artifact.id !== artifactId));
+  }
+
+  async function handleCancelListing(listingId: string) {
+    setMarketSavingId(listingId);
+    setMarketError(null);
+    try {
+      await cancelMarketplaceListing(listingId);
+      setMarketListings((current) => (current ?? []).filter((listing) => listing.id !== listingId));
+    } catch (cancelError) {
+      setMarketError(cancelError instanceof Error ? cancelError.message : "Failed to cancel listing.");
+    } finally {
+      setMarketSavingId(null);
+    }
+  }
 
   return (
     <section className="finance-screen">
@@ -542,6 +617,21 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
         </>
       ) : null}
 
+      {user && activeTab === "market" ? (
+        <MarketplacePanel
+          listings={marketListings ?? []}
+          loading={marketLoading}
+          error={marketError}
+          locale={locale}
+          sellableCount={sellableArtifacts.length}
+          t={t}
+          userId={user.id}
+          savingId={marketSavingId}
+          onCancel={(listingId) => { void handleCancelListing(listingId); }}
+          onSell={() => setSellModalOpen(true)}
+        />
+      ) : null}
+
       {error ? <p className="finance-error">{error}</p> : null}
 
       {topupOpen && core && wallet ? (
@@ -562,6 +652,16 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
           wallet={wallet}
           onClose={() => setTransferOpen(false)}
           onSuccess={handleTransferSuccess}
+        />
+      ) : null}
+
+      {sellModalOpen ? (
+        <SellItemModal
+          artifacts={sellableArtifacts}
+          locale={locale}
+          t={t}
+          onClose={() => setSellModalOpen(false)}
+          onCreate={handleCreateListing}
         />
       ) : null}
     </section>
@@ -967,6 +1067,52 @@ async function loadWalletTransferContacts(): Promise<WalletTransferContact[]> {
   return payload.contacts ?? [];
 }
 
+async function loadMarketplaceData(): Promise<Required<Pick<MarketplaceResponse, "listings" | "sellableArtifacts">>> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/marketplace/listings?ts=${Date.now()}`, {
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Cache-Control": "no-cache"
+    }
+  });
+  const payload = (await response.json()) as MarketplaceResponse;
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load marketplace.");
+  return {
+    listings: payload.listings ?? [],
+    sellableArtifacts: payload.sellableArtifacts ?? []
+  };
+}
+
+async function createMarketplaceListing({ artifactId, description, priceAmount }: { artifactId: string; description: string; priceAmount: number }): Promise<MarketplaceListing> {
+  const token = await getAccessToken();
+  const response = await fetch("/api/marketplace/listings", {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ artifactId, description, priceAmount })
+  });
+  const payload = (await response.json()) as { error?: string; listing?: MarketplaceListing };
+  if (!response.ok || payload.error || !payload.listing) throw new Error(payload.error ?? "Failed to create marketplace listing.");
+  return payload.listing;
+}
+
+async function cancelMarketplaceListing(listingId: string): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/marketplace/listings/${listingId}/cancel`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  const payload = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to cancel marketplace listing.");
+}
+
 async function getAccessToken(): Promise<string> {
   const supabase = getBrowserSupabaseClient();
   const {
@@ -1059,6 +1205,186 @@ function CoreLevelProgress({
         </button>
       ) : null}
     </section>
+  );
+}
+
+function MarketplacePanel({
+  listings,
+  loading,
+  error,
+  locale,
+  sellableCount,
+  t,
+  userId,
+  savingId,
+  onCancel,
+  onSell
+}: {
+  listings: MarketplaceListing[];
+  loading: boolean;
+  error: string | null;
+  locale: AppLocale;
+  sellableCount: number;
+  t: TFunction;
+  userId: string;
+  savingId: string | null;
+  onCancel: (listingId: string) => void;
+  onSell: () => void;
+}) {
+  return (
+    <section className="market-panel">
+      <div className="market-head">
+        <div>
+          <span>{t("market.kicker")}</span>
+          <strong>{t("market.title")}</strong>
+        </div>
+        <button className="challenge-primary-action" type="button" disabled={sellableCount === 0} onClick={onSell}>
+          {t("market.sell")}
+        </button>
+      </div>
+      {error ? <p className="finance-error">{error}</p> : null}
+      {loading && listings.length === 0 ? <FinanceState title={t("app.common.loading")} description={t("market.loading")} /> : null}
+      {!loading && listings.length === 0 ? <FinanceState title={t("market.emptyTitle")} description={sellableCount > 0 ? t("market.emptyWithItems") : t("market.emptyNoItems")} /> : null}
+      {listings.length > 0 ? (
+        <div className="market-grid">
+          {listings.map((listing) => {
+            const own = listing.seller_user_id === userId;
+            return (
+              <article className="market-card" key={listing.id}>
+                <div className="market-card-image">
+                  {listing.artifact?.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={listing.artifact.image_url} alt="" />
+                  ) : (
+                    <span>{artifactInitial(listing)}</span>
+                  )}
+                  <small>{listing.artifact?.rarity ?? "common"}</small>
+                </div>
+                <div className="market-card-body">
+                  <strong>{listing.title}</strong>
+                  {listing.description ? <p>{listing.description}</p> : null}
+                  <div className="market-card-meta">
+                    <span>{formatAdaptiveMoney(Number(listing.price_amount), locale)}</span>
+                    <small>{own ? t("market.yours") : sellerName(listing)}</small>
+                  </div>
+                  {own ? (
+                    <button className="text-button danger" type="button" disabled={savingId === listing.id} onClick={() => onCancel(listing.id)}>
+                      {savingId === listing.id ? t("app.common.loading") : t("market.cancel")}
+                    </button>
+                  ) : (
+                    <button className="text-button" type="button" disabled>
+                      {t("market.dealsLater")}
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SellItemModal({
+  artifacts,
+  locale,
+  t,
+  onClose,
+  onCreate
+}: {
+  artifacts: MarketplaceArtifact[];
+  locale: AppLocale;
+  t: TFunction;
+  onClose: () => void;
+  onCreate: (artifactId: string, priceAmount: number, description: string) => Promise<void>;
+}) {
+  const [artifactId, setArtifactId] = useState(artifacts[0]?.id ?? "");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const selectedArtifact = artifacts.find((artifact) => artifact.id === artifactId) ?? null;
+  const parsedPrice = parseNumber(price);
+  const valid = Boolean(selectedArtifact) && Number.isFinite(parsedPrice) && parsedPrice > 0;
+
+  async function handleCreate() {
+    if (!valid || !selectedArtifact) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      await onCreate(selectedArtifact.id, Math.round(parsedPrice * 100) / 100, description);
+      onClose();
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Failed to create listing.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("market.sell")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+          <h2>{t("market.sell")}</h2>
+          <span />
+        </div>
+        <div className="sell-modal-body">
+          {artifacts.length > 0 ? (
+            <>
+              <label className="finance-field">
+                <span>{t("market.item")}</span>
+                <select value={artifactId} onChange={(event) => setArtifactId(event.target.value)}>
+                  {artifacts.map((artifact) => (
+                    <option key={artifact.id} value={artifact.id}>{artifact.title}</option>
+                  ))}
+                </select>
+              </label>
+              {selectedArtifact ? (
+                <p className="sell-item-summary">
+                  {selectedArtifact.title} · {selectedArtifact.rarity} · {selectedArtifact.artifact_type}
+                </p>
+              ) : null}
+              <label className="topup-field">
+                <span>{t("market.price")}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={price}
+                  onChange={(event) => {
+                    setPrice(event.target.value);
+                    setError(null);
+                  }}
+                  placeholder={formatAdaptiveMoney(1, locale)}
+                />
+              </label>
+              <label className="finance-field">
+                <span>{t("market.terms")}</span>
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  maxLength={1000}
+                  placeholder={t("market.termsPlaceholder")}
+                />
+              </label>
+              {error ? <p className="topup-error">{error}</p> : null}
+              <div className="topup-modal-actions">
+                <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+                <button className="challenge-primary-action" type="button" disabled={!valid || saving} onClick={handleCreate}>
+                  {saving ? t("app.common.loading") : t("market.create")}
+                </button>
+              </div>
+            </>
+          ) : (
+            <FinanceState title={t("market.noSellableTitle")} description={t("market.noSellableDescription")} />
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1565,6 +1891,14 @@ function contactName(contact: WalletTransferContact): string {
 
 function contactInitial(contact: WalletTransferContact): string {
   return contactName(contact).trim().slice(0, 1).toUpperCase() || "?";
+}
+
+function sellerName(listing: MarketplaceListing): string {
+  return listing.sellerProfile?.display_name || listing.sellerProfile?.username || shortId(listing.seller_user_id);
+}
+
+function artifactInitial(listing: MarketplaceListing): string {
+  return (listing.artifact?.title || listing.title).trim().slice(0, 1).toUpperCase() || "M";
 }
 
 function shortId(value: string): string {

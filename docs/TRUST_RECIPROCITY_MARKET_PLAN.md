@@ -67,6 +67,7 @@
 - Added and applied `wallet_core_topup` RPC and `First Wallet To Core` challenge integration; Wallet -> Core now writes `wallet_ledger`.
 - Added and applied `wallet_transfer` RPC, `/api/wallet/transfer` and `First Wallet Transfer` challenge integration; Wallet-to-Wallet now writes paired debit/credit `wallet_ledger` rows.
 - Added Wallet transfer modal with contact selection/manual recipient id fallback and server refresh after successful transfer.
+- Added and applied Marketplace listings Phase 2: `marketplace_listings`, create/list/cancel API and Wallet -> Market listing grid.
 
 ## Core Entities
 
@@ -322,7 +323,7 @@ MVP endpoints:
 
 ### Phase 6. Trade-lite
 
-- `marketplace_offers` MVP;
+- `marketplace_listings` MVP;
 - request/accept simple service;
 - completion confirmation by both sides;
 - item sales with Wallet escrow are planned separately in `docs/MARKETPLACE_ESCROW_PLAN.md`;

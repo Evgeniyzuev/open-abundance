@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, CheckSquare, FileText, Heart, Landmark, Map, Newspaper, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, Landmark, Map, Newspaper, ShoppingBag, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp from "@/components/ChallengesApp";
@@ -15,7 +15,7 @@ import type { MessageKey } from "@/lib/i18n";
 
 type MainTabId = "goals" | "challenges" | "spark" | "wallet" | "people";
 type GoalTabId = "desires" | "notes" | "checks" | "map" | "results";
-type WalletTabId = "wallet" | "core";
+type WalletTabId = "wallet" | "core" | "market";
 type SocialTabId = "feed" | "blog" | "teams" | "profile";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -59,7 +59,8 @@ const goalTabs: GoalTab[] = [
 
 const walletTabs: TopTab[] = [
   { id: "wallet", titleKey: "app.nav.wallet", icon: Wallet },
-  { id: "core", titleKey: "wallet.core", icon: Landmark }
+  { id: "core", titleKey: "wallet.core", icon: Landmark },
+  { id: "market", titleKey: "app.nav.market", icon: ShoppingBag }
 ];
 
 const socialTabs: TopTab[] = [

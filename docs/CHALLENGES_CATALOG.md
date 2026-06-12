@@ -219,13 +219,13 @@
 | Уровень | 2 |
 | Награда | +1$ Core |
 | Длительность | 3 дня |
-| Проверка | `marketplace_offer_created` — наличие активного предложения в `marketplace_offers` |
+| Проверка | `marketplace_offer_created` — наличие активного объявления в `marketplace_listings` |
 | Описание | Создайте своё первое предложение на внутреннем рынке: услугу, навык или товар |
 | Инструкция | Рынок → Создать предложение → опишите услугу/товар → укажите цену в $ → опубликуйте |
 
 **Стратегическая задача:** внутренний рынок. Пользователь переходит от потребителя к создателю ценности. Wallet-награду здесь не используем; ликвидность должна приходить от реальных переводов/сделок, а не от системной эмиссии.
 
-**Верификация:** проверять наличие активной записи в `marketplace_offers` с `owner_user_id = user.id` и `status = 'active'`.
+**Верификация:** проверять наличие активной записи в `marketplace_listings` с `seller_user_id = user.id` и `status = 'active'`.
 
 ---
 
@@ -401,7 +401,7 @@
 ## 5. Требования к реализации
 
 ### Новые таблицы (зависят от этапа 10 — Marketplace)
-- `marketplace_offers` — предложения на внутреннем рынке
+- `marketplace_listings` — объявления на внутреннем рынке
 - `marketplace_deals` — сделки между пользователями
 
 ### Доработки API
@@ -412,7 +412,7 @@
   - `core_growth_threshold` — проверка прироста Core от baseline челленджа
   - `team_size_3` — проверка размера команды
   - `daily_streak_7` — проверка серии дней
-  - `marketplace_offer_created` — проверка `marketplace_offers`
+  - `marketplace_offer_created` — проверка `marketplace_listings`
   - `marketplace_deal_completed` — проверка `marketplace_deals`
   - `first_marketplace_income` — проверка входящего платежа
   - `goal_funding` — проверка перевода с привязкой к цели

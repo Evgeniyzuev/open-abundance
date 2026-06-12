@@ -65,6 +65,7 @@
 - Marketplace item sales moved into a dedicated escrow plan: `docs/MARKETPLACE_ESCROW_PLAN.md`.
 - Added and applied marketplace Phase 1 DB foundation: `user_artifacts` and `wallet_ledger` migrations, RLS and generated types.
 - Added and applied `wallet_core_topup` RPC and `First Wallet To Core` challenge integration; Wallet -> Core now writes `wallet_ledger`.
+- Added and applied `wallet_transfer` RPC, `/api/wallet/transfer` and `First Wallet Transfer` challenge integration; Wallet-to-Wallet now writes paired debit/credit `wallet_ledger` rows.
 
 ## Core Entities
 

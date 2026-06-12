@@ -22,8 +22,11 @@
 - Added and applied `20260612082003_wallet_core_topup_rpc.sql`: `wallet_core_topup` RPC moves Wallet -> Core atomically, writes `wallet_ledger`, is `SECURITY INVOKER`, and grants execute only to `service_role`.
 - `/api/core/topup` now uses `wallet_core_topup` instead of parallel table updates.
 - Added and applied `20260612082405_first_wallet_to_core_challenge.sql`; `/api/challenges/check` verifies `first_wallet_to_core` through `wallet_ledger`.
+- Added and applied `20260612101538_wallet_transfer_rpc.sql`: `wallet_transfer` RPC moves Wallet between two users atomically, writes debit/credit ledger rows, supports idempotency suffixes and grants execute only to `service_role`.
+- Added `/api/wallet/transfer` server route for Wallet-to-Wallet transfers.
+- Added and applied `20260612101807_first_wallet_transfer_challenge.sql`; `/api/challenges/check` verifies `first_wallet_transfer` through outgoing `wallet_ledger` debit rows.
 - Regenerated `lib/database.types.ts`.
-- Remaining Phase 1 app work: use the same ledger pattern for future Wallet-to-Wallet and marketplace escrow operations.
+- Remaining Phase 1 app work: add wallet transfer UI, then reuse the same ledger pattern for marketplace escrow hold/payment/refund.
 
 ## Принципы
 
@@ -100,7 +103,7 @@
 - `direction` - `credit`, `debit`;
 - `amount`
 - `currency` - MVP: `USD`;
-- `operation_type` - `marketplace_escrow_hold`, `marketplace_payment`, `marketplace_refund`, `wallet_transfer`, `system_adjustment`;
+- `operation_type` - `marketplace_escrow_hold`, `marketplace_payment`, `marketplace_refund`, `wallet_transfer`, `wallet_core_topup`, `challenge_reward`, `system_adjustment`;
 - `source_type`
 - `source_id`
 - `counterparty_user_id`
@@ -290,7 +293,8 @@
 - Done: `user_artifacts` с `transferable` и `locked_by_deal_id`.
 - Done: `wallet_ledger`.
 - Done for Wallet -> Core: `wallet_core_topup` RPC and `/api/core/topup`.
-- Серверные helpers для следующих atomic Wallet balance changes: Wallet-to-Wallet, escrow hold, marketplace payment, refund.
+- Done for Wallet-to-Wallet: `wallet_transfer` RPC and `/api/wallet/transfer`.
+- Серверные helpers для следующих atomic Wallet balance changes: escrow hold, marketplace payment, refund.
 - Done: RLS, пользователи читают свои ledger rows и свои/публичные предметы, но не могут напрямую менять ledger.
 
 ### Phase 2. Listings
@@ -332,4 +336,8 @@
 
 ## Next Step
 
-Начать с Phase 1: `user_artifacts` + `wallet_ledger`. Без этого marketplace будет слишком хрупким: нельзя надежно проверить владение предметом, резерв средств и уникальность финансовой операции.
+Следующий шаг: подключить UI для Wallet-to-Wallet transfer или перейти к Phase 2 `marketplace_listings`.
+
+Если цель - быстрее проверить финансовый контур с пользователем, сначала сделать transfer modal в Wallet: выбор участника, сумма, явное подтверждение, success/error states и обновление Wallet.
+
+Если цель - быстрее двигать торговлю предметами, начать Phase 2: `marketplace_listings` + API create/list/cancel, пока без escrow completion UI.

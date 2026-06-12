@@ -1184,6 +1184,20 @@ export type Database = {
           wallet_ledger_id: string
         }[]
       }
+      wallet_transfer: {
+        Args: {
+          p_amount: number
+          p_idempotency_key?: string
+          p_recipient_user_id: string
+          p_sender_user_id: string
+          p_source_id?: string
+          p_source_type?: string
+        }
+        Returns: {
+          recipient_wallet_ledger_id: string
+          sender_wallet_ledger_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -318,6 +318,30 @@ async function verifyChallenge(
     return { ok: false, reason: "Move any amount from Wallet to Core first." };
   }
 
+  if (challenge.verification_logic === "first_wallet_transfer") {
+    const { data, error } = await supabase
+      .from("wallet_ledger")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("operation_type", "wallet_transfer")
+      .eq("source_type", "wallet_transfer")
+      .eq("direction", "debit")
+      .not("counterparty_user_id", "is", null)
+      .neq("counterparty_user_id", userId)
+      .gt("amount", 0)
+      .limit(1);
+
+    if (error) {
+      return { ok: false, reason: "Could not check Wallet transfer. Try again." };
+    }
+
+    if ((data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Send any Wallet amount to another participant first." };
+  }
+
   if (challenge.verification_logic === "has_referral") {
     const { data, error } = await supabase
       .from("referral_edges")

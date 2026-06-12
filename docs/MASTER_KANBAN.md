@@ -37,13 +37,15 @@
 - [ ] Trust challenge checks: `trust_event_confirmed:*` in `/api/challenges/check`; migrations `20260612031017_trust_challenge_integration.sql` and `20260612031254_trust_fk_indexes.sql`.
 - [ ] Marketplace Phase 1 DB foundation: `user_artifacts` and `wallet_ledger` with RLS, grants, indexes and generated Supabase types; migrations `20260612072754_marketplace_phase1_ownership_ledger.sql` and `20260612073116_wallet_ledger_counterparty_index.sql`.
 - [ ] First Wallet -> Core challenge: `wallet_core_topup` RPC, `/api/core/topup` ledger write, `/api/challenges/check` case `first_wallet_to_core`, migration `20260612082405_first_wallet_to_core_challenge.sql`.
+- [ ] Wallet-to-Wallet ledger payout: `wallet_transfer` RPC, `/api/wallet/transfer`, debit/credit `wallet_ledger` rows, `/api/challenges/check` case `first_wallet_transfer`, migration `20260612101807_first_wallet_transfer_challenge.sql`.
 
 ## В работе
 
 - [ ] Marketplace escrow / item sales MVP
   - Phase 1 DB foundation готов: `user_artifacts`, `wallet_ledger`, RLS, indexes, generated types.
   - Wallet -> Core уже переведен на atomic ledger RPC.
-  - Следующий шаг: Wallet-to-Wallet ledger helper или marketplace listing tables.
+  - Wallet-to-Wallet ledger payout готов на backend.
+  - Следующий шаг: transfer UI или marketplace listing tables.
   - Условия сделки должны быть явными, версионированными и принятыми обеими сторонами.
   - После принятия актуальных условий обеими сторонами деньги и предмет переходят атомарно на сервере.
   - План: `docs/MARKETPLACE_ESCROW_PLAN.md`.
@@ -81,10 +83,10 @@
    - Required for reliable `core_growth_threshold` challenges.
 
 6. [ ] Wallet-to-Wallet transfer MVP
-   - Send Wallet amount to another user.
-   - Incoming transfer return/cancel.
-   - Ledger and basic confirmation screen.
-   - Non-self and completed-status verification for transfer/funding challenges.
+   - Реализовано backend: `wallet_transfer` RPC, `/api/wallet/transfer`, non-self, balance check, debit/credit ledger.
+   - Реализовано backend: автопроверка `first_wallet_transfer` по `wallet_ledger`.
+   - Осталось: UI transfer modal, recipient picker, incoming display/return/cancel UX.
+   - Non-self and completed-status verification for funding challenges still needs wish/source linkage.
 
 7. [ ] Public profile URLs
    - Stable public profile route outside current Social modal.

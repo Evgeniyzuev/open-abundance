@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BookOpen, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, Newspaper, Save, Send, Share2, Trash2, UserRound, Users, X } from "lucide-react";
+import { Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, Newspaper, Save, Send, Share2, Trash2, UserRound, Users, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
@@ -64,6 +64,28 @@ type ContactRow = {
   status: string;
   is_required: boolean;
   profile: TeamProfile | null;
+};
+type TrustConfirmationType = "help_given" | "help_received" | "deal_completed" | "challenge_confirmed" | "proof_added" | "contact_confirmed";
+type TrustConfirmationStatus = "pending" | "confirmed" | "declined" | "expired";
+type TrustConfirmationRow = {
+  id: string;
+  requester_user_id: string;
+  counterparty_user_id: string;
+  confirmation_type: TrustConfirmationType;
+  source_type: string;
+  source_id: string | null;
+  message: string | null;
+  status: TrustConfirmationStatus;
+  trust_event_id: string | null;
+  expires_at: string;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+type TrustConfirmationsPayload = {
+  confirmations: TrustConfirmationRow[];
+  profiles?: TeamProfile[];
+  error?: string;
 };
 type SocialProfilePayload = {
   profile: { bio: string | null } | null;
@@ -192,6 +214,10 @@ export default function SocialApp({
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [profileEditor, setProfileEditor] = useState<ProfileEditorState>(() => createProfileEditorState(null));
   const [profileSaving, setProfileSaving] = useState(false);
+  const [trustConfirmations, setTrustConfirmations] = useState<TrustConfirmationRow[] | null>(null);
+  const [trustProfiles, setTrustProfiles] = useState<Record<string, TeamProfile>>({});
+  const [trustSavingId, setTrustSavingId] = useState<string | null>(null);
+  const [trustCreatingForId, setTrustCreatingForId] = useState<string | null>(null);
   const [publicProfile, setPublicProfile] = useState<PublicProfilePayload | null>(null);
   const [publicProfileLoading, setPublicProfileLoading] = useState(false);
   const [copyingWishId, setCopyingWishId] = useState<string | null>(null);
@@ -221,6 +247,10 @@ export default function SocialApp({
     setProfileEditorOpen(false);
     setProfileEditor(createProfileEditorState(null));
     setProfileSaving(false);
+    setTrustConfirmations(null);
+    setTrustProfiles({});
+    setTrustSavingId(null);
+    setTrustCreatingForId(null);
     setPublicProfile(null);
     setPublicProfileLoading(false);
     setCopyingWishId(null);
@@ -281,9 +311,25 @@ export default function SocialApp({
     setProfileEditor((current) => profileEditorOpen ? current : createProfileEditorState(payload));
   }, [profileEditorOpen, user]);
 
+  const loadTrustConfirmations = useCallback(async () => {
+    if (!user) return;
+    const token = await getAccessToken();
+    const response = await fetch(`/api/trust/confirmations?box=all&ts=${Date.now()}`, {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Cache-Control": "no-cache"
+      }
+    });
+    const payload = (await response.json()) as TrustConfirmationsPayload;
+    if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load confirmations.");
+    setTrustConfirmations(payload.confirmations ?? []);
+    setTrustProfiles(Object.fromEntries((payload.profiles ?? []).map((item) => [item.user_id, item])));
+  }, [user]);
+
   const loadProfileTab = useCallback(async () => {
-    await Promise.all([loadReferralLink(), loadSocialProfile()]);
-  }, [loadReferralLink, loadSocialProfile]);
+    await Promise.all([loadReferralLink(), loadSocialProfile(), loadTrustConfirmations()]);
+  }, [loadReferralLink, loadSocialProfile, loadTrustConfirmations]);
 
   const loadFeed = useCallback(async () => {
     if (!user) return;
@@ -504,6 +550,59 @@ export default function SocialApp({
       setSocialError(contactError instanceof Error ? contactError.message : "Failed to remove contact.");
     } finally {
       setContactSavingId(null);
+    }
+  }
+
+  async function requestContactConfirmation(contact: ContactRow) {
+    setTrustCreatingForId(contact.contact_user_id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/trust/confirmations", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          counterpartyUserId: contact.contact_user_id,
+          confirmationType: "contact_confirmed",
+          sourceType: "team_contact",
+          sourceId: contact.contact_user_id,
+          message: t("profile.trust.contactMessage"),
+          metadata: { source: "profile_contacts", contactSource: contact.source }
+        })
+      });
+      const payload = (await response.json()) as { confirmation?: TrustConfirmationRow; error?: string };
+      if (!response.ok || payload.error || !payload.confirmation) throw new Error(payload.error ?? "Failed to request confirmation.");
+      await loadTrustConfirmations();
+    } catch (trustError) {
+      console.warn("Trust confirmation request failed", trustError);
+      setSocialError(trustError instanceof Error ? trustError.message : "Failed to request confirmation.");
+    } finally {
+      setTrustCreatingForId(null);
+    }
+  }
+
+  async function respondToTrustConfirmation(confirmationId: string, action: "confirm" | "decline") {
+    setTrustSavingId(confirmationId);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/trust/confirmations/${confirmationId}/${action}`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = (await response.json()) as { confirmation?: TrustConfirmationRow; error?: string };
+      if (!response.ok || payload.error || !payload.confirmation) throw new Error(payload.error ?? "Failed to update confirmation.");
+      setTrustConfirmations((current) => current?.map((item) => item.id === payload.confirmation?.id ? payload.confirmation : item) ?? current);
+    } catch (trustError) {
+      console.warn("Trust confirmation response failed", trustError);
+      setSocialError(trustError instanceof Error ? trustError.message : "Failed to update confirmation.");
+    } finally {
+      setTrustSavingId(null);
     }
   }
 
@@ -923,24 +1022,49 @@ export default function SocialApp({
             </div>
             {socialProfile?.contacts.length ? (
               <div className="contact-list">
-                {socialProfile.contacts.map((contact) => (
-                  <article className="contact-row" key={`${contact.contact_user_id}-${contact.source}`}>
-                    <button type="button" onClick={() => { void openPublicProfile(contact.contact_user_id); }}>
-                      <span>{formatProfileName(contact.profile, contact.contact_user_id)}</span>
-                      <small>{t(contactSourceLabelKey(contact.source))}</small>
-                    </button>
-                    {contact.source === "manual" && !contact.is_required ? (
-                      <button className="finance-small-icon-button" type="button" disabled={contactSavingId === contact.contact_user_id} aria-label={t("profile.contacts.remove")} onClick={() => { void removeManualContact(contact.contact_user_id); }}>
-                        <Trash2 size={15} />
+                {socialProfile.contacts.map((contact) => {
+                  const contactTrustState = getContactTrustState(contact.contact_user_id, trustConfirmations, user.id);
+                  return (
+                    <article className="contact-row" key={`${contact.contact_user_id}-${contact.source}`}>
+                      <button type="button" onClick={() => { void openPublicProfile(contact.contact_user_id); }}>
+                        <span>{formatProfileName(contact.profile, contact.contact_user_id)}</span>
+                        <small>{t(contactSourceLabelKey(contact.source))}</small>
                       </button>
-                    ) : null}
-                  </article>
-                ))}
+                      <div className="contact-actions">
+                        <button
+                          className="finance-small-icon-button primary"
+                          type="button"
+                          disabled={Boolean(contactTrustState) || trustCreatingForId === contact.contact_user_id}
+                          aria-label={t("profile.trust.requestContact")}
+                          onClick={() => { void requestContactConfirmation(contact); }}
+                        >
+                          <Send size={15} />
+                        </button>
+                        {contact.source === "manual" && !contact.is_required ? (
+                          <button className="finance-small-icon-button" type="button" disabled={contactSavingId === contact.contact_user_id} aria-label={t("profile.contacts.remove")} onClick={() => { void removeManualContact(contact.contact_user_id); }}>
+                            <Trash2 size={15} />
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <p>{t("profile.contacts.empty")}</p>
             )}
           </section>
+          <TrustConfirmationsPanel
+            confirmations={trustConfirmations}
+            currentUserId={user.id}
+            locale={locale}
+            profiles={trustProfiles}
+            savingId={trustSavingId}
+            t={t}
+            onConfirm={(confirmationId) => { void respondToTrustConfirmation(confirmationId, "confirm"); }}
+            onDecline={(confirmationId) => { void respondToTrustConfirmation(confirmationId, "decline"); }}
+            onOpenProfile={openPublicProfile}
+          />
           <div className="profile-notifications">
             <button className="finance-icon-button" type="button" aria-label={locale === "ru" ? "Уведомления" : "Notifications"} onClick={openPayoutNotifications}>
               <Bell size={18} />
@@ -1659,6 +1783,83 @@ function HistoryPanel({
   );
 }
 
+function TrustConfirmationsPanel({
+  confirmations,
+  currentUserId,
+  locale,
+  profiles,
+  savingId,
+  t,
+  onConfirm,
+  onDecline,
+  onOpenProfile
+}: {
+  confirmations: TrustConfirmationRow[] | null;
+  currentUserId: string;
+  locale: AppLocale;
+  profiles: Record<string, TeamProfile>;
+  savingId: string | null;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onConfirm: (confirmationId: string) => void;
+  onDecline: (confirmationId: string) => void;
+  onOpenProfile: (userId: string) => void;
+}) {
+  const pendingIncomingCount = confirmations?.filter((item) => item.counterparty_user_id === currentUserId && item.status === "pending").length ?? 0;
+  const visibleConfirmations = (confirmations ?? []).slice(0, 8);
+
+  return (
+    <section className="public-profile-box trust-confirmations-box">
+      <div className="section-heading-row">
+        <span>{t("profile.trust.title")}</span>
+        <strong>{pendingIncomingCount}</strong>
+      </div>
+      {!confirmations ? <p>{t("app.common.loading")}</p> : null}
+      {confirmations && !visibleConfirmations.length ? <p>{t("profile.trust.empty")}</p> : null}
+      {visibleConfirmations.length ? (
+        <div className="trust-confirmation-list">
+          {visibleConfirmations.map((confirmation) => {
+            const isIncoming = confirmation.counterparty_user_id === currentUserId;
+            const otherUserId = isIncoming ? confirmation.requester_user_id : confirmation.counterparty_user_id;
+            const otherProfile = profiles[otherUserId] ?? null;
+            const canRespond = isIncoming && confirmation.status === "pending";
+            return (
+              <article className={`trust-confirmation-row status-${confirmation.status}`} key={confirmation.id}>
+                <div className="trust-confirmation-main">
+                  <button className="trust-profile-button" type="button" onClick={() => onOpenProfile(otherUserId)}>
+                    {formatProfileName(otherProfile, otherUserId)}
+                  </button>
+                  <span className="trust-confirmation-meta">
+                    {t(isIncoming ? "profile.trust.incoming" : "profile.trust.outgoing")} · {t(trustConfirmationTypeLabelKey(confirmation.confirmation_type))}
+                  </span>
+                  {confirmation.message ? <p>{confirmation.message}</p> : null}
+                  <small>
+                    {confirmation.status === "pending"
+                      ? t("profile.trust.expires", { date: formatDate(confirmation.expires_at, locale) })
+                      : formatDate(confirmation.responded_at ?? confirmation.updated_at, locale)}
+                  </small>
+                </div>
+                <div className="trust-confirmation-side">
+                  <span className="trust-status-pill">{t(trustConfirmationStatusLabelKey(confirmation.status))}</span>
+                  {canRespond ? (
+                    <div className="trust-confirmation-actions">
+                      <button className="finance-small-icon-button primary" type="button" disabled={savingId === confirmation.id} aria-label={t("profile.trust.confirm")} onClick={() => onConfirm(confirmation.id)}>
+                        <Check size={15} />
+                      </button>
+                      <button className="finance-small-icon-button" type="button" disabled={savingId === confirmation.id} aria-label={t("profile.trust.decline")} onClick={() => onDecline(confirmation.id)}>
+                        <X size={15} />
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 async function getAccessToken(): Promise<string> {
   const supabase = getBrowserSupabaseClient();
   const {
@@ -1789,6 +1990,32 @@ function contactSourceLabelKey(source: string): MessageKey {
   if (source === "team_leader") return "profile.contacts.sourceLeader";
   if (source === "team_member") return "profile.contacts.sourceMember";
   return "profile.contacts.sourceManual";
+}
+
+function getContactTrustState(contactUserId: string, confirmations: TrustConfirmationRow[] | null, currentUserId: string): TrustConfirmationStatus | null {
+  const confirmation = confirmations?.find((item) =>
+    ((item.requester_user_id === currentUserId && item.counterparty_user_id === contactUserId)
+      || (item.requester_user_id === contactUserId && item.counterparty_user_id === currentUserId))
+    && item.confirmation_type === "contact_confirmed"
+    && (item.status === "pending" || item.status === "confirmed")
+  );
+  return confirmation?.status ?? null;
+}
+
+function trustConfirmationTypeLabelKey(type: TrustConfirmationType): MessageKey {
+  if (type === "help_given") return "profile.trust.typeHelpGiven";
+  if (type === "help_received") return "profile.trust.typeHelpReceived";
+  if (type === "deal_completed") return "profile.trust.typeDealCompleted";
+  if (type === "challenge_confirmed") return "profile.trust.typeChallengeConfirmed";
+  if (type === "contact_confirmed") return "profile.trust.typeContactConfirmed";
+  return "profile.trust.typeProofAdded";
+}
+
+function trustConfirmationStatusLabelKey(status: TrustConfirmationStatus): MessageKey {
+  if (status === "confirmed") return "profile.trust.statusConfirmed";
+  if (status === "declined") return "profile.trust.statusDeclined";
+  if (status === "expired") return "profile.trust.statusExpired";
+  return "profile.trust.statusPending";
 }
 
 function postStatusLabelKey(status: FeedPost["status"]): MessageKey {

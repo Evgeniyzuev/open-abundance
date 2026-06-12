@@ -110,6 +110,7 @@
    - `trust_events`, `mutual_confirmations`, `reciprocity_balances`.
    - Phase 1 migration created: `20260611161340_trust_reciprocity_foundation.sql`.
    - Phase 2 API foundation created: `lib/trust.ts`, `/api/trust/confirmations`, `/api/trust/confirmations/[confirmationId]/confirm`, `/api/trust/confirmations/[confirmationId]/decline`, `/api/trust/summary`.
+   - Phase 2 UX foundation created in `Social/Profile`: incoming/outgoing confirmations, confirm/decline actions, contact confirmation request from Contacts.
    - Mutual confirmations for help, community checks and simple deals.
    - Soft reciprocity signal for recommendations and promotion, without public numeric reputation.
    - Inventory artifacts for confirmed milestones.

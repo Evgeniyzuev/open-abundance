@@ -37,8 +37,21 @@ export async function GET(request: NextRequest) {
     }
 
     const box = normalizeConfirmationBox(new URL(request.url).searchParams.get("box"));
-    const confirmations = await listConfirmations(createTrustAdminClient(), user.id, box);
-    return NextResponse.json({ confirmations }, { headers: NO_STORE_HEADERS });
+    const supabase = createTrustAdminClient();
+    const confirmations = await listConfirmations(supabase, user.id, box);
+    const profileIds = Array.from(new Set(confirmations.flatMap((item) => [item.requester_user_id, item.counterparty_user_id])));
+    const { data: profiles, error: profilesError } = profileIds.length
+      ? await supabase
+          .from("user_profiles")
+          .select("user_id,username,display_name,avatar_url,level,created_at")
+          .in("user_id", profileIds)
+      : { data: [], error: null };
+
+    if (profilesError) {
+      return NextResponse.json({ error: profilesError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+
+    return NextResponse.json({ confirmations, profiles: profiles ?? [] }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to load confirmation requests." },

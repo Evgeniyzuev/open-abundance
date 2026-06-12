@@ -53,6 +53,8 @@
 - Added no-store routes for creating/listing confirmation requests, confirming, declining and loading the current user's Trust summary.
 - Confirm/decline routes manually enforce that only `counterparty_user_id` can respond, create a confirmed `trust_events` row on confirm, and recalculate `reciprocity_balances`.
 - Client can still create only pending confirmation requests and read related rows directly; privileged state changes stay server-side through service-role routes.
+- Phase 2 UX foundation added in `components/SocialApp.tsx`: profile loads incoming/outgoing confirmation requests, lets a counterparty confirm/decline pending requests, and can request a contact confirmation from the Contacts block.
+- Confirmation UI remains private to the current profile screen; no public numeric reputation is exposed.
 
 ## Core Entities
 

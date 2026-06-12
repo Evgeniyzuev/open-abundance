@@ -332,6 +332,20 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .contact-row > button:first-child { min-width: 0; display: grid; gap: 2px; background: transparent; color: var(--text); text-align: left; }
 .contact-row span { overflow: hidden; font-size: 15px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
 .contact-row small { color: var(--muted); font-size: 12px; font-weight: 800; }
+.contact-actions { display: inline-flex; align-items: center; gap: 6px; }
+.trust-confirmations-box > p { margin: 0; color: var(--muted); font-size: 14px; text-align: center; }
+.trust-confirmation-list { display: grid; gap: 7px; }
+.trust-confirmation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; border-radius: 10px; padding: 9px; background: var(--surface); box-shadow: 0 8px 18px rgba(25,25,35,0.05); }
+.trust-confirmation-main { min-width: 0; display: grid; gap: 3px; }
+.trust-profile-button { max-width: 100%; overflow: hidden; background: transparent; color: var(--text); font-size: 15px; font-weight: 900; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.trust-confirmation-meta { color: var(--muted); font-size: 12px; font-weight: 800; }
+.trust-confirmation-main p { margin: 0; overflow-wrap: anywhere; color: var(--text); font-size: 13px; line-height: 1.28; }
+.trust-confirmation-main small { color: var(--muted); font-size: 11px; font-weight: 750; }
+.trust-confirmation-side { display: grid; justify-items: end; gap: 7px; }
+.trust-status-pill { min-height: 24px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 8px; background: #eef6ff; color: var(--blue); font-size: 11px; font-weight: 850; }
+.trust-confirmation-row.status-confirmed .trust-status-pill { background: #edf8f1; color: var(--green); }
+.trust-confirmation-row.status-declined .trust-status-pill, .trust-confirmation-row.status-expired .trust-status-pill { background: #f1f2f7; color: var(--muted); }
+.trust-confirmation-actions { display: inline-flex; gap: 6px; }
 .public-profile-modal { position: relative; justify-items: center; text-align: center; }
 .modal-close { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #f1f2f7; color: var(--muted); }
 .finance-error.neutral { color: var(--muted); text-align: center; }

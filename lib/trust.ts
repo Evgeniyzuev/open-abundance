@@ -57,6 +57,7 @@ export type ReciprocityBalanceRow = {
   confirmations_given_count: number;
   confirmations_received_count: number;
   recent_positive_events: number;
+  unresolved_pending_count: number;
   reciprocity_score: number;
   updated_at: string;
 };
@@ -380,6 +381,7 @@ async function recalculateReciprocityBalance(
         confirmations_given_count: confirmationsGivenCount,
         confirmations_received_count: confirmationsReceivedCount,
         recent_positive_events: recentPositiveEvents,
+        unresolved_pending_count: unresolvedPendingCount,
         reciprocity_score: reciprocityScore,
         updated_at: new Date().toISOString()
       },
@@ -411,6 +413,7 @@ function emptyBalance(userId: string): ReciprocityBalanceRow {
     confirmations_given_count: 0,
     confirmations_received_count: 0,
     recent_positive_events: 0,
+    unresolved_pending_count: 0,
     reciprocity_score: 0,
     updated_at: new Date().toISOString()
   };

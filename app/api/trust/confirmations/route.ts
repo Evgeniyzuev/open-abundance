@@ -53,11 +53,33 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ confirmations, profiles: profiles ?? [] }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
+    if (isMissingTrustSchemaError(routeError)) {
+      return NextResponse.json({ confirmations: [], profiles: [], trustUnavailable: true }, { headers: NO_STORE_HEADERS });
+    }
+
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to load confirmation requests." },
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
+}
+
+function isMissingTrustSchemaError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; message?: unknown };
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  const message = typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
+  return (
+    code === "42P01"
+    || code === "PGRST205"
+    || message.includes("mutual_confirmations")
+    || message.includes("trust_events")
+    || message.includes("reciprocity_balances")
+  ) && (
+    message.includes("does not exist")
+    || message.includes("schema cache")
+    || message.includes("could not find the table")
+  );
 }
 
 export async function POST(request: NextRequest) {

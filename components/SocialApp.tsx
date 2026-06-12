@@ -85,6 +85,7 @@ type TrustConfirmationRow = {
 type TrustConfirmationsPayload = {
   confirmations: TrustConfirmationRow[];
   profiles?: TeamProfile[];
+  trustUnavailable?: boolean;
   error?: string;
 };
 type SocialProfilePayload = {
@@ -327,9 +328,19 @@ export default function SocialApp({
     setTrustProfiles(Object.fromEntries((payload.profiles ?? []).map((item) => [item.user_id, item])));
   }, [user]);
 
+  const loadOptionalTrustConfirmations = useCallback(async () => {
+    try {
+      await loadTrustConfirmations();
+    } catch (trustError) {
+      console.warn("Trust confirmations load failed", trustError);
+      setTrustConfirmations([]);
+      setTrustProfiles({});
+    }
+  }, [loadTrustConfirmations]);
+
   const loadProfileTab = useCallback(async () => {
-    await Promise.all([loadReferralLink(), loadSocialProfile(), loadTrustConfirmations()]);
-  }, [loadReferralLink, loadSocialProfile, loadTrustConfirmations]);
+    await Promise.all([loadReferralLink(), loadSocialProfile(), loadOptionalTrustConfirmations()]);
+  }, [loadOptionalTrustConfirmations, loadReferralLink, loadSocialProfile]);
 
   const loadFeed = useCallback(async () => {
     if (!user) return;

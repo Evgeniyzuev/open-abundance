@@ -172,6 +172,16 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .segmented-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 0 4px 12px; border-radius: 12px; padding: 4px; background: rgba(255,255,255,0.74); box-shadow: 0 8px 20px rgba(25,25,35,0.06); }
 .segmented-tabs button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 850; }
 .segmented-tabs button.active { background: var(--surface); color: var(--blue); box-shadow: 0 6px 14px rgba(25,25,35,0.08); }
+.challenge-tabs { margin-top: -4px; }
+.project-thumb { background: #eef6ff; color: var(--blue); }
+.project-modal .challenge-modal-body strong { color: var(--blue); }
+.project-tasks, .project-application { display: grid; gap: 9px; }
+.project-task-list { display: grid; gap: 8px; }
+.project-task { display: grid; gap: 5px; border-radius: 8px; padding: 11px; background: #f8f8fb; }
+.project-task strong { color: var(--text) !important; font-size: 15px; text-transform: none; }
+.project-task p { color: var(--muted); font-size: 14px; }
+.project-task span { color: var(--blue); font-size: 12px; font-weight: 850; }
+.project-application .challenge-primary-action { gap: 7px; width: 100%; }
 .balance-panel, .profile-panel { display: grid; gap: 8px; margin: 0 4px; border-radius: 14px; padding: 18px; background: var(--surface); box-shadow: var(--shadow); }
 .balance-panel span { color: var(--blue); font-size: 13px; font-weight: 900; text-transform: uppercase; }
 .balance-panel small { color: var(--muted); font-size: 14px; font-weight: 750; }

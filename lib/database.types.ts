@@ -68,6 +68,151 @@ export type Database = {
         }
         Relationships: []
       }
+      project_applications: {
+        Row: {
+          applied_at: string
+          id: string
+          message: string | null
+          project_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string
+          id?: string
+          message?: string | null
+          project_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string
+          id?: string
+          message?: string | null
+          project_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_applications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_tasks: {
+        Row: {
+          created_at: string
+          description: Json
+          difficulty_level: number
+          id: string
+          is_active: boolean
+          project_id: string
+          reward_label: Json
+          sort_order: number
+          title: Json
+          verification_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: Json
+          difficulty_level?: number
+          id?: string
+          is_active?: boolean
+          project_id: string
+          reward_label?: Json
+          sort_order?: number
+          title?: Json
+          verification_type?: string
+        }
+        Update: {
+          created_at?: string
+          description?: Json
+          difficulty_level?: number
+          id?: string
+          is_active?: boolean
+          project_id?: string
+          reward_label?: Json
+          sort_order?: number
+          title?: Json
+          verification_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          category: string
+          created_at: string
+          current_participants: number
+          deadline: string | null
+          description: Json
+          id: string
+          image_url: string | null
+          instructions: Json
+          is_active: boolean
+          level: number
+          max_participants: number
+          owner_id: string | null
+          owner_name: string
+          priority: number
+          requirements: Json
+          title: Json
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          current_participants?: number
+          deadline?: string | null
+          description?: Json
+          id?: string
+          image_url?: string | null
+          instructions?: Json
+          is_active?: boolean
+          level?: number
+          max_participants?: number
+          owner_id?: string | null
+          owner_name?: string
+          priority?: number
+          requirements?: Json
+          title?: Json
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          current_participants?: number
+          deadline?: string | null
+          description?: Json
+          id?: string
+          image_url?: string | null
+          instructions?: Json
+          is_active?: boolean
+          level?: number
+          max_participants?: number
+          owner_id?: string | null
+          owner_name?: string
+          priority?: number
+          requirements?: Json
+          title?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       core_accounts: {
         Row: {
           balance: number

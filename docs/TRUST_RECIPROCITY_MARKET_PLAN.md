@@ -69,6 +69,7 @@
 - Added Wallet transfer modal with contact selection/manual recipient id fallback and server refresh after successful transfer.
 - Added and applied Marketplace listings Phase 2: `marketplace_listings`, create/list/cancel API and Wallet -> Market listing grid.
 - Updated Marketplace listings UI/API so users can create product/service/skill cards directly; open cards are limited by current Core level.
+- Planned marketplace quality/discovery layer in `docs/MARKETPLACE_ESCROW_PLAN.md`: sales count, buyer reviews, seller rating and private `mutual_market_balance = spent - earned` ranking signal.
 
 ## Core Entities
 
@@ -190,6 +191,8 @@ reciprocity_score =
 6. Если событие привязано к челленджу, `/api/challenges/check` может засчитать community proof.
 
 ### Reciprocity Promotion
+
+Marketplace-specific mutual balance is separate from public Trust reputation: `spent - earned` can softly boost listing visibility with caps, but it should not be shown as a public numeric score.
 
 Reciprocity влияет на продвижение только мягко:
 

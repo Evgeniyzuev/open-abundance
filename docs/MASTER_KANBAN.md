@@ -43,6 +43,7 @@
 ## В работе
 
 - [ ] Marketplace escrow / item sales MVP
+  - Planned: sales count, buyer reviews, seller rating and private mutual market balance ranking (`spent - earned`).
   - Phase 1 DB foundation готов: `user_artifacts`, `wallet_ledger`, RLS, indexes, generated types.
   - Wallet -> Core уже переведен на atomic ledger RPC.
   - Wallet-to-Wallet transfer MVP технически готов: backend + modal.
@@ -129,6 +130,7 @@
    - Limit or non-reducible Wallet remainder.
 
 13. [ ] Marketplace escrow / item sales implementation
+    - Later quality layer: buyer reviews/ratings, sales count on cards, ranking with capped private mutual market balance (`spent - earned`).
     - Реализовано: объявления о продаже предметов/услуг/навыков, API create/list/cancel, первая Wallet -> Market сетка, лимит карточек по уровню.
     - Далее: явные условия сделки, принятие обеими сторонами.
     - Оплата из Wallet; при совпадении принятых условий деньги и предмет переходят атомарно.

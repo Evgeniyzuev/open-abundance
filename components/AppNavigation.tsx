@@ -41,6 +41,13 @@ type AppNavigationProps = {
   notesSlot: ReactNode;
 };
 
+type NavigationState = {
+  mainTab: MainTabId;
+  goalTab: GoalTabId;
+  walletTab: WalletTabId;
+  socialTab: SocialTabId;
+};
+
 const mainTabs: MainTab[] = [
   { id: "goals", titleKey: "app.nav.goals", icon: Target },
   { id: "challenges", titleKey: "app.nav.challenges", icon: Trophy },
@@ -73,13 +80,20 @@ const socialTabs: TopTab[] = [
 
 const PULL_THRESHOLD_PX = 72;
 const NAV_HIDE_DELTA_PX = 8;
+const VIEW_QUERY_PARAM = "view";
+const DEFAULT_NAVIGATION_STATE: NavigationState = {
+  mainTab: "goals",
+  goalTab: "notes",
+  walletTab: "wallet",
+  socialTab: "feed"
+};
 
 export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const { refreshUserData, t } = useUserContext();
-  const [activeMainTab, setActiveMainTab] = useState<MainTabId>("goals");
-  const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>("notes");
-  const [activeWalletTab, setActiveWalletTab] = useState<WalletTabId>("wallet");
-  const [activeSocialTab, setActiveSocialTab] = useState<SocialTabId>("feed");
+  const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
+  const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
+  const [activeWalletTab, setActiveWalletTab] = useState<WalletTabId>(DEFAULT_NAVIGATION_STATE.walletTab);
+  const [activeSocialTab, setActiveSocialTab] = useState<SocialTabId>(DEFAULT_NAVIGATION_STATE.socialTab);
   const [navHidden, setNavHidden] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
@@ -96,6 +110,29 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const pullDistanceRef = useRef(0);
   const touchStartYRef = useRef(0);
   const lastGestureTouchYRef = useRef(0);
+  const navigationHydratedRef = useRef(false);
+  const suppressHistoryPushRef = useRef(false);
+  const navigationStateRef = useRef<NavigationState>(DEFAULT_NAVIGATION_STATE);
+
+  const navigationState = {
+    mainTab: activeMainTab,
+    goalTab: activeGoalTab,
+    walletTab: activeWalletTab,
+    socialTab: activeSocialTab
+  };
+  navigationStateRef.current = navigationState;
+
+  const applyNavigationState = useCallback((nextState: NavigationState) => {
+    const currentState = navigationStateRef.current;
+    if (isSameNavigationState(currentState, nextState)) return false;
+
+    navigationStateRef.current = nextState;
+    setActiveMainTab(nextState.mainTab);
+    setActiveGoalTab(nextState.goalTab);
+    setActiveWalletTab(nextState.walletTab);
+    setActiveSocialTab(nextState.socialTab);
+    return true;
+  }, []);
 
   const updateNavFromScrollIntent = useCallback((delta: number) => {
     if (Math.abs(delta) <= NAV_HIDE_DELTA_PX) return;
@@ -132,6 +169,33 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
       resolvers.forEach((resolve) => resolve());
     }
   }, [refreshUserData]);
+
+  useEffect(() => {
+    suppressHistoryPushRef.current = true;
+    const initialState = readNavigationStateFromLocation();
+    applyNavigationState(initialState);
+    navigationHydratedRef.current = true;
+
+    const handlePopState = () => {
+      suppressHistoryPushRef.current = true;
+      if (!applyNavigationState(readNavigationStateFromLocation())) {
+        suppressHistoryPushRef.current = false;
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [applyNavigationState]);
+
+  useEffect(() => {
+    if (!navigationHydratedRef.current) return;
+    if (suppressHistoryPushRef.current) {
+      suppressHistoryPushRef.current = false;
+      return;
+    }
+
+    writeNavigationStateToHistory(navigationStateRef.current, "push");
+  }, [activeGoalTab, activeMainTab, activeSocialTab, activeWalletTab]);
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -400,4 +464,107 @@ function getCurrentTitle(mainTab: MainTabId, goalTab: GoalTabId, t: TFunction): 
 function isServerBackedView(mainTab: MainTabId, goalTab: GoalTabId): boolean {
   if (mainTab === "challenges" || mainTab === "wallet" || mainTab === "people") return true;
   return mainTab === "goals" && goalTab === "desires";
+}
+
+function readNavigationStateFromLocation(): NavigationState {
+  if (typeof window === "undefined") return DEFAULT_NAVIGATION_STATE;
+
+  const params = new URLSearchParams(window.location.search);
+  return parseNavigationView(params.get(VIEW_QUERY_PARAM));
+}
+
+function parseNavigationView(view: string | null): NavigationState {
+  if (!view) return DEFAULT_NAVIGATION_STATE;
+
+  const [mainTab, subTab] = view.split(".");
+
+  if (mainTab === "challenges" || mainTab === "spark") {
+    return { ...DEFAULT_NAVIGATION_STATE, mainTab };
+  }
+
+  if (mainTab === "goals") {
+    return {
+      ...DEFAULT_NAVIGATION_STATE,
+      mainTab: "goals",
+      goalTab: isGoalTabId(subTab) ? subTab : DEFAULT_NAVIGATION_STATE.goalTab
+    };
+  }
+
+  if (mainTab === "wallet") {
+    return {
+      ...DEFAULT_NAVIGATION_STATE,
+      mainTab: "wallet",
+      walletTab: isWalletTabId(subTab) ? subTab : DEFAULT_NAVIGATION_STATE.walletTab
+    };
+  }
+
+  if (mainTab === "people") {
+    return {
+      ...DEFAULT_NAVIGATION_STATE,
+      mainTab: "people",
+      socialTab: isSocialTabId(subTab) ? subTab : DEFAULT_NAVIGATION_STATE.socialTab
+    };
+  }
+
+  return DEFAULT_NAVIGATION_STATE;
+}
+
+function writeNavigationStateToHistory(state: NavigationState, mode: "push" | "replace") {
+  if (typeof window === "undefined") return;
+
+  const nextView = getNavigationViewParam(state);
+  const currentView = new URLSearchParams(window.location.search).get(VIEW_QUERY_PARAM);
+  if (nextView === currentView) return;
+
+  const url = new URL(window.location.href);
+  if (nextView) {
+    url.searchParams.set(VIEW_QUERY_PARAM, nextView);
+  } else {
+    url.searchParams.delete(VIEW_QUERY_PARAM);
+  }
+
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  if (mode === "push") {
+    window.history.pushState({ view: nextView }, "", nextUrl);
+    return;
+  }
+
+  window.history.replaceState({ view: nextView }, "", nextUrl);
+}
+
+function getNavigationViewParam(state: NavigationState): string | null {
+  if (state.mainTab === "goals") {
+    return state.goalTab === DEFAULT_NAVIGATION_STATE.goalTab ? null : `goals.${state.goalTab}`;
+  }
+
+  if (state.mainTab === "wallet") {
+    return state.walletTab === DEFAULT_NAVIGATION_STATE.walletTab ? "wallet" : `wallet.${state.walletTab}`;
+  }
+
+  if (state.mainTab === "people") {
+    return state.socialTab === DEFAULT_NAVIGATION_STATE.socialTab ? "people" : `people.${state.socialTab}`;
+  }
+
+  return state.mainTab;
+}
+
+function isSameNavigationState(left: NavigationState, right: NavigationState): boolean {
+  return (
+    left.mainTab === right.mainTab &&
+    left.goalTab === right.goalTab &&
+    left.walletTab === right.walletTab &&
+    left.socialTab === right.socialTab
+  );
+}
+
+function isGoalTabId(value: string | undefined): value is GoalTabId {
+  return value === "desires" || value === "notes" || value === "checks" || value === "map" || value === "results";
+}
+
+function isWalletTabId(value: string | undefined): value is WalletTabId {
+  return value === "wallet" || value === "core" || value === "market";
+}
+
+function isSocialTabId(value: string | undefined): value is SocialTabId {
+  return value === "feed" || value === "people" || value === "blog" || value === "teams" || value === "profile";
 }

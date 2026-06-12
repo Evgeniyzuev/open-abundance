@@ -438,6 +438,25 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .people-stat-row span { min-width: 0; overflow: hidden; border-radius: 999px; padding: 3px 7px; background: #f7f8fb; color: var(--muted); font-size: 10px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
 .people-actions { display: inline-flex; align-items: center; gap: 5px; }
 .public-profile-actions { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; margin-top: 4px; }
+.public-user-shell { padding: 18px 10px 28px; }
+.public-user-page { width: min(100%, 610px); display: grid; gap: 10px; margin: 0 auto; }
+.public-user-header { display: grid; justify-items: center; gap: 9px; border-radius: 16px; padding: 18px 13px 13px; background: var(--surface); box-shadow: var(--shadow); text-align: center; }
+.public-user-header > strong { max-width: 100%; overflow: hidden; font-size: 24px; line-height: 1.08; text-overflow: ellipsis; white-space: nowrap; }
+.public-user-tabs { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 4px; }
+.public-user-tabs a { min-width: 0; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 11px; background: #f7f8fb; color: var(--muted); font-size: 13px; font-weight: 900; text-decoration: none; }
+.public-user-tabs a.active { background: #eef6ff; color: var(--blue); }
+.public-user-content { display: grid; gap: 10px; }
+.public-user-bio { margin: 0; border-radius: 14px; padding: 13px; background: var(--surface); box-shadow: 0 9px 24px rgba(25,25,35,0.07); color: var(--text); font-size: 15px; line-height: 1.36; white-space: pre-wrap; }
+.direct-message-modal { gap: 11px; text-align: left; }
+.direct-message-header { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-right: 34px; }
+.direct-message-header small { color: var(--muted); font-size: 12px; font-weight: 850; white-space: nowrap; }
+.direct-message-list { width: 100%; min-height: 180px; max-height: min(48vh, 390px); display: grid; align-content: end; gap: 7px; overflow-y: auto; border-radius: 12px; padding: 10px; background: #f7f8fb; }
+.direct-message-list > p { margin: 0; color: var(--muted); font-size: 14px; text-align: center; }
+.direct-bubble { max-width: 82%; justify-self: start; border-radius: 14px 14px 14px 4px; padding: 9px 11px; background: var(--surface); box-shadow: 0 7px 18px rgba(25,25,35,0.05); }
+.direct-bubble.own { justify-self: end; border-radius: 14px 14px 4px 14px; background: #eef6ff; color: var(--blue); }
+.direct-bubble p { margin: 0; overflow-wrap: anywhere; font-size: 14px; line-height: 1.32; white-space: pre-wrap; }
+.direct-message-composer { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 34px; align-items: end; gap: 8px; }
+.direct-message-composer textarea { min-height: 42px; max-height: 120px; border: 1px solid var(--line); border-radius: 12px; outline: 0; padding: 10px 11px; background: #f8f8fb; color: var(--text); resize: vertical; font: inherit; font-size: 14px; }
 .feed-layout { display: grid; gap: 10px; margin: 0 4px; }
 .feed-composer, .blog-heading { display: grid; gap: 10px; border-radius: 14px; padding: 13px; background: var(--surface); box-shadow: var(--shadow); }
 .blog-heading { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }

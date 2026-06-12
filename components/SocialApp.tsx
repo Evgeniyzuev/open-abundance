@@ -199,6 +199,29 @@ type PeoplePayload = {
   query: string;
   error?: string;
 };
+type DirectMessage = {
+  id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  body: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+type DirectConversationPayload = {
+  targetProfile: TeamProfile;
+  conversation: {
+    id: string;
+    conversation_key: string;
+    last_message_at: string | null;
+    last_message_preview: string | null;
+    created_at: string;
+    updated_at: string;
+  } | null;
+  messages: DirectMessage[];
+  error?: string;
+};
 type ProfileEditorState = {
   bio: string;
   linkLabel: string;
@@ -247,6 +270,11 @@ export default function SocialApp({
   const [peopleSearchText, setPeopleSearchText] = useState("");
   const [peopleQuery, setPeopleQuery] = useState("");
   const [peopleFilter, setPeopleFilter] = useState<PeopleFilter>("nearby");
+  const [directPayload, setDirectPayload] = useState<DirectConversationPayload | null>(null);
+  const [directTargetUserId, setDirectTargetUserId] = useState<string | null>(null);
+  const [directMessageBody, setDirectMessageBody] = useState("");
+  const [directLoading, setDirectLoading] = useState(false);
+  const [directSending, setDirectSending] = useState(false);
   const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
   const [blogPayload, setBlogPayload] = useState<FeedPayload | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
@@ -285,6 +313,11 @@ export default function SocialApp({
     setPeopleSearchText("");
     setPeopleQuery("");
     setPeopleFilter("nearby");
+    setDirectPayload(null);
+    setDirectTargetUserId(null);
+    setDirectMessageBody("");
+    setDirectLoading(false);
+    setDirectSending(false);
     setFeedPayload(null);
     setBlogPayload(null);
     setFeedLoading(false);
@@ -638,8 +671,67 @@ export default function SocialApp({
     }
   }
 
-  function openMessageEntry(profileName: string) {
-    setSocialError(t("social.people.messagePlanned", { name: profileName }));
+  async function openDirectMessage(targetUserId: string) {
+    setDirectTargetUserId(targetUserId);
+    setDirectLoading(true);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/direct/conversations/${targetUserId}?ts=${Date.now()}`, {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache"
+        }
+      });
+      const payload = (await response.json()) as DirectConversationPayload;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load direct conversation.");
+      setDirectPayload(payload);
+      setDirectMessageBody("");
+    } catch (directError) {
+      console.warn("Direct conversation load failed", directError);
+      setDirectPayload(null);
+      setDirectTargetUserId(null);
+      setSocialError(directError instanceof Error ? directError.message : "Failed to load direct conversation.");
+    } finally {
+      setDirectLoading(false);
+    }
+  }
+
+  async function sendDirectMessage() {
+    const targetUserId = directTargetUserId ?? directPayload?.targetProfile.user_id;
+    const body = directMessageBody.trim();
+    if (!targetUserId || !body) return;
+
+    setDirectSending(true);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/direct/conversations/${targetUserId}`, {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ body })
+      });
+      const payload = (await response.json()) as DirectConversationPayload;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to send message.");
+      setDirectPayload(payload);
+      setDirectMessageBody("");
+    } catch (directError) {
+      console.warn("Direct message send failed", directError);
+      setSocialError(directError instanceof Error ? directError.message : "Failed to send message.");
+    } finally {
+      setDirectSending(false);
+    }
+  }
+
+  function closeDirectMessage() {
+    setDirectPayload(null);
+    setDirectTargetUserId(null);
+    setDirectMessageBody("");
   }
 
   async function removeManualContact(contactUserId: string) {
@@ -947,7 +1039,7 @@ export default function SocialApp({
           t={t}
           onAddContact={(userId) => { void addManualContact(userId); }}
           onFilterChange={setPeopleFilter}
-          onMessage={(row) => openMessageEntry(formatProfileName(row.profile, row.profile.user_id))}
+          onMessage={(row) => { void openDirectMessage(row.profile.user_id); }}
           onOpenBlog={openAuthorBlog}
           onOpenProfile={openPublicProfile}
           onQueryChange={setPeopleSearchText}
@@ -1259,7 +1351,7 @@ export default function SocialApp({
             </div>
             {!publicProfile.relation.isSelf ? (
               <div className="public-profile-actions">
-                <button className="secondary-button" type="button" onClick={() => openMessageEntry(formatProfileName(publicProfile.profile, publicProfile.profile.user_id))}>
+                <button className="secondary-button" type="button" onClick={() => { void openDirectMessage(publicProfile.profile.user_id); }}>
                   <MessageCircle size={16} />
                   {t("social.people.message")}
                 </button>
@@ -1313,7 +1405,87 @@ export default function SocialApp({
           onCopyWish={copyPublicWishToMine}
         />
       ) : null}
+      {directTargetUserId ? (
+        <DirectMessageModal
+          currentUserId={user?.id ?? ""}
+          loading={directLoading}
+          messageBody={directMessageBody}
+          payload={directPayload}
+          sending={directSending}
+          t={t}
+          onBodyChange={setDirectMessageBody}
+          onClose={closeDirectMessage}
+          onOpenProfile={(userId) => { void openPublicProfile(userId); }}
+          onSend={() => { void sendDirectMessage(); }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function DirectMessageModal({
+  currentUserId,
+  loading,
+  messageBody,
+  payload,
+  sending,
+  t,
+  onBodyChange,
+  onClose,
+  onOpenProfile,
+  onSend
+}: {
+  currentUserId: string;
+  loading: boolean;
+  messageBody: string;
+  payload: DirectConversationPayload | null;
+  sending: boolean;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onBodyChange: (body: string) => void;
+  onClose: () => void;
+  onOpenProfile: (userId: string) => void;
+  onSend: () => void;
+}) {
+  const targetProfile = payload?.targetProfile ?? null;
+  const targetName = targetProfile ? formatProfileName(targetProfile, targetProfile.user_id) : t("social.people.message");
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet direct-message-modal" role="dialog" aria-modal="true" aria-label={t("social.direct.title")} onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}>
+          <X size={18} />
+        </button>
+        <header className="direct-message-header">
+          <button className="feed-author" type="button" disabled={!targetProfile} onClick={() => targetProfile ? onOpenProfile(targetProfile.user_id) : undefined}>
+            <span className="feed-author-avatar">
+              {targetProfile?.avatar_url ? <img alt="" src={targetProfile.avatar_url} /> : <UserRound size={18} />}
+            </span>
+            <span>{targetName}</span>
+          </button>
+          {targetProfile ? <small>Lvl {targetProfile.level}</small> : null}
+        </header>
+        <div className="direct-message-list">
+          {loading ? <p>{t("app.common.loading")}</p> : null}
+          {!loading && !payload?.messages.length ? <p>{t("social.direct.empty")}</p> : null}
+          {payload?.messages.map((message) => (
+            <article className={message.sender_user_id === currentUserId ? "direct-bubble own" : "direct-bubble"} key={message.id}>
+              <p>{message.body}</p>
+            </article>
+          ))}
+        </div>
+        <form className="direct-message-composer" onSubmit={(event) => { event.preventDefault(); onSend(); }}>
+          <textarea
+            maxLength={2000}
+            placeholder={t("social.direct.placeholder")}
+            value={messageBody}
+            onChange={(event) => onBodyChange(event.target.value)}
+          />
+          <button className="finance-small-icon-button primary" type="submit" disabled={sending || loading || !messageBody.trim()} aria-label={t("social.direct.send")}>
+            <Send size={15} />
+          </button>
+        </form>
+      </section>
+    </div>
   );
 }
 

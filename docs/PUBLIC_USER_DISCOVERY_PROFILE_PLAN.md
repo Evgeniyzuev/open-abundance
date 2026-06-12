@@ -33,13 +33,18 @@ Implemented 2026-06-12:
 - в `Social` добавлена вкладка `People`, отдельная от `Teams`;
 - People UI показывает строки пользователей с аватаром, именем, `Lvl`, bio/handle, Trust/Team/Influence chips и действиями: открыть профиль, блог, message entry, add contact;
 - `Add contact` использует существующий `POST /api/social/contacts` и обновляет локальное состояние строки/профиля;
-- `Message` пока является planned entry point без Direct storage, чтобы не создавать ложную личку до отдельной схемы сообщений;
+- `Message` был добавлен как planned entry point на первом шаге, без Direct storage;
 - публичный профиль получил быстрые действия `Message`, `Blog`, `Add contact`.
+- добавлена MVP-схема Direct: `direct_conversations`, `direct_conversation_participants`, `direct_messages`, RLS-политики участников и базовые индексы;
+- добавлен API `GET/POST /api/direct/conversations/[targetUserId]`: открыть диалог, создать conversation при первом сообщении, отправить сообщение, вернуть последние сообщения;
+- `Message` в People и публичном профиле теперь открывает модальное окно лички, а не planned-заглушку;
+- добавлены отдельные маршруты `/u/[userId]` и `/u/[userId]/blog`, чтобы публичный профиль и блог были связаны прямым URL;
+- антиспам на первом слое ограничивает отправку: до 20 сообщений в час незнакомым пользователям и до 60 сообщений в час контактам.
 
 Pending:
 
-- полноценный Direct/messages data model, API, настройки "кто может писать" и антиспам-лимиты сообщений;
-- отдельный public route `/u/[userIdOrUsername]` вне текущего Social modal;
+- настройки "кто может писать", блокировки, mute/report, список диалогов и read receipts для Direct;
+- username-based public route `/u/[username]`, когда username станет уникальным и стабильно валидируемым;
 - более точный Influence score с просмотрами, комментариями, реакциями и referral impact;
 - отдельная visibility-модель для публичного Trust summary;
 - dedicated indexes/materialized discovery index, если People search станет тяжелым.

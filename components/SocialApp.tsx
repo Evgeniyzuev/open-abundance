@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, Newspaper, Save, Send, Share2, Trash2, UserRound, Users, X } from "lucide-react";
+import { Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, MessageCircle, Newspaper, Save, Search, Send, Share2, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
@@ -9,7 +9,7 @@ import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
 
-type SocialTab = "feed" | "blog" | "profile" | "teams";
+type SocialTab = "feed" | "people" | "blog" | "profile" | "teams";
 type SocialTabChange = (tab: SocialTab) => void;
 type ReferralLink = { code: string; url: string };
 type TeamProfile = {
@@ -180,6 +180,25 @@ type FeedPayload = {
   posts: FeedPost[];
   error?: string;
 };
+type PeopleFilter = "nearby" | "team" | "referrals" | "same_level" | "active";
+type PeopleRow = {
+  profile: TeamProfile & { bio: string | null };
+  headline: string | null;
+  relation: { isSelf: boolean; isContact: boolean; isTeam: boolean; isReferral: boolean };
+  publicStats: {
+    level: number;
+    trust: { confirmed: number; helped: number; deals: number; recent: number; label: "new" | "confirmed" | "trusted" };
+    team: { strength: number; members: number };
+    influence: { label: "new" | "active" | "creator"; publicPosts: number; referrals: number };
+  };
+  lastPublicActivityAt: string | null;
+};
+type PeoplePayload = {
+  people: PeopleRow[];
+  filter: PeopleFilter | "search";
+  query: string;
+  error?: string;
+};
 type ProfileEditorState = {
   bio: string;
   linkLabel: string;
@@ -223,6 +242,11 @@ export default function SocialApp({
   const [publicProfileLoading, setPublicProfileLoading] = useState(false);
   const [copyingWishId, setCopyingWishId] = useState<string | null>(null);
   const [contactSavingId, setContactSavingId] = useState<string | null>(null);
+  const [peoplePayload, setPeoplePayload] = useState<PeoplePayload | null>(null);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [peopleSearchText, setPeopleSearchText] = useState("");
+  const [peopleQuery, setPeopleQuery] = useState("");
+  const [peopleFilter, setPeopleFilter] = useState<PeopleFilter>("nearby");
   const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
   const [blogPayload, setBlogPayload] = useState<FeedPayload | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
@@ -256,6 +280,11 @@ export default function SocialApp({
     setPublicProfileLoading(false);
     setCopyingWishId(null);
     setContactSavingId(null);
+    setPeoplePayload(null);
+    setPeopleLoading(false);
+    setPeopleSearchText("");
+    setPeopleQuery("");
+    setPeopleFilter("nearby");
     setFeedPayload(null);
     setBlogPayload(null);
     setFeedLoading(false);
@@ -342,6 +371,38 @@ export default function SocialApp({
     await Promise.all([loadReferralLink(), loadSocialProfile(), loadOptionalTrustConfirmations()]);
   }, [loadOptionalTrustConfirmations, loadReferralLink, loadSocialProfile]);
 
+  const loadPeople = useCallback(async () => {
+    if (!user) return;
+    setPeopleLoading(true);
+    try {
+      const token = await getAccessToken();
+      const params = new URLSearchParams({ filter: peopleFilter, limit: "30", ts: String(Date.now()) });
+      const query = peopleQuery.trim();
+      if (query) params.set("q", query);
+      const response = await fetch(`/api/social/people?${params.toString()}`, {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache"
+        }
+      });
+      const payload = (await response.json()) as PeoplePayload;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load people.");
+      setPeoplePayload(payload);
+    } finally {
+      setPeopleLoading(false);
+    }
+  }, [peopleFilter, peopleQuery, user]);
+
+  const submitPeopleSearch = useCallback(() => {
+    const nextQuery = peopleSearchText.trim();
+    if (nextQuery === peopleQuery) {
+      void loadPeople();
+      return;
+    }
+    setPeopleQuery(nextQuery);
+  }, [loadPeople, peopleQuery, peopleSearchText]);
+
   const loadFeed = useCallback(async () => {
     if (!user) return;
     setFeedLoading(true);
@@ -400,13 +461,13 @@ export default function SocialApp({
       return;
     }
 
-    const load = activeTab === "feed" ? loadFeed : activeTab === "blog" ? loadBlog : activeTab === "teams" ? loadTeamContext : loadProfileTab;
+    const load = activeTab === "feed" ? loadFeed : activeTab === "people" ? loadPeople : activeTab === "blog" ? loadBlog : activeTab === "teams" ? loadTeamContext : loadProfileTab;
     setSocialError(null);
     load().catch((loadError) => {
       console.warn("Social data load failed", loadError);
       setSocialError(loadError instanceof Error ? loadError.message : "Failed to load social data.");
     });
-  }, [active, activeTab, loadBlog, loadFeed, loadProfileTab, loadTeamContext, refreshNonce, user]);
+  }, [active, activeTab, loadBlog, loadFeed, loadPeople, loadProfileTab, loadTeamContext, refreshNonce, user]);
 
   const displayName = profile?.display_name ?? user?.email ?? t("profile.guest");
   const handle = profile?.username ? `@${profile.username}` : user?.email ?? t("profile.localMode");
@@ -541,6 +602,44 @@ export default function SocialApp({
     setFeedPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setBlogPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setSelectedPost((current) => current ? updatePostWishCopyState(current, wishId, copiedIncrement) : current);
+  }
+
+  async function addManualContact(contactUserId: string) {
+    setContactSavingId(contactUserId);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/social/contacts", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ contactUserId })
+      });
+      const payload = (await response.json()) as { contacts?: ContactRow[]; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to add contact.");
+      setSocialProfile((current) => current ? { ...current, contacts: payload.contacts ?? current.contacts } : current);
+      setPeoplePayload((current) => current ? {
+        ...current,
+        people: current.people.map((item) => item.profile.user_id === contactUserId
+          ? { ...item, relation: { ...item.relation, isContact: true } }
+          : item)
+      } : current);
+      setPublicProfile((current) => current?.profile.user_id === contactUserId
+        ? { ...current, relation: { ...current.relation, isContact: true } }
+        : current);
+    } catch (contactError) {
+      console.warn("Contact add failed", contactError);
+      setSocialError(contactError instanceof Error ? contactError.message : "Failed to add contact.");
+    } finally {
+      setContactSavingId(null);
+    }
+  }
+
+  function openMessageEntry(profileName: string) {
+    setSocialError(t("social.people.messagePlanned", { name: profileName }));
   }
 
   async function removeManualContact(contactUserId: string) {
@@ -827,6 +926,35 @@ export default function SocialApp({
         />
       ) : null}
 
+      {activeTab === "people" && !user && !loading ? (
+        <section className="profile-panel">
+          <div className="profile-avatar placeholder">
+            <Users size={34} />
+          </div>
+          <strong>{t("social.people.title")}</strong>
+          <p>{t("profile.registrationRequired")}</p>
+        </section>
+      ) : null}
+
+      {activeTab === "people" && user ? (
+        <PeopleView
+          contactSavingId={contactSavingId}
+          currentUserId={user.id}
+          filter={peopleFilter}
+          loading={peopleLoading}
+          payload={peoplePayload}
+          query={peopleSearchText}
+          t={t}
+          onAddContact={(userId) => { void addManualContact(userId); }}
+          onFilterChange={setPeopleFilter}
+          onMessage={(row) => openMessageEntry(formatProfileName(row.profile, row.profile.user_id))}
+          onOpenBlog={openAuthorBlog}
+          onOpenProfile={openPublicProfile}
+          onQueryChange={setPeopleSearchText}
+          onRefresh={submitPeopleSearch}
+        />
+      ) : null}
+
       {activeTab === "blog" && !user && !loading ? (
         <section className="profile-panel">
           <div className="profile-avatar placeholder">
@@ -861,7 +989,7 @@ export default function SocialApp({
           <div className="profile-avatar placeholder">
             <Users size={34} />
           </div>
-          <strong>Teams</strong>
+          <strong>{t("social.teams.title")}</strong>
           {!user && !loading ? <p>{t("profile.registrationRequired")}</p> : null}
           {user ? (
             <>
@@ -1129,6 +1257,24 @@ export default function SocialApp({
               {publicProfile.relation.isTeam ? <span>{t("profile.visibility.team")}</span> : null}
               {publicProfile.relation.isContact ? <span>{t("profile.visibility.contacts")}</span> : null}
             </div>
+            {!publicProfile.relation.isSelf ? (
+              <div className="public-profile-actions">
+                <button className="secondary-button" type="button" onClick={() => openMessageEntry(formatProfileName(publicProfile.profile, publicProfile.profile.user_id))}>
+                  <MessageCircle size={16} />
+                  {t("social.people.message")}
+                </button>
+                <button className="secondary-button" type="button" onClick={() => openAuthorBlog(publicProfile.profile.user_id)}>
+                  <BookOpen size={16} />
+                  {t("social.feed.openBlog")}
+                </button>
+                {!publicProfile.relation.isContact ? (
+                  <button className="secondary-button" type="button" disabled={contactSavingId === publicProfile.profile.user_id} onClick={() => { void addManualContact(publicProfile.profile.user_id); }}>
+                    <UserPlus size={16} />
+                    {t("social.people.addContact")}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             {publicProfile.profile.bio ? <p>{publicProfile.profile.bio}</p> : null}
             {publicProfile.links.length ? (
               <div className="profile-links">
@@ -1166,6 +1312,115 @@ export default function SocialApp({
           onOpenBlog={openAuthorBlog}
           onCopyWish={copyPublicWishToMine}
         />
+      ) : null}
+    </section>
+  );
+}
+
+function PeopleView({
+  contactSavingId,
+  currentUserId,
+  filter,
+  loading,
+  payload,
+  query,
+  t,
+  onAddContact,
+  onFilterChange,
+  onMessage,
+  onOpenBlog,
+  onOpenProfile,
+  onQueryChange,
+  onRefresh
+}: {
+  contactSavingId: string | null;
+  currentUserId: string;
+  filter: PeopleFilter;
+  loading: boolean;
+  payload: PeoplePayload | null;
+  query: string;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onAddContact: (userId: string) => void;
+  onFilterChange: (filter: PeopleFilter) => void;
+  onMessage: (row: PeopleRow) => void;
+  onOpenBlog: (userId: string) => void;
+  onOpenProfile: (userId: string) => void;
+  onQueryChange: (query: string) => void;
+  onRefresh: () => void;
+}) {
+  const people = payload?.people ?? [];
+  const filters: PeopleFilter[] = ["nearby", "team", "referrals", "same_level", "active"];
+
+  return (
+    <section className="people-layout">
+      <form className="people-search" onSubmit={(event) => { event.preventDefault(); onRefresh(); }}>
+        <Search size={17} />
+        <input
+          maxLength={80}
+          placeholder={t("social.people.searchPlaceholder")}
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+        />
+        <button className="finance-small-icon-button primary" type="submit" aria-label={t("social.people.search")}>
+          <Search size={15} />
+        </button>
+      </form>
+      <div className="people-filter-row" aria-label={t("social.people.filters")}>
+        {filters.map((item) => (
+          <button
+            className={item === filter ? "active" : ""}
+            type="button"
+            key={item}
+            onClick={() => onFilterChange(item)}
+          >
+            {t(peopleFilterLabelKey(item))}
+          </button>
+        ))}
+      </div>
+      {loading && !people.length ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
+      {!loading && !people.length ? <p className="feed-empty">{t("social.people.empty")}</p> : null}
+      {people.length ? (
+        <div className="people-list">
+          {people.map((row) => {
+            const name = formatProfileName(row.profile, row.profile.user_id);
+            const canAddContact = row.profile.user_id !== currentUserId && !row.relation.isContact;
+            return (
+              <article className="people-row" key={row.profile.user_id}>
+                <button className="people-row-main" type="button" onClick={() => { void onOpenProfile(row.profile.user_id); }}>
+                  <span className="people-avatar">
+                    {row.profile.avatar_url ? <img alt="" src={row.profile.avatar_url} /> : <UserRound size={20} />}
+                  </span>
+                  <span className="people-row-copy">
+                    <span className="people-row-title">
+                      <strong>{name}</strong>
+                      <em>Lvl {row.profile.level}</em>
+                    </span>
+                    <small>{row.profile.username ? `@${row.profile.username}` : row.headline ?? t("social.people.noHeadline")}</small>
+                    {row.headline && row.profile.username ? <p>{row.headline}</p> : null}
+                    <span className="people-stat-row">
+                      <span>{t("social.people.trustStat", { count: row.publicStats.trust.confirmed })}</span>
+                      <span>{t("social.people.teamStat", { strength: row.publicStats.team.strength, members: row.publicStats.team.members })}</span>
+                      <span>{t(peopleInfluenceLabelKey(row.publicStats.influence.label))}</span>
+                    </span>
+                  </span>
+                </button>
+                <div className="people-actions">
+                  <button className="finance-small-icon-button" type="button" aria-label={t("social.feed.openBlog")} onClick={() => onOpenBlog(row.profile.user_id)}>
+                    <BookOpen size={15} />
+                  </button>
+                  <button className="finance-small-icon-button" type="button" aria-label={t("social.people.message")} onClick={() => onMessage(row)}>
+                    <MessageCircle size={15} />
+                  </button>
+                  {canAddContact ? (
+                    <button className="finance-small-icon-button primary" type="button" disabled={contactSavingId === row.profile.user_id} aria-label={t("social.people.addContact")} onClick={() => onAddContact(row.profile.user_id)}>
+                      <UserPlus size={15} />
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
       ) : null}
     </section>
   );
@@ -2001,6 +2256,20 @@ function contactSourceLabelKey(source: string): MessageKey {
   if (source === "team_leader") return "profile.contacts.sourceLeader";
   if (source === "team_member") return "profile.contacts.sourceMember";
   return "profile.contacts.sourceManual";
+}
+
+function peopleFilterLabelKey(filter: PeopleFilter): MessageKey {
+  if (filter === "team") return "social.people.filter.team";
+  if (filter === "referrals") return "social.people.filter.referrals";
+  if (filter === "same_level") return "social.people.filter.sameLevel";
+  if (filter === "active") return "social.people.filter.active";
+  return "social.people.filter.nearby";
+}
+
+function peopleInfluenceLabelKey(label: PeopleRow["publicStats"]["influence"]["label"]): MessageKey {
+  if (label === "creator") return "social.people.influence.creator";
+  if (label === "active") return "social.people.influence.active";
+  return "social.people.influence.new";
 }
 
 function getContactTrustState(contactUserId: string, confirmations: TrustConfirmationRow[] | null, currentUserId: string): TrustConfirmationStatus | null {

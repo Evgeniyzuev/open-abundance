@@ -16,7 +16,7 @@ import type { MessageKey } from "@/lib/i18n";
 type MainTabId = "goals" | "challenges" | "spark" | "wallet" | "people";
 type GoalTabId = "desires" | "notes" | "checks" | "map" | "results";
 type WalletTabId = "wallet" | "core" | "market";
-type SocialTabId = "feed" | "blog" | "teams" | "profile";
+type SocialTabId = "feed" | "people" | "blog" | "teams" | "profile";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 type MainTab = {
@@ -65,8 +65,9 @@ const walletTabs: TopTab[] = [
 
 const socialTabs: TopTab[] = [
   { id: "feed", titleKey: "social.feed.title", icon: Newspaper },
+  { id: "people", titleKey: "social.people.title", icon: Users },
   { id: "blog", titleKey: "social.blog.title", icon: BookOpen },
-  { id: "teams", titleKey: "app.nav.people", icon: Users },
+  { id: "teams", titleKey: "social.teams.title", icon: Users },
   { id: "profile", titleKey: "profile.title", icon: UserRound }
 ];
 

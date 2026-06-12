@@ -229,7 +229,7 @@ export default function TasksApp() {
 
   return (
     <section className="tasks-screen">
-      {/* <header className="tasks-header">
+      <header className="tasks-header">
         <div>
           <span>Checks</span>
           <h1>{t("tasks.title")}</h1>
@@ -237,7 +237,7 @@ export default function TasksApp() {
         <button className="tasks-add-button" type="button" aria-label={t("tasks.newTask")} onClick={openNewTaskModal}>
           <Plus size={24} />
         </button>
-      </header> */}
+      </header>
 
       <TaskSection title={t("tasks.today")} emptyText={t("tasks.todayEmpty")} tasks={todayTasks} completions={completions} today={today} onMarkToday={markToday} onOpen={setSelectedTaskId} onRepeat={repeatTask} />
 

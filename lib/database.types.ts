@@ -137,6 +137,115 @@ export type Database = {
         }
         Relationships: []
       }
+      direct_conversation_participants: {
+        Row: {
+          archived_at: string | null
+          conversation_id: string
+          created_at: string
+          last_read_at: string | null
+          muted_at: string | null
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          conversation_id: string
+          created_at?: string
+          last_read_at?: string | null
+          muted_at?: string | null
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          conversation_id?: string
+          created_at?: string
+          last_read_at?: string | null
+          muted_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      direct_conversations: {
+        Row: {
+          conversation_key: string
+          conversation_type: string
+          created_at: string
+          created_by_user_id: string
+          id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_key: string
+          conversation_type?: string
+          created_at?: string
+          created_by_user_id: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_key?: string
+          conversation_type?: string
+          created_at?: string
+          created_by_user_id?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      direct_messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          sender_user_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          sender_user_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          sender_user_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_post_entities: {
         Row: {
           created_at: string

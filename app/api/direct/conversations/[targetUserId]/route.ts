@@ -9,27 +9,8 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 type DirectSupabase = SupabaseClient<Database>;
-type UntypedSupabase = SupabaseClient<any>;
-type DirectConversation = {
-  id: string;
-  conversation_type: string;
-  conversation_key: string;
-  created_by_user_id: string;
-  last_message_at: string | null;
-  last_message_preview: string | null;
-  created_at: string;
-  updated_at: string;
-};
-type DirectMessage = {
-  id: string;
-  conversation_id: string;
-  sender_user_id: string;
-  body: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-};
+type DirectConversation = Tables<"direct_conversations">;
+type DirectMessage = Tables<"direct_messages">;
 type MessageBody = {
   body?: unknown;
 };
@@ -53,7 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: { targetUs
     return NextResponse.json({ targetProfile, conversation, messages }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
-      { error: routeError instanceof Error ? routeError.message : "Failed to load direct conversation." },
+      { error: getRouteErrorMessage(routeError, "Failed to load direct conversation.") },
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
@@ -81,8 +62,7 @@ export async function POST(request: NextRequest, { params }: { params: { targetU
 
     const conversation = await getOrCreateConversation(supabase, user.id, targetUserId);
     const now = new Date().toISOString();
-    const db = supabase as unknown as UntypedSupabase;
-    const { data: message, error: messageError } = await db
+    const { data: message, error: messageError } = await supabase
       .from("direct_messages")
       .insert({
         conversation_id: conversation.id,
@@ -95,7 +75,7 @@ export async function POST(request: NextRequest, { params }: { params: { targetU
 
     if (messageError) return NextResponse.json({ error: messageError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
-    const { data: updatedConversation, error: updateError } = await db
+    const { data: updatedConversation, error: updateError } = await supabase
       .from("direct_conversations")
       .update({
         last_message_at: now,
@@ -119,7 +99,7 @@ export async function POST(request: NextRequest, { params }: { params: { targetU
     );
   } catch (routeError) {
     return NextResponse.json(
-      { error: routeError instanceof Error ? routeError.message : "Failed to send direct message." },
+      { error: getRouteErrorMessage(routeError, "Failed to send direct message.") },
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
@@ -138,8 +118,7 @@ async function loadProfile(supabase: DirectSupabase, userId: string): Promise<Pr
 }
 
 async function findConversation(supabase: DirectSupabase, userA: string, userB: string): Promise<DirectConversation | null> {
-  const db = supabase as unknown as UntypedSupabase;
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("direct_conversations")
     .select("*")
     .eq("conversation_key", directConversationKey(userA, userB))
@@ -153,8 +132,7 @@ async function getOrCreateConversation(supabase: DirectSupabase, senderUserId: s
   const existing = await findConversation(supabase, senderUserId, targetUserId);
   if (existing) return existing;
 
-  const db = supabase as unknown as UntypedSupabase;
-  const { data: conversation, error: conversationError } = await db
+  const { data: conversation, error: conversationError } = await supabase
     .from("direct_conversations")
     .insert({
       conversation_type: "direct",
@@ -170,7 +148,7 @@ async function getOrCreateConversation(supabase: DirectSupabase, senderUserId: s
     throw conversationError;
   }
 
-  const { error: participantsError } = await db
+  const { error: participantsError } = await supabase
     .from("direct_conversation_participants")
     .upsert([
       { conversation_id: conversation.id, user_id: senderUserId },
@@ -182,8 +160,7 @@ async function getOrCreateConversation(supabase: DirectSupabase, senderUserId: s
 }
 
 async function loadMessages(supabase: DirectSupabase, conversationId: string): Promise<DirectMessage[]> {
-  const db = supabase as unknown as UntypedSupabase;
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("direct_messages")
     .select("*")
     .eq("conversation_id", conversationId)
@@ -203,7 +180,7 @@ async function checkMessageRateLimit(supabase: DirectSupabase, senderUserId: str
       .eq("owner_user_id", senderUserId)
       .eq("contact_user_id", targetUserId)
       .eq("status", "active"),
-    (supabase as unknown as UntypedSupabase)
+    supabase
       .from("direct_messages")
       .select("id", { count: "exact", head: true })
       .eq("sender_user_id", senderUserId)
@@ -239,4 +216,13 @@ function directConversationKey(userA: string, userB: string): string {
 function normalizeUuid(value: unknown): string | null {
   if (typeof value !== "string") return null;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
+function getRouteErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
 }

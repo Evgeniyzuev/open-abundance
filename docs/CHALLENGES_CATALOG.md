@@ -171,7 +171,7 @@
 
 **Верификация:** проверять наличие исходящей ledger-записи `wallet_transfer` / `wallet_transfer` с `user_id = user.id`, `direction = debit`, `counterparty_user_id != user.id` и суммой > 0.
 
-**Статус:** реализовано технически 2026-06-12: Wallet-to-Wallet проходит через atomic `wallet_transfer` RPC, пишет парные debit/credit записи в `wallet_ledger`, endpoint `/api/wallet/transfer` добавлен, челлендж добавлен миграцией `20260612101807_first_wallet_transfer_challenge.sql`. Осталось подключить UI transfer modal и вручную проверить UX.
+**Статус:** реализовано технически 2026-06-12: Wallet-to-Wallet проходит через atomic `wallet_transfer` RPC, пишет парные debit/credit записи в `wallet_ledger`, endpoint `/api/wallet/transfer` добавлен, Wallet transfer modal подключена, челлендж добавлен миграцией `20260612101807_first_wallet_transfer_challenge.sql`. Осталось вручную проверить UX.
 
 ---
 
@@ -437,7 +437,7 @@
 | P0 | Team Welcome | первая проверяемая командная связь |
 | P1 | Daily Streak: 7 Days | формирование привычки после серверного источника completions |
 | P1 | First Wallet To Core | реализовано технически; нужна ручная UX-проверка |
-| P1 | Send Your First Transfer | реализовано технически; нужна transfer UI и ручная UX-проверка |
+| P1 | Send Your First Transfer | реализовано технически; нужна ручная UX-проверка |
 | P1 | Earn Your First $5 | демонстрация роста капитала после baseline tracking |
 | P1 | Skill Passport | готовит монетизацию навыков без полного marketplace |
 | P2 | Grow Your Team to 3 | вирусный рост |

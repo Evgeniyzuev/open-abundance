@@ -57,6 +57,15 @@ type ComparisonSeries = {
   finalIndex: number;
   annualReturn: number;
 };
+type WalletTransferContact = {
+  contact_user_id: string;
+  profile: {
+    avatar_url: string | null;
+    display_name: string | null;
+    username: string | null;
+    user_id: string;
+  } | null;
+};
 
 const HALF_YEAR_DAYS = 365.25 / 2;
 const COMPARISON_BASE_INDEX = 100;
@@ -134,6 +143,7 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
   const [targetDailyIncome, setTargetDailyIncome] = useState("10");
   const [targetCalculationTouched, setTargetCalculationTouched] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   useEffect(() => {
     if (activeTab !== "core") setHistoryOpen(false);
@@ -331,6 +341,13 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
     await onRefresh();
   }, [applyServerData, onRefresh]);
 
+  const handleTransferSuccess = useCallback(async (newWallet: Tables<"wallet_accounts">) => {
+    applyServerData({ wallet: newWallet });
+    setWalletHistoryRows(null);
+    setWalletHistoryOpen(false);
+    await onRefresh();
+  }, [applyServerData, onRefresh]);
+
   return (
     <section className="finance-screen">
       {!user && !loading ? (
@@ -350,13 +367,13 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
           {wallet && core ? (
             <>
               <div className="wallet-action-grid">
-                <button className="wallet-action-button" type="button" aria-label="Transfer">
+                <button className="wallet-action-button" type="button" onClick={() => setTransferOpen(true)} aria-label={t("wallet.transfer.title")}>
                   <div className="wallet-action-icon-wrap">
                     <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 5v14M5 12l7-7 7 7" />
                     </svg>
                   </div>
-                  <span className="wallet-action-label">Transfer</span>
+                  <span className="wallet-action-label">{t("wallet.transfer.title")}</span>
                 </button>
                 <button className="wallet-action-button" type="button" onClick={() => setTopupOpen(true)} aria-label={t("wallet.topup.title")}>
                   <div className="wallet-action-icon-wrap">
@@ -535,6 +552,16 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
           t={t}
           onClose={() => setTopupOpen(false)}
           onSuccess={handleTopupSuccess}
+        />
+      ) : null}
+
+      {transferOpen && wallet ? (
+        <WalletTransferModal
+          locale={locale}
+          t={t}
+          wallet={wallet}
+          onClose={() => setTransferOpen(false)}
+          onSuccess={handleTransferSuccess}
         />
       ) : null}
     </section>
@@ -927,6 +954,19 @@ async function loadWalletHistory(): Promise<WalletHistoryRow[]> {
   return payload.rows ?? [];
 }
 
+async function loadWalletTransferContacts(): Promise<WalletTransferContact[]> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/social/contacts?ts=${Date.now()}`, {
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  const payload = (await response.json()) as { contacts?: WalletTransferContact[]; error?: string };
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load contacts.");
+  return payload.contacts ?? [];
+}
+
 async function getAccessToken(): Promise<string> {
   const supabase = getBrowserSupabaseClient();
   const {
@@ -1019,6 +1059,180 @@ function CoreLevelProgress({
         </button>
       ) : null}
     </section>
+  );
+}
+
+function WalletTransferModal({
+  locale,
+  t,
+  wallet,
+  onClose,
+  onSuccess
+}: {
+  locale: AppLocale;
+  t: TFunction;
+  wallet: WalletRow;
+  onClose: () => void;
+  onSuccess: (newWallet: Tables<"wallet_accounts">) => Promise<void>;
+}) {
+  const [amount, setAmount] = useState("");
+  const [contacts, setContacts] = useState<WalletTransferContact[] | null>(null);
+  const [contactsError, setContactsError] = useState<string | null>(null);
+  const [recipientUserId, setRecipientUserId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadContacts() {
+      setContactsError(null);
+      try {
+        const rows = await loadWalletTransferContacts();
+        if (!mounted) return;
+        setContacts(rows);
+        if (rows[0]?.contact_user_id) setRecipientUserId(rows[0].contact_user_id);
+      } catch (loadError) {
+        console.warn("Wallet transfer contacts load failed", loadError);
+        if (mounted) {
+          setContacts([]);
+          setContactsError(loadError instanceof Error ? loadError.message : "Failed to load contacts.");
+        }
+      }
+    }
+
+    loadContacts();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const parsedAmount = parseNumber(amount);
+  const validRecipient = isUuid(recipientUserId.trim());
+  const isValid = validRecipient && Number.isFinite(parsedAmount) && parsedAmount > 0 && parsedAmount <= wallet.balance;
+  const selectedContact = (contacts ?? []).find((contact) => contact.contact_user_id === recipientUserId);
+
+  async function handleConfirm() {
+    if (!isValid) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/wallet/transfer", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: parsedAmount,
+          idempotencyKey: crypto.randomUUID(),
+          recipientUserId: recipientUserId.trim()
+        })
+      });
+      const payload = (await response.json()) as { wallet?: Tables<"wallet_accounts">; error?: string };
+
+      if (!response.ok || payload.error || !payload.wallet) {
+        throw new Error(payload.error ?? "Failed to transfer Wallet.");
+      }
+
+      await onSuccess(payload.wallet);
+      onClose();
+    } catch (transferError) {
+      setError(transferError instanceof Error ? transferError.message : "Failed to transfer Wallet.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.transfer.title")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+          <h2>{t("wallet.transfer.title")}</h2>
+          <span />
+        </div>
+        <div className="transfer-modal-body">
+          <div className="topup-balance-info">
+            <div className="topup-balance-card">
+              <span>{t("wallet.availableBalance")}</span>
+              <strong className="wallet-color">{formatAdaptiveMoney(wallet.balance, locale)}</strong>
+            </div>
+          </div>
+
+          <div className="transfer-contact-block">
+            <span className="transfer-field-label">{t("wallet.transfer.recipient")}</span>
+            {contacts === null ? <p className="transfer-muted">{t("app.common.loading")}</p> : null}
+            {contactsError ? <p className="topup-error">{contactsError}</p> : null}
+            {(contacts ?? []).length > 0 ? (
+              <div className="transfer-contact-list">
+                {(contacts ?? []).slice(0, 6).map((contact) => (
+                  <button
+                    className={contact.contact_user_id === recipientUserId ? "transfer-contact selected" : "transfer-contact"}
+                    key={contact.contact_user_id}
+                    type="button"
+                    onClick={() => {
+                      setRecipientUserId(contact.contact_user_id);
+                      setError(null);
+                    }}
+                  >
+                    <span className="transfer-avatar">{contactInitial(contact)}</span>
+                    <span>
+                      <strong>{contactName(contact)}</strong>
+                      <small>{shortId(contact.contact_user_id)}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <input
+              type="text"
+              value={recipientUserId}
+              onChange={(event) => {
+                setRecipientUserId(event.target.value);
+                setError(null);
+              }}
+              placeholder={t("wallet.transfer.recipientPlaceholder")}
+            />
+          </div>
+
+          <div className="topup-field">
+            <span>{t("wallet.transfer.amount")}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={amount}
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setError(null);
+              }}
+              placeholder="0"
+              autoFocus
+            />
+          </div>
+
+          {selectedContact ? (
+            <p className="transfer-summary">
+              {t("wallet.transfer.summary", { amount: formatAdaptiveMoney(parsedAmount, locale), recipient: contactName(selectedContact) })}
+            </p>
+          ) : null}
+          {!validRecipient && recipientUserId.trim() ? <p className="topup-error">{t("wallet.transfer.error.recipient")}</p> : null}
+          {error ? <p className="topup-error">{error}</p> : null}
+          <div className="topup-modal-actions">
+            <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+            <button className="challenge-primary-action" type="button" disabled={!isValid || saving} onClick={handleConfirm}>
+              {saving ? t("app.common.loading") : t("wallet.transfer.confirm")}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1339,6 +1553,22 @@ function formatDate(value: string, locale: AppLocale): string {
 
 function formatDay(value: string, locale: AppLocale): string {
   return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
+}
+
+function contactName(contact: WalletTransferContact): string {
+  return contact.profile?.display_name || contact.profile?.username || shortId(contact.contact_user_id);
+}
+
+function contactInitial(contact: WalletTransferContact): string {
+  return contactName(contact).trim().slice(0, 1).toUpperCase() || "?";
+}
+
+function shortId(value: string): string {
+  return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
 
 function parseNumber(value: string): number {

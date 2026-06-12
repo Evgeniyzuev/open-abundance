@@ -25,8 +25,9 @@
 - Added and applied `20260612101538_wallet_transfer_rpc.sql`: `wallet_transfer` RPC moves Wallet between two users atomically, writes debit/credit ledger rows, supports idempotency suffixes and grants execute only to `service_role`.
 - Added `/api/wallet/transfer` server route for Wallet-to-Wallet transfers.
 - Added and applied `20260612101807_first_wallet_transfer_challenge.sql`; `/api/challenges/check` verifies `first_wallet_transfer` through outgoing `wallet_ledger` debit rows.
+- Added Wallet transfer modal in `components/WalletApp.tsx`: contact selection, manual recipient user id fallback, amount input, explicit confirmation and Wallet refresh after success.
 - Regenerated `lib/database.types.ts`.
-- Remaining Phase 1 app work: add wallet transfer UI, then reuse the same ledger pattern for marketplace escrow hold/payment/refund.
+- Remaining Phase 1 app work: reuse the same ledger pattern for marketplace escrow hold/payment/refund.
 
 ## Принципы
 
@@ -293,7 +294,7 @@
 - Done: `user_artifacts` с `transferable` и `locked_by_deal_id`.
 - Done: `wallet_ledger`.
 - Done for Wallet -> Core: `wallet_core_topup` RPC and `/api/core/topup`.
-- Done for Wallet-to-Wallet: `wallet_transfer` RPC and `/api/wallet/transfer`.
+- Done for Wallet-to-Wallet: `wallet_transfer` RPC, `/api/wallet/transfer` and Wallet transfer modal.
 - Серверные helpers для следующих atomic Wallet balance changes: escrow hold, marketplace payment, refund.
 - Done: RLS, пользователи читают свои ledger rows и свои/публичные предметы, но не могут напрямую менять ledger.
 
@@ -336,8 +337,6 @@
 
 ## Next Step
 
-Следующий шаг: подключить UI для Wallet-to-Wallet transfer или перейти к Phase 2 `marketplace_listings`.
+Следующий шаг: перейти к Phase 2 `marketplace_listings`.
 
-Если цель - быстрее проверить финансовый контур с пользователем, сначала сделать transfer modal в Wallet: выбор участника, сумма, явное подтверждение, success/error states и обновление Wallet.
-
-Если цель - быстрее двигать торговлю предметами, начать Phase 2: `marketplace_listings` + API create/list/cancel, пока без escrow completion UI.
+Сделать таблицу объявлений, API create/list/cancel и первый UI listing grid. Escrow completion пока не включать: сначала нужно дать пользователю выставить transferable предмет и увидеть карточку объявления.

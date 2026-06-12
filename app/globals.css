@@ -364,6 +364,19 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .topup-balance-card .core-color { color: var(--green); }
 .topup-modal-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .topup-error { color: var(--danger); font-size: 13px; text-align: center; }
+.transfer-modal-body { display: grid; gap: 14px; }
+.transfer-contact-block { display: grid; gap: 8px; }
+.transfer-field-label { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; }
+.transfer-muted { margin: 0; color: var(--muted); font-size: 12px; font-weight: 750; text-align: center; }
+.transfer-contact-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.transfer-contact { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 12px; background: #fbfbfd; text-align: left; }
+.transfer-contact.selected { border-color: var(--blue); background: #f2f8ff; }
+.transfer-avatar { width: 30px; height: 30px; border-radius: 999px; flex: 0 0 auto; display: grid; place-items: center; background: var(--blue); color: white; font-size: 12px; font-weight: 900; }
+.transfer-contact span:last-child { min-width: 0; display: grid; gap: 2px; }
+.transfer-contact strong, .transfer-contact small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.transfer-contact strong { color: var(--text); font-size: 12px; font-weight: 900; }
+.transfer-contact small { color: var(--muted); font-size: 10px; font-weight: 750; }
+.transfer-summary { margin: 0; padding: 10px 12px; border-radius: 12px; background: #f2f8ff; color: var(--blue); font-size: 12px; font-weight: 850; }
 .topup-core-button { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); z-index: 2; }
 .history-section { width: 100%; margin: 10px 4px 0; }
 .profile-panel .history-section { margin-left: 0; margin-right: 0; }

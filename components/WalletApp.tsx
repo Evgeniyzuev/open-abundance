@@ -84,8 +84,18 @@ type MarketplaceListing = Tables<"marketplace_listings"> & {
 };
 type MarketplaceResponse = {
   error?: string;
+  listingLimit?: number;
   listings?: MarketplaceListing[];
+  openListingCount?: number;
   sellableArtifacts?: MarketplaceArtifact[];
+};
+type MarketplaceListingInput = {
+  artifactId?: string;
+  artifactType?: string;
+  description: string;
+  imageUrl?: string;
+  priceAmount: number;
+  title: string;
 };
 
 const HALF_YEAR_DAYS = 365.25 / 2;
@@ -166,7 +176,8 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
   const [topupOpen, setTopupOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [marketListings, setMarketListings] = useState<MarketplaceListing[] | null>(null);
-  const [sellableArtifacts, setSellableArtifacts] = useState<MarketplaceArtifact[]>([]);
+  const [marketListingLimit, setMarketListingLimit] = useState(1);
+  const [marketOpenListingCount, setMarketOpenListingCount] = useState(0);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
   const [sellModalOpen, setSellModalOpen] = useState(false);
@@ -255,7 +266,6 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
       setWalletHistoryRows(null);
       setWalletHistoryOpen(false);
       setMarketListings(null);
-      setSellableArtifacts([]);
     }
   }, [user]);
 
@@ -271,7 +281,8 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
         const payload = await loadMarketplaceData();
         if (!mounted) return;
         setMarketListings(payload.listings ?? []);
-        setSellableArtifacts(payload.sellableArtifacts ?? []);
+        setMarketListingLimit(payload.listingLimit);
+        setMarketOpenListingCount(payload.openListingCount);
       } catch (loadError) {
         console.warn("Marketplace listings load failed", loadError);
         if (mounted) setMarketError(loadError instanceof Error ? loadError.message : "Failed to load marketplace.");
@@ -404,10 +415,10 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
     await onRefresh();
   }, [applyServerData, onRefresh]);
 
-  async function handleCreateListing(artifactId: string, priceAmount: number, description: string) {
-    const listing = await createMarketplaceListing({ artifactId, description, priceAmount });
+  async function handleCreateListing(input: MarketplaceListingInput) {
+    const listing = await createMarketplaceListing(input);
     setMarketListings((current) => [listing, ...(current ?? [])]);
-    setSellableArtifacts((current) => current.filter((artifact) => artifact.id !== artifactId));
+    setMarketOpenListingCount((current) => current + 1);
   }
 
   async function handleCancelListing(listingId: string) {
@@ -416,6 +427,7 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
     try {
       await cancelMarketplaceListing(listingId);
       setMarketListings((current) => (current ?? []).filter((listing) => listing.id !== listingId));
+      setMarketOpenListingCount((current) => Math.max(0, current - 1));
     } catch (cancelError) {
       setMarketError(cancelError instanceof Error ? cancelError.message : "Failed to cancel listing.");
     } finally {
@@ -623,7 +635,8 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
           loading={marketLoading}
           error={marketError}
           locale={locale}
-          sellableCount={sellableArtifacts.length}
+          listingLimit={marketListingLimit}
+          openListingCount={marketOpenListingCount}
           t={t}
           userId={user.id}
           savingId={marketSavingId}
@@ -657,8 +670,9 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
 
       {sellModalOpen ? (
         <SellItemModal
-          artifacts={sellableArtifacts}
+          listingLimit={marketListingLimit}
           locale={locale}
+          openListingCount={marketOpenListingCount}
           t={t}
           onClose={() => setSellModalOpen(false)}
           onCreate={handleCreateListing}
@@ -1067,7 +1081,7 @@ async function loadWalletTransferContacts(): Promise<WalletTransferContact[]> {
   return payload.contacts ?? [];
 }
 
-async function loadMarketplaceData(): Promise<Required<Pick<MarketplaceResponse, "listings" | "sellableArtifacts">>> {
+async function loadMarketplaceData(): Promise<Required<Pick<MarketplaceResponse, "listingLimit" | "listings" | "openListingCount" | "sellableArtifacts">>> {
   const token = await getAccessToken();
   const response = await fetch(`/api/marketplace/listings?ts=${Date.now()}`, {
     cache: "no-store",
@@ -1079,12 +1093,14 @@ async function loadMarketplaceData(): Promise<Required<Pick<MarketplaceResponse,
   const payload = (await response.json()) as MarketplaceResponse;
   if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load marketplace.");
   return {
+    listingLimit: payload.listingLimit ?? 1,
     listings: payload.listings ?? [],
+    openListingCount: payload.openListingCount ?? 0,
     sellableArtifacts: payload.sellableArtifacts ?? []
   };
 }
 
-async function createMarketplaceListing({ artifactId, description, priceAmount }: { artifactId: string; description: string; priceAmount: number }): Promise<MarketplaceListing> {
+async function createMarketplaceListing(input: MarketplaceListingInput): Promise<MarketplaceListing> {
   const token = await getAccessToken();
   const response = await fetch("/api/marketplace/listings", {
     method: "POST",
@@ -1093,7 +1109,7 @@ async function createMarketplaceListing({ artifactId, description, priceAmount }
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify({ artifactId, description, priceAmount })
+    body: JSON.stringify(input)
   });
   const payload = (await response.json()) as { error?: string; listing?: MarketplaceListing };
   if (!response.ok || payload.error || !payload.listing) throw new Error(payload.error ?? "Failed to create marketplace listing.");
@@ -1213,7 +1229,8 @@ function MarketplacePanel({
   loading,
   error,
   locale,
-  sellableCount,
+  listingLimit,
+  openListingCount,
   t,
   userId,
   savingId,
@@ -1224,27 +1241,31 @@ function MarketplacePanel({
   loading: boolean;
   error: string | null;
   locale: AppLocale;
-  sellableCount: number;
+  listingLimit: number;
+  openListingCount: number;
   t: TFunction;
   userId: string;
   savingId: string | null;
   onCancel: (listingId: string) => void;
   onSell: () => void;
 }) {
+  const canCreate = openListingCount < listingLimit;
+
   return (
     <section className="market-panel">
       <div className="market-head">
         <div>
           <span>{t("market.kicker")}</span>
           <strong>{t("market.title")}</strong>
+          <small>{t("market.limit", { count: openListingCount, limit: listingLimit })}</small>
         </div>
-        <button className="challenge-primary-action" type="button" disabled={sellableCount === 0} onClick={onSell}>
+        <button className="challenge-primary-action" type="button" disabled={!canCreate} onClick={onSell}>
           {t("market.sell")}
         </button>
       </div>
       {error ? <p className="finance-error">{error}</p> : null}
       {loading && listings.length === 0 ? <FinanceState title={t("app.common.loading")} description={t("market.loading")} /> : null}
-      {!loading && listings.length === 0 ? <FinanceState title={t("market.emptyTitle")} description={sellableCount > 0 ? t("market.emptyWithItems") : t("market.emptyNoItems")} /> : null}
+      {!loading && listings.length === 0 ? <FinanceState title={t("market.emptyTitle")} description={canCreate ? t("market.emptyWithItems") : t("market.limitReached")} /> : null}
       {listings.length > 0 ? (
         <div className="market-grid">
           {listings.map((listing) => {
@@ -1287,34 +1308,44 @@ function MarketplacePanel({
 }
 
 function SellItemModal({
-  artifacts,
+  listingLimit,
   locale,
+  openListingCount,
   t,
   onClose,
   onCreate
 }: {
-  artifacts: MarketplaceArtifact[];
+  listingLimit: number;
   locale: AppLocale;
+  openListingCount: number;
   t: TFunction;
   onClose: () => void;
-  onCreate: (artifactId: string, priceAmount: number, description: string) => Promise<void>;
+  onCreate: (input: MarketplaceListingInput) => Promise<void>;
 }) {
-  const [artifactId, setArtifactId] = useState(artifacts[0]?.id ?? "");
+  const [title, setTitle] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [artifactType, setArtifactType] = useState("market_item");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const selectedArtifact = artifacts.find((artifact) => artifact.id === artifactId) ?? null;
   const parsedPrice = parseNumber(price);
-  const valid = Boolean(selectedArtifact) && Number.isFinite(parsedPrice) && parsedPrice > 0;
+  const limitReached = openListingCount >= listingLimit;
+  const valid = title.trim().length > 0 && Number.isFinite(parsedPrice) && parsedPrice > 0 && !limitReached;
 
   async function handleCreate() {
-    if (!valid || !selectedArtifact) return;
+    if (!valid) return;
 
     setSaving(true);
     setError(null);
     try {
-      await onCreate(selectedArtifact.id, Math.round(parsedPrice * 100) / 100, description);
+      await onCreate({
+        artifactType,
+        description,
+        imageUrl,
+        priceAmount: Math.round(parsedPrice * 100) / 100,
+        title
+      });
       onClose();
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Failed to create listing.");
@@ -1332,21 +1363,37 @@ function SellItemModal({
           <span />
         </div>
         <div className="sell-modal-body">
-          {artifacts.length > 0 ? (
+          {!limitReached ? (
             <>
               <label className="finance-field">
                 <span>{t("market.item")}</span>
-                <select value={artifactId} onChange={(event) => setArtifactId(event.target.value)}>
-                  {artifacts.map((artifact) => (
-                    <option key={artifact.id} value={artifact.id}>{artifact.title}</option>
-                  ))}
+                <input
+                  value={title}
+                  maxLength={120}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setError(null);
+                  }}
+                  placeholder={t("market.titlePlaceholder")}
+                  autoFocus
+                />
+              </label>
+              <label className="finance-field">
+                <span>{t("market.image")}</span>
+                <input
+                  value={imageUrl}
+                  onChange={(event) => setImageUrl(event.target.value)}
+                  placeholder="https://..."
+                />
+              </label>
+              <label className="finance-field">
+                <span>{t("market.type")}</span>
+                <select value={artifactType} onChange={(event) => setArtifactType(event.target.value)}>
+                  <option value="market_item">{t("market.type.item")}</option>
+                  <option value="service">{t("market.type.service")}</option>
+                  <option value="skill">{t("market.type.skill")}</option>
                 </select>
               </label>
-              {selectedArtifact ? (
-                <p className="sell-item-summary">
-                  {selectedArtifact.title} · {selectedArtifact.rarity} · {selectedArtifact.artifact_type}
-                </p>
-              ) : null}
               <label className="topup-field">
                 <span>{t("market.price")}</span>
                 <input
@@ -1380,7 +1427,7 @@ function SellItemModal({
               </div>
             </>
           ) : (
-            <FinanceState title={t("market.noSellableTitle")} description={t("market.noSellableDescription")} />
+            <FinanceState title={t("market.noSellableTitle")} description={t("market.limitReached")} />
           )}
         </div>
       </section>

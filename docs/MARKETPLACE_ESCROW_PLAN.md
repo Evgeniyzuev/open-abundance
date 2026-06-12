@@ -29,6 +29,8 @@
 - Added and applied `20260612105115_marketplace_listings_phase2.sql`: `marketplace_listings` with RLS, active/own read policy, open-listing uniqueness per item and indexes.
 - Added `/api/marketplace/listings` and `/api/marketplace/listings/[listingId]/cancel`; users can list own transferable unlocked items and cancel own active/draft listings.
 - Added first Market UI as the third Wallet top tab: active listing grid, sell item modal, own-listing cancel action.
+- Updated Market creation flow: user can create a product/service/skill card directly; the server creates a transferable `user_artifacts` row and active listing together.
+- Added MVP listing limit: open listing cards per user cannot exceed the user's current Core level.
 - Regenerated `lib/database.types.ts`.
 - Remaining app work: Phase 3 deals/escrow and atomic completion.
 
@@ -306,6 +308,8 @@
 - Done: `marketplace_listings`.
 - Done: API create/list/cancel.
 - Done: UI listing grid and `Sell item` modal in Wallet -> Market.
+- Done: user-created product/service/skill cards with image URL, title, description/terms and price.
+- Done: per-user open listing limit equals current Core level.
 - Pending: optional entry point from Results/Inventory once real transferable quest items are visible there.
 
 ### Phase 3. Deals And Escrow

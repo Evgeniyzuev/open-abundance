@@ -68,6 +68,7 @@
 - Added and applied `wallet_transfer` RPC, `/api/wallet/transfer` and `First Wallet Transfer` challenge integration; Wallet-to-Wallet now writes paired debit/credit `wallet_ledger` rows.
 - Added Wallet transfer modal with contact selection/manual recipient id fallback and server refresh after successful transfer.
 - Added and applied Marketplace listings Phase 2: `marketplace_listings`, create/list/cancel API and Wallet -> Market listing grid.
+- Updated Marketplace listings UI/API so users can create product/service/skill cards directly; open cards are limited by current Core level.
 
 ## Core Entities
 

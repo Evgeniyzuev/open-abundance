@@ -38,7 +38,7 @@
 - [ ] Marketplace Phase 1 DB foundation: `user_artifacts` and `wallet_ledger` with RLS, grants, indexes and generated Supabase types; migrations `20260612072754_marketplace_phase1_ownership_ledger.sql` and `20260612073116_wallet_ledger_counterparty_index.sql`.
 - [ ] First Wallet -> Core challenge: `wallet_core_topup` RPC, `/api/core/topup` ledger write, `/api/challenges/check` case `first_wallet_to_core`, migration `20260612082405_first_wallet_to_core_challenge.sql`.
 - [ ] Wallet-to-Wallet transfer MVP: `wallet_transfer` RPC, `/api/wallet/transfer`, debit/credit `wallet_ledger` rows, Wallet transfer modal, `/api/challenges/check` case `first_wallet_transfer`, migration `20260612101807_first_wallet_transfer_challenge.sql`.
-- [ ] Marketplace listings Phase 2: `marketplace_listings`, `/api/marketplace/listings`, `/api/marketplace/listings/[listingId]/cancel`, Wallet -> Market tab, listing grid and sell item modal.
+- [ ] Marketplace listings Phase 2: `marketplace_listings`, `/api/marketplace/listings`, `/api/marketplace/listings/[listingId]/cancel`, Wallet -> Market tab, listing grid, user-created product/service/skill cards and sell item modal.
 
 ## В работе
 
@@ -46,7 +46,7 @@
   - Phase 1 DB foundation готов: `user_artifacts`, `wallet_ledger`, RLS, indexes, generated types.
   - Wallet -> Core уже переведен на atomic ledger RPC.
   - Wallet-to-Wallet transfer MVP технически готов: backend + modal.
-  - Phase 2 listings готов: table/API/create/list/cancel/Market tab.
+  - Phase 2 listings готов: table/API/create/list/cancel/Market tab, manual card creation, limit = Core level.
   - Следующий шаг: marketplace deals + escrow.
   - Условия сделки должны быть явными, версионированными и принятыми обеими сторонами.
   - После принятия актуальных условий обеими сторонами деньги и предмет переходят атомарно на сервере.
@@ -129,7 +129,7 @@
    - Limit or non-reducible Wallet remainder.
 
 13. [ ] Marketplace escrow / item sales implementation
-    - Реализовано: объявления о продаже предметов, API create/list/cancel, первая Wallet -> Market сетка.
+    - Реализовано: объявления о продаже предметов/услуг/навыков, API create/list/cancel, первая Wallet -> Market сетка, лимит карточек по уровню.
     - Далее: явные условия сделки, принятие обеими сторонами.
     - Оплата из Wallet; при совпадении принятых условий деньги и предмет переходят атомарно.
     - Requires item ownership, Wallet ledger/escrow, public profiles, basic moderation, Trust-lite and anti-abuse rules.

@@ -6,8 +6,10 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 type ListingPostBody = {
+  artifactType?: unknown;
   artifactId?: unknown;
   description?: unknown;
+  imageUrl?: unknown;
   priceAmount?: unknown;
   title?: unknown;
 };
@@ -52,13 +54,37 @@ export async function GET(request: NextRequest) {
     }
 
     const listings = listingsResult.data ?? [];
+    const [{ count: openListingCount, error: countError }, { data: core, error: coreError }] = await Promise.all([
+      supabase
+        .from("marketplace_listings")
+        .select("id", { count: "exact", head: true })
+        .eq("seller_user_id", user.id)
+        .in("status", ["draft", "active", "reserved"]),
+      supabase
+        .from("core_accounts")
+        .select("level")
+        .eq("user_id", user.id)
+        .maybeSingle()
+    ]);
+
+    if (countError) {
+      return NextResponse.json({ error: countError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+
+    if (coreError) {
+      return NextResponse.json({ error: coreError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+
+    const listingLimit = listingLimitForCoreLevel(core?.level);
     const artifacts = await loadArtifacts(supabase, listings.map((listing) => listing.artifact_id));
     const profiles = await loadProfiles(supabase, listings.map((listing) => listing.seller_user_id));
     const openArtifactIds = new Set(listings.filter((listing) => listing.seller_user_id === user.id).map((listing) => listing.artifact_id));
 
     return NextResponse.json(
       {
+        listingLimit,
         listings: listings.map((listing) => serializeListing(listing, artifacts.get(listing.artifact_id) ?? null, profiles.get(listing.seller_user_id) ?? null)),
+        openListingCount: openListingCount ?? 0,
         sellableArtifacts: (sellableResult.data ?? []).filter((artifact) => !openArtifactIds.has(artifact.id))
       },
       { headers: NO_STORE_HEADERS }
@@ -81,48 +107,72 @@ export async function POST(request: NextRequest) {
     const body = await readJsonBody(request);
     const artifactId = normalizeUuid(body.artifactId);
     const priceAmount = normalizeAmount(body.priceAmount);
-
-    if (!artifactId) {
-      return NextResponse.json({ error: "Select an item to sell." }, { status: 400, headers: NO_STORE_HEADERS });
-    }
+    const cardTitle = normalizeRequiredText(body.title, 120);
 
     if (!priceAmount) {
       return NextResponse.json({ error: "Enter a price greater than 0." }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
-    const { data: artifact, error: artifactError } = await supabase
-      .from("user_artifacts")
-      .select("*")
-      .eq("id", artifactId)
-      .eq("user_id", user.id)
-      .eq("transferable", true)
-      .is("locked_by_deal_id", null)
-      .maybeSingle();
+    const [{ count: openListingCount, error: countError }, { data: core, error: coreError }] = await Promise.all([
+      supabase
+        .from("marketplace_listings")
+        .select("id", { count: "exact", head: true })
+        .eq("seller_user_id", user.id)
+        .in("status", ["draft", "active", "reserved"]),
+      supabase
+        .from("core_accounts")
+        .select("level")
+        .eq("user_id", user.id)
+        .maybeSingle()
+    ]);
 
-    if (artifactError) {
-      return NextResponse.json({ error: artifactError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    if (countError) {
+      return NextResponse.json({ error: countError.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
-    if (!artifact) {
-      return NextResponse.json({ error: "This item cannot be listed." }, { status: 404, headers: NO_STORE_HEADERS });
+    if (coreError) {
+      return NextResponse.json({ error: coreError.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
-    const { data: existingListing, error: existingError } = await supabase
-      .from("marketplace_listings")
-      .select("id,status")
-      .eq("artifact_id", artifact.id)
-      .in("status", ["draft", "active", "reserved"])
-      .maybeSingle();
-
-    if (existingError) {
-      return NextResponse.json({ error: existingError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    const listingLimit = listingLimitForCoreLevel(core?.level);
+    if ((openListingCount ?? 0) >= listingLimit) {
+      return NextResponse.json({ error: `Listing limit reached for your level (${listingLimit}).` }, { status: 403, headers: NO_STORE_HEADERS });
     }
 
-    if (existingListing) {
+    const existingArtifact = artifactId ? await loadSellableArtifact(supabase, user.id, artifactId) : null;
+    if (existingArtifact?.error) {
+      return NextResponse.json({ error: existingArtifact.error }, { status: existingArtifact.status, headers: NO_STORE_HEADERS });
+    }
+
+    if (!artifactId && !cardTitle) {
+      return NextResponse.json({ error: "Listing title is required." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+
+    let createdArtifactId: string | null = null;
+    const artifact = existingArtifact?.artifact ?? await createManualArtifact(supabase, {
+      artifactType: normalizeText(body.artifactType, 40) ?? "market_item",
+      description: normalizeText(body.description, 1000),
+      imageUrl: normalizeUrl(body.imageUrl),
+      title: cardTitle ?? "Market item",
+      userId: user.id
+    });
+
+    if (!existingArtifact?.artifact) {
+      createdArtifactId = artifact.id;
+    }
+
+    const existingListing = await findOpenArtifactListing(supabase, artifact.id);
+    if (existingListing.error) {
+      if (createdArtifactId) await cleanupCreatedArtifact(supabase, createdArtifactId);
+      return NextResponse.json({ error: existingListing.error }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+
+    if (existingListing.listing) {
+      if (createdArtifactId) await cleanupCreatedArtifact(supabase, createdArtifactId);
       return NextResponse.json({ error: "This item already has an open listing." }, { status: 409, headers: NO_STORE_HEADERS });
     }
 
-    const title = normalizeText(body.title, 120) ?? artifact.title;
+    const title = cardTitle ?? artifact.title;
     const description = normalizeText(body.description, 1000) ?? artifact.description;
     const terms = buildTerms({ artifact, description, priceAmount, title });
 
@@ -145,6 +195,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
+      if (createdArtifactId) await cleanupCreatedArtifact(supabase, createdArtifactId);
       return NextResponse.json({ error: insertError.message }, { status: insertError.code === "23505" ? 409 : 500, headers: NO_STORE_HEADERS });
     }
 
@@ -164,6 +215,72 @@ export async function POST(request: NextRequest) {
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
+}
+
+async function loadSellableArtifact(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  artifactId: string
+): Promise<{ artifact: UserArtifactRow; error?: never; status?: never } | { artifact?: never; error: string; status: number }> {
+  const { data: artifact, error } = await supabase
+    .from("user_artifacts")
+    .select("*")
+    .eq("id", artifactId)
+    .eq("user_id", userId)
+    .eq("transferable", true)
+    .is("locked_by_deal_id", null)
+    .maybeSingle();
+
+  if (error) return { error: error.message, status: 500 };
+  if (!artifact) return { error: "This item cannot be listed.", status: 404 };
+  return { artifact };
+}
+
+async function createManualArtifact(
+  supabase: SupabaseClient<Database>,
+  item: {
+    artifactType: string;
+    description: string | null;
+    imageUrl: string | null;
+    title: string;
+    userId: string;
+  }
+): Promise<UserArtifactRow> {
+  const { data, error } = await supabase
+    .from("user_artifacts")
+    .insert({
+      artifact_type: item.artifactType,
+      description: item.description,
+      image_url: item.imageUrl,
+      metadata: { market_created: true },
+      rarity: "common",
+      source_type: "manual",
+      title: item.title,
+      transferable: true,
+      user_id: item.userId,
+      visibility: "public"
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function cleanupCreatedArtifact(supabase: SupabaseClient<Database>, artifactId: string) {
+  const { error } = await supabase.from("user_artifacts").delete().eq("id", artifactId);
+  if (error) console.warn("Marketplace artifact cleanup failed", error);
+}
+
+async function findOpenArtifactListing(supabase: SupabaseClient<Database>, artifactId: string) {
+  const { data, error } = await supabase
+    .from("marketplace_listings")
+    .select("id,status")
+    .eq("artifact_id", artifactId)
+    .in("status", ["draft", "active", "reserved"])
+    .maybeSingle();
+
+  return { error: error?.message, listing: data ?? null };
 }
 
 function serializeListing(listing: MarketplaceListingRow, artifact: UserArtifactRow | null, sellerProfile: UserProfileRow | null) {
@@ -254,7 +371,28 @@ function normalizeText(value: unknown, maxLength: number): string | null {
   return trimmed ? trimmed.slice(0, maxLength) : null;
 }
 
+function normalizeRequiredText(value: unknown, maxLength: number): string | null {
+  const text = normalizeText(value, maxLength);
+  return text && text.length > 0 ? text : null;
+}
+
+function normalizeUrl(value: unknown): string | null {
+  const text = normalizeText(value, 900);
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeUuid(value: unknown): string | null {
   if (typeof value !== "string") return null;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
+function listingLimitForCoreLevel(level: unknown): number {
+  const numeric = Number(level);
+  return Math.max(1, Number.isFinite(numeric) ? Math.floor(numeric) : 1);
 }

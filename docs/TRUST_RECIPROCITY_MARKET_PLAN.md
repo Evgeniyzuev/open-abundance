@@ -1,6 +1,6 @@
 # Trust, Reciprocity And Market Plan
 
-Этот документ задает порядок внедрения Trust-lite, взаимных подтверждений, баланса взаимности, предметов и будущей торговли. Он дополняет `OPEN_ABUNDANCE_MASTER_PLAN.md`, `REFERRALS_TEAMS_PLAN.md`, `FEED_POSTING_RECOMMENDATIONS_PLAN.md` и `CHALLENGES_CATALOG.md`, не заменяя их.
+Этот документ задает порядок внедрения Trust-lite, взаимных подтверждений, баланса взаимности, предметов и будущей торговли. Он дополняет `OPEN_ABUNDANCE_MASTER_PLAN.md`, `REFERRALS_TEAMS_PLAN.md`, `FEED_POSTING_RECOMMENDATIONS_PLAN.md`, `MARKETPLACE_ESCROW_PLAN.md` и `CHALLENGES_CATALOG.md`, не заменяя их.
 
 ## Решение
 
@@ -62,6 +62,7 @@
 - Added and applied `20260612031017_trust_challenge_integration.sql` with `Help Someone Move` and `Trust Proof`.
 - Added and applied `20260612031254_trust_fk_indexes.sql` for Trust foreign-key performance indexes.
 - `/api/challenges/check` now supports `trust_event_confirmed:*` verification logic.
+- Marketplace item sales moved into a dedicated escrow plan: `docs/MARKETPLACE_ESCROW_PLAN.md`.
 
 ## Core Entities
 
@@ -320,8 +321,8 @@ MVP endpoints:
 - `marketplace_offers` MVP;
 - request/accept simple service;
 - completion confirmation by both sides;
-- no automatic escrow;
-- no auto-contracts.
+- item sales with Wallet escrow are planned separately in `docs/MARKETPLACE_ESCROW_PLAN.md`;
+- no legal/financial auto-contracts, external payments or public numeric reputation.
 
 ### Phase 7. Automatic Contracts Later
 

@@ -19,7 +19,7 @@
 - [ ] PWA foundation: `manifest.webmanifest`, service worker, регистрация service worker.
 - [ ] Local-first IndexedDB foundation: notes, lists, tasks, task completions, guest identity в общей базе `open-abundance-offline`.
 - [ ] Tasks/Streaks MVP: локальные задачи, Today/Other, schedule, finite/infinite streaks, subtasks, image upload, archive, repeat, soft mode, lives.
-- [ ] Core/Wallet base: серверные Core и Wallet, история Wallet/Core, daily Core accrual history.
+- [ ] Core/Wallet base: серверные Core и Wallet, история Wallet/Core, daily Core accrual history, Wallet -> Core top-up через `/api/core/topup` и Wallet/Core UI.
 - [ ] Levels: уровень и следующий порог считаются из Core/DB и показываются в Core UI.
 - [ ] Reinvest control: настройка `reinvest_percent` 0-100%, сохранение через API, split Core/Wallet.
 - [ ] Growth calculator: Future amount, Time to goal, Core-vs-markets chart, методика через `i` modal.
@@ -38,14 +38,11 @@
 
 ## В работе
 
-- [ ] Today screen MVP
-  - Первый экран дня, который собирает уже готовые источники в один сценарий.
-  - Current Core, level and progress to next level.
-  - Today's due tasks and reminders from local-first tasks/notes.
-  - Accepted/open starter challenges and the best next check.
-  - CTA for yesterday's daily growth draft: create/review/publish if available.
-  - Short growth summary: yesterday Core growth, team bonus, streak/task progress where data exists.
-  - Empty/loading/offline states.
+- [ ] Marketplace escrow / item sales MVP
+  - Продумать объявления и сделки предметов между пользователями с оплатой из Wallet.
+  - Условия сделки должны быть явными, версионированными и принятыми обеими сторонами.
+  - После принятия актуальных условий обеими сторонами деньги и предмет переходят атомарно на сервере.
+  - План: `docs/MARKETPLACE_ESCROW_PLAN.md`.
 
 ## Очередь
 
@@ -55,12 +52,11 @@
    - Осталось вручную проверить UX и тексты в приложении.
    - Не вводить marketplace-челленджи раньше базовой верификации, публичных профилей, Wallet-to-Wallet и подтверждений от участников.
 
-2. [ ] Wallet -> Core transfer
-   - Перевод части Wallet в Core.
-   - Server-authoritative ledger operation.
-   - UI action from Wallet/Core screen.
-   - Refresh user context without stale cache.
-   - Основа для челленджа `first_wallet_to_core`.
+2. [ ] First Wallet -> Core challenge verification
+   - Сам Wallet -> Core top-up уже реализован через `/api/core/topup` и UI Wallet/Core.
+   - Осталось добавить надежный ledger/source marker для автопроверки челленджа `first_wallet_to_core`.
+   - Заодно перевести операцию на transactional helper/RPC, чтобы Wallet debit и Core credit не расходились.
+   - Проверка должна смотреть завершенную серверную операцию, а не только текущий баланс.
 
 3. [ ] Challenge verification and anti-abuse policy
    - Non-self checks for transfers, team actions and goal funding.
@@ -123,27 +119,17 @@
    - One-shot/manual setting that routes part of Wallet to Core before accrual.
    - Limit or non-reducible Wallet remainder.
 
-13. [ ] Marketplace challenge implementation
-    - Create offer, complete deal, fund goal and earn from skill.
-    - Requires Wallet-to-Wallet, public profiles, basic moderation, Trust-lite, anti-abuse rules and participant confirmations.
-
-## Today Screen MVP: что еще осталось
-
-Автопостинг результатов за вчера уже закрывает социальный output: пользователь может собрать и опубликовать daily growth draft в ленту. Но `Today screen MVP` - это не постинг, а утренний/ежедневный вход в продукт.
-
-Осталось реализовать:
-
-- Единый первый экран после входа: "что у меня сейчас и что делать дальше".
-- Блок текущего состояния: Core, Wallet summary, уровень, прогресс до следующего уровня.
-- Блок действий на сегодня: due tasks, reminders, accepted challenges, быстрый check/Done.
-- Блок вчерашнего результата: если есть данные за завершенный период, предложить открыть daily draft или создать его.
-- Блок следующего роста: ближайший уровень, рекомендованное действие, возможно ссылка на Growth calculator.
-- Offline/loading/empty states: Today должен быть полезен даже когда серверные Social/Wallet данные временно недоступны.
+13. [ ] Marketplace escrow / item sales implementation
+    - Объявления о продаже предметов, явные условия сделки, принятие обеими сторонами.
+    - Оплата из Wallet; при совпадении принятых условий деньги и предмет переходят атомарно.
+    - Requires item ownership, Wallet ledger/escrow, public profiles, basic moderation, Trust-lite and anti-abuse rules.
+    - Plan: `docs/MARKETPLACE_ESCROW_PLAN.md`.
 
 ## Отложено
 
 - Полный marketplace пользовательских заданий.
 - Marketplace-челленджи с реальными сделками до Wallet-to-Wallet, публичных профилей, базовой модерации и anti-abuse правил.
+- Today screen как отдельный первый экран: отложен, потому что Core, Wallet, задачи, челленджи и Social уже доступны в своих разделах.
 - Внешний onramp/реальные пополнения до готовой платежной инфраструктуры.
 - Системные Wallet-награды.
 - Внутренний Direct beyond very simple MVP.

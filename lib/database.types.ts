@@ -1039,6 +1039,192 @@ export type Database = {
         }
         Relationships: []
       }
+      user_core_growth_plans: {
+        Row: {
+          calculated_days_to_goal: number | null
+          created_at: string
+          daily_additions: number
+          id: string
+          is_active: boolean
+          metadata: Json
+          reinvest_percent: number
+          start_core: number
+          target_type: string
+          target_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calculated_days_to_goal?: number | null
+          created_at?: string
+          daily_additions?: number
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          reinvest_percent?: number
+          start_core?: number
+          target_type?: string
+          target_value: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calculated_days_to_goal?: number | null
+          created_at?: string
+          daily_additions?: number
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          reinvest_percent?: number
+          start_core?: number
+          target_type?: string
+          target_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_today_instances: {
+        Row: {
+          completed_at: string | null
+          core_growth_plan_id: string | null
+          created_at: string
+          first_seen_at: string
+          id: string
+          info_seen_at: string | null
+          local_date: string
+          progress_core: number
+          status: string
+          target_core: number
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          core_growth_plan_id?: string | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          info_seen_at?: string | null
+          local_date: string
+          progress_core?: number
+          status?: string
+          target_core?: number
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          core_growth_plan_id?: string | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          info_seen_at?: string | null
+          local_date?: string
+          progress_core?: number
+          status?: string
+          target_core?: number
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_today_instances_core_growth_plan_id_fkey"
+            columns: ["core_growth_plan_id"]
+            isOneToOne: false
+            referencedRelation: "user_core_growth_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_today_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          item_key: string
+          sort_order: number
+          source_id: string | null
+          source_type: string
+          status: string
+          title: Json
+          today_instance_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          item_key: string
+          sort_order?: number
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          title?: Json
+          today_instance_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          item_key?: string
+          sort_order?: number
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          title?: Json
+          today_instance_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_today_items_today_instance_id_fkey"
+            columns: ["today_instance_id"]
+            isOneToOne: false
+            referencedRelation: "user_today_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      today_progress_events: {
+        Row: {
+          amount_core: number
+          created_at: string
+          id: string
+          source_id: string
+          source_type: string
+          today_instance_id: string
+        }
+        Insert: {
+          amount_core: number
+          created_at?: string
+          id?: string
+          source_id: string
+          source_type: string
+          today_instance_id: string
+        }
+        Update: {
+          amount_core?: number
+          created_at?: string
+          id?: string
+          source_id?: string
+          source_type?: string
+          today_instance_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "today_progress_events_today_instance_id_fkey"
+            columns: ["today_instance_id"]
+            isOneToOne: false
+            referencedRelation: "user_today_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_artifacts: {
         Row: {
           artifact_type: string

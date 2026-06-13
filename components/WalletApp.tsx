@@ -35,6 +35,9 @@ type WalletHistoryRow = {
 type ChallengeProgressResponse = {
   error?: string;
 };
+type CoreGrowthPlanResponse = {
+  error?: string;
+};
 type CalculatorMode = "future" | "target" | "compare";
 type TargetKind = "core" | "daily";
 type TermUnit = "days" | "months" | "years";
@@ -421,6 +424,41 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
     setMarketOpenListingCount((current) => current + 1);
   }
 
+  async function saveCalculatorGrowthPlan() {
+    if (!user) return;
+
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/core/growth-plan", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          calculatedDaysToGoal: targetCalculationDays(targetCalculation),
+          dailyAdditions: Math.max(0, parseNumber(dailyAdditions)),
+          metadata: {
+            requested_target_core: requestedTargetCore,
+            source: "wallet_core_calculator",
+            target_kind: targetKind
+          },
+          reinvestPercent: simulation.reinvestPercent,
+          startCore: simulation.startCore,
+          targetType: targetKind === "daily" ? "daily_income" : "core_amount",
+          targetValue: targetKind === "daily" ? parseNumber(targetDailyIncome) : parseNumber(targetCore)
+        })
+      });
+      const payload = (await response.json().catch(() => ({}))) as CoreGrowthPlanResponse;
+      if (!response.ok || payload.error) {
+        throw new Error(payload.error ?? "Failed to save Core growth plan.");
+      }
+    } catch (planError) {
+      console.warn("Core growth plan save failed", planError);
+    }
+  }
+
   async function handleCancelListing(listingId: string) {
     setMarketSavingId(listingId);
     setMarketError(null);
@@ -598,6 +636,7 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
             onCalculateTarget={() => {
               setTargetCalculationTouched(true);
               recordCalculatorChallengeProgress();
+              saveCalculatorGrowthPlan();
             }}
           />
           <HistoryPanel
@@ -2001,4 +2040,10 @@ function formatTargetSummary(calculation: ReturnType<typeof findDaysToTarget>, t
   if (calculation.kind === "unreachable") return t("wallet.calculator.unreachable");
   if (calculation.kind === "beyond-range") return t("wallet.calculator.beyondRange");
   return formatDuration(calculation.days, t);
+}
+
+function targetCalculationDays(calculation: ReturnType<typeof findDaysToTarget>): number | null {
+  if (calculation.kind === "reached") return 0;
+  if (calculation.kind === "estimated") return Math.round(calculation.days);
+  return null;
 }

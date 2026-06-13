@@ -87,6 +87,29 @@ type CheckChallengeResponse = {
   rewardClaimed?: boolean;
   error?: string;
 };
+type TodayItem = {
+  id: string;
+  item_key: string;
+  sort_order: number;
+  source_type: string;
+  status: "pending" | "done" | "skipped";
+  title: LocaleText;
+};
+type TodayPayload = {
+  checkInStreak: number;
+  completionStreak: number;
+  completed?: boolean;
+  error?: string;
+  items: TodayItem[];
+  setupRequired: boolean;
+  showIntro: boolean;
+  today: {
+    local_date: string;
+    progress_core: number;
+    status: "accepted" | "completed" | "expired";
+    target_core: number;
+  };
+};
 
 const DEFAULT_USER_LEVEL = 1;
 const VISIBLE_REFRESH_COOLDOWN_MS = 30_000;
@@ -136,6 +159,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [today, setToday] = useState<TodayPayload | null>(null);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [completionReward, setCompletionReward] = useState<{ amount: number; account: string; claimed: boolean } | null>(null);
@@ -144,6 +168,8 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
   const [projectStatus, setProjectStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProjectsRefreshing, setIsProjectsRefreshing] = useState(false);
+  const [todayChecking, setTodayChecking] = useState(false);
+  const [todayMessage, setTodayMessage] = useState<string | null>(null);
   const { user, profile, core, locale, applyServerData, t } = useUserContext();
   const loadRequestIdRef = useRef(0);
   const projectLoadRequestIdRef = useRef(0);
@@ -153,6 +179,38 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
   const userLevel = core?.level ?? profile?.level ?? DEFAULT_USER_LEVEL;
   const hasChallenges = availableChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
   const hasProjects = projects.length > 0;
+
+  const loadToday = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
+    if (!user || !navigator.onLine) {
+      if (!user) setToday(null);
+      return;
+    }
+
+    try {
+      const supabase = getBrowserSupabaseClient();
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const params = new URLSearchParams({
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        ts: String(Date.now())
+      });
+      const response = await fetch(`/api/today?${params.toString()}`, {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Cache-Control": "no-cache"
+        }
+      });
+      const payload = (await response.json()) as TodayPayload;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load Today.");
+      if (isMounted()) setToday(payload);
+    } catch (error) {
+      console.warn("Today load failed", error);
+    }
+  }, [user]);
 
   const loadChallenges = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
     const requestId = loadRequestIdRef.current + 1;
@@ -302,6 +360,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
 
     if (activeTab === "challenges") {
       loadChallenges({ isMounted: () => mounted });
+      loadToday({ isMounted: () => mounted });
     } else {
       loadProjects({ isMounted: () => mounted });
     }
@@ -309,7 +368,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
     return () => {
       mounted = false;
     };
-  }, [active, activeTab, loadChallenges, loadProjects, refreshNonce, user?.id]);
+  }, [active, activeTab, loadChallenges, loadProjects, loadToday, refreshNonce, user?.id]);
 
   useEffect(() => {
     if (!active) return;
@@ -323,6 +382,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
       lastVisibleRefreshAtRef.current = now;
       if (activeTab === "challenges") {
         loadChallenges({ isMounted: () => mounted });
+        loadToday({ isMounted: () => mounted });
       } else {
         loadProjects({ isMounted: () => mounted });
       }
@@ -336,7 +396,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
       window.removeEventListener("focus", refreshVisibleChallenges);
       document.removeEventListener("visibilitychange", refreshVisibleChallenges);
     };
-  }, [active, activeTab, loadChallenges, loadProjects]);
+  }, [active, activeTab, loadChallenges, loadProjects, loadToday]);
 
   async function acceptChallenge(challenge: Challenge) {
     const token = await getAccessToken();
@@ -396,6 +456,46 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
     setSelectedChallenge({ ...challenge, user_challenge_status: "completed" });
     setCompletionReward(reward);
     void loadChallenges();
+    void loadToday();
+  }
+
+  async function checkToday() {
+    if (!user) return;
+
+    setTodayChecking(true);
+    setTodayMessage(null);
+    try {
+      const supabase = getBrowserSupabaseClient();
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        setTodayMessage(t("challenges.signInFirst"));
+        return;
+      }
+
+      const response = await fetch("/api/today/check", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
+      });
+      const payload = (await response.json()) as TodayPayload;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? t("today.checkFailed"));
+
+      setToday(payload);
+      setTodayMessage(payload.completed ? t("today.completedMessage") : t("today.notReady"));
+    } catch (error) {
+      setTodayMessage(error instanceof Error ? error.message : t("today.checkFailed"));
+    } finally {
+      setTodayChecking(false);
+    }
   }
 
   function applyChallengeStatus(challengeId: string, status: ChallengeStatus) {
@@ -488,6 +588,17 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
         <>
           {status === "loading" && !hasChallenges ? <ChallengeState title={t("app.common.loading")} description={t("challenges.loading.description")} /> : null}
           {status === "offline" && !hasChallenges ? <ChallengeState title={t("app.common.offline")} description={t("challenges.offline.description")} /> : null}
+
+          {today ? (
+            <TodayChallengeCard
+              locale={locale}
+              message={todayMessage}
+              payload={today}
+              checking={todayChecking}
+              t={t}
+              onCheck={checkToday}
+            />
+          ) : null}
 
           <ChallengeSection challenges={availableChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
 
@@ -622,6 +733,67 @@ function ProjectSection({ projects, emptyMessage, locale, t, onOpen }: { project
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+function TodayChallengeCard({
+  checking,
+  locale,
+  message,
+  payload,
+  t,
+  onCheck
+}: {
+  checking: boolean;
+  locale: AppLocale;
+  message: string | null;
+  payload: TodayPayload;
+  t: TFunction;
+  onCheck: () => void;
+}) {
+  const progress = Number(payload.today.progress_core ?? 0);
+  const target = Math.max(0, Number(payload.today.target_core ?? 0));
+  const complete = payload.today.status === "completed";
+  const percent = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 100;
+
+  return (
+    <section className="challenge-section today-challenge-section">
+      <h2>{t("today.title")}</h2>
+      <div className={complete ? "today-challenge-card completed" : "today-challenge-card"}>
+        <div className="today-challenge-head">
+          <span>
+            <strong>{t("today.challengeTitle")}</strong>
+            <small>{payload.showIntro ? t("today.intro") : t("today.subtitle")}</small>
+          </span>
+          <b>{formatTodayMoney(progress, locale)} / {formatTodayMoney(target, locale)}</b>
+        </div>
+
+        <div className="today-progress" aria-label={t("today.progress")}>
+          <span style={{ width: `${percent}%` }} />
+        </div>
+
+        <div className="today-streak-row">
+          <span>{t("today.checkInStreak", { count: payload.checkInStreak })}</span>
+          <span>{t("today.completionStreak", { count: payload.completionStreak })}</span>
+        </div>
+
+        <div className="today-checklist">
+          {payload.items.map((item) => (
+            <span className={item.status === "done" ? "done" : ""} key={item.id}>
+              <CheckCircle2 size={15} />
+              {text(item.title, item.item_key, locale)}
+            </span>
+          ))}
+        </div>
+
+        {payload.setupRequired ? <p className="today-note">{t("today.setupRequired")}</p> : null}
+        {message ? <p className={complete ? "today-note success" : "today-note"}>{message}</p> : null}
+
+        <button className="challenge-primary-action today-check-action" type="button" disabled={checking || complete} onClick={onCheck}>
+          {complete ? t("today.completed") : checking ? t("challenges.checking") : t("today.check")}
+        </button>
+      </div>
     </section>
   );
 }
@@ -1091,6 +1263,13 @@ function text(value: LocaleText, fallback: string, locale: AppLocale): string {
 function rewardText(value: RewardLabel, locale: AppLocale): string {
   const amount = rewardAmount(value, locale);
   return amount ? `${amount}$` : "1$";
+}
+
+function formatTodayMoney(value: number, locale: AppLocale): string {
+  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Math.abs(value) < 10 && value % 1 !== 0 ? 2 : 0
+  }).format(Number.isFinite(value) ? value : 0)}$`;
 }
 
 function rewardAmount(value: RewardLabel, locale: AppLocale): number {

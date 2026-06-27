@@ -40,7 +40,7 @@
 - [ ] Wallet-to-Wallet transfer MVP: `wallet_transfer` RPC, `/api/wallet/transfer`, debit/credit `wallet_ledger` rows, Wallet transfer modal, `/api/challenges/check` case `first_wallet_transfer`, migration `20260612101807_first_wallet_transfer_challenge.sql`.
 - [ ] Marketplace listings Phase 2: `marketplace_listings`, `/api/marketplace/listings`, `/api/marketplace/listings/[listingId]/cancel`, Wallet -> Market tab, listing grid, user-created product/service/skill cards and sell item modal.
 - [ ] Open Projects MVP: second Challenges tab, `/api/projects`, `/api/projects/apply`, `projects`, `project_applications`, `project_tasks`, RLS, seed projects for verifiable voting, personal sovereignty, making the world better, and ИИ-безработица: конец зарплатного рабства; migrations `20260612194859_open_projects_catalog.sql` and `20260612204321_open_projects_advisor_fixes.sql`.
-- [ ] Today daily challenge MVP: `user_core_growth_plans`, `user_today_instances`, `user_today_items`, `today_progress_events`, `/api/core/growth-plan`, `/api/today`, `/api/today/check`, Wallet/Core calculator plan save, Challenges Today card; migrations `20260613060618_today_daily_challenge_mvp.sql` and `20260613064629_today_core_growth_plan_fk_index.sql`.
+- [ ] Today daily challenge MVP: `user_core_growth_plans`, `user_today_instances`, `user_today_items`, `today_progress_events`, `/api/core/growth-plan`, `/api/today`, `/api/today/check`, Wallet/Core calculator plan save, first-online-entry Today popup, Challenges Today card; migrations `20260613060618_today_daily_challenge_mvp.sql` and `20260613064629_today_core_growth_plan_fk_index.sql`.
 
 ## В работе
 

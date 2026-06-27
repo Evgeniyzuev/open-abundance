@@ -14,6 +14,7 @@ Today - ежедневный персональный челлендж поль�
 - Добавлен `/api/today/check`: завершает Today, если дневная Core-цель достигнута.
 - Wallet/Core calculator сохраняет активный план при расчете срока до цели.
 - Challenges screen показывает Today-карточку над обычными челленджами с прогрессом `$current / $target`, streak и чек-листом.
+- App shell показывает Today popup при первом онлайн входе за день и дает быстрый переход в Challenges -> Today.
 - Миграции `20260613060618_today_daily_challenge_mvp.sql` и `20260613064629_today_core_growth_plan_fk_index.sql` применены к Supabase, наличие таблиц и FK-индекса проверено SQL-запросами.
 
 Осталось: ручная UX-проверка в приложении, затем расширение checklist источниками из local tasks, project tasks и wishes.

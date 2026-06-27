@@ -136,6 +136,12 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .today-note { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.32; }
 .today-note.success { color: var(--green); font-weight: 850; }
 .today-check-action { width: 100%; }
+.today-intro-modal { overflow: hidden; }
+.today-intro-body { display: grid; gap: 12px; padding: 14px; }
+.today-intro-body h3 { margin: 0 0 5px; font-size: 26px; line-height: 1.08; }
+.today-intro-body p { margin: 0; color: var(--text); font-size: 15px; line-height: 1.38; }
+.today-intro-badge { width: fit-content; min-height: 28px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 10px; background: #eef6ff; color: var(--blue); font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.today-intro-actions { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 8px; }
 .challenge-state { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 28px; color: var(--muted); text-align: center; }
 .challenge-state svg { color: #c66a00; }
 .challenge-state strong { color: var(--text); font-size: 20px; }

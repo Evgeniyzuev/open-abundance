@@ -11,6 +11,8 @@ import TasksApp from "@/components/TasksApp";
 import { useUserContext } from "@/components/UserProvider";
 import WalletApp from "@/components/WalletApp";
 import WishesApp from "@/components/WishesApp";
+import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import type { AppLocale } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n";
 
 type MainTabId = "goals" | "challenges" | "spark" | "wallet" | "people";
@@ -46,6 +48,29 @@ type NavigationState = {
   goalTab: GoalTabId;
   walletTab: WalletTabId;
   socialTab: SocialTabId;
+};
+
+type TodayIntroItem = {
+  id: string;
+  item_key: string;
+  sort_order: number;
+  status: "pending" | "done" | "skipped";
+  title: Record<string, string> | null;
+};
+
+type TodayIntroPayload = {
+  checkInStreak: number;
+  completionStreak: number;
+  error?: string;
+  items: TodayIntroItem[];
+  setupRequired: boolean;
+  showIntro: boolean;
+  today: {
+    local_date: string;
+    progress_core: number;
+    status: "accepted" | "completed" | "expired";
+    target_core: number;
+  };
 };
 
 const mainTabs: MainTab[] = [
@@ -89,7 +114,7 @@ const DEFAULT_NAVIGATION_STATE: NavigationState = {
 };
 
 export default function AppNavigation({ notesSlot }: AppNavigationProps) {
-  const { refreshUserData, t } = useUserContext();
+  const { locale, refreshUserData, t, user } = useUserContext();
   const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
   const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
   const [activeWalletTab, setActiveWalletTab] = useState<WalletTabId>(DEFAULT_NAVIGATION_STATE.walletTab);
@@ -98,6 +123,8 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
+  const [todayIntro, setTodayIntro] = useState<TodayIntroPayload | null>(null);
+  const [todayIntroRetryNonce, setTodayIntroRetryNonce] = useState(0);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
     challenges: false,
@@ -113,6 +140,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const navigationHydratedRef = useRef(false);
   const suppressHistoryPushRef = useRef(false);
   const navigationStateRef = useRef<NavigationState>(DEFAULT_NAVIGATION_STATE);
+  const todayIntroCheckedUserRef = useRef<string | null>(null);
 
   const navigationState = {
     mainTab: activeMainTab,
@@ -196,6 +224,66 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
 
     writeNavigationStateToHistory(navigationStateRef.current, "push");
   }, [activeGoalTab, activeMainTab, activeSocialTab, activeWalletTab]);
+
+  useEffect(() => {
+    if (!user) {
+      todayIntroCheckedUserRef.current = null;
+      setTodayIntro(null);
+      return;
+    }
+
+    if (todayIntroCheckedUserRef.current === user.id) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    let mounted = true;
+    todayIntroCheckedUserRef.current = user.id;
+
+    async function loadTodayIntro() {
+      try {
+        const supabase = getBrowserSupabaseClient();
+        const {
+          data: { session }
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const params = new URLSearchParams({
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          ts: String(Date.now())
+        });
+        const response = await fetch(`/api/today?${params.toString()}`, {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Cache-Control": "no-cache"
+          }
+        });
+        const payload = (await response.json()) as TodayIntroPayload;
+        if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load Today.");
+        if (mounted && payload.showIntro) setTodayIntro(payload);
+      } catch (todayError) {
+        todayIntroCheckedUserRef.current = null;
+        console.warn("Today intro load failed", todayError);
+      }
+    }
+
+    loadTodayIntro();
+    return () => {
+      mounted = false;
+    };
+  }, [todayIntroRetryNonce, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleOnline = () => {
+      todayIntroCheckedUserRef.current = null;
+      setTodayIntro(null);
+      setTodayIntroRetryNonce((value) => value + 1);
+    };
+
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [user]);
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -346,7 +434,89 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
         {!showNotes && !showWishes && !showChecks && !showResults && !showSpark && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
       <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} onTabChange={setActiveMainTab} />
+      {todayIntro ? (
+        <TodayIntroModal
+          locale={locale}
+          payload={todayIntro}
+          t={t}
+          onClose={() => setTodayIntro(null)}
+          onOpenToday={() => {
+            setTodayIntro(null);
+            setActiveMainTab("challenges");
+          }}
+        />
+      ) : null}
     </>
+  );
+}
+
+function TodayIntroModal({
+  locale,
+  payload,
+  t,
+  onClose,
+  onOpenToday
+}: {
+  locale: AppLocale;
+  payload: TodayIntroPayload;
+  t: TFunction;
+  onClose: () => void;
+  onOpenToday: () => void;
+}) {
+  const progress = Number(payload.today.progress_core ?? 0);
+  const target = Math.max(0, Number(payload.today.target_core ?? 0));
+  const percent = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 100;
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small today-intro-modal" role="dialog" aria-modal="true" aria-label={t("today.popup.title")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
+          <h2>{t("today.title")}</h2>
+          <span />
+        </div>
+
+        <div className="today-intro-body">
+          <span className="today-intro-badge">{t("today.popup.badge")}</span>
+          <div>
+            <h3>{t("today.popup.title")}</h3>
+            <p>{t("today.popup.description")}</p>
+          </div>
+
+          <div className="today-challenge-head">
+            <span>
+              <strong>{t("today.challengeTitle")}</strong>
+              <small>{t("today.subtitle")}</small>
+            </span>
+            <b>{formatTodayMoney(progress, locale)} / {formatTodayMoney(target, locale)}</b>
+          </div>
+
+          <div className="today-progress" aria-label={t("today.progress")}>
+            <span style={{ width: `${percent}%` }} />
+          </div>
+
+          <div className="today-streak-row">
+            <span>{t("today.checkInStreak", { count: payload.checkInStreak })}</span>
+            <span>{t("today.completionStreak", { count: payload.completionStreak })}</span>
+          </div>
+
+          <div className="today-checklist">
+            {payload.items.slice(0, 4).map((item) => (
+              <span className={item.status === "done" ? "done" : ""} key={item.id}>
+                {text(item.title, item.item_key, locale)}
+              </span>
+            ))}
+          </div>
+
+          {payload.setupRequired ? <p className="today-note">{t("today.setupRequired")}</p> : null}
+
+          <div className="today-intro-actions">
+            <button className="challenge-secondary-action" type="button" onClick={onClose}>{t("today.popup.later")}</button>
+            <button className="challenge-primary-action" type="button" onClick={onOpenToday}>{t("today.popup.open")}</button>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -429,6 +599,17 @@ function PlaceholderScreen({ title }: { title: string }) {
       <h1>{title}</h1>
     </section>
   );
+}
+
+function text(value: Record<string, string> | null, fallback: string, locale: AppLocale): string {
+  return value?.[locale] ?? value?.en ?? fallback;
+}
+
+function formatTodayMoney(value: number, locale: AppLocale): string {
+  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Math.abs(value) < 10 && value % 1 !== 0 ? 2 : 0
+  }).format(Number.isFinite(value) ? value : 0)}$`;
 }
 
 function getMainTabTitle(tab: MainTabId, t: TFunction): string {

@@ -49,7 +49,7 @@ const emptyTaskForm = {
   startDate: todayKey(),
   targetDays: "7",
   infinite: false,
-  softMode: true,
+  softMode: false,
   initialLives: "0",
   livesEveryDays: "0",
   weekdays: [1, 2, 3, 4, 5],
@@ -133,10 +133,8 @@ export default function TasksApp() {
     const missedDays = getMissedPlannedDays(task, today, taskCompletions);
     let rescuedCount = 0;
 
-    if (task.schedule.type !== "once" && task.streak && missedDays.length > 0) {
-      if (task.streak.softMode) {
-        rescuedCount = 0;
-      } else if (task.streak.hardcore) {
+    if (task.schedule.type !== "once" && task.streak && missedDays.length > 0 && !task.streak.softMode) {
+      if (task.streak.hardcore) {
         await failTask(task.id);
         setSelectedTaskId(null);
         await refreshTasks();
@@ -726,7 +724,7 @@ function TaskMonthCalendar({ task, completions, locale, today }: { task: TaskIte
 
 function buildFormFromTask(task: TaskItem, today: string): typeof emptyTaskForm {
   const targetDays = task.schedule.type === "once" ? "7" : String(task.schedule.targetDays ?? 7);
-  const streak = task.streak ?? { softMode: true, initialLives: 0, livesEveryDays: 0 };
+  const streak = task.streak ?? { softMode: false, initialLives: 0, livesEveryDays: 0 };
 
   return {
     ...emptyTaskForm,

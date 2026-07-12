@@ -1,158 +1,149 @@
 # Open Abundance Master Kanban
 
-Этот документ - живой статус разработки. `OPEN_ABUNDANCE_MASTER_PLAN.md` остается продуктовым мастер-планом, а текущие статусы, приоритеты и следующие задачи ведутся здесь.
+Этот документ — единственный канонический источник оперативного статуса Open Abundance. Стратегия и продуктовые решения живут в `OPEN_ABUNDANCE_MASTER_PLAN.md`; тематические планы дают технический контекст, но не меняют порядок работы в этом канбане.
 
-## Правила
+## Правила работы
 
-- В работе одновременно один главный пункт.
-- В `Готово / принято` пункт попадает после ручной проверки пользователем.
-- Если фича реализована технически, но пользователь еще не подтвердил UX, она остается в `Реализовано / проверить`.
-- Новые найденные задачи добавляются в `Очередь`, а не смешиваются с текущей работой.
-- После frontend-изменений Codex пробует in-app browser один раз; если `iab` недоступен, фиксирует это и запускает доступные технические проверки.
+- Одновременно в `Сейчас` находится ровно одна главная продуктовая карточка.
+- Путь карточки: `Очередь -> Сейчас -> Technical QA -> User QA -> Подтверждено`.
+- Написанный код не равен готовому продукту. Без ручной проверки сценария карточка остается в `Технически реализовано / нужен User QA`.
+- Перед реализацией следующей карточки фиксируется короткий decision-complete план.
+- Код, связанный продуктовый документ и этот канбан обновляются в одной итерации.
+- Новые идеи идут в очередь и не прерывают текущий шаг, кроме критических ошибок и угрозы деньгам или данным.
+- После frontend-изменений выполняется одна попытка визуальной проверки в in-app browser. Если он недоступен, это явно фиксируется вместе с результатами технических проверок.
 
-## Готово / принято
+## Формат активной карточки
 
-- [x] Offline Notes Pilot: PWA-экран заметок, локальный кэш, offline-создание заметки, синхронизация после восстановления связи, деплой на Vercel.
+Активная карточка содержит:
 
-## Реализовано / проверить
+- пользовательский результат;
+- причину приоритета;
+- конкретные изменения;
+- что не входит в шаг;
+- критерии приемки;
+- технические проверки;
+- ручной UX-сценарий;
+- продуктовую метрику;
+- найденные блокеры;
+- ссылку на подробный план, если он нужен.
 
-- [ ] PWA foundation: `manifest.webmanifest`, service worker, регистрация service worker.
-- [ ] Local-first IndexedDB foundation: notes, lists, tasks, task completions, guest identity в общей базе `open-abundance-offline`.
-- [ ] Tasks/Streaks MVP: локальные задачи, Today/Other, schedule, finite/infinite streaks, subtasks, image upload, archive, repeat, soft mode, lives.
-- [ ] Core/Wallet base: серверные Core и Wallet, история Wallet/Core, daily Core accrual history, Wallet -> Core top-up через `/api/core/topup` и Wallet/Core UI; top-up теперь идет через atomic `wallet_core_topup` RPC и пишет `wallet_ledger`.
-- [ ] Levels: уровень и следующий порог считаются из Core/DB и показываются в Core UI.
-- [ ] Reinvest control: настройка `reinvest_percent` 0-100%, сохранение через API, split Core/Wallet.
-- [ ] Growth calculator: Future amount, Time to goal, Core-vs-markets chart, методика через `i` modal.
-- [ ] Results offer/brochure: Goals -> Results, оффер $1,000,000 Core за 20 уровней, локальная книга-брошюра в инвентаре результата после первого прочтения.
-- [ ] Starter challenges: принятие/проверка, reward flow, proof для калькулятора.
-- [ ] Compound interest challenge quiz: `calculate_time_to_goal` требует калькуляторный proof + тест 4/5, сохраняет `compound_quiz_passed` в `verification_data`, повторы без ограничения; UI вынесен в reusable `ChallengeQuiz` с пошаговыми вопросами и optional image.
-- [ ] Wishes MVP: personal wishes CRUD, recommended -> my wish, фильтрация уже добавленных recommendations, `has_wish` server check.
-- [ ] Social feed/blog MVP: public feed, personal blog, daily growth draft, publish/archive/delete, post detail.
-- [ ] Daily growth autopost draft: черновик за завершенный период с блоками `level`, `total_core_growth`, `team_strength`, настройка видимости блоков.
-- [ ] External social links: inbound external link post, link-only preview, public feed/blog/detail.
-- [ ] Referrals/teams foundation: referral code/claim, team membership, team bonus ledger and baseline logic.
-- [ ] AI Coordinator MVP: AI chat с knowledge base о проекте, Gemini как основной провайдер, Groq как fallback, streaming ответов, вкладка "Идеи" в навигации.
-- [ ] Product docs audit: сверка `Abundance_SYS_CONCEPT` с `OPEN_ABUNDANCE_MASTER_PLAN.md`, ревизия `CHALLENGES_CATALOG.md`, актуализация ближайшего канбана.
-- [ ] Starter challenge autochecks: API-проверки для AI proof, профиля, 3 шагов желания, первого поста, реинвестирования, реферала, team contact, skill passport; миграция `20260611152126_challenge_autochecks_catalog.sql`.
-- [ ] Trust challenge checks: `trust_event_confirmed:*` in `/api/challenges/check`; migrations `20260612031017_trust_challenge_integration.sql` and `20260612031254_trust_fk_indexes.sql`.
-- [ ] Marketplace Phase 1 DB foundation: `user_artifacts` and `wallet_ledger` with RLS, grants, indexes and generated Supabase types; migrations `20260612072754_marketplace_phase1_ownership_ledger.sql` and `20260612073116_wallet_ledger_counterparty_index.sql`.
-- [ ] First Wallet -> Core challenge: `wallet_core_topup` RPC, `/api/core/topup` ledger write, `/api/challenges/check` case `first_wallet_to_core`, migration `20260612082405_first_wallet_to_core_challenge.sql`.
-- [ ] Wallet-to-Wallet transfer MVP: `wallet_transfer` RPC, `/api/wallet/transfer`, debit/credit `wallet_ledger` rows, Wallet transfer modal, `/api/challenges/check` case `first_wallet_transfer`, migration `20260612101807_first_wallet_transfer_challenge.sql`.
-- [ ] Marketplace listings Phase 2: `marketplace_listings`, `/api/marketplace/listings`, `/api/marketplace/listings/[listingId]/cancel`, Wallet -> Market tab, listing grid, user-created product/service/skill cards and sell item modal.
-- [ ] Open Projects MVP: second Challenges tab, `/api/projects`, `/api/projects/apply`, `projects`, `project_applications`, `project_tasks`, RLS, seed projects for verifiable voting, personal sovereignty, making the world better, and ИИ-безработица: конец зарплатного рабства; migrations `20260612194859_open_projects_catalog.sql` and `20260612204321_open_projects_advisor_fixes.sql`.
-- [ ] Today daily challenge MVP: `user_core_growth_plans`, `user_today_instances`, `user_today_items`, `today_progress_events`, `/api/core/growth-plan`, `/api/today`, `/api/today/check`, Wallet/Core calculator plan save, first-online-entry Today popup, Challenges Today card; migrations `20260613060618_today_daily_challenge_mvp.sql` and `20260613064629_today_core_growth_plan_fk_index.sql`.
+## Сейчас
 
-## В работе
+### Документационная фиксация и честный канбан
 
-- [ ] Marketplace escrow / item sales MVP
-  - Planned: sales count, buyer reviews, seller rating and private mutual market balance ranking (`spent - earned`).
-  - Phase 1 DB foundation готов: `user_artifacts`, `wallet_ledger`, RLS, indexes, generated types.
-  - Wallet -> Core уже переведен на atomic ledger RPC.
-  - Wallet-to-Wallet transfer MVP технически готов: backend + modal.
-  - Phase 2 listings готов: table/API/create/list/cancel/Market tab, manual card creation, limit = Core level.
-  - Следующий шаг: marketplace deals + escrow.
-  - Условия сделки должны быть явными, версионированными и принятыми обеими сторонами.
-  - После принятия актуальных условий обеими сторонами деньги и предмет переходят атомарно на сервере.
-  - План: `docs/MARKETPLACE_ESCROW_PLAN.md`.
+- **Статус:** User QA — структура и diff технически проверены, ожидается принятие владельцем продукта.
+- **Пользовательский результат:** команда последовательно делает только то, что приближает закрытый пилот и его главный недельный цикл.
+- **Почему сейчас:** прежний канбан смешивал готовый код, непроверенный UX и дальний roadmap; README оставался на стадии Offline Notes Pilot.
+- **Изменения:** зафиксировать закрытый пилот, недельный цикл, экономические границы, единую очередь P0-P3 и фактические статусы реализованных модулей.
+- **Не входит:** изменение приложения, схемы данных, экономики или интерфейса.
+- **Критерии приемки:** в `Сейчас` одна карточка; очередь начинается с прозрачности Core/Wallet; README и мастер-план не противоречат канбану; крупные реализованные функции находятся в User QA, а не в подтвержденных.
+- **Технические проверки:** проверить ссылки, заголовки, порядок очереди, отсутствие `Offline Notes Pilot` как текущего статуса и просмотреть итоговый diff в UTF-8.
+- **Ручной UX-сценарий:** не требуется, поскольку шаг меняет только документацию.
+- **Метрика:** следующий исполнитель может начать карточку №1 без выбора нового приоритета.
+- **Блокеры:** нет.
+- **Связанный документ:** `docs/OPEN_ABUNDANCE_MASTER_PLAN.md`.
 
-## Очередь
+После проверки документации эта карточка переносится в `Подтверждено`, а карточка №1 — в `Сейчас`.
 
-1. [ ] Project participation loop
-   - Turn project tasks into actionable user work: accept task, submit proof, community/manual confirmation, status in project modal.
-   - Connect approved project participation to feed/trust/reward later, after anti-abuse rules are explicit.
-   - Keep current Open Projects MVP in `Реализовано / проверить` until UX is manually reviewed in the app.
+## Следующие шаги
 
-1. [ ] Starter challenge catalog hardening
-   - Реализовано в коде: Personal Value Map, Turn Wish Into 3 Steps, First Growth Story, Enable Reinvestment, Skill Passport, Team Welcome.
-   - Реализовано в коде: тест понимания сложного процента для `calculate_time_to_goal`.
-   - Осталось вручную проверить UX и тексты в приложении.
-   - Не вводить marketplace-челленджи раньше базовой верификации, публичных профилей, Wallet-to-Wallet и подтверждений от участников.
+1. [ ] **Экономическая прозрачность Core/Wallet и модель пилотного фонда**
+   - Зафиксировать источники наград, резерв, лимиты обязательств, доступность средств и смысл Core, Wallet и reinvest.
+   - Разделить промонаграды фонда, пользовательские/проектные выплаты, рост Core и внешний вывод.
+   - Подготовить наблюдаемую сверку Wallet-обязательств с ограниченным фондом.
 
-2. [ ] First Wallet -> Core challenge verification
-   - Сам Wallet -> Core top-up уже реализован через `/api/core/topup` и UI Wallet/Core.
-   - Реализовано в коде: reliable `wallet_ledger` source marker и transactional `wallet_core_topup` RPC.
-   - Реализовано в коде: `/api/challenges/check` проверяет завершенную серверную ledger-операцию, а не текущий баланс.
-   - Осталось вручную проверить UX прохождения челленджа в приложении.
+2. [ ] **Аналитика главной воронки и восстановление smoke/e2e**
+   - Измерять onboarding, желание, план, челлендж, награду, возврат, публикацию и активированный реферал.
+   - Обновить устаревший smoke-тест, который сейчас ожидает навигацию вместо гостевого онбординга.
 
-3. [ ] Challenge verification and anti-abuse policy
-   - Non-self checks for transfers, team actions and goal funding.
-   - Minimum thresholds, `completed` statuses, unique operation IDs and replay protection.
-   - Baseline tracking for growth-threshold challenges.
-   - Rule: no Wallet challenge rewards for now; reputation waits for a dedicated Trust system.
-   - Plan community/manual checks for App Testing, Help Someone Move, goal funding, marketplace deal completion and skill income.
-   - Trust/reciprocity roadmap lives in `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
+3. [ ] **Единый онбординг: история -> главное желание -> финансовый план**
+   - Убрать рефералы из первого опыта.
+   - Завершать онбординг персональным планом и одним следующим действием.
 
-4. [ ] Task editing and undo completion
-   - Edit existing local task.
-   - Undo today's completion.
-   - Keep archive/repeat behavior intact.
+4. [ ] **Home/Today как главный экран**
+   - Собрать желание, срок до цели, Core, Wallet, дневное начисление, действие сегодня и ближайший unlock.
 
-5. [ ] Daily ledger source for all Core growth
-   - Include challenge rewards, task rewards and manual Core top-ups in daily growth without double counting.
-   - Feed daily draft should use this source for `total_core_growth`.
-   - Required for reliable `core_growth_threshold` challenges.
+5. [ ] **Первая проверяемая награда и изменение личного плана**
+   - Показать источник, способ проверки, ledger-событие и влияние награды на Core/Wallet и срок до цели.
 
-6. [ ] Wallet-to-Wallet transfer MVP
-   - Реализовано backend: `wallet_transfer` RPC, `/api/wallet/transfer`, non-self, balance check, debit/credit ledger.
-   - Реализовано backend: автопроверка `first_wallet_transfer` по `wallet_ledger`.
-   - Реализовано UI: Wallet transfer modal with contacts, manual recipient user id fallback, amount, confirm, refresh.
-   - Осталось: incoming display/return/cancel UX.
-   - Non-self and completed-status verification for funding challenges still needs wish/source linkage.
+6. [ ] **Verified Reality Feed**
+   - Создать поток подтвержденных системных событий.
+   - Всегда разделять `Подтверждено системой`, `Проверено вручную` и `Демо`.
 
-7. [ ] Public profile URLs
-   - Stable public profile route outside current Social modal.
-   - Public avatar/name/level view.
-   - Respect visibility settings.
-   - Needed before trust, help and marketplace discovery flows become prominent.
+7. [ ] **Возврат Day 1/3/7 и недельная сюжетная дуга**
+   - Связать новый Today, streak без наказаний, обновленный прогноз и результаты других участников.
 
-8. [ ] Feed interactions MVP
-   - Reactions/comments/saves for public feed posts.
-   - Keep private stat blocks hidden.
-   - Supports First Growth Story and Help Someone Move challenges.
+8. [ ] **Реферальное приглашение после первого результата**
+   - Открывать активное приглашение после подтвержденной награды.
+   - Считать активированных участников, а не регистрации.
 
-9. [ ] Wishes progress and daily sources
-   - Include new/completed public wishes in daily draft sources.
-   - Add visible progress toward wish target.
-   - Add wish step tracking for `wish_steps_created`.
+9. [ ] **Ограниченное подтверждение вывода Wallet**
+   - Провести контролируемую выплату из пилотного фонда после юридической и операционной проверки.
+   - Зафиксировать результат как подтвержденный кейс, не обещая массовый вывод до готовности инфраструктуры.
 
-10. [ ] Skill Passport MVP
-    - Profile fields for skills, interests, experience, availability and proof links.
-    - Verification for `profile_strengths_filled` and `skill_profile_completed`.
-    - Prepares marketplace without launching full marketplace scope.
+## Технически реализовано / нужен User QA
 
-11. [ ] Trust-lite and reciprocity foundation
-   - `trust_events`, `mutual_confirmations`, `reciprocity_balances`.
-   - Phase 1 migration created: `20260611161340_trust_reciprocity_foundation.sql`.
-   - Phase 2 API foundation created: `lib/trust.ts`, `/api/trust/confirmations`, `/api/trust/confirmations/[confirmationId]/confirm`, `/api/trust/confirmations/[confirmationId]/decline`, `/api/trust/summary`.
-   - Phase 2 UX foundation created in `Social/Profile`: incoming/outgoing confirmations, confirm/decline actions, contact confirmation request from Contacts.
-   - Supabase migrations applied, generated types include Trust tables, Trust challenge verification supports `trust_event_confirmed:*`.
-   - Mutual confirmations for help, community checks and simple deals.
-   - Soft reciprocity signal for recommendations and promotion, without public numeric reputation.
-   - Inventory artifacts for confirmed milestones.
-   - See `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
+### Первый пользовательский маршрут
 
-12. [ ] Afterburn MVP
-   - Off by default.
-   - One-shot/manual setting that routes part of Wallet to Core before accrual.
-   - Limit or non-reducible Wallet remainder.
+- [ ] Гостевой/пользовательский onboarding, Google auth и перенос guest identity/referral после регистрации.
+- [ ] Wishes: личные желания CRUD, рекомендации, копирование рекомендации и публичные желания.
+- [ ] Wallet/Core: балансы, история, уровни, ежедневное начисление, reinvest split и Wallet -> Core через atomic ledger RPC.
+- [ ] Финансовый калькулятор: future amount, time to goal, daily income и сравнение сценариев.
+- [ ] Today technical MVP: сохраненный growth plan, дневная цель, checklist, progress, streak, popup первого входа и карточка в Challenges.
+- [ ] Starter Challenges: accept/check/reward, автопроверки и quiz сложного процента.
 
-13. [ ] Marketplace escrow / item sales implementation
-    - Later quality layer: buyer reviews/ratings, sales count on cards, ranking with capped private mutual market balance (`spent - earned`).
-    - Реализовано: объявления о продаже предметов/услуг/навыков, API create/list/cancel, первая Wallet -> Market сетка, лимит карточек по уровню.
-    - Далее: явные условия сделки, принятие обеими сторонами.
-    - Оплата из Wallet; при совпадении принятых условий деньги и предмет переходят атомарно.
-    - Requires item ownership, Wallet ledger/escrow, public profiles, basic moderation, Trust-lite and anti-abuse rules.
-    - Plan: `docs/MARKETPLACE_ESCROW_PLAN.md`.
+### Возврат и личная организация
+
+- [ ] PWA foundation и общий local-first IndexedDB.
+- [ ] Notes offline pilot и синхронизация заметок.
+- [ ] Tasks/Streaks: задачи, расписание, subtasks, repeat, archive, soft mode и lives.
+- [ ] Results/brochure и локальный результат после первого прочтения.
+
+### Социальный и командный фундамент
+
+- [ ] Feed/blog: публичная лента, личный блог, ручные посты, daily growth drafts, публичные желания и внешние ссылки.
+- [ ] People/public profiles: поиск людей, `/u/[userId]`, публичный блог, контакты и простой Direct.
+- [ ] Referrals/teams: referral claim, team membership, capacity, контакты команды и team bonus ledger.
+- [ ] Trust-lite: mutual confirmations, trust events, reciprocity summary и challenge checks.
+- [ ] AI Coordinator: streaming chat, knowledge base и provider fallback; пока отдельная вкладка, не контекстный союзник главного пути.
+
+### Поздние контуры, уже имеющие технический фундамент
+
+- [ ] Open Projects: каталог, заявки и project tasks без завершенного participation loop.
+- [ ] Marketplace: artifacts, wallet ledger, Wallet-to-Wallet transfer и listings create/list/cancel без deals/escrow.
+
+## Подтверждено пользователями
+
+- [x] Offline Notes Pilot: создание, изменение и удаление заметок offline, восстановление и синхронизация после возвращения сети были вручную приняты.
+
+## Заблокировано
+
+- Массовый внешний вывод Wallet заблокирован до определения юридической модели, AML/KYC-процесса, платежного канала, резервов и операционной поддержки.
+- Публичные обещания фиксированного или гарантированного дохода заблокированы до доказуемого покрытия обязательств и юридической проверки формулировок.
+- Масштабирование за пределы закрытой когорты заблокировано до появления аналитики, положительного D1/D3/D7 и сверки Wallet-обязательств с фондом.
 
 ## Отложено
 
-- Полный marketplace пользовательских заданий.
-- Marketplace-челленджи с реальными сделками до Wallet-to-Wallet, публичных профилей, базовой модерации и anti-abuse правил.
-- Today screen как отдельный первый экран: отложен, потому что Core, Wallet, задачи, челленджи и Social уже доступны в своих разделах.
-- Внешний onramp/реальные пополнения до готовой платежной инфраструктуры.
-- Системные Wallet-награды.
-- Внутренний Direct beyond very simple MVP.
-- Нативные приложения.
-- Сложные банковские интеграции, внешний вывод средств, счета, инвойсы, смарт-контракты.
+- Marketplace deals/escrow, отзывы, рейтинги и сложное ранжирование.
+- Расширенный project participation loop и большой каталог проектов.
+- Публичные feed reactions/comments/saves как самостоятельная соцсетевая механика.
+- Полный Skill Passport, сложный Trust/reciprocity score и публичная числовая репутация.
+- Afterburn.
+- Полноценный Direct: список диалогов, read receipts, mute/report и расширенные настройки приватности.
+- Полный marketplace пользовательских заданий и marketplace-челленджи.
+- Внешний onramp, автоматический crypto/P2P off-ramp и банковские интеграции.
+- Нативные приложения, счета, инвойсы, смарт-контракты и приватный блокчейн.
 - Vision/Sims full economy.
 - AI autonomous/high-risk actions.
+- Платная реклама и публичный неуправляемый трафик.
+
+## Критерии закрытого пилота
+
+- Когорта: 20-50 лично приглашенных русскоязычных пользователей.
+- Не менее 70% создают главное желание и сохраняют финансовый план.
+- Не менее 50% получают первый проверяемый результат или понимают срок и способ его проверки.
+- Ориентиры удержания: D1 >= 40%, D3 >= 25%, D7 >= 15%.
+- Не менее 30% активированных участников публикуют карточку результата.
+- Не менее 20% активированных участников отправляют приглашение.
+- Каждое Wallet-начисление имеет источник, ledger-запись, защиту от повторного начисления и покрытие фондом.
+- Демо-контент всегда визуально и семантически отделен от реальных результатов.

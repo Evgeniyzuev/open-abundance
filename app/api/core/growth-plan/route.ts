@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import type { Json } from "@/lib/database.types";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 
 type GrowthPlanRequest = {
   calculatedDaysToGoal?: number | null;
@@ -94,6 +95,15 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
+
+    await recordProductEvent({
+      entityId: plan.id,
+      entityType: "growth_plan",
+      eventName: "growth_plan_saved",
+      properties: { calculated_days: calculatedDaysToGoal, target_type: targetType },
+      source: "server",
+      userId: user.id
+    });
 
     return NextResponse.json({ plan }, { status: 201, headers: NO_STORE_HEADERS });
   } catch (routeError) {

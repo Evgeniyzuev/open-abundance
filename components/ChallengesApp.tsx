@@ -29,6 +29,11 @@ type Challenge = {
   verification_type: "auto" | "manual" | "community";
   verification_logic: string | null;
   sort_order: number;
+  track_key: string | null;
+  track_step: number | null;
+  prerequisite_challenge_id: string | null;
+  action_view: string | null;
+  is_unlocked: boolean;
   user_challenge_status?: ChallengeStatus | null;
 };
 
@@ -178,6 +183,11 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
   const lastVisibleRefreshAtRef = useRef(0);
   const userLevel = core?.level ?? profile?.level ?? DEFAULT_USER_LEVEL;
   const hasChallenges = availableChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
+  const pathChallenges = [...availableChallenges, ...acceptedChallenges, ...completedChallenges]
+    .filter((challenge) => challenge.track_key === "first_core_path")
+    .sort((left, right) => (left.track_step ?? 0) - (right.track_step ?? 0));
+  const availableCatalogChallenges = availableChallenges.filter((challenge) => challenge.track_key !== "first_core_path");
+  const acceptedCatalogChallenges = acceptedChallenges.filter((challenge) => challenge.track_key !== "first_core_path");
   const hasProjects = projects.length > 0;
 
   const loadToday = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
@@ -600,9 +610,19 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
             />
           ) : null}
 
-          <ChallengeSection challenges={availableChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+          {pathChallenges.length > 0 ? (
+            <ChallengePathSection
+              challenges={pathChallenges}
+              locale={locale}
+              userLevel={userLevel}
+              t={t}
+              onOpen={(challenge) => setSelectedChallenge(challenge)}
+            />
+          ) : null}
 
-          <ChallengeSection challenges={acceptedChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.accepted")} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+          <ChallengeSection challenges={availableCatalogChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+
+          <ChallengeSection challenges={acceptedCatalogChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.accepted")} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
 
           <section className="challenge-section">
             <button className="challenge-archive-link" type="button" onClick={() => {
@@ -721,6 +741,33 @@ function ChallengeSection({
   );
 }
 
+function ChallengePathSection({ challenges, locale, userLevel, t, onOpen }: {
+  challenges: Challenge[];
+  locale: AppLocale;
+  userLevel: number;
+  t: TFunction;
+  onOpen: (challenge: Challenge) => void;
+}) {
+  const completed = challenges.filter(isCompletedChallenge).length;
+
+  return (
+    <section className="challenge-section challenge-path-section">
+      <div className="challenge-path-heading">
+        <span>
+          <h2>{t("challenges.path.title")}</h2>
+          <small>{t("challenges.path.subtitle")}</small>
+        </span>
+        <strong>{t("challenges.path.progress", { completed, total: challenges.length })}</strong>
+      </div>
+      <div className="challenge-list">
+        {challenges.map((challenge) => (
+          <ChallengeRow challenge={challenge} key={challenge.id} locale={locale} userLevel={userLevel} t={t} onOpen={() => onOpen(challenge)} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ProjectSection({ projects, emptyMessage, locale, t, onOpen }: { projects: Project[]; emptyMessage: string; locale: AppLocale; t: TFunction; onOpen: (project: Project) => void }) {
   return (
     <section className="challenge-section">
@@ -822,7 +869,7 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
 function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: Challenge; locale: AppLocale; userLevel: number; t: TFunction; onOpen: () => void }) {
   const accepted = isActiveChallenge(challenge);
   const completed = challenge.user_challenge_status === "completed";
-  const locked = !accepted && !completed && challenge.difficulty_level > userLevel;
+  const locked = !accepted && !completed && (!challenge.is_unlocked || challenge.difficulty_level > userLevel);
 
   return (
     <button className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
@@ -869,7 +916,7 @@ function ChallengeDetailModal({
   const signupChallenge = challenge.verification_logic === "signup";
   const completed = challenge.user_challenge_status === "completed";
   const accepted = isActiveChallenge(challenge);
-  const locked = !accepted && challenge.difficulty_level > userLevel;
+  const locked = !accepted && (!challenge.is_unlocked || challenge.difficulty_level > userLevel);
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");

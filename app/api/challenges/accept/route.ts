@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 
 type AcceptRequest = {
   challengeId?: string;
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id")
+    .select("id,prerequisite_challenge_id")
     .eq("id", body.challengeId)
     .eq("is_active", true)
     .maybeSingle();
@@ -53,6 +54,18 @@ export async function POST(request: NextRequest) {
 
   if (!challenge) {
     return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
+  }
+
+  if (challenge.prerequisite_challenge_id) {
+    const { data: prerequisite, error: prerequisiteError } = await supabase
+      .from("user_challenges")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("challenge_id", challenge.prerequisite_challenge_id)
+      .eq("status", "completed")
+      .maybeSingle();
+    if (prerequisiteError) return NextResponse.json({ error: prerequisiteError.message }, { status: 500 });
+    if (!prerequisite) return NextResponse.json({ error: "Complete the previous path step first." }, { status: 409 });
   }
 
   const { data: existing, error: existingError } = await supabase
@@ -91,6 +104,8 @@ export async function POST(request: NextRequest) {
   if (upsertError) {
     return NextResponse.json({ error: upsertError.message }, { status: 500 });
   }
+
+  await recordProductEvent({ entityId: challenge.id, entityType: "challenge", eventName: "challenge_accepted", source: "server", userId: user.id });
 
   return NextResponse.json({
     debug: {

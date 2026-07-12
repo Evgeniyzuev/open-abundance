@@ -3,6 +3,7 @@ import type { Tables, TablesInsert } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { publishWishToFeed } from "@/lib/serverWishFeed";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -145,6 +146,14 @@ export async function POST(request: NextRequest) {
 
     const shouldPublishToFeed = normalizeBoolean(body.publishToFeed ?? body.publish_to_feed);
     const publishResult = shouldPublishToFeed ? await publishWishToFeed(supabase, user.id, data) : null;
+    await recordProductEvent({
+      entityId: data.id,
+      entityType: "wish",
+      eventName: "wish_created",
+      properties: { has_target: data.target_amount !== null, visibility: data.visibility },
+      source: "server",
+      userId: user.id
+    });
 
     return NextResponse.json(
       {

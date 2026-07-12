@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       challenges: {
         Row: {
+          action_view: string | null
           category: string
           created_at: string
           description: Json
@@ -25,14 +26,18 @@ export type Database = {
           image_url: string | null
           instructions: Json
           is_active: boolean
+          prerequisite_challenge_id: string | null
           requirements: Json
           reward_label: Json
           sort_order: number
+          track_key: string | null
+          track_step: number | null
           title: Json
           verification_logic: string | null
           verification_type: string
         }
         Insert: {
+          action_view?: string | null
           category?: string
           created_at?: string
           description?: Json
@@ -42,14 +47,18 @@ export type Database = {
           image_url?: string | null
           instructions?: Json
           is_active?: boolean
+          prerequisite_challenge_id?: string | null
           requirements?: Json
           reward_label?: Json
           sort_order?: number
+          track_key?: string | null
+          track_step?: number | null
           title?: Json
           verification_logic?: string | null
           verification_type?: string
         }
         Update: {
+          action_view?: string | null
           category?: string
           created_at?: string
           description?: Json
@@ -59,12 +68,62 @@ export type Database = {
           image_url?: string | null
           instructions?: Json
           is_active?: boolean
+          prerequisite_challenge_id?: string | null
           requirements?: Json
           reward_label?: Json
           sort_order?: number
+          track_key?: string | null
+          track_step?: number | null
           title?: Json
           verification_logic?: string | null
           verification_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenges_prerequisite_challenge_id_fkey"
+            columns: ["prerequisite_challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_events: {
+        Row: {
+          anonymous_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          event_name: string
+          id: string
+          occurred_at: string
+          properties: Json
+          source: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_name: string
+          id?: string
+          occurred_at?: string
+          properties?: Json
+          source?: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_name?: string
+          id?: string
+          occurred_at?: string
+          properties?: Json
+          source?: string
+          user_id?: string | null
         }
         Relationships: []
       }

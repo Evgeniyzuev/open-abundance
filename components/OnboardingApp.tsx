@@ -6,6 +6,7 @@ import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import type { AppLocale } from "@/lib/i18n";
 import { ONBOARDING_SEEN_STORAGE_KEY, onboardingContent, onboardingText } from "@/lib/onboardingContent";
+import { trackProductEvent } from "@/lib/productAnalytics";
 
 type StepId = "intro" | "showcase" | "explain" | "questions" | "result";
 type TimeOptionId = "short" | "medium" | "deep";
@@ -76,9 +77,14 @@ function OnboardingApp({
   const currentIndex = steps.indexOf(step);
   const potential = useMemo(() => calculatePotential(timeOption, referrals), [referrals, timeOption]);
 
+  useEffect(() => {
+    trackProductEvent("onboarding_viewed", { locale });
+  }, [locale]);
+
   function goTo(nextStep: StepId) {
     setActionError(null);
     setStep(nextStep);
+    trackProductEvent("onboarding_step_viewed", { step: nextStep });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -86,6 +92,7 @@ function OnboardingApp({
     setSavingAction("browse");
     setActionError(null);
     try {
+      trackProductEvent("onboarding_completed", { path: "browse", time_option: timeOption });
       await onBrowseMore();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Could not save onboarding state.");
@@ -97,6 +104,7 @@ function OnboardingApp({
     setSavingAction("account");
     setActionError(null);
     try {
+      trackProductEvent("auth_started", { source: "onboarding" });
       await onCreateAccount();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Could not start sign-in.");

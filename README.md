@@ -13,7 +13,7 @@ result story -> main wish -> financial plan -> Today action -> verified reward
 -> Core/Wallet growth -> published result -> reason to return
 ```
 
-Features that exist in code but have not passed manual user verification are not considered complete. The canonical operational status and ordered queue live in [docs/MASTER_KANBAN.md](docs/MASTER_KANBAN.md). Product strategy and decisions live in [docs/OPEN_ABUNDANCE_MASTER_PLAN.md](docs/OPEN_ABUNDANCE_MASTER_PLAN.md).
+Features that exist in code but have not passed manual user verification are not considered complete. The canonical operational status and ordered queue live in [docs/MASTER_KANBAN.md](docs/MASTER_KANBAN.md). Concrete development decisions live in [docs/OPEN_ABUNDANCE_MASTER_PLAN.md](docs/OPEN_ABUNDANCE_MASTER_PLAN.md), while accumulated context and open questions live in [docs/PROJECT_MEMORY.md](docs/PROJECT_MEMORY.md).
 
 ## Economic Pilot Boundary
 

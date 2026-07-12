@@ -15,7 +15,7 @@ type ChallengeProgress = {
 
 type ChallengeWithProgress = Pick<
   Database["public"]["Tables"]["challenges"]["Row"],
-  "id" | "title" | "description" | "instructions" | "requirements" | "reward_label" | "category" | "difficulty_level" | "duration_days" | "image_url" | "verification_type" | "verification_logic" | "sort_order" | "track_key" | "track_step" | "prerequisite_challenge_id" | "action_view"
+  "id" | "title" | "description" | "instructions" | "requirements" | "reward_label" | "category" | "difficulty_level" | "duration_days" | "image_url" | "verification_type" | "verification_logic" | "sort_order" | "track_key" | "track_step" | "action_view"
 > & {
   user_challenges?: ChallengeProgress[] | null;
 };
@@ -61,8 +61,8 @@ export async function GET(request: NextRequest) {
     .from("challenges")
     .select(
       viewerUserId
-        ? "id,title,description,instructions,requirements,reward_label,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,prerequisite_challenge_id,action_view,user_challenges(status,updated_at,user_id)"
-        : "id,title,description,instructions,requirements,reward_label,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,prerequisite_challenge_id,action_view"
+        ? "id,title,description,instructions,requirements,reward_label,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,user_challenges(status,updated_at,user_id)"
+        : "id,title,description,instructions,requirements,reward_label,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view"
     )
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -80,7 +80,6 @@ export async function GET(request: NextRequest) {
 
   let userChallengeCount = 0;
   const challengeRows = (challenges ?? []) as unknown as ChallengeWithProgress[];
-  const completedIds = new Set(challengeRows.filter((challenge) => challenge.user_challenges?.[0]?.status === "completed").map((challenge) => challenge.id));
   const data = challengeRows.map((challenge) => {
     const [userChallenge] = challenge.user_challenges ?? [];
     if (userChallenge?.status) userChallengeCount += 1;
@@ -88,7 +87,6 @@ export async function GET(request: NextRequest) {
 
     return {
       ...publicChallenge,
-      is_unlocked: !challenge.prerequisite_challenge_id || completedIds.has(challenge.prerequisite_challenge_id),
       user_challenge_status: userChallenge?.status ? String(userChallenge.status).trim().toLowerCase() : null
     };
   });

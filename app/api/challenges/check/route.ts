@@ -59,20 +59,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
   }
 
-  if (challenge.prerequisite_challenge_id) {
-    const { data: prerequisite, error: prerequisiteError } = await supabase
-      .from("user_challenges")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("challenge_id", challenge.prerequisite_challenge_id)
-      .eq("status", "completed")
-      .maybeSingle();
-    if (prerequisiteError) return NextResponse.json({ error: prerequisiteError.message }, { status: 500 });
-    if (!prerequisite) {
-      return NextResponse.json({ challengeId: challenge.id, completed: false, error: "Complete the previous path step first." }, { status: 409 });
-    }
-  }
-
   const verification = await verifyChallenge(supabase, user.id, challenge);
   if (!verification.ok) {
     await supabase.from("user_challenges").upsert(

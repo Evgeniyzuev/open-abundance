@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Clock3, Rocket, Send, ShieldCheck, Trophy, Users } from "lucide-react";
+import { Bot, CheckCircle2, Clock3, Compass, HandHeart, PenLine, Rocket, Send, ShieldCheck, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
@@ -31,9 +31,7 @@ type Challenge = {
   sort_order: number;
   track_key: string | null;
   track_step: number | null;
-  prerequisite_challenge_id: string | null;
   action_view: string | null;
-  is_unlocked: boolean;
   user_challenge_status?: ChallengeStatus | null;
 };
 
@@ -866,16 +864,35 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
   );
 }
 
+function ChallengeVisual({ challenge, mode }: { challenge: Challenge; mode: "thumb" | "modal" }) {
+  const Icon = getChallengeIcon(challenge);
+  const tone = getChallengeTone(challenge);
+
+  if (mode === "thumb") {
+    return (
+      <span className={`challenge-thumb challenge-visual-${tone}`}>
+        {challenge.image_url ? <img alt="" src={challenge.image_url} loading="lazy" /> : <Icon size={25} />}
+      </span>
+    );
+  }
+
+  if (challenge.image_url) return <img className="challenge-modal-image" alt="" src={challenge.image_url} />;
+
+  return (
+    <div className={`challenge-modal-image challenge-modal-fallback challenge-visual-${tone}`}>
+      <Icon size={42} />
+    </div>
+  );
+}
+
 function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: Challenge; locale: AppLocale; userLevel: number; t: TFunction; onOpen: () => void }) {
   const accepted = isActiveChallenge(challenge);
   const completed = challenge.user_challenge_status === "completed";
-  const locked = !accepted && !completed && (!challenge.is_unlocked || challenge.difficulty_level > userLevel);
+  const locked = !accepted && !completed && challenge.difficulty_level > userLevel;
 
   return (
     <button className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
-      <span className="challenge-thumb">
-        {challenge.image_url ? <img alt="" src={challenge.image_url} loading="lazy" /> : <Trophy size={24} />}
-      </span>
+      <ChallengeVisual challenge={challenge} mode="thumb" />
       <span className="challenge-row-body">
         <span className="challenge-row-title">{text(challenge.title, t("challenges.challenge"), locale)}</span>
         <small>{completed ? t("challenges.completed") : text(challenge.description, "", locale)}</small>
@@ -916,7 +933,7 @@ function ChallengeDetailModal({
   const signupChallenge = challenge.verification_logic === "signup";
   const completed = challenge.user_challenge_status === "completed";
   const accepted = isActiveChallenge(challenge);
-  const locked = !accepted && (!challenge.is_unlocked || challenge.difficulty_level > userLevel);
+  const locked = !accepted && challenge.difficulty_level > userLevel;
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -1044,7 +1061,7 @@ function ChallengeDetailModal({
           <span />
         </div>
 
-        {challenge.image_url ? <img className="challenge-modal-image" alt="" src={challenge.image_url} /> : null}
+        <ChallengeVisual challenge={challenge} mode="modal" />
 
         <div className="challenge-modal-body">
           <div>
@@ -1329,6 +1346,42 @@ function getVerificationLabel(type: Challenge["verification_type"], t: TFunction
   if (type === "auto") return t("challenges.verification.auto");
   if (type === "community") return t("challenges.verification.community");
   return t("challenges.verification.manual");
+}
+
+function getChallengeIcon(challenge: Challenge): LucideIcon {
+  switch (challenge.verification_logic) {
+    case "signup":
+      return UserRoundCheck;
+    case "has_wish":
+    case "wish_steps_created":
+      return Target;
+    case "calculate_time_to_goal":
+    case "reinvest_enabled":
+    case "first_wallet_to_core":
+    case "first_wallet_transfer":
+      return WalletCards;
+    case "first_growth_post_published":
+    case "app_testing_review":
+      return PenLine;
+    case "ai_message_sent":
+      return Bot;
+    case "has_referral":
+    case "team_contact_active":
+      return Users;
+    case "trust_event_confirmed:help_given":
+    case "trust_event_confirmed:proof_added":
+      return HandHeart;
+    default:
+      return challenge.category === "focus" ? Compass : Trophy;
+  }
+}
+
+function getChallengeTone(challenge: Challenge): "blue" | "green" | "gold" | "violet" | "rose" {
+  if (challenge.track_key === "first_core_path") return "blue";
+  if (challenge.category === "finance") return "green";
+  if (challenge.category === "social" || challenge.category === "trust") return "violet";
+  if (challenge.category === "quality_assurance") return "rose";
+  return "gold";
 }
 
 function getProjectStatusLabel(status: ProjectApplicationStatus, t: TFunction): string {

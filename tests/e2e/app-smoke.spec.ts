@@ -31,6 +31,6 @@ test("returning guest sees the ordered first Core path", async ({ page }) => {
   await expect(page.getByText("Save Your Progress", { exact: true })).toBeVisible();
   await expect(page.getByText("Choose Your Main Wish", { exact: true })).toBeVisible();
   await expect(page.getByText("Build Your Growth Plan", { exact: true })).toBeVisible();
-  await expect(page.getByText("Turn On Core Growth", { exact: true })).toBeVisible();
+  await expect(page.getByText("Reach Today Core Target", { exact: true })).toBeVisible();
   await expect(page.getByText("Publish Your First Result", { exact: true })).toBeVisible();
 });

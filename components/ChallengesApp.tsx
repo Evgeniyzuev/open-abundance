@@ -166,6 +166,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [completionReward, setCompletionReward] = useState<{ amount: number; account: string; claimed: boolean } | null>(null);
+  const [acceptedOpen, setAcceptedOpen] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [projectStatus, setProjectStatus] = useState<"loading" | "ready" | "offline">("loading");
@@ -185,7 +186,6 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
     .filter((challenge) => challenge.track_key === "first_core_path")
     .sort((left, right) => (left.track_step ?? 0) - (right.track_step ?? 0));
   const availableCatalogChallenges = availableChallenges.filter((challenge) => challenge.track_key !== "first_core_path");
-  const acceptedCatalogChallenges = acceptedChallenges.filter((challenge) => challenge.track_key !== "first_core_path");
   const hasProjects = projects.length > 0;
 
   const loadToday = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
@@ -433,6 +433,32 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
     await loadChallenges();
   }
 
+  async function giveUpChallenge(challenge: Challenge) {
+    const token = await getAccessToken();
+    const response = await fetch("/api/challenges/giveup", {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ challengeId: challenge.id })
+    });
+    const payload = (await response.json()) as { userId?: string; challengeId?: string; status?: ChallengeStatus; error?: string };
+
+    if (!response.ok || payload.error) {
+      throw new Error(payload.error ?? "Failed to give up challenge.");
+    }
+
+    if (payload.userId && user?.id && payload.userId !== user.id) {
+      throw new Error("Challenge give up returned a different user.");
+    }
+
+    applyChallengeStatus(payload.challengeId ?? challenge.id, "declined");
+    setSelectedChallenge(null);
+    await loadChallenges();
+  }
+
   async function applyToProject(project: Project, message: string) {
     const token = await getAccessToken();
     const response = await fetch("/api/projects/apply", {
@@ -513,7 +539,12 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
     const currentChallenge = [...availableChallenges, ...acceptedChallenges, ...completedChallenges].find(isTarget);
     const nextChallenge = currentChallenge ? updateChallenge(currentChallenge) : undefined;
 
-    setAvailableChallenges((challenges) => challenges.filter((challenge) => challenge.id !== challengeId).map(updateChallenge));
+    setAvailableChallenges((challenges) => {
+      const nextChallenges = challenges.filter((challenge) => challenge.id !== challengeId).map(updateChallenge);
+      return status === "declined"
+        ? sortChallenges([...nextChallenges, nextChallenge].filter(Boolean) as Challenge[])
+        : nextChallenges;
+    });
     setAcceptedChallenges((challenges) => {
       const nextChallenges = challenges.filter((challenge) => challenge.id !== challengeId).map(updateChallenge);
       return status === "accepted" || status === "failed"
@@ -536,15 +567,19 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
     setSelectedProject((project) => project && project.id === projectId ? updateProject(project) : project);
   }
 
-  if (completedOpen) {
+  if (acceptedOpen || completedOpen) {
+    const archiveChallenges = acceptedOpen ? acceptedChallenges : completedChallenges;
+    const archiveTitle = acceptedOpen ? t("challenges.accepted") : t("challenges.completedPlural");
     return (
       <>
         <ChallengeArchiveScreen
-          challenges={completedChallenges}
+          challenges={archiveChallenges}
           locale={locale}
+          title={archiveTitle}
           userLevel={userLevel}
           t={t}
           onBack={() => {
+            setAcceptedOpen(false);
             setCompletedOpen(false);
             setSelectedChallenge(null);
           }}
@@ -559,6 +594,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
             userLevel={userLevel}
             t={t}
             onAccept={() => acceptChallenge(selectedChallenge)}
+            onGiveUp={() => giveUpChallenge(selectedChallenge)}
             onClose={() => setSelectedChallenge(null)}
             onComplete={completeChallenge}
             onApplyServerData={applyServerData}
@@ -620,7 +656,14 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
 
           <ChallengeSection challenges={availableCatalogChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
 
-          <ChallengeSection challenges={acceptedCatalogChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.accepted")} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+          <section className="challenge-section">
+            <button className="challenge-archive-link" type="button" onClick={() => {
+              loadChallenges().then(() => setAcceptedOpen(true));
+            }}>
+              <span>{t("challenges.accepted")}</span>
+              <strong>{acceptedChallenges.length}</strong>
+            </button>
+          </section>
 
           <section className="challenge-section">
             <button className="challenge-archive-link" type="button" onClick={() => {
@@ -648,6 +691,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
           userLevel={userLevel}
           t={t}
           onAccept={() => acceptChallenge(selectedChallenge)}
+          onGiveUp={() => giveUpChallenge(selectedChallenge)}
           onClose={() => setSelectedChallenge(null)}
           onComplete={completeChallenge}
           onApplyServerData={applyServerData}
@@ -674,6 +718,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
 function ChallengeArchiveScreen({
   challenges,
   locale,
+  title,
   userLevel,
   t,
   onBack,
@@ -681,6 +726,7 @@ function ChallengeArchiveScreen({
 }: {
   challenges: Challenge[];
   locale: AppLocale;
+  title: string;
   userLevel: number;
   t: TFunction;
   onBack: () => void;
@@ -690,7 +736,7 @@ function ChallengeArchiveScreen({
     <section className="challenges-screen challenge-archive-screen">
       <header className="task-archive-topbar">
         <button className="back-button" type="button" onClick={onBack}>{"\u2039"}</button>
-        <h1>{t("challenges.completedPlural")}</h1>
+        <h1>{title}</h1>
       </header>
 
       {challenges.length === 0 ? (
@@ -914,6 +960,7 @@ function ChallengeDetailModal({
   userLevel,
   t,
   onAccept,
+  onGiveUp,
   onClose,
   onComplete,
   onApplyServerData,
@@ -925,6 +972,7 @@ function ChallengeDetailModal({
   userLevel: number;
   t: TFunction;
   onAccept: () => Promise<void>;
+  onGiveUp: () => Promise<void>;
   onClose: () => void;
   onComplete: (challenge: Challenge, reward: { amount: number; account: string; claimed: boolean }) => void;
   onApplyServerData: (data: { core?: CoreAccount | null; wallet?: WalletAccount | null }) => void;
@@ -938,6 +986,7 @@ function ChallengeDetailModal({
   const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
   const [compoundQuizPassed, setCompoundQuizPassed] = useState(false);
 
@@ -1026,6 +1075,20 @@ function ChallengeDetailModal({
       console.error(error);
       setCheckMessage(error instanceof Error ? error.message : t("challenges.checkFailed"));
       setAcceptStatus("error");
+    }
+  }
+
+  async function handleGiveUp() {
+    setGiveUpStatus("loading");
+    setCheckMessage(null);
+
+    try {
+      await onGiveUp();
+      setGiveUpStatus("idle");
+    } catch (error) {
+      console.error(error);
+      setCheckMessage(error instanceof Error ? error.message : t("challenges.giveUpFailed"));
+      setGiveUpStatus("error");
     }
   }
 
@@ -1137,6 +1200,12 @@ function ChallengeDetailModal({
             </button>
           ) : null}
 
+          {!completed && accepted ? (
+            <button className="challenge-secondary-action" type="button" disabled={giveUpStatus === "loading"} onClick={handleGiveUp}>
+              {giveUpStatus === "loading" ? t("app.common.loading") : t("challenges.giveUp")}
+            </button>
+          ) : null}
+
           {!completed && !locked && !accepted && (!signupChallenge || isRegistered) ? (
             <button className="challenge-primary-action" type="button" disabled={acceptStatus === "loading"} onClick={handleAccept}>
               {acceptStatus === "loading" ? t("app.common.loading") : t("challenges.accept")}
@@ -1144,7 +1213,7 @@ function ChallengeDetailModal({
           ) : null}
 
           {authStatus === "error" ? <p className="challenge-error">{t("challenges.authError")}</p> : null}
-          {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
+          {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" || giveUpStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
         </div>
       </div>
     </div>
@@ -1357,6 +1426,7 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
       return Target;
     case "calculate_time_to_goal":
     case "reinvest_enabled":
+    case "today_core_target_reached":
     case "first_wallet_to_core":
     case "first_wallet_transfer":
       return WalletCards;
@@ -1408,6 +1478,14 @@ function isActiveChallenge(challenge: Challenge): boolean {
 
 function isCompletedChallenge(challenge: Challenge): boolean {
   return challenge.user_challenge_status === "completed";
+}
+
+function sortChallenges(challenges: Challenge[]): Challenge[] {
+  return [...challenges].sort((left, right) => {
+    const sortOrder = left.sort_order - right.sort_order;
+    if (sortOrder !== 0) return sortOrder;
+    return left.difficulty_level - right.difficulty_level;
+  });
 }
 
 async function getAccessToken(): Promise<string> {

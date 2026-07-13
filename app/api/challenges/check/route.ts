@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database, Json } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { syncTodayForUser } from "@/lib/serverToday";
 
 type CheckRequest = {
   challengeId?: string;
@@ -305,6 +306,19 @@ async function verifyChallenge(
     }
 
     return { ok: false, reason: "Set reinvest above 0% first." };
+  }
+
+  if (challenge.verification_logic === "today_core_target_reached") {
+    try {
+      const payload = await syncTodayForUser(supabase, userId, { complete: true });
+      if (payload.today.status === "completed") {
+        return { ok: true };
+      }
+
+      return { ok: false, reason: "Reach today's Core target in Today first." };
+    } catch {
+      return { ok: false, reason: "Could not check Today progress. Try again." };
+    }
   }
 
   if (challenge.verification_logic === "first_wallet_to_core") {

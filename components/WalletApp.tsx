@@ -11,6 +11,11 @@ import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import type { Tables } from "@/lib/database.types";
 
 type WalletTab = "wallet" | "core" | "market";
+export type WalletCalculatorRequest = {
+  dailyAdditions?: number;
+  nonce: number;
+  targetCore?: number;
+};
 type CoreAccrualRow = {
   accrual_date: string;
   core_before: number;
@@ -151,7 +156,7 @@ const BENCHMARKS: MarketBenchmark[] = [
 
 type WalletRow = Tables<"wallet_accounts">;
 
-export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; refreshNonce: number; onRefresh: () => Promise<void> }) {
+export default function WalletApp({ active, activeTab, calculatorRequest, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; calculatorRequest?: WalletCalculatorRequest | null; refreshNonce: number; onRefresh: () => Promise<void> }) {
   const { core, wallet, user, loading, error, locale, applyServerData, t } = useUserContext();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState<CoreAccrualRow[] | null>(null);
@@ -185,6 +190,9 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
   const [marketError, setMarketError] = useState<string | null>(null);
   const [sellModalOpen, setSellModalOpen] = useState(false);
   const [marketSavingId, setMarketSavingId] = useState<string | null>(null);
+  const calculatorRequestNonce = calculatorRequest?.nonce;
+  const calculatorRequestDailyAdditions = calculatorRequest?.dailyAdditions;
+  const calculatorRequestTargetCore = calculatorRequest?.targetCore;
 
   useEffect(() => {
     if (activeTab !== "core") setHistoryOpen(false);
@@ -310,6 +318,21 @@ export default function WalletApp({ active, activeTab, refreshNonce, onRefresh }
     if (!core || !useCurrentCore) return;
     setStartCore(formatInputNumber(core.balance));
   }, [core?.balance, core, useCurrentCore]);
+
+  useEffect(() => {
+    if (!calculatorRequestNonce) return;
+
+    setCalculatorOpen(true);
+    setCalculatorMode("target");
+    setTargetKind("core");
+    setTargetCalculationTouched(false);
+    if (typeof calculatorRequestDailyAdditions === "number") {
+      setDailyAdditions(formatInputNumber(calculatorRequestDailyAdditions));
+    }
+    if (typeof calculatorRequestTargetCore === "number") {
+      setTargetCore(formatInputNumber(calculatorRequestTargetCore));
+    }
+  }, [calculatorRequestDailyAdditions, calculatorRequestNonce, calculatorRequestTargetCore]);
 
   function toggleCoreHistory() {
     const nextOpen = !historyOpen;

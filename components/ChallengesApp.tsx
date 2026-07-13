@@ -152,11 +152,12 @@ const COMPOUND_QUIZ_QUESTIONS: ChallengeQuizQuestion[] = [
 
 type ChallengesAppProps = {
   active: boolean;
+  focusNextChallengeNonce?: number;
   refreshNonce: number;
   onRefresh: () => Promise<void>;
 };
 
-export default function ChallengesApp({ active, refreshNonce, onRefresh }: ChallengesAppProps) {
+export default function ChallengesApp({ active, focusNextChallengeNonce = 0, refreshNonce, onRefresh }: ChallengesAppProps) {
   const [activeTab, setActiveTab] = useState<ChallengeTab>("challenges");
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
@@ -179,6 +180,7 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
   const projectLoadRequestIdRef = useRef(0);
   const challengeMutationVersionRef = useRef(0);
   const projectMutationVersionRef = useRef(0);
+  const handledFocusNextChallengeRef = useRef(0);
   const lastVisibleRefreshAtRef = useRef(0);
   const userLevel = core?.level ?? profile?.level ?? DEFAULT_USER_LEVEL;
   const hasChallenges = availableChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
@@ -377,6 +379,18 @@ export default function ChallengesApp({ active, refreshNonce, onRefresh }: Chall
       mounted = false;
     };
   }, [active, activeTab, loadChallenges, loadProjects, loadToday, refreshNonce, user?.id]);
+
+  useEffect(() => {
+    if (!active || !focusNextChallengeNonce || handledFocusNextChallengeRef.current === focusNextChallengeNonce) return;
+
+    const nextChallenge = availableChallenges
+      .filter((challenge) => challenge.difficulty_level <= userLevel)
+      .sort(compareRecommendedChallenges)[0];
+    if (!nextChallenge) return;
+
+    handledFocusNextChallengeRef.current = focusNextChallengeNonce;
+    setSelectedChallenge(nextChallenge);
+  }, [active, availableChallenges, focusNextChallengeNonce, userLevel]);
 
   useEffect(() => {
     if (!active) return;
@@ -1486,6 +1500,17 @@ function sortChallenges(challenges: Challenge[]): Challenge[] {
     if (sortOrder !== 0) return sortOrder;
     return left.difficulty_level - right.difficulty_level;
   });
+}
+
+function compareRecommendedChallenges(left: Challenge, right: Challenge): number {
+  if (left.track_key === "first_core_path" && right.track_key !== "first_core_path") return -1;
+  if (left.track_key !== "first_core_path" && right.track_key === "first_core_path") return 1;
+  if (left.track_key === "first_core_path" && right.track_key === "first_core_path") {
+    return (left.track_step ?? Number.MAX_SAFE_INTEGER) - (right.track_step ?? Number.MAX_SAFE_INTEGER);
+  }
+  const sortOrder = left.sort_order - right.sort_order;
+  if (sortOrder !== 0) return sortOrder;
+  return left.difficulty_level - right.difficulty_level;
 }
 
 async function getAccessToken(): Promise<string> {

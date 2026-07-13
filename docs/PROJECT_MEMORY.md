@@ -200,6 +200,9 @@ Wallet пользователя уменьшается
 - 2026-07-13: `Turn On Core Growth` заменен на Today Core target challenge, потому что дефолтный `reinvest_percent > 0` не обучал пользователя действию; accepted-челленджи получили раскрываемый список и `Give up`;
 - 2026-07-13: первая Core-цепочка принята пользователем и перенесена в `Подтверждено пользователями`; следующий активный шаг — единый onboarding;
 - 2026-07-13: первый onboarding переориентирован с feed/referral showcase на `история -> главное желание -> финансовый план -> первый Core-путь`; на этой итерации сохраняется local draft и `profile.onboarding_state.firstPlanDraft`, но полноценные серверные Wish/GrowthPlan из draft остаются отдельной задачей;
+- 2026-07-13: пользователь вручную прошел единый onboarding, открыл первый Core-путь и подтвердил сценарий; карточка перенесена в `Подтверждено пользователями`, следующая активная карточка — Home/Today как главный экран;
+- 2026-07-13: для Home/Today принято решение использовать отдельный default `home` main tab, существующий no-store `/api/today` и onboarding draft как fallback; Home показывает ровно один CTA, а глобальный Today popup заменяется встроенным Home-состоянием. Полноценное server-side создание Wish/GrowthPlan из draft остается отдельной задачей;
+- 2026-07-13: Home/Today технически реализован в `HomeTodayApp`, `AppNavigation`, `ChallengesApp`, `WalletApp` и локализации; остаются Technical QA/User QA, browser QA недоступен, а два Challenges smoke-сценария не получили каталог данных и остались на Loading;
 - добавлена минимальная first-party аналитика продуктовой воронки;
 - smoke/e2e разделен на нового гостя с onboarding и возвращающегося гостя с app shell; оба сценария проходят;
 - полная визуальная User QA цепочки остается обязательной.

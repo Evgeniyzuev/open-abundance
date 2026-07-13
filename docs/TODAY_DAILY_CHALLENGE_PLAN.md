@@ -14,10 +14,31 @@ Today - ежедневный персональный челлендж поль�
 - Добавлен `/api/today/check`: завершает Today, если дневная Core-цель достигнута.
 - Wallet/Core calculator сохраняет активный план при расчете срока до цели.
 - Challenges screen показывает Today-карточку над обычными челленджами с прогрессом `$current / $target`, streak и чек-листом.
-- App shell показывает Today popup при первом онлайн входе за день и дает быстрый переход в Challenges -> Today.
+- Текущий app shell показывает Today popup при первом онлайн входе за день и дает быстрый переход в Challenges -> Today; Home/Today integration ниже заменяет этот popup встроенным состоянием Home.
 - Миграции `20260613060618_today_daily_challenge_mvp.sql` и `20260613064629_today_core_growth_plan_fk_index.sql` применены к Supabase, наличие таблиц и FK-индекса проверено SQL-запросами.
 
 Осталось: ручная UX-проверка в приложении, затем расширение checklist источниками из local tasks, project tasks и wishes.
+
+### Home/Today integration decision — 2026-07-13
+
+Home/Today становится отдельным default main tab поверх существующего Today MVP.
+
+- Home читает Today из существующего `/api/today` с `no-store`; новый агрегирующий endpoint не нужен.
+- Активный server plan берется из `today.plan`. До появления server plan Home показывает onboarding draft из `profile.onboarding_state.firstPlanDraft` как preview и ведет в Wallet/Core calculator.
+- Главным желанием считается `firstPlanDraft.mainWish`; полноценное создание server Wish из draft остается отдельной задачей.
+- На Home показываются желание, Core-цель, Today progress/status и один primary CTA.
+- CTA меняется по состоянию: достичь Today target → открыть следующий рекомендованный challenge → рассчитать plan → собрать plan.
+- Для гостя допустим только локальный preview; серверные progress/streak не подменяются локальными значениями.
+- После challenge reward или Wallet → Core Home повторно загружает `/api/today` и показывает актуальный progress/CTA.
+- Глобальный first-day Today popup удаляется из app shell: его роль выполняет встроенное состояние Home.
+
+### Implemented — 2026-07-13
+
+- Добавлен `components/HomeTodayApp.tsx` и default `home` route в `components/AppNavigation.tsx`.
+- Home показывает draft/server wish, Core target, server Today progress/checklist/streak и один динамический CTA.
+- CTA открывает Today, следующий рекомендованный challenge или Wallet/Core calculator; draft-параметры передаются в калькулятор.
+- Удален глобальный Today popup; состояние первого входа теперь отображается внутри Home.
+- Typecheck, lint и HTTP 200 локального app shell прошли. In-app browser недоступен; два Challenges e2e smoke-сценария остаются заблокированы отсутствующим runtime-каталогом (экран остается в `Loading...`).
 
 ## Product Goal
 

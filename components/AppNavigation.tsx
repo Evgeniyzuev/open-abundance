@@ -1,21 +1,21 @@
 "use client";
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, CheckSquare, FileText, Heart, Landmark, Map, Newspaper, ShoppingBag, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper, ShoppingBag, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp from "@/components/ChallengesApp";
+import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import SocialApp from "@/components/SocialApp";
 import ResultsApp from "@/components/ResultsApp";
 import TasksApp from "@/components/TasksApp";
 import { useUserContext } from "@/components/UserProvider";
 import WalletApp from "@/components/WalletApp";
 import WishesApp from "@/components/WishesApp";
-import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
-import type { AppLocale } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n";
+import type { WalletCalculatorRequest } from "@/components/WalletApp";
 
-type MainTabId = "goals" | "challenges" | "spark" | "wallet" | "people";
+type MainTabId = "home" | "goals" | "challenges" | "spark" | "wallet" | "people";
 type GoalTabId = "desires" | "notes" | "checks" | "map" | "results";
 type WalletTabId = "wallet" | "core" | "market";
 type SocialTabId = "feed" | "people" | "blog" | "teams" | "profile";
@@ -50,30 +50,8 @@ type NavigationState = {
   socialTab: SocialTabId;
 };
 
-type TodayIntroItem = {
-  id: string;
-  item_key: string;
-  sort_order: number;
-  status: "pending" | "done" | "skipped";
-  title: Record<string, string> | null;
-};
-
-type TodayIntroPayload = {
-  checkInStreak: number;
-  completionStreak: number;
-  error?: string;
-  items: TodayIntroItem[];
-  setupRequired: boolean;
-  showIntro: boolean;
-  today: {
-    local_date: string;
-    progress_core: number;
-    status: "accepted" | "completed" | "expired";
-    target_core: number;
-  };
-};
-
 const mainTabs: MainTab[] = [
+  { id: "home", titleKey: "app.nav.home", icon: House },
   { id: "goals", titleKey: "app.nav.goals", icon: Target },
   { id: "challenges", titleKey: "app.nav.challenges", icon: Trophy },
   { id: "spark", titleKey: "app.nav.spark", icon: Sparkles },
@@ -107,14 +85,14 @@ const PULL_THRESHOLD_PX = 72;
 const NAV_HIDE_DELTA_PX = 8;
 const VIEW_QUERY_PARAM = "view";
 const DEFAULT_NAVIGATION_STATE: NavigationState = {
-  mainTab: "goals",
+  mainTab: "home",
   goalTab: "notes",
   walletTab: "wallet",
   socialTab: "feed"
 };
 
 export default function AppNavigation({ notesSlot }: AppNavigationProps) {
-  const { locale, refreshUserData, t, user } = useUserContext();
+  const { refreshUserData, t } = useUserContext();
   const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
   const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
   const [activeWalletTab, setActiveWalletTab] = useState<WalletTabId>(DEFAULT_NAVIGATION_STATE.walletTab);
@@ -123,8 +101,8 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
-  const [todayIntro, setTodayIntro] = useState<TodayIntroPayload | null>(null);
-  const [todayIntroRetryNonce, setTodayIntroRetryNonce] = useState(0);
+  const [challengeFocusNonce, setChallengeFocusNonce] = useState(0);
+  const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
     challenges: false,
@@ -140,7 +118,6 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const navigationHydratedRef = useRef(false);
   const suppressHistoryPushRef = useRef(false);
   const navigationStateRef = useRef<NavigationState>(DEFAULT_NAVIGATION_STATE);
-  const todayIntroCheckedUserRef = useRef<string | null>(null);
 
   const navigationState = {
     mainTab: activeMainTab,
@@ -224,66 +201,6 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
 
     writeNavigationStateToHistory(navigationStateRef.current, "push");
   }, [activeGoalTab, activeMainTab, activeSocialTab, activeWalletTab]);
-
-  useEffect(() => {
-    if (!user) {
-      todayIntroCheckedUserRef.current = null;
-      setTodayIntro(null);
-      return;
-    }
-
-    if (todayIntroCheckedUserRef.current === user.id) return;
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-
-    let mounted = true;
-    todayIntroCheckedUserRef.current = user.id;
-
-    async function loadTodayIntro() {
-      try {
-        const supabase = getBrowserSupabaseClient();
-        const {
-          data: { session }
-        } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
-
-        const params = new URLSearchParams({
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          ts: String(Date.now())
-        });
-        const response = await fetch(`/api/today?${params.toString()}`, {
-          cache: "no-store",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            "Cache-Control": "no-cache"
-          }
-        });
-        const payload = (await response.json()) as TodayIntroPayload;
-        if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load Today.");
-        if (mounted && payload.showIntro) setTodayIntro(payload);
-      } catch (todayError) {
-        todayIntroCheckedUserRef.current = null;
-        console.warn("Today intro load failed", todayError);
-      }
-    }
-
-    loadTodayIntro();
-    return () => {
-      mounted = false;
-    };
-  }, [todayIntroRetryNonce, user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const handleOnline = () => {
-      todayIntroCheckedUserRef.current = null;
-      setTodayIntro(null);
-      setTodayIntroRetryNonce((value) => value + 1);
-    };
-
-    window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
-  }, [user]);
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -372,6 +289,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   }, [activeGoalTab, activeMainTab, requestServerRefresh, updateNavFromScrollIntent]);
 
   const currentTitle = getCurrentTitle(activeMainTab, activeGoalTab, t);
+  const showHome = activeMainTab === "home";
   const showNotes = activeMainTab === "goals" && activeGoalTab === "notes";
   const showWishes = activeMainTab === "goals" && activeGoalTab === "desires";
   const showChecks = activeMainTab === "goals" && activeGoalTab === "checks";
@@ -400,6 +318,25 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
     if (activeMainTab === "people") setActiveSocialTab(tab as SocialTabId);
   }
 
+  function openToday() {
+    setActiveMainTab("challenges");
+  }
+
+  function openNextChallenge() {
+    setChallengeFocusNonce((value) => value + 1);
+    setActiveMainTab("challenges");
+  }
+
+  function openCalculator(draft: HomePlanDraft | null) {
+    setWalletCalculatorRequest((current) => ({
+      dailyAdditions: draft?.dailyCoreTarget,
+      nonce: (current?.nonce ?? 0) + 1,
+      targetCore: draft?.targetCore
+    }));
+    setActiveWalletTab("core");
+    setActiveMainTab("wallet");
+  }
+
   return (
     <>
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
@@ -407,6 +344,15 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
       </div>
       <TopTabBar activeMainTab={activeMainTab} activeTab={activeTopTab} hidden={navHidden} tabs={topTabs} t={t} onTabChange={handleTopTabChange} />
       <section className="app-content">
+        <div className="app-view" hidden={!showHome}>
+          <HomeTodayApp
+            active={showHome}
+            onOpenCalculator={openCalculator}
+            onOpenNextChallenge={openNextChallenge}
+            onOpenToday={openToday}
+            refreshNonce={refreshNonce}
+          />
+        </div>
         {showNotes ? notesSlot : null}
         {showWishes || visitedServerViews.wishes ? (
           <div className="app-view" hidden={!showWishes}>
@@ -418,12 +364,23 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
         {showResults ? <ResultsApp /> : null}
         {showChallenges || visitedServerViews.challenges ? (
           <div className="app-view" hidden={!showChallenges}>
-            <ChallengesApp active={showChallenges} refreshNonce={refreshNonce} onRefresh={() => requestServerRefresh("challenges")} />
+            <ChallengesApp
+              active={showChallenges}
+              focusNextChallengeNonce={challengeFocusNonce}
+              refreshNonce={refreshNonce}
+              onRefresh={() => requestServerRefresh("challenges")}
+            />
           </div>
         ) : null}
         {showWallet || visitedServerViews.wallet ? (
           <div className="app-view" hidden={!showWallet}>
-            <WalletApp active={showWallet} activeTab={activeWalletTab} refreshNonce={refreshNonce} onRefresh={() => requestServerRefresh("wallet")} />
+            <WalletApp
+              active={showWallet}
+              activeTab={activeWalletTab}
+              calculatorRequest={walletCalculatorRequest}
+              refreshNonce={refreshNonce}
+              onRefresh={() => requestServerRefresh("wallet")}
+            />
           </div>
         ) : null}
         {showPeople || visitedServerViews.people ? (
@@ -431,92 +388,10 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
             <SocialApp active={showPeople} activeTab={activeSocialTab} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} />
           </div>
         ) : null}
-        {!showNotes && !showWishes && !showChecks && !showResults && !showSpark && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
+        {!showHome && !showNotes && !showWishes && !showChecks && !showResults && !showSpark && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
       <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} onTabChange={setActiveMainTab} />
-      {todayIntro ? (
-        <TodayIntroModal
-          locale={locale}
-          payload={todayIntro}
-          t={t}
-          onClose={() => setTodayIntro(null)}
-          onOpenToday={() => {
-            setTodayIntro(null);
-            setActiveMainTab("challenges");
-          }}
-        />
-      ) : null}
     </>
-  );
-}
-
-function TodayIntroModal({
-  locale,
-  payload,
-  t,
-  onClose,
-  onOpenToday
-}: {
-  locale: AppLocale;
-  payload: TodayIntroPayload;
-  t: TFunction;
-  onClose: () => void;
-  onOpenToday: () => void;
-}) {
-  const progress = Number(payload.today.progress_core ?? 0);
-  const target = Math.max(0, Number(payload.today.target_core ?? 0));
-  const percent = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 100;
-
-  return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small today-intro-modal" role="dialog" aria-modal="true" aria-label={t("today.popup.title")} onClick={(event) => event.stopPropagation()}>
-        <div className="modal-header">
-          <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
-          <h2>{t("today.title")}</h2>
-          <span />
-        </div>
-
-        <div className="today-intro-body">
-          <span className="today-intro-badge">{t("today.popup.badge")}</span>
-          <div>
-            <h3>{t("today.popup.title")}</h3>
-            <p>{t("today.popup.description")}</p>
-          </div>
-
-          <div className="today-challenge-head">
-            <span>
-              <strong>{t("today.challengeTitle")}</strong>
-              <small>{t("today.subtitle")}</small>
-            </span>
-            <b>{formatTodayMoney(progress, locale)} / {formatTodayMoney(target, locale)}</b>
-          </div>
-
-          <div className="today-progress" aria-label={t("today.progress")}>
-            <span style={{ width: `${percent}%` }} />
-          </div>
-
-          <div className="today-streak-row">
-            <span>{t("today.checkInStreak", { count: payload.checkInStreak })}</span>
-            <span>{t("today.completionStreak", { count: payload.completionStreak })}</span>
-          </div>
-
-          <div className="today-checklist">
-            {payload.items.slice(0, 4).map((item) => (
-              <span className={item.status === "done" ? "done" : ""} key={item.id}>
-                {text(item.title, item.item_key, locale)}
-              </span>
-            ))}
-          </div>
-
-          {payload.setupRequired ? <p className="today-note">{t("today.setupRequired")}</p> : null}
-
-          <div className="today-intro-actions">
-            <button className="challenge-secondary-action" type="button" onClick={onClose}>{t("today.popup.later")}</button>
-            <button className="challenge-primary-action" type="button" onClick={onOpenToday}>{t("today.popup.open")}</button>
-          </div>
-        </div>
-      </section>
-    </div>
   );
 }
 
@@ -601,17 +476,6 @@ function PlaceholderScreen({ title }: { title: string }) {
   );
 }
 
-function text(value: Record<string, string> | null, fallback: string, locale: AppLocale): string {
-  return value?.[locale] ?? value?.en ?? fallback;
-}
-
-function formatTodayMoney(value: number, locale: AppLocale): string {
-  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: Math.abs(value) < 10 && value % 1 !== 0 ? 2 : 0
-  }).format(Number.isFinite(value) ? value : 0)}$`;
-}
-
 function getMainTabTitle(tab: MainTabId, t: TFunction): string {
   const titleKey = mainTabs.find((item) => item.id === tab)?.titleKey;
   return titleKey ? t(titleKey) : t("app.nav.section");
@@ -643,6 +507,7 @@ function getCurrentTitle(mainTab: MainTabId, goalTab: GoalTabId, t: TFunction): 
 }
 
 function isServerBackedView(mainTab: MainTabId, goalTab: GoalTabId): boolean {
+  if (mainTab === "home") return true;
   if (mainTab === "challenges" || mainTab === "wallet" || mainTab === "people") return true;
   return mainTab === "goals" && goalTab === "desires";
 }
@@ -659,7 +524,7 @@ function parseNavigationView(view: string | null): NavigationState {
 
   const [mainTab, subTab] = view.split(".");
 
-  if (mainTab === "challenges" || mainTab === "spark") {
+  if (mainTab === "home" || mainTab === "challenges" || mainTab === "spark") {
     return { ...DEFAULT_NAVIGATION_STATE, mainTab };
   }
 
@@ -714,6 +579,8 @@ function writeNavigationStateToHistory(state: NavigationState, mode: "push" | "r
 }
 
 function getNavigationViewParam(state: NavigationState): string | null {
+  if (state.mainTab === "home") return null;
+
   if (state.mainTab === "goals") {
     return state.goalTab === DEFAULT_NAVIGATION_STATE.goalTab ? null : `goals.${state.goalTab}`;
   }

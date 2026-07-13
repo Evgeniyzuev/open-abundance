@@ -1,20 +1,27 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, BarChart3, Check, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Check, Sparkles, Target } from "lucide-react";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import type { AppLocale } from "@/lib/i18n";
-import { ONBOARDING_SEEN_STORAGE_KEY, onboardingContent, onboardingText } from "@/lib/onboardingContent";
+import { ONBOARDING_DRAFT_STORAGE_KEY, ONBOARDING_SEEN_STORAGE_KEY, onboardingContent, onboardingText, type EffortOptionId } from "@/lib/onboardingContent";
 import { trackProductEvent } from "@/lib/productAnalytics";
 
-type StepId = "intro" | "showcase" | "explain" | "questions" | "result";
-type TimeOptionId = "short" | "medium" | "deep";
+type StepId = "intro" | "story" | "wish" | "plan" | "result";
 type OnboardingState = Record<string, unknown> & {
   firstExperienceCompleted?: boolean;
+  firstPlanDraft?: OnboardingDraft;
+};
+type OnboardingDraft = {
+  dailyCoreTarget: number;
+  effort: EffortOptionId;
+  estimatedDays: number | null;
+  mainWish: string;
+  targetCore: number;
 };
 
-const steps: StepId[] = ["intro", "showcase", "explain", "questions", "result"];
+const steps: StepId[] = ["intro", "story", "wish", "plan", "result"];
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
   const { applyServerData, loading, locale, profile, user } = useUserContext();
@@ -29,7 +36,8 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user || !profile || !guestSeen || profileCompleted) return;
-    void saveProfileCompletion(profile, applyServerData);
+    const draft = readOnboardingDraft();
+    void saveProfileCompletion(profile, applyServerData, draft);
   }, [applyServerData, guestSeen, profile, profileCompleted, user]);
 
   if (loading || guestSeen === null) return null;
@@ -41,15 +49,18 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     return (
       <OnboardingApp
         locale={locale}
-        onBrowseMore={async () => {
-          await completeOnboarding(profile, applyServerData);
-          openPeopleFeed();
+        onOpenFirstPath={async (draft) => {
+          saveOnboardingDraft(draft);
+          await completeOnboarding(profile, applyServerData, draft);
+          openFirstPath();
           setGuestSeen(true);
           setDismissed(true);
         }}
-        onCreateAccount={async () => {
+        onCreateAccount={async (draft) => {
+          saveOnboardingDraft(draft);
           markGuestSeen();
           setGuestSeen(true);
+          trackProductEvent("auth_started", { source: "onboarding" });
           await signInWithGoogle();
         }}
       />
@@ -61,39 +72,43 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
 
 function OnboardingApp({
   locale,
-  onBrowseMore,
+  onOpenFirstPath,
   onCreateAccount
 }: {
   locale: AppLocale;
-  onBrowseMore: () => Promise<void>;
-  onCreateAccount: () => Promise<void>;
+  onOpenFirstPath: (draft: OnboardingDraft) => Promise<void>;
+  onCreateAccount: (draft: OnboardingDraft) => Promise<void>;
 }) {
   const [step, setStep] = useState<StepId>("intro");
-  const [timeOption, setTimeOption] = useState<TimeOptionId>("medium");
-  const [goal, setGoal] = useState("");
-  const [referrals, setReferrals] = useState("3");
-  const [savingAction, setSavingAction] = useState<"browse" | "account" | null>(null);
+  const [mainWish, setMainWish] = useState("");
+  const [targetCore, setTargetCore] = useState("1000");
+  const [dailyCoreTarget, setDailyCoreTarget] = useState("1");
+  const [effort, setEffort] = useState<EffortOptionId>("steady");
+  const [savingAction, setSavingAction] = useState<"open" | "account" | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const currentIndex = steps.indexOf(step);
-  const potential = useMemo(() => calculatePotential(timeOption, referrals), [referrals, timeOption]);
+  const draft = useMemo(
+    () => buildDraft({ dailyCoreTarget, effort, mainWish, targetCore }),
+    [dailyCoreTarget, effort, mainWish, targetCore]
+  );
 
   useEffect(() => {
-    trackProductEvent("onboarding_viewed", { locale });
+    trackProductEvent("onboarding_viewed", { locale, version: "first_plan" });
   }, [locale]);
 
   function goTo(nextStep: StepId) {
     setActionError(null);
     setStep(nextStep);
-    trackProductEvent("onboarding_step_viewed", { step: nextStep });
+    trackProductEvent("onboarding_step_viewed", { step: nextStep, version: "first_plan" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleBrowseMore() {
-    setSavingAction("browse");
+  async function handleOpenFirstPath() {
+    setSavingAction("open");
     setActionError(null);
     try {
-      trackProductEvent("onboarding_completed", { path: "browse", time_option: timeOption });
-      await onBrowseMore();
+      trackProductEvent("onboarding_completed", { path: "first_core_path", version: "first_plan" });
+      await onOpenFirstPath(draft);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Could not save onboarding state.");
       setSavingAction(null);
@@ -104,8 +119,7 @@ function OnboardingApp({
     setSavingAction("account");
     setActionError(null);
     try {
-      trackProductEvent("auth_started", { source: "onboarding" });
-      await onCreateAccount();
+      await onCreateAccount(draft);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Could not start sign-in.");
       setSavingAction(null);
@@ -132,49 +146,22 @@ function OnboardingApp({
             <h1>{onboardingText(onboardingContent.intro.title, locale)}</h1>
             <p>{onboardingText(onboardingContent.intro.body, locale)}</p>
             <div className="onboarding-actions">
-              <button className="challenge-primary-action" type="button" onClick={() => goTo("showcase")}>
-                {onboardingText(onboardingContent.actions.viewFeed, locale)}
+              <button className="challenge-primary-action" type="button" onClick={() => goTo("story")}>
+                {onboardingText(onboardingContent.actions.startPlan, locale)}
                 <ArrowRight size={17} />
               </button>
-              <button className="challenge-secondary-action" type="button" onClick={() => goTo("showcase")}>
-                {onboardingText(onboardingContent.actions.viewExamples, locale)}
-              </button>
             </div>
           </section>
         ) : null}
 
-        {step === "showcase" ? (
+        {step === "story" ? (
           <section className="onboarding-step">
             <div className="onboarding-section-title">
-              <span>{locale === "ru" ? "Витрина" : "Showcase"}</span>
-              <h2>{locale === "ru" ? "Сначала смотри на результаты" : "Start with visible results"}</h2>
-            </div>
-            <div className="onboarding-showcase-list">
-              {onboardingContent.showcaseCards.map((card) => (
-                <article className="onboarding-showcase-card" key={onboardingText(card.name, locale)}>
-                  <span className="onboarding-avatar" aria-hidden="true">
-                    <UserRound size={20} />
-                  </span>
-                  <div>
-                    <h3>{onboardingText(card.name, locale)}, {locale === "ru" ? "уровень" : "level"} {card.level}</h3>
-                    {card.stats[locale].map((stat) => <p key={stat}>{stat}</p>)}
-                    {card.quote ? <blockquote>{onboardingText(card.quote, locale)}</blockquote> : null}
-                  </div>
-                </article>
-              ))}
-            </div>
-            <StepActions locale={locale} onBack={() => goTo("intro")} onNext={() => goTo("explain")} />
-          </section>
-        ) : null}
-
-        {step === "explain" ? (
-          <section className="onboarding-step">
-            <div className="onboarding-section-title">
-              <span>{locale === "ru" ? "Коротко" : "Short version"}</span>
-              <h2>{locale === "ru" ? "Что это вообще такое?" : "What is this?"}</h2>
+              <span>{onboardingText(onboardingContent.story.eyebrow, locale)}</span>
+              <h2>{onboardingText(onboardingContent.story.title, locale)}</h2>
             </div>
             <div className="onboarding-point-grid">
-              {onboardingContent.explanationPoints.map((point) => (
+              {onboardingContent.story.points.map((point) => (
                 <article className="onboarding-point" key={onboardingText(point.title, locale)}>
                   <Check size={18} />
                   <div>
@@ -184,50 +171,67 @@ function OnboardingApp({
                 </article>
               ))}
             </div>
-            <StepActions locale={locale} onBack={() => goTo("showcase")} onNext={() => goTo("questions")} />
+            <StepActions locale={locale} onBack={() => goTo("intro")} onNext={() => goTo("wish")} />
           </section>
         ) : null}
 
-        {step === "questions" ? (
+        {step === "wish" ? (
           <section className="onboarding-step">
             <div className="onboarding-section-title">
-              <span>{locale === "ru" ? "Без регистрации" : "No sign-up yet"}</span>
-              <h2>{locale === "ru" ? "Прикинем твой потенциал" : "Estimate your potential"}</h2>
+              <span>{onboardingText(onboardingContent.wish.eyebrow, locale)}</span>
+              <h2>{onboardingText(onboardingContent.wish.title, locale)}</h2>
+            </div>
+            <p className="onboarding-result-copy">{onboardingText(onboardingContent.wish.body, locale)}</p>
+            <div className="onboarding-form">
+              <label>
+                <span>{onboardingText(onboardingContent.wish.eyebrow, locale)}</span>
+                <input value={mainWish} placeholder={onboardingText(onboardingContent.wish.placeholder, locale)} onChange={(event) => setMainWish(event.target.value)} />
+              </label>
+            </div>
+            <StepActions locale={locale} onBack={() => goTo("story")} onNext={() => goTo("plan")} />
+          </section>
+        ) : null}
+
+        {step === "plan" ? (
+          <section className="onboarding-step">
+            <div className="onboarding-section-title">
+              <span>{onboardingText(onboardingContent.plan.eyebrow, locale)}</span>
+              <h2>{onboardingText(onboardingContent.plan.title, locale)}</h2>
             </div>
             <div className="onboarding-form">
+              <label>
+                <span>{onboardingText(onboardingContent.plan.targetLabel, locale)}</span>
+                <input inputMode="decimal" value={targetCore} placeholder={onboardingText(onboardingContent.plan.targetPlaceholder, locale)} onChange={(event) => setTargetCore(event.target.value)} />
+              </label>
+              <label>
+                <span>{onboardingText(onboardingContent.plan.dailyLabel, locale)}</span>
+                <input inputMode="decimal" value={dailyCoreTarget} placeholder={onboardingText(onboardingContent.plan.dailyPlaceholder, locale)} onChange={(event) => setDailyCoreTarget(event.target.value)} />
+              </label>
               <fieldset>
-                <legend>{onboardingText(onboardingContent.questions.time.title, locale)}</legend>
+                <legend>{onboardingText(onboardingContent.plan.effortLabel, locale)}</legend>
                 <div className="onboarding-choice-row">
-                  {onboardingContent.questions.time.options.map((option) => (
-                    <label className={timeOption === option.id ? "active" : ""} key={option.id}>
+                  {onboardingContent.plan.effortOptions.map((option) => (
+                    <label className={effort === option.id ? "active" : ""} key={option.id}>
                       <input
-                        checked={timeOption === option.id}
-                        name="onboarding-time"
+                        checked={effort === option.id}
+                        name="onboarding-effort"
                         type="radio"
                         value={option.id}
-                        onChange={() => setTimeOption(option.id)}
+                        onChange={() => setEffort(option.id)}
                       />
                       {onboardingText(option.label, locale)}
                     </label>
                   ))}
                 </div>
               </fieldset>
-              <label>
-                <span>{onboardingText(onboardingContent.questions.goal.title, locale)}</span>
-                <input value={goal} placeholder={onboardingText(onboardingContent.questions.goal.placeholder, locale)} onChange={(event) => setGoal(event.target.value)} />
-              </label>
-              <label>
-                <span>{onboardingText(onboardingContent.questions.referrals.title, locale)}</span>
-                <input inputMode="numeric" value={referrals} placeholder={onboardingText(onboardingContent.questions.referrals.placeholder, locale)} onChange={(event) => setReferrals(event.target.value)} />
-              </label>
             </div>
             <div className="onboarding-step-actions">
-              <button className="challenge-secondary-action" type="button" onClick={() => goTo("explain")}>
+              <button className="challenge-secondary-action" type="button" onClick={() => goTo("wish")}>
                 <ArrowLeft size={16} />
                 {onboardingText(onboardingContent.actions.back, locale)}
               </button>
               <button className="challenge-primary-action" type="button" onClick={() => goTo("result")}>
-                {onboardingText(onboardingContent.actions.estimate, locale)}
+                {onboardingText(onboardingContent.actions.continue, locale)}
               </button>
             </div>
           </section>
@@ -239,23 +243,24 @@ function OnboardingApp({
               <BarChart3 size={34} />
             </span>
             <div className="onboarding-section-title centered">
-              <span>{locale === "ru" ? "Сценарий" : "Scenario"}</span>
-              <h2>
-                {locale === "ru" ? "Твой потенциал" : "Your potential"}: ${potential.low}-{potential.high} Core
-              </h2>
+              <span>{onboardingText(onboardingContent.result.eyebrow, locale)}</span>
+              <h2>{onboardingText(onboardingContent.result.title, locale)}</h2>
             </div>
-            <p className="onboarding-result-copy">
-              {onboardingText(onboardingContent.potentialRules.levelHint, locale)}
-              {goal.trim() ? ` ${locale === "ru" ? "Цель" : "Goal"}: ${goal.trim()}.` : ""}
-            </p>
-            <p className="onboarding-disclaimer">{onboardingText(onboardingContent.potentialRules.disclaimer, locale)}</p>
+            <PlanSummary draft={draft} locale={locale} />
+            <p className="onboarding-result-copy">{onboardingText(onboardingContent.result.body, locale)}</p>
+            <p className="onboarding-disclaimer">{onboardingText(onboardingContent.result.disclaimer, locale)}</p>
             {actionError ? <p className="challenge-error">{actionError}</p> : null}
             <div className="onboarding-final-actions">
-              <button className="challenge-primary-action" type="button" disabled={savingAction !== null} onClick={handleCreateAccount}>
-                {savingAction === "account" ? (locale === "ru" ? "Открываем Google..." : "Opening Google...") : onboardingText(onboardingContent.actions.createAccount, locale)}
+              <button className="challenge-primary-action" type="button" disabled={savingAction !== null} onClick={handleOpenFirstPath}>
+                {savingAction === "open" ? loadingText(locale) : (
+                  <>
+                    <Target size={17} />
+                    {onboardingText(onboardingContent.actions.openFirstStep, locale)}
+                  </>
+                )}
               </button>
-              <button className="challenge-secondary-action" type="button" disabled={savingAction !== null} onClick={handleBrowseMore}>
-                {savingAction === "browse" ? (locale === "ru" ? "Открываем..." : "Opening...") : onboardingText(onboardingContent.actions.browseMore, locale)}
+              <button className="challenge-secondary-action" type="button" disabled={savingAction !== null} onClick={handleCreateAccount}>
+                {savingAction === "account" ? loadingText(locale) : onboardingText(onboardingContent.actions.createAccount, locale)}
               </button>
             </div>
           </section>
@@ -280,15 +285,67 @@ function StepActions({ locale, onBack, onNext }: { locale: AppLocale; onBack: ()
   );
 }
 
-function calculatePotential(timeOption: TimeOptionId, referralsInput: string): { low: number; high: number } {
-  const option = onboardingContent.questions.time.options.find((item) => item.id === timeOption) ?? onboardingContent.questions.time.options[1];
-  const referrals = Math.max(0, Math.min(50, Math.floor(Number(referralsInput.replace(",", ".")) || 0)));
-  const [referralLow, referralHigh] = onboardingContent.potentialRules.referralCoreRange;
+function PlanSummary({ draft, locale }: { draft: OnboardingDraft; locale: AppLocale }) {
+  const target = formatMoney(draft.targetCore, locale);
+  const daily = formatMoney(draft.dailyCoreTarget, locale);
+  const estimate = draft.estimatedDays
+    ? locale === "ru"
+      ? `примерно ${formatDays(draft.estimatedDays, locale)}`
+      : `about ${formatDays(draft.estimatedDays, locale)}`
+    : locale === "ru"
+      ? "после первого расчета"
+      : "after the first calculation";
+
+  return (
+    <div className="onboarding-point-grid">
+      <article className="onboarding-point">
+        <Target size={18} />
+        <div>
+          <strong>{draft.mainWish || (locale === "ru" ? "Главное желание" : "Main wish")}</strong>
+          <p>{target} Core target · {daily}/day · {estimate}</p>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function buildDraft(input: { dailyCoreTarget: string; effort: EffortOptionId; mainWish: string; targetCore: string }): OnboardingDraft {
+  const targetCore = cleanMoney(input.targetCore, 1000);
+  const dailyCoreTarget = cleanMoney(input.dailyCoreTarget, 1);
+  const effort = onboardingContent.plan.effortOptions.find((option) => option.id === input.effort) ?? onboardingContent.plan.effortOptions[1];
+  const dailyPace = dailyCoreTarget * effort.multiplier;
 
   return {
-    low: option.range[0] + referrals * referralLow,
-    high: option.range[1] + referrals * referralHigh
+    dailyCoreTarget,
+    effort: effort.id,
+    estimatedDays: dailyPace > 0 ? Math.ceil(targetCore / dailyPace) : null,
+    mainWish: input.mainWish.trim(),
+    targetCore
   };
+}
+
+function cleanMoney(value: string, fallback: number): number {
+  const parsed = Number(value.replace(",", "."));
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(100_000_000, parsed);
+}
+
+function formatMoney(value: number, locale: AppLocale): string {
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    maximumFractionDigits: value < 10 && value % 1 !== 0 ? 2 : 0
+  }).format(value);
+}
+
+function formatDays(days: number, locale: AppLocale): string {
+  if (days >= 365) {
+    const years = Math.max(1, Math.round(days / 365));
+    return locale === "ru" ? `${years} г.` : `${years}y`;
+  }
+  if (days >= 30) {
+    const months = Math.max(1, Math.round(days / 30));
+    return locale === "ru" ? `${months} мес.` : `${months}mo`;
+  }
+  return locale === "ru" ? `${days} дн.` : `${days}d`;
 }
 
 function readGuestSeen(): boolean {
@@ -301,19 +358,45 @@ function markGuestSeen() {
   window.localStorage.setItem(ONBOARDING_SEEN_STORAGE_KEY, "true");
 }
 
-async function completeOnboarding(profile: UserProfile | null, applyServerData: ReturnType<typeof useUserContext>["applyServerData"]) {
-  markGuestSeen();
-  if (!profile) return;
-  await saveProfileCompletion(profile, applyServerData);
+function saveOnboardingDraft(draft: OnboardingDraft) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(draft));
 }
 
-async function saveProfileCompletion(profile: UserProfile, applyServerData: ReturnType<typeof useUserContext>["applyServerData"]) {
+function readOnboardingDraft(): OnboardingDraft | undefined {
+  if (typeof window === "undefined") return undefined;
+  const raw = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+  if (!raw) return undefined;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<OnboardingDraft>;
+    if (typeof parsed !== "object" || !parsed) return undefined;
+    return {
+      dailyCoreTarget: typeof parsed.dailyCoreTarget === "number" ? parsed.dailyCoreTarget : 1,
+      effort: parsed.effort === "light" || parsed.effort === "focused" ? parsed.effort : "steady",
+      estimatedDays: typeof parsed.estimatedDays === "number" ? parsed.estimatedDays : null,
+      mainWish: typeof parsed.mainWish === "string" ? parsed.mainWish : "",
+      targetCore: typeof parsed.targetCore === "number" ? parsed.targetCore : 1000
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+async function completeOnboarding(profile: UserProfile | null, applyServerData: ReturnType<typeof useUserContext>["applyServerData"], draft: OnboardingDraft) {
+  markGuestSeen();
+  if (!profile) return;
+  await saveProfileCompletion(profile, applyServerData, draft);
+}
+
+async function saveProfileCompletion(profile: UserProfile, applyServerData: ReturnType<typeof useUserContext>["applyServerData"], draft?: OnboardingDraft) {
   const onboardingState = readOnboardingState(profile.onboarding_state);
   const nextProfile = {
     ...profile,
     onboarding_state: {
       ...onboardingState,
-      firstExperienceCompleted: true
+      firstExperienceCompleted: true,
+      ...(draft ? { firstPlanDraft: draft } : {})
     },
     updated_at: new Date().toISOString()
   };
@@ -342,9 +425,13 @@ function readOnboardingState(value: unknown): OnboardingState {
   return value as OnboardingState;
 }
 
-function openPeopleFeed() {
+function openFirstPath() {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
-  url.searchParams.set("view", "people");
-  window.history.replaceState({ view: "people" }, "", `${url.pathname}${url.search}${url.hash}`);
+  url.searchParams.set("view", "challenges");
+  window.history.replaceState({ view: "challenges" }, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function loadingText(locale: AppLocale): string {
+  return locale === "ru" ? "Открываем..." : "Opening...";
 }

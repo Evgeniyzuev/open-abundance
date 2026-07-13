@@ -1,13 +1,7 @@
 import type { AppLocale } from "@/lib/i18n";
 
-type LocalizedText = Record<AppLocale, string>;
-
-type ShowcaseCard = {
-  name: LocalizedText;
-  level: number;
-  stats: Record<AppLocale, string[]>;
-  quote?: LocalizedText;
-};
+export type LocalizedText = Record<AppLocale, string>;
+export type EffortOptionId = "light" | "steady" | "focused";
 
 type OnboardingContent = {
   intro: {
@@ -15,155 +9,120 @@ type OnboardingContent = {
     title: LocalizedText;
     body: LocalizedText;
   };
-  showcaseCards: ShowcaseCard[];
-  explanationPoints: Array<{
+  story: {
+    eyebrow: LocalizedText;
+    title: LocalizedText;
+    points: Array<{
+      title: LocalizedText;
+      body: LocalizedText;
+    }>;
+  };
+  wish: {
+    eyebrow: LocalizedText;
     title: LocalizedText;
     body: LocalizedText;
-  }>;
-  questions: {
-    time: {
-      title: LocalizedText;
-      options: Array<{
-        id: "short" | "medium" | "deep";
-        label: LocalizedText;
-        range: [number, number];
-      }>;
-    };
-    goal: {
-      title: LocalizedText;
-      placeholder: LocalizedText;
-    };
-    referrals: {
-      title: LocalizedText;
-      placeholder: LocalizedText;
-    };
+    placeholder: LocalizedText;
   };
-  potentialRules: {
-    referralCoreRange: [number, number];
-    levelHint: LocalizedText;
+  plan: {
+    eyebrow: LocalizedText;
+    title: LocalizedText;
+    targetLabel: LocalizedText;
+    targetPlaceholder: LocalizedText;
+    dailyLabel: LocalizedText;
+    dailyPlaceholder: LocalizedText;
+    effortLabel: LocalizedText;
+    effortOptions: Array<{
+      id: EffortOptionId;
+      label: LocalizedText;
+      multiplier: number;
+    }>;
+  };
+  result: {
+    eyebrow: LocalizedText;
+    title: LocalizedText;
+    body: LocalizedText;
     disclaimer: LocalizedText;
   };
   actions: {
-    viewFeed: LocalizedText;
-    viewExamples: LocalizedText;
-    continue: LocalizedText;
-    estimate: LocalizedText;
-    createAccount: LocalizedText;
-    browseMore: LocalizedText;
     back: LocalizedText;
+    continue: LocalizedText;
+    createAccount: LocalizedText;
+    openFirstStep: LocalizedText;
+    startPlan: LocalizedText;
   };
 };
 
 export const ONBOARDING_SEEN_STORAGE_KEY = "openAbundanceOnboardingSeen";
+export const ONBOARDING_DRAFT_STORAGE_KEY = "openAbundanceOnboardingDraft";
 
 export const onboardingContent: OnboardingContent = {
   intro: {
-    badge: {
-      ru: "Open Abundance",
-      en: "Open Abundance"
-    },
-    title: {
-      ru: "Ты попал. Просто посмотри.",
-      en: "You made it. Just look around."
-    },
+    badge: { ru: "Закрытый пилот", en: "Closed pilot" },
+    title: { ru: "Собери первый план роста", en: "Build your first growth plan" },
     body: {
-      ru: "Люди здесь зарабатывают, растут и достигают целей в системе, где прогресс виден и может быть вознагражден.",
-      en: "People here earn, grow, and move toward goals in a system where progress is visible and can be rewarded."
+      ru: "Open Abundance начинается не с рефералов и кошелька, а с простого маршрута: желание, Core-план, действие сегодня и первый подтвержденный результат.",
+      en: "Open Abundance starts with a simple route: a wish, a Core plan, today's action, and a first verified result."
     }
   },
-  showcaseCards: [
-    {
-      name: { ru: "Анна", en: "Anna" },
-      level: 5,
-      stats: {
-        ru: ["Заработала $240 за месяц", "Цель: новый MacBook — собрано 73%"],
-        en: ["Earned $240 this month", "Goal: new MacBook — 73% funded"]
-      }
-    },
-    {
-      name: { ru: "Дмитрий", en: "Dmitry" },
-      level: 3,
-      stats: {
-        ru: ["Привел 4 рефералов", "Активен 12 дней подряд"],
-        en: ["Invited 4 referrals", "Active 12 days in a row"]
-      }
-    },
-    {
-      name: { ru: "Катя", en: "Kate" },
-      level: 8,
-      stats: {
-        ru: ["Core: $1,240", "Выполнила 52 задания"],
-        en: ["Core: $1,240", "Completed 52 challenges"]
+  story: {
+    eyebrow: { ru: "Как это работает", en: "How it works" },
+    title: { ru: "Один недельный цикл", en: "One weekly loop" },
+    points: [
+      {
+        title: { ru: "Желание дает смысл", en: "A wish gives direction" },
+        body: { ru: "Ты выбираешь результат, ради которого ежедневный рост становится личным.", en: "You choose the result that makes daily growth personal." }
       },
-      quote: {
-        ru: "Первый месяц вообще не верила, что работает.",
-        en: "I did not believe it could work during the first month."
+      {
+        title: { ru: "Core показывает траекторию", en: "Core shows the trajectory" },
+        body: { ru: "План связывает цель, ежедневные действия и рост Core.", en: "The plan connects your goal, daily actions, and Core growth." }
+      },
+      {
+        title: { ru: "Today держит фокус", en: "Today keeps focus" },
+        body: { ru: "Каждый день есть одно главное действие и понятный прогресс до Core-цели.", en: "Each day has one main action and visible progress toward the Core target." }
       }
-    },
-    {
-      name: { ru: "Илья", en: "Ilya" },
-      level: 4,
-      stats: {
-        ru: ["Daily rate: $3.80", "Команда: 7 участников"],
-        en: ["Daily rate: $3.80", "Team: 7 members"]
-      }
-    }
-  ],
-  explanationPoints: [
-    {
-      title: { ru: "Делаешь задания", en: "Complete challenges" },
-      body: { ru: "Реальные полезные действия превращаются в Core.", en: "Useful real actions turn into Core." }
-    },
-    {
-      title: { ru: "Растешь по уровням", en: "Grow through levels" },
-      body: { ru: "Новые уровни открывают больше возможностей.", en: "New levels unlock more opportunities." }
-    },
-    {
-      title: { ru: "Ведешь людей", en: "Bring people in" },
-      body: { ru: "Командный рост усиливает твой маршрут.", en: "Team growth strengthens your route." }
-    },
-    {
-      title: { ru: "Используешь Core", en: "Use Core" },
-      body: { ru: "Core можно обменивать, копить или реинвестировать в цели.", en: "Core can be exchanged, saved, or reinvested into goals." }
-    }
-  ],
-  questions: {
-    time: {
-      title: { ru: "Сколько времени в день готов уделять?", en: "How much time can you spend daily?" },
-      options: [
-        { id: "short", label: { ru: "15 мин", en: "15 min" }, range: [35, 55] },
-        { id: "medium", label: { ru: "1 час", en: "1 hour" }, range: [85, 120] },
-        { id: "deep", label: { ru: "3+ часа", en: "3+ hours" }, range: [160, 240] }
-      ]
-    },
-    goal: {
-      title: { ru: "Главная цель на ближайшие 3 месяца", en: "Main goal for the next 3 months" },
-      placeholder: { ru: "Новый ноутбук, долги, первые клиенты", en: "New laptop, debt, first clients" }
-    },
-    referrals: {
-      title: { ru: "Сколько человек можешь позвать?", en: "How many people could you invite?" },
-      placeholder: { ru: "Например, 3", en: "For example, 3" }
-    }
+    ]
   },
-  potentialRules: {
-    referralCoreRange: [8, 14],
-    levelHint: {
-      ru: "Участники с похожими вводными обычно закрывают первые уровни за 2-3 недели.",
-      en: "People with similar inputs usually complete the first levels in 2-3 weeks."
+  wish: {
+    eyebrow: { ru: "Главное желание", en: "Main wish" },
+    title: { ru: "Что ты хочешь приблизить первым?", en: "What do you want to move closer first?" },
+    body: {
+      ru: "Это может быть вещь, поездка, навык, первые клиенты, закрытие долга или запас свободы.",
+      en: "It can be a thing, a trip, a skill, first clients, debt relief, or a freedom buffer."
+    },
+    placeholder: { ru: "Например: ноутбук для работы, 3 первых клиента, закрыть долг", en: "Example: work laptop, first 3 clients, pay down debt" }
+  },
+  plan: {
+    eyebrow: { ru: "Финансовый план", en: "Financial plan" },
+    title: { ru: "Сколько Core нужно и какой ритм посилен?", en: "How much Core and what daily rhythm?" },
+    targetLabel: { ru: "Цель в Core, $", en: "Core target, $" },
+    targetPlaceholder: { ru: "1000", en: "1000" },
+    dailyLabel: { ru: "Дневная Core-цель, $", en: "Daily Core target, $" },
+    dailyPlaceholder: { ru: "1", en: "1" },
+    effortLabel: { ru: "Ритм на неделю", en: "Weekly rhythm" },
+    effortOptions: [
+      { id: "light", label: { ru: "Легко", en: "Light" }, multiplier: 0.75 },
+      { id: "steady", label: { ru: "Ровно", en: "Steady" }, multiplier: 1 },
+      { id: "focused", label: { ru: "Фокус", en: "Focused" }, multiplier: 1.5 }
+    ]
+  },
+  result: {
+    eyebrow: { ru: "Следующий шаг", en: "Next step" },
+    title: { ru: "Начни с первого Core-пути", en: "Start with the first Core path" },
+    body: {
+      ru: "Мы сохраним черновик плана на этом устройстве. Дальше открой челленджи: добавь желание, рассчитай срок и добери Today Core target.",
+      en: "We'll keep this draft on this device. Next, open challenges: add your wish, calculate the timeline, and reach the Today Core target."
     },
     disclaimer: {
-      ru: "Это сценарий для старта, а не обещание дохода.",
-      en: "This is a starting scenario, not an income promise."
+      ru: "Это не обещание дохода, а рабочий план для закрытого пилота.",
+      en: "This is not an income promise. It is a working plan for the closed pilot."
     }
   },
   actions: {
-    viewFeed: { ru: "Посмотреть ленту участников", en: "View participant feed" },
-    viewExamples: { ru: "Посмотреть примеры", en: "View examples" },
+    back: { ru: "Назад", en: "Back" },
     continue: { ru: "Дальше", en: "Continue" },
-    estimate: { ru: "Прикинуть потенциал", en: "Estimate potential" },
-    createAccount: { ru: "Создать аккаунт через Google", en: "Create account with Google" },
-    browseMore: { ru: "Пока нет, посмотрю еще", en: "Not yet, I will look around" },
-    back: { ru: "Назад", en: "Back" }
+    createAccount: { ru: "Сохранить через Google", en: "Save with Google" },
+    openFirstStep: { ru: "Открыть первый путь", en: "Open first path" },
+    startPlan: { ru: "Собрать план", en: "Build plan" }
   }
 };
 

@@ -7,6 +7,7 @@ import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp from "@/components/ChallengesApp";
 import GrowthMapApp from "@/components/GrowthMapApp";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
+import KeepAliveView from "@/components/KeepAliveView";
 import SocialApp from "@/components/SocialApp";
 import ResultsApp from "@/components/ResultsApp";
 import TasksApp from "@/components/TasksApp";
@@ -114,6 +115,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
+    map: false,
     challenges: false,
     wallet: false,
     people: false
@@ -314,15 +316,16 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const activeTopTab = getActiveTopTab(activeMainTab, activeHomeTab, activeGoalTab, activeWalletTab, activeSocialTab);
 
   useEffect(() => {
-    if (!showWishes && !showChallenges && !showWallet && !showPeople) return;
+    if (!showWishes && !showMap && !showChallenges && !showWallet && !showPeople) return;
 
     setVisitedServerViews((current) => ({
       wishes: current.wishes || showWishes,
+      map: current.map || showMap,
       challenges: current.challenges || showChallenges,
       wallet: current.wallet || showWallet,
       people: current.people || showPeople
     }));
-  }, [showChallenges, showPeople, showWallet, showWishes]);
+  }, [showChallenges, showMap, showPeople, showWallet, showWishes]);
 
   function handleTopTabChange(tab: string) {
     if (activeMainTab === "home") setActiveHomeTab(tab as HomeTabId);
@@ -367,41 +370,35 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
           />
         </div>
         {showNotes ? notesSlot : null}
-        {showWishes || visitedServerViews.wishes ? (
-          <div className="app-view" hidden={!showWishes}>
-            <WishesApp active={showWishes} refreshNonce={refreshNonce} />
-          </div>
-        ) : null}
+        <KeepAliveView active={showWishes} visited={visitedServerViews.wishes}>
+          <WishesApp active={showWishes} refreshNonce={refreshNonce} />
+        </KeepAliveView>
         {showIdeas ? <AiChatApp active={showIdeas} /> : null}
         {showChecks ? <TasksApp /> : null}
-        {showMap ? <GrowthMapApp active={showMap} refreshNonce={refreshNonce} /> : null}
+        <KeepAliveView active={showMap} visited={visitedServerViews.map}>
+          <GrowthMapApp active={showMap} refreshNonce={refreshNonce} />
+        </KeepAliveView>
         {showResults ? <ResultsApp /> : null}
-        {showChallenges || visitedServerViews.challenges ? (
-          <div className="app-view" hidden={!showChallenges}>
-            <ChallengesApp
-              active={showChallenges}
-              focusNextChallengeNonce={challengeFocusNonce}
-              refreshNonce={refreshNonce}
-              onRefresh={() => requestServerRefresh("challenges")}
-            />
-          </div>
-        ) : null}
-        {showWallet || visitedServerViews.wallet ? (
-          <div className="app-view" hidden={!showWallet}>
-            <WalletApp
-              active={showWallet}
-              activeTab={activeWalletTab}
-              calculatorRequest={walletCalculatorRequest}
-              refreshNonce={refreshNonce}
-              onRefresh={() => requestServerRefresh("wallet")}
-            />
-          </div>
-        ) : null}
-        {showPeople || visitedServerViews.people ? (
-          <div className="app-view" hidden={!showPeople}>
-            <SocialApp active={showPeople} activeTab={activeSocialTab} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} />
-          </div>
-        ) : null}
+        <KeepAliveView active={showChallenges} visited={visitedServerViews.challenges}>
+          <ChallengesApp
+            active={showChallenges}
+            focusNextChallengeNonce={challengeFocusNonce}
+            refreshNonce={refreshNonce}
+            onRefresh={() => requestServerRefresh("challenges")}
+          />
+        </KeepAliveView>
+        <KeepAliveView active={showWallet} visited={visitedServerViews.wallet}>
+          <WalletApp
+            active={showWallet}
+            activeTab={activeWalletTab}
+            calculatorRequest={walletCalculatorRequest}
+            refreshNonce={refreshNonce}
+            onRefresh={() => requestServerRefresh("wallet")}
+          />
+        </KeepAliveView>
+        <KeepAliveView active={showPeople} visited={visitedServerViews.people}>
+          <SocialApp active={showPeople} activeTab={activeSocialTab} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} />
+        </KeepAliveView>
         {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
       <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} onTabChange={setActiveMainTab} />

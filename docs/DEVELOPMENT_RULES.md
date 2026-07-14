@@ -72,6 +72,17 @@ Before adding complex refresh timing, race guards, or debug fields for stale ser
 
 Temporary API debug fields such as `debug.supabaseProjectRef`, `debug.serverReadAt`, `viewerUserId`, and counters are acceptable while diagnosing environment or cache issues, but should be removed or gated once the production deployment is confirmed fresh.
 
+## Server-Backed Tab Lifecycle
+
+Server-backed main tabs should use the shared keep-alive pattern from `components/KeepAliveView.tsx`:
+
+- add the tab id to the `visitedServerViews` registry in `AppNavigation`;
+- mount the view on its first visit and hide it with `hidden` instead of unmounting it;
+- pass the view's `active` state so it can refresh data only when visible;
+- show a loading state only before the first payload; after data is loaded, refresh in the background without replacing the existing UI.
+
+This keeps navigation responsive and preserves local component state when users switch tabs. New server-backed tabs should follow this pattern unless they have a documented reason to remain unmounted.
+
 ## Frontend Verification
 
 After frontend UI changes, try to verify the result visually in the in-app browser.

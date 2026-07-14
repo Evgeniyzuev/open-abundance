@@ -5,6 +5,7 @@ import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp from "@/components/ChallengesApp";
+import GrowthMapApp from "@/components/GrowthMapApp";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import SocialApp from "@/components/SocialApp";
 import ResultsApp from "@/components/ResultsApp";
@@ -304,6 +305,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const showNotes = activeMainTab === "goals" && activeGoalTab === "notes";
   const showWishes = activeMainTab === "goals" && activeGoalTab === "desires";
   const showChecks = activeMainTab === "goals" && activeGoalTab === "checks";
+  const showMap = activeMainTab === "goals" && activeGoalTab === "map";
   const showResults = activeMainTab === "goals" && activeGoalTab === "results";
   const showChallenges = activeMainTab === "challenges";
   const showWallet = activeMainTab === "wallet";
@@ -372,6 +374,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
         ) : null}
         {showIdeas ? <AiChatApp active={showIdeas} /> : null}
         {showChecks ? <TasksApp /> : null}
+        {showMap ? <GrowthMapApp active={showMap} refreshNonce={refreshNonce} /> : null}
         {showResults ? <ResultsApp /> : null}
         {showChallenges || visitedServerViews.challenges ? (
           <div className="app-view" hidden={!showChallenges}>
@@ -399,7 +402,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
             <SocialApp active={showPeople} activeTab={activeSocialTab} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} />
           </div>
         ) : null}
-        {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
+        {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
       <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} onTabChange={setActiveMainTab} />
     </>
@@ -524,7 +527,7 @@ function getCurrentTitle(mainTab: MainTabId, homeTab: HomeTabId, goalTab: GoalTa
 function isServerBackedView(mainTab: MainTabId, homeTab: HomeTabId, goalTab: GoalTabId): boolean {
   if (mainTab === "home") return homeTab === "home";
   if (mainTab === "challenges" || mainTab === "wallet" || mainTab === "people") return true;
-  return mainTab === "goals" && goalTab === "desires";
+  return mainTab === "goals" && (goalTab === "desires" || goalTab === "map");
 }
 
 function readNavigationStateFromLocation(): NavigationState {

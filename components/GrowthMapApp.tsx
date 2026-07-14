@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, Heart, RefreshCw } from "lucide-react";
+import { Compass, Heart, Navigation, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
@@ -14,7 +14,9 @@ type GrowthMapAppProps = {
 };
 
 type LevelThreshold = Pick<Tables<"level_thresholds">, "level" | "core_required" | "title">;
-type MapWish = Pick<Tables<"wishes">, "id" | "title" | "description" | "target_amount" | "target_currency" | "difficulty_level" | "status">;
+type MapWish = Omit<Pick<Tables<"wishes">, "id" | "title" | "description" | "target_amount" | "target_currency" | "difficulty_level" | "status">, "difficulty_level"> & {
+  difficulty_level: number | null;
+};
 type MapStatus = "loading" | "ready" | "unauthenticated" | "offline" | "error";
 
 const NODE_X = [50, 29, 70, 42, 73, 31];
@@ -118,6 +120,13 @@ export default function GrowthMapApp({ active, refreshNonce }: GrowthMapAppProps
     ? Math.min(100, Math.round((currentBalance / nextLevel.core_required) * 100))
     : 100;
   const boardHeight = Math.max(530, visibleLevels.length * NODE_GAP + 40);
+  const topVisibleLevel = visibleLevels[visibleLevels.length - 1]?.level ?? null;
+  const edgeWishes = wishes.filter((wish) => {
+    const wishLevel = wish.difficulty_level;
+    const levelIsUnknown = wishLevel === null || !Number.isFinite(wishLevel) || !levels.some((level) => level.level === wishLevel);
+    const levelIsBeyondVisibleMap = topVisibleLevel !== null && wishLevel !== null && wishLevel > topVisibleLevel;
+    return levelIsUnknown || levelIsBeyondVisibleMap;
+  });
   const nodes = visibleLevels.map((level, index) => ({
     level,
     x: NODE_X[index % NODE_X.length],
@@ -188,6 +197,18 @@ export default function GrowthMapApp({ active, refreshNonce }: GrowthMapAppProps
         <div className="growth-map-fog" aria-hidden="true">
           <span>☁️</span><span>☁️</span><span>☁️</span>
         </div>
+        {edgeWishes.length > 0 ? (
+          <div className="growth-map-edge-wishes" aria-label={t("map.offMapWishes")}>
+            {edgeWishes.map((wish) => (
+                <div className="growth-map-edge-wish" key={wish.id} role="note">
+                  <span className="growth-map-edge-wish-arrow" aria-hidden="true">↑</span>
+                  <Heart size={14} />
+                  <strong>{wish.title}</strong>
+                  <small>{wish.difficulty_level !== null ? t("map.level", { level: wish.difficulty_level }) : t("map.levelUnknown")}</small>
+                </div>
+            ))}
+          </div>
+        ) : null}
         <div className="growth-map-level-layer">
           {nodes.map((node) => {
             const biome = getBiome(node.level.level);
@@ -203,7 +224,9 @@ export default function GrowthMapApp({ active, refreshNonce }: GrowthMapAppProps
                 type="button"
                 onClick={() => setSelectedLevel(node.level.level)}
               >
-                <span className="growth-map-node-icon" aria-hidden="true">{biome.icon}</span>
+                <span className="growth-map-node-icon" aria-hidden="true">
+                  {isCurrent ? <Navigation className="growth-map-current-marker" size={28} fill="currentColor" /> : biome.icon}
+                </span>
                 <span className="growth-map-node-copy">
                   <small>{isCurrent ? t("map.youAreHere") : t("map.level", { level: node.level.level })}</small>
                   <strong>{t(biome.nameKey)}</strong>
@@ -212,10 +235,6 @@ export default function GrowthMapApp({ active, refreshNonce }: GrowthMapAppProps
               </button>
             );
           })}
-        </div>
-        <div className="growth-map-fog-caption">
-          <strong>{t("map.fogTitle")}</strong>
-          <span>{t("map.fogDescription")}</span>
         </div>
       </section>
 

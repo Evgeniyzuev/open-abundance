@@ -103,7 +103,7 @@
 - [ ] People/public profiles: поиск людей, `/u/[userId]`, публичный блог, контакты и простой Direct.
 - [ ] Referrals/teams: referral claim, team membership, capacity, контакты команды и team bonus ledger.
 - [ ] Trust-lite: mutual confirmations, trust events, reciprocity summary и challenge checks.
-- [ ] AI Coordinator: streaming chat, knowledge base и provider fallback; пока отдельная вкладка, не контекстный союзник главного пути.
+- [ ] AI Coordinator: streaming chat, knowledge base и provider fallback; чат доступен как вторичная вкладка Home и пока остается отдельным инструментом, а не контекстным союзником главного пути.
 
 ### Поздние контуры, уже имеющие технический фундамент
 

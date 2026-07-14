@@ -15,7 +15,8 @@ import WishesApp from "@/components/WishesApp";
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
 
-type MainTabId = "home" | "goals" | "challenges" | "spark" | "wallet" | "people";
+type MainTabId = "home" | "goals" | "challenges" | "wallet" | "people";
+type HomeTabId = "home" | "ideas";
 type GoalTabId = "desires" | "notes" | "checks" | "map" | "results";
 type WalletTabId = "wallet" | "core" | "market";
 type SocialTabId = "feed" | "people" | "blog" | "teams" | "profile";
@@ -45,6 +46,7 @@ type AppNavigationProps = {
 
 type NavigationState = {
   mainTab: MainTabId;
+  homeTab: HomeTabId;
   goalTab: GoalTabId;
   walletTab: WalletTabId;
   socialTab: SocialTabId;
@@ -54,9 +56,13 @@ const mainTabs: MainTab[] = [
   { id: "home", titleKey: "app.nav.home", icon: House },
   { id: "goals", titleKey: "app.nav.goals", icon: Target },
   { id: "challenges", titleKey: "app.nav.challenges", icon: Trophy },
-  { id: "spark", titleKey: "app.nav.spark", icon: Sparkles },
   { id: "wallet", titleKey: "app.nav.wallet", icon: Wallet },
   { id: "people", titleKey: "app.nav.people", icon: Users }
+];
+
+const homeTabs: TopTab[] = [
+  { id: "home", titleKey: "app.nav.home", icon: House },
+  { id: "ideas", titleKey: "app.nav.spark", icon: Sparkles }
 ];
 
 const goalTabs: GoalTab[] = [
@@ -86,6 +92,7 @@ const NAV_HIDE_DELTA_PX = 8;
 const VIEW_QUERY_PARAM = "view";
 const DEFAULT_NAVIGATION_STATE: NavigationState = {
   mainTab: "home",
+  homeTab: "home",
   goalTab: "notes",
   walletTab: "wallet",
   socialTab: "feed"
@@ -94,6 +101,7 @@ const DEFAULT_NAVIGATION_STATE: NavigationState = {
 export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const { refreshUserData, t } = useUserContext();
   const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
+  const [activeHomeTab, setActiveHomeTab] = useState<HomeTabId>(DEFAULT_NAVIGATION_STATE.homeTab);
   const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
   const [activeWalletTab, setActiveWalletTab] = useState<WalletTabId>(DEFAULT_NAVIGATION_STATE.walletTab);
   const [activeSocialTab, setActiveSocialTab] = useState<SocialTabId>(DEFAULT_NAVIGATION_STATE.socialTab);
@@ -121,6 +129,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
 
   const navigationState = {
     mainTab: activeMainTab,
+    homeTab: activeHomeTab,
     goalTab: activeGoalTab,
     walletTab: activeWalletTab,
     socialTab: activeSocialTab
@@ -133,6 +142,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
 
     navigationStateRef.current = nextState;
     setActiveMainTab(nextState.mainTab);
+    setActiveHomeTab(nextState.homeTab);
     setActiveGoalTab(nextState.goalTab);
     setActiveWalletTab(nextState.walletTab);
     setActiveSocialTab(nextState.socialTab);
@@ -200,7 +210,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
     }
 
     writeNavigationStateToHistory(navigationStateRef.current, "push");
-  }, [activeGoalTab, activeMainTab, activeSocialTab, activeWalletTab]);
+  }, [activeGoalTab, activeHomeTab, activeMainTab, activeSocialTab, activeWalletTab]);
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -230,13 +240,13 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
 
   useEffect(() => {
     setNavHidden(false);
-  }, [activeMainTab, activeGoalTab, activeWalletTab, activeSocialTab]);
+  }, [activeMainTab, activeHomeTab, activeGoalTab, activeWalletTab, activeSocialTab]);
 
   useEffect(() => {
-    if (!isServerBackedView(activeMainTab, activeGoalTab)) return;
+    if (!isServerBackedView(activeMainTab, activeHomeTab, activeGoalTab)) return;
 
     void requestServerRefresh("tab change");
-  }, [activeGoalTab, activeMainTab, activeSocialTab, activeWalletTab, requestServerRefresh]);
+  }, [activeGoalTab, activeHomeTab, activeMainTab, activeSocialTab, activeWalletTab, requestServerRefresh]);
 
   useEffect(() => {
     const handleTouchStart = (event: TouchEvent) => {
@@ -265,7 +275,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
     };
 
     const handleTouchEnd = () => {
-      if (pullDistanceRef.current >= PULL_THRESHOLD_PX && isServerBackedView(activeMainTab, activeGoalTab)) {
+      if (pullDistanceRef.current >= PULL_THRESHOLD_PX && isServerBackedView(activeMainTab, activeHomeTab, activeGoalTab)) {
         void requestServerRefresh("pull-to-refresh");
       }
       touchStartYRef.current = 0;
@@ -286,20 +296,20 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
       window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [activeGoalTab, activeMainTab, requestServerRefresh, updateNavFromScrollIntent]);
+  }, [activeGoalTab, activeHomeTab, activeMainTab, requestServerRefresh, updateNavFromScrollIntent]);
 
-  const currentTitle = getCurrentTitle(activeMainTab, activeGoalTab, t);
-  const showHome = activeMainTab === "home";
+  const currentTitle = getCurrentTitle(activeMainTab, activeHomeTab, activeGoalTab, t);
+  const showHome = activeMainTab === "home" && activeHomeTab === "home";
+  const showIdeas = activeMainTab === "home" && activeHomeTab === "ideas";
   const showNotes = activeMainTab === "goals" && activeGoalTab === "notes";
   const showWishes = activeMainTab === "goals" && activeGoalTab === "desires";
   const showChecks = activeMainTab === "goals" && activeGoalTab === "checks";
   const showResults = activeMainTab === "goals" && activeGoalTab === "results";
-  const showSpark = activeMainTab === "spark";
   const showChallenges = activeMainTab === "challenges";
   const showWallet = activeMainTab === "wallet";
   const showPeople = activeMainTab === "people";
   const topTabs = getTopTabs(activeMainTab);
-  const activeTopTab = getActiveTopTab(activeMainTab, activeGoalTab, activeWalletTab, activeSocialTab);
+  const activeTopTab = getActiveTopTab(activeMainTab, activeHomeTab, activeGoalTab, activeWalletTab, activeSocialTab);
 
   useEffect(() => {
     if (!showWishes && !showChallenges && !showWallet && !showPeople) return;
@@ -313,6 +323,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   }, [showChallenges, showPeople, showWallet, showWishes]);
 
   function handleTopTabChange(tab: string) {
+    if (activeMainTab === "home") setActiveHomeTab(tab as HomeTabId);
     if (activeMainTab === "goals") setActiveGoalTab(tab as GoalTabId);
     if (activeMainTab === "wallet") setActiveWalletTab(tab as WalletTabId);
     if (activeMainTab === "people") setActiveSocialTab(tab as SocialTabId);
@@ -359,7 +370,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
             <WishesApp active={showWishes} refreshNonce={refreshNonce} />
           </div>
         ) : null}
-        {showSpark ? <AiChatApp active={showSpark} /> : null}
+        {showIdeas ? <AiChatApp active={showIdeas} /> : null}
         {showChecks ? <TasksApp /> : null}
         {showResults ? <ResultsApp /> : null}
         {showChallenges || visitedServerViews.challenges ? (
@@ -388,7 +399,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
             <SocialApp active={showPeople} activeTab={activeSocialTab} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} />
           </div>
         ) : null}
-        {!showHome && !showNotes && !showWishes && !showChecks && !showResults && !showSpark && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
+        {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
       <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} onTabChange={setActiveMainTab} />
     </>
@@ -482,6 +493,7 @@ function getMainTabTitle(tab: MainTabId, t: TFunction): string {
 }
 
 function getTopTabs(tab: MainTabId): TopTab[] {
+  if (tab === "home") return homeTabs;
   if (tab === "goals") return goalTabs;
   if (tab === "wallet") return walletTabs;
   if (tab === "people") return socialTabs;
@@ -490,24 +502,27 @@ function getTopTabs(tab: MainTabId): TopTab[] {
 
 function getActiveTopTab(
   mainTab: MainTabId,
+  homeTab: HomeTabId,
   goalTab: GoalTabId,
   walletTab: WalletTabId,
   socialTab: SocialTabId
 ): string | undefined {
+  if (mainTab === "home") return homeTab;
   if (mainTab === "goals") return goalTab;
   if (mainTab === "wallet") return walletTab;
   if (mainTab === "people") return socialTab;
   return undefined;
 }
 
-function getCurrentTitle(mainTab: MainTabId, goalTab: GoalTabId, t: TFunction): string {
+function getCurrentTitle(mainTab: MainTabId, homeTab: HomeTabId, goalTab: GoalTabId, t: TFunction): string {
+  if (mainTab === "home") return homeTab === "ideas" ? t("app.nav.spark") : getMainTabTitle(mainTab, t);
   if (mainTab !== "goals") return getMainTabTitle(mainTab, t);
   const titleKey = goalTabs.find((item) => item.id === goalTab)?.titleKey;
   return titleKey ? t(titleKey) : t("app.nav.goals");
 }
 
-function isServerBackedView(mainTab: MainTabId, goalTab: GoalTabId): boolean {
-  if (mainTab === "home") return true;
+function isServerBackedView(mainTab: MainTabId, homeTab: HomeTabId, goalTab: GoalTabId): boolean {
+  if (mainTab === "home") return homeTab === "home";
   if (mainTab === "challenges" || mainTab === "wallet" || mainTab === "people") return true;
   return mainTab === "goals" && goalTab === "desires";
 }
@@ -524,8 +539,20 @@ function parseNavigationView(view: string | null): NavigationState {
 
   const [mainTab, subTab] = view.split(".");
 
-  if (mainTab === "home" || mainTab === "challenges" || mainTab === "spark") {
-    return { ...DEFAULT_NAVIGATION_STATE, mainTab };
+  if (mainTab === "home") {
+    return {
+      ...DEFAULT_NAVIGATION_STATE,
+      mainTab: "home",
+      homeTab: isHomeTabId(subTab) ? subTab : DEFAULT_NAVIGATION_STATE.homeTab
+    };
+  }
+
+  if (mainTab === "spark") {
+    return { ...DEFAULT_NAVIGATION_STATE, homeTab: "ideas" };
+  }
+
+  if (mainTab === "challenges") {
+    return { ...DEFAULT_NAVIGATION_STATE, mainTab: "challenges" };
   }
 
   if (mainTab === "goals") {
@@ -579,7 +606,9 @@ function writeNavigationStateToHistory(state: NavigationState, mode: "push" | "r
 }
 
 function getNavigationViewParam(state: NavigationState): string | null {
-  if (state.mainTab === "home") return null;
+  if (state.mainTab === "home") {
+    return state.homeTab === DEFAULT_NAVIGATION_STATE.homeTab ? null : `home.${state.homeTab}`;
+  }
 
   if (state.mainTab === "goals") {
     return state.goalTab === DEFAULT_NAVIGATION_STATE.goalTab ? null : `goals.${state.goalTab}`;
@@ -599,10 +628,15 @@ function getNavigationViewParam(state: NavigationState): string | null {
 function isSameNavigationState(left: NavigationState, right: NavigationState): boolean {
   return (
     left.mainTab === right.mainTab &&
+    left.homeTab === right.homeTab &&
     left.goalTab === right.goalTab &&
     left.walletTab === right.walletTab &&
     left.socialTab === right.socialTab
   );
+}
+
+function isHomeTabId(value: string | undefined): value is HomeTabId {
+  return value === "home" || value === "ideas";
 }
 
 function isGoalTabId(value: string | undefined): value is GoalTabId {

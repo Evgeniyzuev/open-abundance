@@ -93,7 +93,7 @@ const PULL_THRESHOLD_PX = 72;
 const NAV_HIDE_DELTA_PX = 8;
 const VIEW_QUERY_PARAM = "view";
 const DEFAULT_NAVIGATION_STATE: NavigationState = {
-  mainTab: "home",
+  mainTab: "goals",
   homeTab: "home",
   goalTab: "notes",
   walletTab: "wallet",

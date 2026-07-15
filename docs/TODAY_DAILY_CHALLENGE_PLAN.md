@@ -32,14 +32,19 @@ Home/Today становится отдельным default main tab поверх
 - После challenge reward или Wallet → Core Home повторно загружает `/api/today` и показывает актуальный progress/CTA.
 - Глобальный first-day Today popup удаляется из app shell: его роль выполняет встроенное состояние Home.
 
+### Start route decision — 2026-07-15
+
+- Home/Today остается отдельным главным экраном и доступен в навигации, но не является стартовым маршрутом.
+- Старт возвращен на `Goals → Notes`: Notes local-first, загружаются мгновенно и остаются пригодными для работы без интернета.
+
 ### Implemented — 2026-07-13
 
-- Добавлен `components/HomeTodayApp.tsx` и default `home` route в `components/AppNavigation.tsx`.
+- Добавлен `components/HomeTodayApp.tsx` и `home` route в `components/AppNavigation.tsx`; после пользовательской проверки стартовый маршрут возвращен на `Goals → Notes`.
 - Home показывает draft/server wish, Core target, server Today progress/checklist/streak и один динамический CTA.
 - CTA открывает Today, следующий рекомендованный challenge или Wallet/Core calculator; draft-параметры передаются в калькулятор.
 - Удален глобальный Today popup; состояние первого входа теперь отображается внутри Home.
 - Typecheck, lint и HTTP 200 локального app shell прошли. Два Challenges e2e smoke-сценария оставались заблокированы отсутствующим runtime-каталогом (экран `Loading...`), но Home/Today и объединенная Home + AI chat навигация вручную приняты пользователем 2026-07-15.
-- 2026-07-15: начисление reward в Core вручную проверено; в `components/ChallengesApp.tsx` добавлен упрощенный UX receipt с challenge, verification, суммой Core и Core после начисления. Ledger ID, финансовая история и server-side изменение личного плана сознательно отложены.
+- 2026-07-15: начисление reward в Core и упрощенный UX receipt вручную проверены; receipt показывает challenge, verification, сумму Core и Core после начисления. Ledger ID, финансовая история и server-side изменение личного плана сознательно отложены.
 - 2026-07-15: первая версия Goals Growth Map реализована в `components/GrowthMapApp.tsx`; она показывает уровень, ближайшие Core-пороги и привязанные желания, но пока требует отдельного User QA и не добавляет action-loop к Today/challenges.
 
 ## Product Goal

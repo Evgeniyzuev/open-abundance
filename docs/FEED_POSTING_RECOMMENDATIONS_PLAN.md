@@ -649,6 +649,15 @@ create table public.feed_views (
 
 ## MVP
 
+### Current Status — 2026-07-15
+
+`Verified Reality Feed` стал текущим активным шагом после ручного подтверждения Home/Today, Core reward и MVP receipt. Для первого slice выбран только server-backed `Challenge Done`: карточка строится из факта завершения challenge и его verification metadata, без reward amount, ledger или финансовых обещаний.
+
+- `People → Feed` остается вторичной социальной вкладкой; стартовый маршрут приложения — `Goals → Notes` для offline-first работы.
+- Verified system facts, `Демо` истории и ручные пользовательские посты должны иметь разные типы/бейджи и не смешиваться в один недоказуемый narrative.
+- Текущий `feed_posts`/stat-block фундамент можно переиспользовать, но публичный snapshot challenge completion должен иметь отдельный server-backed источник и idempotent source key.
+- CTA из verified `Challenge Done` должен вести к challenge/Today; reward history, ledger proof, recommendations и полный social graph остаются следующими этапами.
+
 ### MVP-1: Basic Feed
 
 - ручной текстовый пост;

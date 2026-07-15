@@ -5,9 +5,10 @@
 ## Текущее состояние
 
 - Канонический трекер: `docs/MASTER_KANBAN.md`.
-- Единственный активный продуктовый шаг: **MVP receipt после награды Core**.
+- Единственный активный продуктовый шаг: **Verified Reality Feed**.
 - Home/Today и объединение Home с AI chat вручную подтверждены пользователем и находятся в `Подтверждено пользователями`.
-- Награды за завершенные challenges в Core вручную проверены; полноценный ledger/финансовый receipt отложен до финансового этапа.
+- Награды за завершенные challenges в Core и MVP receipt вручную проверены; полноценный ledger/финансовый receipt отложен до финансового этапа.
+- Стартовый маршрут возвращен на `Goals → Notes`: Notes local-first и доступны без сети; Home остается отдельной вкладкой, а не offline-first стартом.
 - Первая версия Goals Growth Map технически реализована и требует отдельного User QA; сейчас это карта ориентации, не action-loop.
 - Единый onboarding вручную принят пользователем и находится в `Подтверждено пользователями`.
 - Первая Core-цепочка челленджей также подтверждена пользователем.
@@ -17,11 +18,11 @@
 
 ## Что делать дальше
 
-Home/Today закрыт пользователем в канбане. Награда за challenge в Core уже проверена, поэтому текущий task сужен до UX receipt; в `Сейчас` по-прежнему остается ровно одна карточка.
+Home/Today и MVP receipt закрыты пользователем в канбане. Следующий task — Verified Reality Feed; в `Сейчас` по-прежнему остается ровно одна карточка.
 
-Цель следующего шага: пользователь после подтвержденного challenge видит название challenge, способ проверки, сумму Core-награды и Core после начисления, затем без потери контекста возвращается в Home/Today.
+Цель следующего шага: в `People → Feed` пользователь видит verified карточку реального результата `Challenge Done`, отличает ее от `Демо` и ручного контента и может перейти к следующему challenge/Today.
 
-Не входит в шаг: ledger ID/финансовая история, Wallet-ввод/вывод, Wallet-награды, реферальные выплаты, изменение server-side GrowthPlan, публичная лента и полноценное создание server-side Wish/GrowthPlan из onboarding draft.
+Не входит в шаг: reward amount и ledger/финансовая история, Wallet-ввод/вывод, Wallet-награды, реферальные выплаты, рекомендации, сложный social graph, изменение server-side GrowthPlan и полноценное создание server-side Wish/GrowthPlan из onboarding draft.
 
 ## Ключевые файлы
 
@@ -31,6 +32,8 @@ Home/Today закрыт пользователем в канбане. Награ
 - `lib/onboardingContent.ts` — тексты onboarding.
 - `components/ChallengesApp.tsx` — челленджи, Today и первый Core-путь.
 - `components/GrowthMapApp.tsx` — первая карта роста в Goals; текущий статус — технически реализовано, нужен User QA.
+- `components/SocialApp.tsx` и `app/api/social/feed/route.ts` — текущий feed-фундамент для Verified Reality Feed.
+- `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md` — продуктовые решения по verified snapshots и системным автопостам.
 - `lib/serverToday.ts` — server-side Today items/progress.
 - `app/api/user/context/route.ts` и `app/api/challenges/route.ts` — актуальные server-backed данные.
 - `tests/e2e/app-smoke.spec.ts` — smoke/e2e гостевого onboarding и app shell.
@@ -43,10 +46,10 @@ Home/Today закрыт пользователем в канбане. Награ
 - Статусы: `Очередь → Сейчас → Technical QA → User QA → Подтверждено`.
 - Не вводить линейную блокировку челленджей: порядок рекомендательный, ограничения только требованиями/уровнем.
 - Server-backed GET должен быть no-store/dynamic; не лечить stale data таймерами до проверки cache headers.
-- Home является отдельным default `home` main tab; Today popup заменяется встроенным Home-состоянием.
+- Default navigation — `Goals → Notes` для offline-first старта; Home остается отдельным `home` main tab, а Today popup заменен встроенным Home-состоянием.
 - Home не создает server Wish/GrowthPlan: server plan читается из `/api/today`, fallback — из `profile.onboarding_state.firstPlanDraft`.
 - На Home ровно один primary CTA. Его приоритет: Today pending → следующий challenge после completion → calculator при отсутствии server plan → build plan при отсутствии draft.
-- Home реализован в `components/HomeTodayApp.tsx`; global Today popup удален из `AppNavigation`; Home и AI chat объединены в одну навигационную группу и вручную приняты пользователем.
+- Home реализован в `components/HomeTodayApp.tsx`; global Today popup удален из `AppNavigation`; Home и AI chat объединены в одну навигационную группу и вручную приняты пользователем. Стартовый маршрут переключен обратно на `Goals → Notes`.
 - Перед кодом прочитать `docs/DEVELOPMENT_RULES.md`.
 
 ## Проверки

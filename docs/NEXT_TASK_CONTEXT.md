@@ -9,7 +9,7 @@
 - Home/Today и объединение Home с AI chat вручную подтверждены пользователем и находятся в `Подтверждено пользователями`.
 - Награды за завершенные challenges в Core и MVP receipt вручную проверены; полноценный ledger/финансовый receipt отложен до финансового этапа.
 - Стартовый маршрут возвращен на `Goals → Notes`: Notes local-first и доступны без сети; Home остается отдельной вкладкой, а не offline-first стартом.
-- Первый Reality Feed content slice реализован: 23 локализованных fictional demo stories показываются отдельно в `People → Feed`; real verified system cards еще не подключены.
+- Первый Reality Feed content slice реализован server-backed: 23 локализованных fictional demo stories хранятся как обычные `feed_posts`, написаны от первого лица, имеют media и бейдж `Демо-история`; real verified system cards еще не подключены.
 - Первая версия Goals Growth Map технически реализована и требует отдельного User QA; сейчас это карта ориентации, не action-loop.
 - Единый onboarding вручную принят пользователем и находится в `Подтверждено пользователями`.
 - Первая Core-цепочка челленджей также подтверждена пользователем.
@@ -21,7 +21,7 @@
 
 Home/Today и MVP receipt закрыты пользователем в канбане. Следующий task — Verified Reality Feed; в `Сейчас` по-прежнему остается ровно одна карточка.
 
-Цель следующего шага: в `People → Feed` пользователь видит verified карточку реального результата `Challenge Done`, отличает ее от 23 `Демо`-сценариев и ручного контента и может перейти к следующему challenge/Today.
+Цель следующего шага: в `People → Feed` пользователь видит verified карточку реального результата `Challenge Done`, отличает ее от 23 server-backed `Демо-историй` и ручного контента и может перейти к следующему challenge/Today.
 
 Не входит в шаг: reward amount и ledger/финансовая история, Wallet-ввод/вывод, Wallet-награды, реферальные выплаты, рекомендации, сложный social graph, изменение server-side GrowthPlan и полноценное создание server-side Wish/GrowthPlan из onboarding draft.
 
@@ -33,7 +33,7 @@ Home/Today и MVP receipt закрыты пользователем в канб�
 - `lib/onboardingContent.ts` — тексты onboarding.
 - `components/ChallengesApp.tsx` — челленджи, Today и первый Core-путь.
 - `components/GrowthMapApp.tsx` — первая карта роста в Goals; текущий статус — технически реализовано, нужен User QA.
-- `components/SocialApp.tsx` и `app/api/social/feed/route.ts` — текущий feed-фундамент для Verified Reality Feed.
+- `components/SocialApp.tsx`, `app/api/social/feed/route.ts` и migration `20260715120000_reality_feed_demo_posts.sql` — текущий feed/media/localization фундамент для Verified Reality Feed.
 - `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md` — продуктовые решения по verified snapshots и системным автопостам.
 - `lib/serverToday.ts` — server-side Today items/progress.
 - `app/api/user/context/route.ts` и `app/api/challenges/route.ts` — актуальные server-backed данные.

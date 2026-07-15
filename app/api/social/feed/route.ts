@@ -12,6 +12,8 @@ type FeedPostRow = Tables<"feed_posts">;
 type FeedPostEntityRow = Tables<"feed_post_entities">;
 type FeedStatBlockRow = Tables<"feed_post_stat_blocks">;
 type FeedExternalLinkRow = Tables<"feed_post_external_links">;
+type FeedMediaRow = Tables<"feed_post_media">;
+type FeedTranslationRow = Tables<"feed_post_translations">;
 type FeedWishRow = Tables<"wishes"> & { viewer_has_copy: boolean };
 type FeedProfile = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "level" | "created_at">;
 type ExternalProvider = "tiktok" | "instagram" | "telegram" | "youtube" | "x" | "website" | "unknown";
@@ -34,13 +36,14 @@ export async function GET(request: NextRequest) {
     }
 
     const scope = request.nextUrl.searchParams.get("scope") === "blog" ? "blog" : "feed";
+    const locale = normalizeLocale(request.nextUrl.searchParams.get("locale"));
     const requestedAuthorId = normalizeUuid(request.nextUrl.searchParams.get("authorUserId"));
     const authorUserId = scope === "blog" ? requestedAuthorId ?? user.id : null;
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
 
     let query = supabase
       .from("feed_posts")
-      .select("id,author_user_id,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at")
+      .select("id,author_user_id,author_label,source_key,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -60,11 +63,14 @@ export async function GET(request: NextRequest) {
     if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
     const postRows = (posts ?? []) as FeedPostRow[];
-    const [profiles, statBlocks, externalLinks, wishPosts] = await Promise.all([
-      loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id)))),
+    const postIds = postRows.map((post) => post.id);
+    const [profiles, statBlocks, externalLinks, wishPosts, translations, media] = await Promise.all([
+      loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id).filter(isString)))),
       loadStatBlocks(supabase, postRows.map((post) => post.id), scope === "blog" && authorUserId === user.id),
-      loadExternalLinks(supabase, postRows.map((post) => post.id)),
-      loadWishPosts(supabase, postRows.map((post) => post.id), user.id)
+      loadExternalLinks(supabase, postIds),
+      loadWishPosts(supabase, postIds, user.id),
+      loadTranslations(supabase, postIds, locale),
+      loadMedia(supabase, postIds)
     ]);
     const visiblePostRows = postRows.filter((post) => post.post_type !== "wish" || wishPosts.has(post.id));
 
@@ -74,13 +80,19 @@ export async function GET(request: NextRequest) {
       {
         scope,
         author: authorProfile,
-        posts: visiblePostRows.map((post) => ({
-          ...post,
-          author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
-          statBlocks: filterStatBlocksForViewer(post, statBlocks, user.id),
-          externalLinks: externalLinks.filter((link) => link.post_id === post.id),
-          wish: wishPosts.get(post.id) ?? null
-        }))
+        posts: visiblePostRows.map((post) => {
+          const translation = translations.get(post.id) ?? null;
+          return {
+            ...post,
+            body: translation?.body ?? post.body,
+            authorName: translation?.author_name ?? post.author_label,
+            author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
+            statBlocks: filterStatBlocksForViewer(post, statBlocks, user.id),
+            externalLinks: externalLinks.filter((link) => link.post_id === post.id),
+            media: media.filter((item) => item.post_id === post.id),
+            wish: wishPosts.get(post.id) ?? null
+          };
+        })
       },
       { headers: NO_STORE_HEADERS }
     );
@@ -149,14 +161,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: externalLinkError.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
-    const profiles = await loadProfiles(supabase, [post.author_user_id]);
+    const profiles = await loadProfiles(supabase, [user.id]);
     return NextResponse.json(
       {
         post: {
           ...post,
+          authorName: null,
           author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
           statBlocks: [],
           externalLinks: [externalLink],
+          media: [],
           wish: null
         },
         created: true
@@ -297,11 +311,48 @@ async function loadExternalLinks(supabase: SupabaseClient<Database>, postIds: st
   return (data ?? []) as FeedExternalLinkRow[];
 }
 
+async function loadTranslations(
+  supabase: SupabaseClient<Database>,
+  postIds: string[],
+  locale: "ru" | "en"
+): Promise<Map<string, FeedTranslationRow>> {
+  if (!postIds.length) return new Map();
+
+  const { data, error } = await supabase
+    .from("feed_post_translations")
+    .select("*")
+    .in("post_id", postIds)
+    .eq("locale", locale);
+
+  if (error) throw error;
+  return new Map(((data ?? []) as FeedTranslationRow[]).map((translation) => [translation.post_id, translation]));
+}
+
+async function loadMedia(supabase: SupabaseClient<Database>, postIds: string[]): Promise<FeedMediaRow[]> {
+  if (!postIds.length) return [];
+
+  const { data, error } = await supabase
+    .from("feed_post_media")
+    .select("*")
+    .in("post_id", postIds)
+    .order("sort_order", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as FeedMediaRow[];
+}
+
 async function findExistingExternalPost(
   supabase: SupabaseClient<Database>,
   userId: string,
   normalized: NormalizedExternalLink
-): Promise<(FeedPostRow & { author: FeedProfile | null; statBlocks: FeedStatBlockRow[]; externalLinks: FeedExternalLinkRow[]; wish: null }) | null> {
+): Promise<(FeedPostRow & {
+  authorName: string | null;
+  author: FeedProfile | null;
+  statBlocks: FeedStatBlockRow[];
+  externalLinks: FeedExternalLinkRow[];
+  media: FeedMediaRow[];
+  wish: null;
+}) | null> {
   const { data: links, error: linksError } = await supabase
     .from("feed_post_external_links")
     .select("*")
@@ -326,12 +377,14 @@ async function findExistingExternalPost(
   const post = (posts ?? [])[0] as FeedPostRow | undefined;
   if (!post) return null;
 
-  const profiles = await loadProfiles(supabase, [post.author_user_id]);
+  const profiles = await loadProfiles(supabase, post.author_user_id ? [post.author_user_id] : []);
   return {
     ...post,
+    authorName: post.author_label,
     author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
     statBlocks: [],
     externalLinks: (links ?? []).filter((link) => link.post_id === post.id) as FeedExternalLinkRow[],
+    media: [],
     wish: null
   };
 }
@@ -475,4 +528,12 @@ function clampLimit(value: string | null): number {
 function normalizeUuid(value: unknown): string | null {
   if (typeof value !== "string") return null;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
+function normalizeLocale(value: unknown): "ru" | "en" {
+  return value === "en" ? "en" : "ru";
+}
+
+function isString(value: string | null): value is string {
+  return typeof value === "string";
 }

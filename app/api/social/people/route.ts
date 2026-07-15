@@ -170,7 +170,7 @@ async function loadRecentPublicAuthorIds(supabase: SupabaseClient<Database>): Pr
     .limit(120);
 
   if (error) throw error;
-  return new Set((data ?? []).map((row) => row.author_user_id));
+  return new Set((data ?? []).flatMap((row) => row.author_user_id ? [row.author_user_id] : []));
 }
 
 async function loadContactIds(supabase: SupabaseClient<Database>, viewerUserId: string, userIds: string[]): Promise<Set<string>> {
@@ -263,6 +263,7 @@ async function loadInfluenceSummaries(supabase: SupabaseClient<Database>, userId
 
   userIds.forEach((userId) => summaries.set(userId, { label: "new", publicPosts: 0, referrals: 0 }));
   (postsResult.data ?? []).forEach((row) => {
+    if (!row.author_user_id) return;
     const current = summaries.get(row.author_user_id) ?? { label: "new", publicPosts: 0, referrals: 0 };
     current.publicPosts += 1;
     summaries.set(row.author_user_id, current);

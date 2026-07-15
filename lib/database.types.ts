@@ -544,6 +544,59 @@ export type Database = {
           },
         ]
       }
+      feed_post_media: {
+        Row: {
+          alt_text: Json
+          created_at: string
+          id: string
+          media_type: string
+          media_url: string
+          metadata: Json
+          post_id: string
+          sort_order: number
+          source_label: string | null
+          source_url: string | null
+          thumbnail_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          alt_text?: Json
+          created_at?: string
+          id?: string
+          media_type?: string
+          media_url: string
+          metadata?: Json
+          post_id: string
+          sort_order?: number
+          source_label?: string | null
+          source_url?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alt_text?: Json
+          created_at?: string
+          id?: string
+          media_type?: string
+          media_url?: string
+          metadata?: Json
+          post_id?: string
+          sort_order?: number
+          source_label?: string | null
+          source_url?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_post_media_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_post_stat_blocks: {
         Row: {
           block_key: string
@@ -598,9 +651,48 @@ export type Database = {
           },
         ]
       }
+      feed_post_translations: {
+        Row: {
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          locale: string
+          post_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_name: string
+          body: string
+          created_at?: string
+          id?: string
+          locale: string
+          post_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          post_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_post_translations_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_posts: {
         Row: {
-          author_user_id: string
+          author_label: string | null
+          author_user_id: string | null
           body: string | null
           created_at: string
           deleted_at: string | null
@@ -608,12 +700,14 @@ export type Database = {
           post_type: string
           published_at: string | null
           snapshot_id: string | null
+          source_key: string | null
           status: string
           updated_at: string
           visibility: string
         }
         Insert: {
-          author_user_id: string
+          author_label?: string | null
+          author_user_id?: string | null
           body?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -621,12 +715,14 @@ export type Database = {
           post_type?: string
           published_at?: string | null
           snapshot_id?: string | null
+          source_key?: string | null
           status?: string
           updated_at?: string
           visibility?: string
         }
         Update: {
-          author_user_id?: string
+          author_label?: string | null
+          author_user_id?: string | null
           body?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -634,6 +730,7 @@ export type Database = {
           post_type?: string
           published_at?: string | null
           snapshot_id?: string | null
+          source_key?: string | null
           status?: string
           updated_at?: string
           visibility?: string

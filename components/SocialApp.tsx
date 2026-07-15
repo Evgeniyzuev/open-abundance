@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
-import { REALITY_FEED_DEMO_STORIES, type RealityStoryText } from "@/lib/realityFeedDemoStories";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
 
@@ -158,9 +157,26 @@ type FeedExternalLink = {
   created_at: string;
   updated_at: string;
 };
+type FeedMedia = {
+  id: string;
+  post_id: string;
+  media_type: string;
+  media_url: string;
+  thumbnail_url: string | null;
+  alt_text: unknown;
+  source_url: string | null;
+  source_label: string | null;
+  sort_order: number;
+  metadata: unknown;
+  created_at: string;
+  updated_at: string;
+};
 type FeedPost = {
   id: string;
-  author_user_id: string;
+  author_user_id: string | null;
+  author_label: string | null;
+  authorName: string | null;
+  source_key: string | null;
   snapshot_id: string | null;
   post_type: string;
   status: "draft" | "published" | "archived";
@@ -173,6 +189,7 @@ type FeedPost = {
   author: TeamProfile | null;
   statBlocks: FeedStatBlock[];
   externalLinks: FeedExternalLink[];
+  media: FeedMedia[];
   wish: PublicWish | null;
 };
 type FeedPayload = {
@@ -442,7 +459,8 @@ export default function SocialApp({
     setFeedLoading(true);
     try {
       const token = await getAccessToken();
-      const response = await fetch(`/api/social/feed?scope=feed&ts=${Date.now()}`, {
+      const params = new URLSearchParams({ scope: "feed", locale, ts: String(Date.now()) });
+      const response = await fetch(`/api/social/feed?${params.toString()}`, {
         cache: "no-store",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -455,14 +473,14 @@ export default function SocialApp({
     } finally {
       setFeedLoading(false);
     }
-  }, [user]);
+  }, [locale, user]);
 
   const loadBlog = useCallback(async () => {
     if (!user) return;
     setFeedLoading(true);
     try {
       const token = await getAccessToken();
-      const params = new URLSearchParams({ scope: "blog", ts: String(Date.now()) });
+      const params = new URLSearchParams({ scope: "blog", locale, ts: String(Date.now()) });
       if (selectedBlogAuthorId) params.set("authorUserId", selectedBlogAuthorId);
       const response = await fetch(`/api/social/feed?${params.toString()}`, {
         cache: "no-store",
@@ -477,7 +495,7 @@ export default function SocialApp({
     } finally {
       setFeedLoading(false);
     }
-  }, [selectedBlogAuthorId, user]);
+  }, [locale, selectedBlogAuthorId, user]);
 
   useEffect(() => {
     if (!active) return;
@@ -985,16 +1003,13 @@ export default function SocialApp({
   return (
     <section className="social-screen">
       {activeTab === "feed" && !user && !loading ? (
-        <>
-          <section className="profile-panel">
-            <div className="profile-avatar placeholder">
-              <Newspaper size={34} />
-            </div>
-            <strong>{t("social.feed.title")}</strong>
-            <p>{t("profile.registrationRequired")}</p>
-          </section>
-          <RealityDemoSection locale={locale} t={t} />
-        </>
+        <section className="profile-panel">
+          <div className="profile-avatar placeholder">
+            <Newspaper size={34} />
+          </div>
+          <strong>{t("social.feed.title")}</strong>
+          <p>{t("profile.registrationRequired")}</p>
+        </section>
       ) : null}
 
       {activeTab === "feed" && user ? (
@@ -1726,7 +1741,6 @@ function FeedView({
           onUrlChange={onExternalLinkUrlChange}
         />
       </section>
-      <RealityDemoSection locale={locale} t={t} />
       <PostList
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
@@ -1743,45 +1757,6 @@ function FeedView({
         onDeletePost={onDeletePost}
         onPublish={onPublish}
       />
-    </section>
-  );
-}
-
-function RealityDemoSection({ locale, t }: { locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string }) {
-  return (
-    <section className="reality-demo-section" aria-labelledby="reality-demo-title">
-      <div className="reality-demo-heading">
-        <div>
-          <span>{t("social.feed.realityKicker")}</span>
-          <h2 id="reality-demo-title">{t("social.feed.realityTitle")}</h2>
-        </div>
-        <strong>{REALITY_FEED_DEMO_STORIES.length}</strong>
-      </div>
-      <p className="reality-demo-note">{t("social.feed.realityDemoNote")}</p>
-      <div className="reality-demo-grid">
-        {REALITY_FEED_DEMO_STORIES.map((story) => (
-          <article className="reality-demo-card" key={story.id}>
-            <header>
-              <span className="reality-demo-badge"><Check size={14} />{t("social.feed.demoBadge")}</span>
-              <small>{storyText(story.category, locale)}</small>
-            </header>
-            <h3>{storyText(story.title, locale)}</h3>
-            <p>{storyText(story.summary, locale)}</p>
-            <ol>
-              {story.milestones.map((milestone, index) => (
-                <li key={`${story.id}-${index}`}>
-                  <span>{index + 1}</span>
-                  {storyText(milestone, locale)}
-                </li>
-              ))}
-            </ol>
-            <footer>
-              <span>{t("social.feed.demoOutcome")}</span>
-              <strong>{storyText(story.outcome, locale)}</strong>
-            </footer>
-          </article>
-        ))}
-      </div>
     </section>
   );
 }
@@ -2033,23 +2008,22 @@ function PostCard({
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
-  const canDelete = post.author_user_id === currentUserId;
+  const canDelete = Boolean(post.author_user_id) && post.author_user_id === currentUserId;
 
   return (
     <article className="feed-post-card">
       <header>
-        <button className="feed-author" type="button" onClick={() => { void onOpenAuthor(post.author_user_id); }}>
-          <span className="feed-author-avatar">
-            {post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
-          </span>
-          <span>{formatProfileName(post.author, post.author_user_id)}</span>
-        </button>
+        <div className="feed-author-block">
+          <PostAuthor post={post} onOpenAuthor={onOpenAuthor} />
+          {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
+        </div>
         <small>{formatPostDate(post, locale)}</small>
       </header>
       <button className="feed-post-body" type="button" onClick={() => onOpenPost(post)}>
         <p>{post.body ?? t("social.post.detail")}</p>
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
       </button>
+      <PostMedia media={post.media} locale={locale} onOpen={() => onOpenPost(post)} />
       <WishPostPreview
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
@@ -2062,8 +2036,8 @@ function PostCard({
       <footer>
         <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))}</span>
         <div className="feed-card-actions">
-          {showBlogAction ? (
-            <button className="finance-small-icon-button" type="button" aria-label={t("social.feed.openBlog")} onClick={() => onOpenBlog(post.author_user_id)}>
+          {showBlogAction && post.author_user_id ? (
+            <button className="finance-small-icon-button" type="button" aria-label={t("social.feed.openBlog")} onClick={() => onOpenBlog(post.author_user_id!)}>
               <BookOpen size={15} />
             </button>
           ) : null}
@@ -2154,7 +2128,7 @@ function PostDetailModal({
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
 }) {
-  const canDelete = post.author_user_id === currentUserId;
+  const canDelete = Boolean(post.author_user_id) && post.author_user_id === currentUserId;
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -2162,14 +2136,13 @@ function PostDetailModal({
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}>
           <X size={18} />
         </button>
-        <button className="feed-author detail-author" type="button" onClick={() => { void onOpenAuthor(post.author_user_id); }}>
-          <span className="feed-author-avatar">
-            {post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
-          </span>
-          <span>{formatProfileName(post.author, post.author_user_id)}</span>
-        </button>
-        <h2>{post.body ?? t("social.post.detail")}</h2>
+        <div className="post-detail-author-row">
+          <PostAuthor detail post={post} onOpenAuthor={onOpenAuthor} />
+          {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
+        </div>
+        <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>
         <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
+        <PostMedia media={post.media} locale={locale} showSource />
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
         <WishPostPreview
           copyingWishId={copyingWishId}
@@ -2181,10 +2154,12 @@ function PostDetailModal({
         />
         <ExternalLinkPreview post={post} />
         <div className="post-detail-actions">
-          <button className="secondary-button" type="button" onClick={() => onOpenBlog(post.author_user_id)}>
-            <BookOpen size={16} />
-            {t("social.feed.openBlog")}
-          </button>
+          {post.author_user_id ? (
+            <button className="secondary-button" type="button" onClick={() => onOpenBlog(post.author_user_id!)}>
+              <BookOpen size={16} />
+              {t("social.feed.openBlog")}
+            </button>
+          ) : null}
           {canDelete ? (
             <button className="finance-small-icon-button danger" type="button" aria-label={t("social.post.delete")} onClick={() => onDeletePost(post)}>
               <Trash2 size={15} />
@@ -2262,6 +2237,50 @@ function HistoryPanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function PostAuthor({ detail = false, post, onOpenAuthor }: { detail?: boolean; post: FeedPost; onOpenAuthor: (userId: string) => void }) {
+  const content = (
+    <>
+      <span className="feed-author-avatar">
+        {post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
+      </span>
+      <span>{post.authorName ?? formatProfileName(post.author, post.author_user_id ?? "Open Abundance")}</span>
+    </>
+  );
+
+  if (!post.author_user_id) return <div className={`feed-author${detail ? " detail-author" : ""}`}>{content}</div>;
+
+  return (
+    <button className={`feed-author${detail ? " detail-author" : ""}`} type="button" onClick={() => { void onOpenAuthor(post.author_user_id!); }}>
+      {content}
+    </button>
+  );
+}
+
+function PostMedia({ media, locale, onOpen, showSource = false }: { media: FeedMedia[]; locale: AppLocale; onOpen?: () => void; showSource?: boolean }) {
+  const images = media.filter((item) => item.media_type === "image");
+  if (!images.length) return null;
+
+  return (
+    <div className={`feed-post-media${images.length > 1 ? " multiple" : ""}`}>
+      {images.map((item) => {
+        const image = <img alt={localizedMediaAlt(item.alt_text, locale)} loading="lazy" src={item.media_url} />;
+        return onOpen ? (
+          <button type="button" key={item.id} onClick={onOpen}>{image}</button>
+        ) : (
+          <figure key={item.id}>
+            {image}
+            {showSource && item.source_url ? (
+              <figcaption>
+                <a href={item.source_url} target="_blank" rel="noreferrer">{item.source_label ?? "Source"}</a>
+              </figcaption>
+            ) : null}
+          </figure>
+        );
+      })}
+    </div>
   );
 }
 
@@ -2429,8 +2448,12 @@ function formatProfileName(profile: TeamProfile | null, fallback: string): strin
   return profile?.display_name ?? (profile?.username ? `@${profile.username}` : fallback.slice(0, 8));
 }
 
-function storyText(value: RealityStoryText, locale: AppLocale): string {
-  return value[locale] ?? value.en;
+function localizedMediaAlt(value: unknown, locale: AppLocale): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const localized = value as Record<string, unknown>;
+  const preferred = localized[locale];
+  if (typeof preferred === "string") return preferred;
+  return typeof localized.en === "string" ? localized.en : "";
 }
 
 function createProfileEditorState(payload: SocialProfilePayload | null): ProfileEditorState {

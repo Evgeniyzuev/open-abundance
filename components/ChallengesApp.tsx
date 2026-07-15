@@ -90,6 +90,13 @@ type CheckChallengeResponse = {
   rewardClaimed?: boolean;
   error?: string;
 };
+
+type CompletionReward = {
+  amount: number;
+  account: string;
+  claimed: boolean;
+  coreBalanceAfter?: number | null;
+};
 type TodayItem = {
   id: string;
   item_key: string;
@@ -166,7 +173,7 @@ export default function ChallengesApp({ active, focusNextChallengeNonce = 0, ref
   const [today, setToday] = useState<TodayPayload | null>(null);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [completionReward, setCompletionReward] = useState<{ amount: number; account: string; claimed: boolean } | null>(null);
+  const [completionReward, setCompletionReward] = useState<{ challenge: Challenge; reward: CompletionReward } | null>(null);
   const [acceptedOpen, setAcceptedOpen] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
@@ -499,10 +506,10 @@ export default function ChallengesApp({ active, focusNextChallengeNonce = 0, ref
     await loadProjects();
   }
 
-  function completeChallenge(challenge: Challenge, reward: { amount: number; account: string; claimed: boolean }) {
+  function completeChallenge(challenge: Challenge, reward: CompletionReward) {
     applyChallengeStatus(challenge.id, "completed");
     setSelectedChallenge({ ...challenge, user_challenge_status: "completed" });
-    setCompletionReward(reward);
+    setCompletionReward({ challenge, reward });
     void loadChallenges();
     void loadToday();
   }
@@ -616,7 +623,7 @@ export default function ChallengesApp({ active, focusNextChallengeNonce = 0, ref
           />
         ) : null}
 
-        {completionReward ? <ChallengeCompleteModal reward={completionReward} t={t} onClose={() => setCompletionReward(null)} /> : null}
+        {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} /> : null}
       </>
     );
   }
@@ -724,7 +731,7 @@ export default function ChallengesApp({ active, focusNextChallengeNonce = 0, ref
         />
       ) : null}
 
-      {completionReward ? <ChallengeCompleteModal reward={completionReward} t={t} onClose={() => setCompletionReward(null)} /> : null}
+      {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} /> : null}
     </section>
   );
 }
@@ -988,7 +995,7 @@ function ChallengeDetailModal({
   onAccept: () => Promise<void>;
   onGiveUp: () => Promise<void>;
   onClose: () => void;
-  onComplete: (challenge: Challenge, reward: { amount: number; account: string; claimed: boolean }) => void;
+  onComplete: (challenge: Challenge, reward: CompletionReward) => void;
   onApplyServerData: (data: { core?: CoreAccount | null; wallet?: WalletAccount | null }) => void;
   onRefreshUserData: () => Promise<void>;
 }) {
@@ -1065,7 +1072,8 @@ function ChallengeDetailModal({
       const reward = {
         amount: payload.rewardAmount ?? rewardAmount(challenge.reward_label, locale),
         account: payload.rewardAccount ?? "core",
-        claimed: Boolean(payload.rewardClaimed)
+        claimed: Boolean(payload.rewardClaimed),
+        coreBalanceAfter: payload.core?.balance ?? null
       };
       onApplyServerData({ core: payload.core, wallet: payload.wallet });
       onComplete(challenge, reward);
@@ -1380,13 +1388,33 @@ function ProjectDetailModal({
   );
 }
 
-function ChallengeCompleteModal({ reward, t, onClose }: { reward: { amount: number; account: string; claimed: boolean }; t: TFunction; onClose: () => void }) {
+function ChallengeCompleteModal({ challenge, reward, locale, t, onClose }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void }) {
   return (
     <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet small challenge-complete-modal">
-        <span className="streak-complete-icon">OK</span>
-        <h2>{t("challenges.completeTitle")}</h2>
+      <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="challenge-receipt-title">
+        <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
+        <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
         <p>{reward.claimed ? t("challenges.rewardClaimed", { amount: reward.amount, account: reward.account === "core" ? "Core" : "Wallet" }) : t("challenges.rewardAlreadyClaimed")}</p>
+        <div className="challenge-receipt">
+          <div className="challenge-receipt-row">
+            <span>{t("challenges.receipt.challenge")}</span>
+            <strong>{text(challenge.title, t("challenges.challenge"), locale)}</strong>
+          </div>
+          <div className="challenge-receipt-row">
+            <span>{t("challenges.receipt.verification")}</span>
+            <strong>{getVerificationLabel(challenge.verification_type, t)}</strong>
+          </div>
+          <div className="challenge-receipt-row emphasis">
+            <span>{t("challenges.receipt.reward")}</span>
+            <strong>+{formatTodayMoney(reward.amount, locale)}</strong>
+          </div>
+          {reward.account === "core" && typeof reward.coreBalanceAfter === "number" ? (
+            <div className="challenge-receipt-row">
+              <span>{t("challenges.receipt.balanceAfter")}</span>
+              <strong>{formatTodayMoney(reward.coreBalanceAfter, locale)}</strong>
+            </div>
+          ) : null}
+        </div>
         <button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
       </div>
     </div>

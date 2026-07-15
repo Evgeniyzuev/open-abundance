@@ -38,7 +38,9 @@ Home/Today становится отдельным default main tab поверх
 - Home показывает draft/server wish, Core target, server Today progress/checklist/streak и один динамический CTA.
 - CTA открывает Today, следующий рекомендованный challenge или Wallet/Core calculator; draft-параметры передаются в калькулятор.
 - Удален глобальный Today popup; состояние первого входа теперь отображается внутри Home.
-- Typecheck, lint и HTTP 200 локального app shell прошли. In-app browser недоступен; два Challenges e2e smoke-сценария остаются заблокированы отсутствующим runtime-каталогом (экран остается в `Loading...`).
+- Typecheck, lint и HTTP 200 локального app shell прошли. Два Challenges e2e smoke-сценария оставались заблокированы отсутствующим runtime-каталогом (экран `Loading...`), но Home/Today и объединенная Home + AI chat навигация вручную приняты пользователем 2026-07-15.
+- 2026-07-15: начисление reward в Core вручную проверено; в `components/ChallengesApp.tsx` добавлен упрощенный UX receipt с challenge, verification, суммой Core и Core после начисления. Ledger ID, финансовая история и server-side изменение личного плана сознательно отложены.
+- 2026-07-15: первая версия Goals Growth Map реализована в `components/GrowthMapApp.tsx`; она показывает уровень, ближайшие Core-пороги и привязанные желания, но пока требует отдельного User QA и не добавляет action-loop к Today/challenges.
 
 ## Product Goal
 

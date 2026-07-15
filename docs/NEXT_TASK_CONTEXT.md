@@ -1,11 +1,14 @@
 # Open Abundance — контекст для следующего task
 
-Дата: 2026-07-13
+Дата: 2026-07-15
 
 ## Текущее состояние
 
 - Канонический трекер: `docs/MASTER_KANBAN.md`.
-- Единственный активный продуктовый шаг: **Home/Today как главный экран**.
+- Единственный активный продуктовый шаг: **MVP receipt после награды Core**.
+- Home/Today и объединение Home с AI chat вручную подтверждены пользователем и находятся в `Подтверждено пользователями`.
+- Награды за завершенные challenges в Core вручную проверены; полноценный ledger/финансовый receipt отложен до финансового этапа.
+- Первая версия Goals Growth Map технически реализована и требует отдельного User QA; сейчас это карта ориентации, не action-loop.
 - Единый onboarding вручную принят пользователем и находится в `Подтверждено пользователями`.
 - Первая Core-цепочка челленджей также подтверждена пользователем.
 - Пилот закрытый: 20–50 русскоязычных пользователей.
@@ -14,11 +17,11 @@
 
 ## Что делать дальше
 
-Home/Today технически реализован по decision-complete плану из `MASTER_KANBAN.md` и `TODAY_DAILY_CHALLENGE_PLAN.md`. Следующий task — Technical QA/User QA и исправление найденных runtime/data blockers; в `Сейчас` по-прежнему остается ровно одна карточка.
+Home/Today закрыт пользователем в канбане. Награда за challenge в Core уже проверена, поэтому текущий task сужен до UX receipt; в `Сейчас` по-прежнему остается ровно одна карточка.
 
-Цель Home/Today: пользователь сразу видит своё желание, Core-цель, прогресс Today и одно следующее действие. CTA должен вести к актуальному действию; после выполнения прогресс и CTA должны измениться. Обработать также пользователя без сохранённого плана.
+Цель следующего шага: пользователь после подтвержденного challenge видит название challenge, способ проверки, сумму Core-награды и Core после начисления, затем без потери контекста возвращается в Home/Today.
 
-Не входит в шаг: Wallet-ввод/вывод, Wallet-награды, реферальные выплаты, публичная лента, полноценное создание server-side Wish/GrowthPlan из onboarding draft.
+Не входит в шаг: ledger ID/финансовая история, Wallet-ввод/вывод, Wallet-награды, реферальные выплаты, изменение server-side GrowthPlan, публичная лента и полноценное создание server-side Wish/GrowthPlan из onboarding draft.
 
 ## Ключевые файлы
 
@@ -27,6 +30,7 @@ Home/Today технически реализован по decision-complete пл
 - `components/OnboardingApp.tsx` — подтверждённый onboarding.
 - `lib/onboardingContent.ts` — тексты onboarding.
 - `components/ChallengesApp.tsx` — челленджи, Today и первый Core-путь.
+- `components/GrowthMapApp.tsx` — первая карта роста в Goals; текущий статус — технически реализовано, нужен User QA.
 - `lib/serverToday.ts` — server-side Today items/progress.
 - `app/api/user/context/route.ts` и `app/api/challenges/route.ts` — актуальные server-backed данные.
 - `tests/e2e/app-smoke.spec.ts` — smoke/e2e гостевого onboarding и app shell.
@@ -42,7 +46,7 @@ Home/Today технически реализован по decision-complete пл
 - Home является отдельным default `home` main tab; Today popup заменяется встроенным Home-состоянием.
 - Home не создает server Wish/GrowthPlan: server plan читается из `/api/today`, fallback — из `profile.onboarding_state.firstPlanDraft`.
 - На Home ровно один primary CTA. Его приоритет: Today pending → следующий challenge после completion → calculator при отсутствии server plan → build plan при отсутствии draft.
-- Home реализован в `components/HomeTodayApp.tsx`; global Today popup удален из `AppNavigation`; browser QA пока не выполнен из-за недоступного in-app browser.
+- Home реализован в `components/HomeTodayApp.tsx`; global Today popup удален из `AppNavigation`; Home и AI chat объединены в одну навигационную группу и вручную приняты пользователем.
 - Перед кодом прочитать `docs/DEVELOPMENT_RULES.md`.
 
 ## Проверки

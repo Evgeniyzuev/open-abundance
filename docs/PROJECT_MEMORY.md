@@ -207,6 +207,7 @@ Wallet пользователя уменьшается
 - 2026-07-15: пользователь подтвердил начисление challenge rewards в Core и MVP UX receipt в `ChallengesApp` (challenge, verification, сумма и Core после начисления); карточка перенесена в `Подтверждено пользователями`, а ledger/финансовая история и server-side изменение личного плана отложены до финансового этапа;
 - 2026-07-15: первая версия Goals Growth Map реализована в `GrowthMapApp` и подключена во вкладку Goals; карта полезна как ориентация по уровням/Core/желаниям, но action-loop с Today/следующим challenge и динамикой плана оставлены для отдельного User QA/следующего этапа;
 - 2026-07-15: активным шагом стал `Verified Reality Feed`; первый slice — server-backed `Challenge Done` без reward amount/ledger, с явным разделением verified system facts, `Демо` и ручного пользовательского контента;
+- 2026-07-15: первый content slice Reality Feed реализован: `lib/realityFeedDemoStories.ts` содержит 23 локализованных fictional story arcs, а `SocialApp` показывает их отдельной responsive-зоной гостю и авторизованному пользователю с маркировкой `Демо-сценарий`; real verified system cards остаются следующим серверным срезом;
 - добавлена минимальная first-party аналитика продуктовой воронки;
 - smoke/e2e разделен на нового гостя с onboarding и возвращающегося гостя с app shell; оба сценария проходят;
 - полная визуальная User QA цепочки остается обязательной.

@@ -31,22 +31,25 @@
 
 ### Verified Reality Feed
 
-- **Статус:** Сейчас — decision-complete план; реализация начинается после этой фиксации.
-- **Пользовательский результат:** в `People → Feed` пользователь видит короткие карточки реальных системных результатов, явно отличенные от `Демо` и пользовательских постов; первый результат — один verified `Challenge Done` после завершения challenge.
+- **Статус:** Сейчас — demo slice реализован, real verified `Challenge Done` остается следующим серверным срезом.
+- **Пользовательский результат:** даже до входа в аккаунт пользователь видит в `People → Feed` 23 коротких `Демо-сценария` для вдохновения; они явно отличаются от будущих системных результатов и пользовательских постов.
 - **Почему сейчас:** Notes и Home/Today уже поддерживают личное действие, а receipt подтверждает награду; следующий риск — пользователь не видит накопленный результат и не получает безопасного социального сигнала для возвращения.
 - **Главное решение:** Verified Reality Feed остается вторичной вкладкой `People → Feed`; первый slice строится только из server-backed completion факта challenge и метаданных challenge, без суммы reward/ledger и финансовых обещаний. `Демо`, системно подтвержденные факты и ручной пользовательский контент никогда не смешиваются.
 - **Изменения:**
+  - добавить `lib/realityFeedDemoStories.ts` с 23 локализованными fictional story arcs;
+  - показать отдельный responsive-блок demo stories в `SocialApp`, доступный гостю и авторизованному пользователю, не смешивая его с server feed posts;
+  - добавить локализованные labels и визуальную маркировку `Демо-сценарий`;
   - сделать server-backed read model или безопасную проекцию для `Challenge Done`, не используя `product_events` как публичный источник истины;
   - обеспечить один системный пост/snapshot на один user challenge completion и сохранить source type/id;
   - показать verified badge, автора, challenge title, verification type, completed date и короткий CTA в challenge/Today;
   - добавить отдельные demo fixtures/cards с явной маркировкой `Демо`, не выдавая их за реальные истории;
   - сохранить visibility-проверки и no-store feed API; пользовательский текст/медиа остаются отдельным типом контента без verified badge.
 - **Не входит:** reward amount и ledger/финансовые данные, Wallet-выплаты, рекомендации `For You`, полноценные comments/reactions/follows, видео, сложный Hero Path, автоматическое создание истории из всех daily accruals и изменение стартового `Goals → Notes` маршрута.
-- **Критерии приемки:** verified `Challenge Done` появляется ровно один раз после completion; в карточке нет неподтвержденных финансовых утверждений; `Демо` визуально и семантически отделено; ручной пост не получает verified badge; чужие private данные не попадают в feed; пустая лента объясняет следующий шаг; CTA открывает challenge/Today.
+- **Критерии приемки:** 23 demo stories отображаются гостю и авторизованному пользователю в отдельной зоне с явной маркировкой; verified `Challenge Done` появляется ровно один раз после completion; в карточке нет неподтвержденных финансовых утверждений; ручной пост не получает verified badge; чужие private данные не попадают в feed; пустая лента объясняет следующий шаг; CTA открывает challenge/Today.
 - **Технические проверки:** review существующих `feed_posts`/`progress_snapshots`/stat blocks, migration/API contract review, `pnpm exec tsc --noEmit`, `pnpm lint`, feed smoke с повторной загрузкой и ручной проверкой visibility/no-store.
 - **Ручной UX-сценарий:** завершить Core challenge, открыть `People → Feed`, найти одну verified карточку `Challenge Done`, проверить источник/дату/тип проверки и CTA, обновить feed и убедиться, что дубля нет; отдельно проверить demo-карточку и ручной пост.
 - **Метрика:** доля завершивших challenge пользователей, увидевших verified result; доля verified карточек без дублей; переходы из карточки в следующий challenge/Today; доля demo-контента, который пользователь правильно отличает от реального.
-- **Блокеры:** текущий feed-фундамент умеет читать `feed_posts` и stat blocks, но canonical public snapshot для challenge completion еще не определен; challenge reward/ledger source сознательно не добавляется в этот этап.
+- **Блокеры:** demo slice не заблокирован; для real verified cards текущий feed-фундамент умеет читать `feed_posts` и stat blocks, но canonical public snapshot для challenge completion еще не определен; challenge reward/ledger source сознательно не добавляется в этот этап.
 - **Связанные документы:** `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`, `docs/PROJECT_MEMORY.md`, `docs/NEXT_TASK_CONTEXT.md`.
 
 ## Следующие шаги

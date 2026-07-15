@@ -653,6 +653,7 @@ create table public.feed_views (
 
 `Verified Reality Feed` стал текущим активным шагом после ручного подтверждения Home/Today, Core reward и MVP receipt. Для первого slice выбран только server-backed `Challenge Done`: карточка строится из факта завершения challenge и его verification metadata, без reward amount, ledger или финансовых обещаний.
 
+- 2026-07-15: добавлен первый content slice в `lib/realityFeedDemoStories.ts` и `components/SocialApp.tsx`: 23 локализованных fictional story arcs в отдельной зоне `People → Feed`, доступной гостю и авторизованному пользователю, с явной маркировкой `Демо-сценарий`. Это не testimonials и не verified system results.
 - `People → Feed` остается вторичной социальной вкладкой; стартовый маршрут приложения — `Goals → Notes` для offline-first работы.
 - Verified system facts, `Демо` истории и ручные пользовательские посты должны иметь разные типы/бейджи и не смешиваться в один недоказуемый narrative.
 - Текущий `feed_posts`/stat-block фундамент можно переиспользовать, но публичный snapshot challenge completion должен иметь отдельный server-backed источник и idempotent source key.

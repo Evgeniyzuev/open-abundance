@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
+import { REALITY_FEED_DEMO_STORIES, type RealityStoryText } from "@/lib/realityFeedDemoStories";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
 
@@ -984,13 +985,16 @@ export default function SocialApp({
   return (
     <section className="social-screen">
       {activeTab === "feed" && !user && !loading ? (
-        <section className="profile-panel">
-          <div className="profile-avatar placeholder">
-            <Newspaper size={34} />
-          </div>
-          <strong>{t("social.feed.title")}</strong>
-          <p>{t("profile.registrationRequired")}</p>
-        </section>
+        <>
+          <section className="profile-panel">
+            <div className="profile-avatar placeholder">
+              <Newspaper size={34} />
+            </div>
+            <strong>{t("social.feed.title")}</strong>
+            <p>{t("profile.registrationRequired")}</p>
+          </section>
+          <RealityDemoSection locale={locale} t={t} />
+        </>
       ) : null}
 
       {activeTab === "feed" && user ? (
@@ -1722,6 +1726,7 @@ function FeedView({
           onUrlChange={onExternalLinkUrlChange}
         />
       </section>
+      <RealityDemoSection locale={locale} t={t} />
       <PostList
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
@@ -1738,6 +1743,45 @@ function FeedView({
         onDeletePost={onDeletePost}
         onPublish={onPublish}
       />
+    </section>
+  );
+}
+
+function RealityDemoSection({ locale, t }: { locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string }) {
+  return (
+    <section className="reality-demo-section" aria-labelledby="reality-demo-title">
+      <div className="reality-demo-heading">
+        <div>
+          <span>{t("social.feed.realityKicker")}</span>
+          <h2 id="reality-demo-title">{t("social.feed.realityTitle")}</h2>
+        </div>
+        <strong>{REALITY_FEED_DEMO_STORIES.length}</strong>
+      </div>
+      <p className="reality-demo-note">{t("social.feed.realityDemoNote")}</p>
+      <div className="reality-demo-grid">
+        {REALITY_FEED_DEMO_STORIES.map((story) => (
+          <article className="reality-demo-card" key={story.id}>
+            <header>
+              <span className="reality-demo-badge"><Check size={14} />{t("social.feed.demoBadge")}</span>
+              <small>{storyText(story.category, locale)}</small>
+            </header>
+            <h3>{storyText(story.title, locale)}</h3>
+            <p>{storyText(story.summary, locale)}</p>
+            <ol>
+              {story.milestones.map((milestone, index) => (
+                <li key={`${story.id}-${index}`}>
+                  <span>{index + 1}</span>
+                  {storyText(milestone, locale)}
+                </li>
+              ))}
+            </ol>
+            <footer>
+              <span>{t("social.feed.demoOutcome")}</span>
+              <strong>{storyText(story.outcome, locale)}</strong>
+            </footer>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -2383,6 +2427,10 @@ function formatLeader(teamContext: TeamContext | null, locale: AppLocale): strin
 
 function formatProfileName(profile: TeamProfile | null, fallback: string): string {
   return profile?.display_name ?? (profile?.username ? `@${profile.username}` : fallback.slice(0, 8));
+}
+
+function storyText(value: RealityStoryText, locale: AppLocale): string {
+  return value[locale] ?? value.en;
 }
 
 function createProfileEditorState(payload: SocialProfilePayload | null): ProfileEditorState {

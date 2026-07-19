@@ -674,6 +674,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .external-link-composer > div { display: grid; grid-template-columns: minmax(0, 1fr) 34px; align-items: center; gap: 7px; }
 .external-link-composer input { min-width: 0; height: 36px; border: 1px solid var(--line); border-radius: 10px; outline: 0; padding: 0 10px; background: #f8f8fb; color: var(--text); font-size: 14px; }
 .reality-demo-badge { min-width: 0; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 7px; background: #fff0c9; color: #8c5e11; font-size: 10px; font-weight: 900; white-space: nowrap; }
+.system-story-badge { min-width: 0; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 7px; background: #e8f7f1; color: #08745d; font-size: 10px; font-weight: 900; white-space: nowrap; }
 .stat-block-picker-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; }
 .stat-block-picker, .post-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .stat-block-toggle, .post-stat-grid span { min-width: 0; display: grid; gap: 3px; border-radius: 12px; padding: 10px; background: #f7f8fb; color: var(--text); text-align: left; }
@@ -703,6 +704,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .feed-post-media.multiple { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .feed-post-media button, .feed-post-media figure { min-width: 0; display: grid; gap: 4px; margin: 0; overflow: hidden; background: transparent; text-align: left; }
 .feed-post-media img { width: 100%; max-height: 300px; display: block; border-radius: 12px; object-fit: cover; aspect-ratio: 16 / 10; background: #f1f2f7; }
+.feed-post-media.portrait img { max-height: 520px; aspect-ratio: 4 / 5; }
 .feed-post-media figcaption { padding: 0 2px; color: var(--muted); font-size: 10px; }
 .feed-post-media figcaption a { color: inherit; }
 .wish-post-preview { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: #f8f8fb; text-align: left; }

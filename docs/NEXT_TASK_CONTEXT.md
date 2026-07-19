@@ -1,6 +1,6 @@
 # Open Abundance — контекст для следующего task
 
-Дата: 2026-07-15
+Дата: 2026-07-19
 
 ## Текущее состояние
 
@@ -9,9 +9,10 @@
 - Home/Today и объединение Home с AI chat вручную подтверждены пользователем и находятся в `Подтверждено пользователями`.
 - Награды за завершенные challenges в Core и MVP receipt вручную проверены; полноценный ledger/финансовый receipt отложен до финансового этапа.
 - Стартовый маршрут возвращен на `Goals → Notes`: Notes local-first и доступны без сети; Home остается отдельной вкладкой, а не offline-first стартом.
-- Первый Reality Feed content slice реализован server-backed: 23 локализованных fictional demo stories хранятся как обычные `feed_posts`, написаны от первого лица, имеют media и бейдж `Демо-история`; real verified system cards еще не подключены.
+- Reality Feed demo slice реализован server-backed: 23 fictional demo stories хранятся как обычные `feed_posts`; 10 согласованных историй обновлены 2026-07-19 с RU/EN-локализацией, media и бейджем `Демо-история`.
+- Системная серия применена к Supabase: 12 глав от аккаунта `Abundance System`, фиксированный порядок `1–12`, отдельный `system_story` type/badge, системный аватар, RU/EN-тексты и 12 изображений 4:5. Это объяснение позиции Abundance, а не testimonial или verified research; отдельный экран системного профиля еще не реализован.
 - Для следующих версий demo-историй принят narrative direction: боль и тупик → случайное знакомство с Abundance → проба из любопытства → маленькие действия → постепенное осознание личной способности менять жизнь → более простая, свободная и осмысленная повседневность. Это fictional inspiration, не testimonial и не гарантия дохода.
-- Десять конкретных RU draft-постов сохранены в `docs/REALITY_FEED_DEMO_STORIES_NARRATIVE_DRAFT.md`: первые пять приняты по общей дуге, следующие пять переписаны более разговорно; в финалы добавлены разные ненавязчивые CTA без обещаний дохода. Ни один draft пока не перенесен в Supabase.
+- Десять конкретных RU-постов из `docs/REALITY_FEED_DEMO_STORIES_NARRATIVE_DRAFT.md` применены к существующим demo rows по стабильным `source_key`; в финалах сохранены ненавязчивые CTA без обещаний дохода.
 - Первая версия Goals Growth Map технически реализована и требует отдельного User QA; сейчас это карта ориентации, не action-loop.
 - Единый onboarding вручную принят пользователем и находится в `Подтверждено пользователями`.
 - Первая Core-цепочка челленджей также подтверждена пользователем.
@@ -21,9 +22,9 @@
 
 ## Что делать дальше
 
-Home/Today и MVP receipt закрыты пользователем в канбане. Следующий task — Verified Reality Feed; в `Сейчас` по-прежнему остается ровно одна карточка.
+Home/Today и MVP receipt закрыты пользователем в канбане. Внутри текущего Verified Reality Feed следующий UI-срез — профиль `Abundance System` с ordered chapters и возвратом в ленту; после него отдельным серверным срезом остается real verified `Challenge Done`. В `Сейчас` по-прежнему одна карточка.
 
-Цель следующего шага: в `People → Feed` пользователь видит verified карточку реального результата `Challenge Done`, отличает ее от 23 server-backed `Демо-историй` и ручного контента и может перейти к следующему challenge/Today.
+Цель следующего UI-шага: из системной карточки открыть профиль `Abundance System`, читать 12 глав по порядку и вернуться в прежнюю позицию ленты. Verified `Challenge Done` остается отдельным server-backed срезом и ведет к challenge/Today.
 
 Не входит в шаг: reward amount и ledger/финансовая история, Wallet-ввод/вывод, Wallet-награды, реферальные выплаты, рекомендации, сложный social graph, изменение server-side GrowthPlan и полноценное создание server-side Wish/GrowthPlan из onboarding draft.
 
@@ -35,8 +36,9 @@ Home/Today и MVP receipt закрыты пользователем в канб�
 - `lib/onboardingContent.ts` — тексты onboarding.
 - `components/ChallengesApp.tsx` — челленджи, Today и первый Core-путь.
 - `components/GrowthMapApp.tsx` — первая карта роста в Goals; текущий статус — технически реализовано, нужен User QA.
-- `components/SocialApp.tsx`, `app/api/social/feed/route.ts` и migration `20260715120000_reality_feed_demo_posts.sql` — текущий feed/media/localization фундамент для Verified Reality Feed.
+- `components/SocialApp.tsx`, `app/api/social/feed/route.ts`, migrations `20260715120000_reality_feed_demo_posts.sql` и `20260719123000_reality_feed_updated_demo_and_system_stories.sql` — текущий feed/media/localization/system-story фундамент.
 - `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md` — продуктовые решения по verified snapshots и системным автопостам.
+- `docs/REALITY_FEED_SYSTEM_STORIES_PLAN.md` — реализованный content/data-план системного аккаунта и 12 глав; отдельный профиль остается pending.
 - `lib/serverToday.ts` — server-side Today items/progress.
 - `app/api/user/context/route.ts` и `app/api/challenges/route.ts` — актуальные server-backed данные.
 - `tests/e2e/app-smoke.spec.ts` — smoke/e2e гостевого onboarding и app shell.

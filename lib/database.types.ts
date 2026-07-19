@@ -745,6 +745,87 @@ export type Database = {
           },
         ]
       }
+      feed_system_accounts: {
+        Row: {
+          account_key: string
+          avatar_url: string | null
+          bio: Json
+          created_at: string
+          display_name: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_key: string
+          avatar_url?: string | null
+          bio?: Json
+          created_at?: string
+          display_name: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_key?: string
+          avatar_url?: string | null
+          bio?: Json
+          created_at?: string
+          display_name?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      feed_system_story_metadata: {
+        Row: {
+          created_at: string
+          evidence_status: string
+          next_story_key: string | null
+          post_id: string
+          series_key: string
+          series_order: number
+          story_kind: string
+          system_account_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_status: string
+          next_story_key?: string | null
+          post_id: string
+          series_key: string
+          series_order: number
+          story_kind: string
+          system_account_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          evidence_status?: string
+          next_story_key?: string | null
+          post_id?: string
+          series_key?: string
+          series_order?: number
+          story_kind?: string
+          system_account_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_system_story_metadata_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: true
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_system_story_metadata_system_account_key_fkey"
+            columns: ["system_account_key"]
+            isOneToOne: false
+            referencedRelation: "feed_system_accounts"
+            referencedColumns: ["account_key"]
+          },
+        ]
+      }
       level_thresholds: {
         Row: {
           core_required: number

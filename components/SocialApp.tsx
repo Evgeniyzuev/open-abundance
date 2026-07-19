@@ -2016,6 +2016,7 @@ function PostCard({
         <div className="feed-author-block">
           <PostAuthor post={post} onOpenAuthor={onOpenAuthor} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
+          {post.post_type === "system_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
         </div>
         <small>{formatPostDate(post, locale)}</small>
       </header>
@@ -2023,7 +2024,7 @@ function PostCard({
         <p>{post.body ?? t("social.post.detail")}</p>
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
       </button>
-      <PostMedia media={post.media} locale={locale} onOpen={() => onOpenPost(post)} />
+      <PostMedia media={post.media} locale={locale} onOpen={() => onOpenPost(post)} portrait={post.post_type === "system_story"} />
       <WishPostPreview
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
@@ -2139,10 +2140,11 @@ function PostDetailModal({
         <div className="post-detail-author-row">
           <PostAuthor detail post={post} onOpenAuthor={onOpenAuthor} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
+          {post.post_type === "system_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
         </div>
         <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>
         <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
-        <PostMedia media={post.media} locale={locale} showSource />
+        <PostMedia media={post.media} locale={locale} portrait={post.post_type === "system_story"} showSource />
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
         <WishPostPreview
           copyingWishId={copyingWishId}
@@ -2241,10 +2243,11 @@ function HistoryPanel({
 }
 
 function PostAuthor({ detail = false, post, onOpenAuthor }: { detail?: boolean; post: FeedPost; onOpenAuthor: (userId: string) => void }) {
+  const isSystemStory = post.post_type === "system_story";
   const content = (
     <>
       <span className="feed-author-avatar">
-        {post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
+        {isSystemStory ? <img alt="" src="/icons/icon2.svg" /> : post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
       </span>
       <span>{post.authorName ?? formatProfileName(post.author, post.author_user_id ?? "Open Abundance")}</span>
     </>
@@ -2259,12 +2262,12 @@ function PostAuthor({ detail = false, post, onOpenAuthor }: { detail?: boolean; 
   );
 }
 
-function PostMedia({ media, locale, onOpen, showSource = false }: { media: FeedMedia[]; locale: AppLocale; onOpen?: () => void; showSource?: boolean }) {
+function PostMedia({ media, locale, onOpen, portrait = false, showSource = false }: { media: FeedMedia[]; locale: AppLocale; onOpen?: () => void; portrait?: boolean; showSource?: boolean }) {
   const images = media.filter((item) => item.media_type === "image");
   if (!images.length) return null;
 
   return (
-    <div className={`feed-post-media${images.length > 1 ? " multiple" : ""}`}>
+    <div className={`feed-post-media${images.length > 1 ? " multiple" : ""}${portrait ? " portrait" : ""}`}>
       {images.map((item) => {
         const image = <img alt={localizedMediaAlt(item.alt_text, locale)} loading="lazy" src={item.media_url} />;
         return onOpen ? (

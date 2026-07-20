@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, MessageCircle, Newspaper, Save, Search, Send, Share2, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Share2, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
@@ -283,6 +284,7 @@ export default function SocialApp({
   const [teamContext, setTeamContext] = useState<TeamContext | null>(null);
   const [socialError, setSocialError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [referralQrOpen, setReferralQrOpen] = useState(false);
   const [teamRewardsOpen, setTeamRewardsOpen] = useState(false);
   const [teamRewards, setTeamRewards] = useState<TeamRewardDay[] | null>(null);
   const [teamRewardsLoading, setTeamRewardsLoading] = useState(false);
@@ -1433,13 +1435,35 @@ export default function SocialApp({
             <span><Link size={15} />{t("profile.referral.title")}</span>
             <p>{referralLink?.url ?? t("app.common.loading")}</p>
             <div className="referral-actions">
-              <button className="secondary-button" type="button" disabled={!referralLink} onClick={copyReferralLink}>
-                <Copy size={16} />
-                {copied ? t("profile.referral.copied") : t("profile.referral.copy")}
+              <button
+                className="secondary-button referral-icon-button"
+                type="button"
+                disabled={!referralLink}
+                aria-label={t("profile.referral.showQr")}
+                title={t("profile.referral.showQr")}
+                onClick={() => setReferralQrOpen(true)}
+              >
+                <QrCode size={19} />
               </button>
-              <button className="secondary-button" type="button" disabled={!referralLink} onClick={shareReferralLink}>
-                <Share2 size={16} />
-                {t("profile.referral.share")}
+              <button
+                className="secondary-button referral-icon-button"
+                type="button"
+                disabled={!referralLink}
+                aria-label={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
+                title={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
+                onClick={copyReferralLink}
+              >
+                {copied ? <Check size={19} /> : <Copy size={19} />}
+              </button>
+              <button
+                className="secondary-button referral-icon-button"
+                type="button"
+                disabled={!referralLink}
+                aria-label={t("profile.referral.share")}
+                title={t("profile.referral.share")}
+                onClick={shareReferralLink}
+              >
+                <Share2 size={19} />
               </button>
             </div>
           </div>
@@ -1448,6 +1472,20 @@ export default function SocialApp({
 
       {combinedError ? <p className="finance-error">{combinedError}</p> : null}
       {publicProfileLoading ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
+      {referralQrOpen && referralLink ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setReferralQrOpen(false)}>
+          <section className="modal-sheet small referral-qr-modal" role="dialog" aria-modal="true" aria-label={t("profile.referral.qrTitle")} onClick={(event) => event.stopPropagation()}>
+            <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={() => setReferralQrOpen(false)}>
+              <X size={18} />
+            </button>
+            <strong>{t("profile.referral.qrTitle")}</strong>
+            <div className="referral-qr-code">
+              <QRCodeSVG value={referralLink.url} size={220} level="M" marginSize={2} />
+            </div>
+            <p>{referralLink.url}</p>
+          </section>
+        </div>
+      ) : null}
       {publicProfile ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setPublicProfile(null)}>
           <section className="modal-sheet public-profile-modal" role="dialog" aria-modal="true" aria-label={t("profile.public.title")} onClick={(event) => event.stopPropagation()}>

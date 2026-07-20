@@ -1,5 +1,12 @@
 const CACHE_NAME = "open-abundance-v6";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon2.svg"];
+const APP_SHELL = [
+  "/",
+  "/manifest.webmanifest",
+  "/icons/icon.svg",
+  "/icons/icon2.svg",
+  "/icons/twenty-levels-app-icon-192.png",
+  "/icons/twenty-levels-app-icon-512.png"
+];
 const NAVIGATION_NETWORK_TIMEOUT_MS = 700;
 
 self.addEventListener("install", (event) => {

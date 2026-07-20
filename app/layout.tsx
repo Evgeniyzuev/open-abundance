@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "Open Abundance",
   description: "Offline-first growth app prototype",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icons/twenty-levels-app-icon-512.png",
+    apple: "/icons/twenty-levels-app-icon-192.png"
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

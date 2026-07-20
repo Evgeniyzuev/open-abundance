@@ -18,6 +18,7 @@ type UserContextValue = {
   profile: UserProfile | null;
   core: CoreAccount | null;
   wallet: WalletAccount | null;
+  authResolved: boolean;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -45,6 +46,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [core, setCore] = useState<CoreAccount | null>(null);
   const [wallet, setWallet] = useState<WalletAccount | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -202,17 +204,28 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (isOffline()) {
         if (mounted) {
           clearServerData();
+          setAuthResolved(true);
           setLoading(false);
         }
         return;
       }
 
-      const guest = await getOrCreateLocalGuest();
       const {
-        data: { session }
+        data: { session },
+        error: sessionError
       } = await supabase.auth.getSession();
 
+      if (sessionError) throw sessionError;
+
       if (!mounted) return;
+
+      if (session?.user) {
+        currentUserIdRef.current = session.user.id;
+        setUser(session.user);
+      }
+      setAuthResolved(true);
+
+      const guest = await getOrCreateLocalGuest();
 
       if (session && !guest.claimedUserId) {
         await claimCurrentUserIfNeeded();
@@ -224,6 +237,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     bootstrapUser().catch((bootstrapError) => {
       console.warn("User bootstrap failed", bootstrapError);
       if (mounted) {
+        setAuthResolved(true);
         setError(bootstrapError instanceof Error ? bootstrapError.message : "User bootstrap failed.");
         setLoading(false);
       }
@@ -231,7 +245,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        currentUserIdRef.current = session.user.id;
+        setUser(session.user);
+      }
+      setAuthResolved(true);
+
       if (event === "SIGNED_IN") {
         claimCurrentUserIfNeeded()
           .then(() => refreshUserData())
@@ -242,6 +262,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
 
       if (event === "SIGNED_OUT") {
+        currentUserIdRef.current = null;
         setUser(null);
         setProfile(null);
         setCore(null);
@@ -348,6 +369,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       profile,
       core,
       wallet,
+      authResolved,
       loading,
       refreshing,
       error,
@@ -357,7 +379,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLocale,
       t
     }),
-    [applyServerData, core, error, loading, locale, profile, refreshUserData, refreshing, setLocale, t, user, wallet]
+    [applyServerData, authResolved, core, error, loading, locale, profile, refreshUserData, refreshing, setLocale, t, user, wallet]
   );
 
   return (

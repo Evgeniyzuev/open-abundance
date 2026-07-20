@@ -252,6 +252,16 @@ For these server-backed screens, stale UI can be caused by HTTP/CDN/route cachin
 
 This keeps notes/tasks instant and offline-friendly while preventing server-backed UI from being overwritten by stale server responses.
 
+## Startup Contract
+
+The app shell and local-first views must not wait for Supabase session refresh or `/api/user/context`.
+
+- A returning device uses the local onboarding-completion marker to render the app shell immediately.
+- On a new device, the gate waits only for the locally persisted auth session so it can choose between onboarding and the app shell.
+- User profile, Core, Wallet, and other server context load in the background.
+- Notes and Checks stay mounted after the shell opens and hydrate from IndexedDB independently of network state.
+- Server-backed tabs may show their own first-payload loading state, but their requests must never blank or suspend local-first tabs.
+
 ## Cleanup Notes After Cache Fix
 
 The stale challenge/core/wallet issue was most likely caused by cached server-backed API responses, not by local-first notes/tasks.

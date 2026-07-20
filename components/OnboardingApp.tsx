@@ -24,7 +24,7 @@ type OnboardingDraft = {
 const steps: StepId[] = ["intro", "story", "wish", "plan", "result"];
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
-  const { applyServerData, loading, locale, profile, user } = useUserContext();
+  const { applyServerData, authResolved, locale, profile, user } = useUserContext();
   const [guestSeen, setGuestSeen] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -35,12 +35,25 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   const profileCompleted = hasCompletedFirstExperience(profile);
 
   useEffect(() => {
+    if (!profileCompleted || guestSeen !== false) return;
+    markGuestSeen();
+    setGuestSeen(true);
+  }, [guestSeen, profileCompleted]);
+
+  useEffect(() => {
     if (!user || !profile || !guestSeen || profileCompleted) return;
     const draft = readOnboardingDraft();
     void saveProfileCompletion(profile, applyServerData, draft);
   }, [applyServerData, guestSeen, profile, profileCompleted, user]);
 
-  if (loading || guestSeen === null) return null;
+  if (guestSeen === null) return null;
+
+  // A returning device can open local-first views without waiting for auth or API refreshes.
+  if (guestSeen) return <>{children}</>;
+
+  // For a new device, only the locally persisted auth session is needed to choose
+  // between onboarding and the app shell. Profile/context loading remains background work.
+  if (!authResolved) return null;
 
   const shouldShowGuestOnboarding = !user && !guestSeen;
   const shouldShowUserOnboarding = Boolean(user && profile && !profileCompleted && !guestSeen);

@@ -369,12 +369,16 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
             refreshNonce={refreshNonce}
           />
         </div>
-        {showNotes ? notesSlot : null}
+        <KeepAliveView active={showNotes} visited>
+          {notesSlot}
+        </KeepAliveView>
         <KeepAliveView active={showWishes} visited={visitedServerViews.wishes}>
           <WishesApp active={showWishes} refreshNonce={refreshNonce} />
         </KeepAliveView>
         {showIdeas ? <AiChatApp active={showIdeas} /> : null}
-        {showChecks ? <TasksApp /> : null}
+        <KeepAliveView active={showChecks} visited>
+          <TasksApp />
+        </KeepAliveView>
         <KeepAliveView active={showMap} visited={visitedServerViews.map}>
           <GrowthMapApp active={showMap} refreshNonce={refreshNonce} />
         </KeepAliveView>

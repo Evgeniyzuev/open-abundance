@@ -94,8 +94,6 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .onboarding-copy > span { width: fit-content; border-radius: 999px; padding: 6px 9px; background: rgba(103,93,255,0.1); color: #5149bb; font-size: 11px; font-weight: 950; letter-spacing: 0.055em; text-transform: uppercase; }
 .onboarding-copy h1 { max-width: 520px; margin: 0; color: #17142c; font-size: clamp(31px, 7vw, 43px); line-height: 0.98; letter-spacing: -0.035em; text-wrap: balance; }
 .onboarding-copy p { max-width: 520px; margin: 0; color: #46435a; font-size: 16px; line-height: 1.4; }
-.onboarding-copy .onboarding-statement { width: fit-content; display: inline-flex; align-items: center; gap: 7px; margin-top: 2px; border-radius: 14px; padding: 9px 11px; background: linear-gradient(100deg, rgba(103,93,255,0.1), rgba(10,132,255,0.08)); color: #312875; font-size: 13px; font-weight: 850; }
-.onboarding-statement svg { flex: 0 0 auto; color: #675dff; }
 .onboarding-copy .onboarding-program-prompt { color: #312875; font-size: 14px; font-weight: 850; }
 .onboarding-primary-action, .onboarding-secondary-action { width: 100%; min-height: 54px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 18px; padding: 0 18px; font-size: 16px; font-weight: 950; transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease; }
 .onboarding-primary-action { align-self: end; background: linear-gradient(115deg, #675dff 0%, #0a84ff 58%, #15a9c7 100%); color: white; box-shadow: 0 16px 30px rgba(66,86,218,0.28); }

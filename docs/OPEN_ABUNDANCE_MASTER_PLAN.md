@@ -162,4 +162,6 @@ coverage_ratio =
 - Контекст и открытые вопросы: `docs/PROJECT_MEMORY.md`.
 - Текущий статус и очередь: `docs/MASTER_KANBAN.md`.
 - Правила разработки: `docs/DEVELOPMENT_RULES.md`.
+- Визуальный язык и эталонные prompts: `docs/VISUAL_LANGUAGE.md`.
+- Смысловые слои желаний и рекомендуемый UX: `docs/WISH_PROGRESS_PYRAMID.md`.
 - Технические тематические планы в `docs` используются как справочный контекст и не меняют порядок канбана.

@@ -8,7 +8,6 @@ type OnboardingContent = {
     eyebrow: LocalizedText;
     title: LocalizedText;
     body: LocalizedText;
-    statement: LocalizedText;
     imageAlt: LocalizedText;
   };
   stories: {
@@ -42,15 +41,11 @@ export const ONBOARDING_DRAFT_STORAGE_KEY = "openAbundanceOnboardingDraft";
 export const onboardingContent: OnboardingContent = {
   brand: { ru: "Open Abundance", en: "Open Abundance" },
   mission: {
-    eyebrow: { ru: "Первая система ИИ-изобилия", en: "The first AI abundance system" },
-    title: { ru: "Мечты становятся целями", en: "Dreams become goals" },
+    eyebrow: { ru: "Первый ИИ-инструмент изобилия", en: "The first AI abundance tool" },
+    title: { ru: "Создавай изобилие в своей жизни", en: "Create abundance in your life" },
     body: {
-      ru: "Расскажи, чего ты хочешь. Искусственный интеллект поможет превратить желание в понятный путь к результату.",
-      en: "Share what you want. AI will help turn your wish into a clear path toward a result."
-    },
-    statement: {
-      ru: "ИИ преодолевает искусственный дефицит.",
-      en: "AI overcomes artificial scarcity."
+      ru: "Выбирай желания — Open Abundance превратит их в понятный маршрут. Двигайся к своим целям на полной скорости!✈️",
+      en: "Choose your wishes — Open Abundance will turn them into a clear route. Move toward your goals at full speed ✈️"
     },
     imageAlt: {
       ru: "Светящийся ИИ превращает желания человека в маршрут возможностей",

@@ -6,7 +6,7 @@ test("new guest sees the first onboarding promise", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Dreams become goals" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create abundance in your life" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
   expect(pageErrors).toEqual([]);
 });

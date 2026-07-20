@@ -242,8 +242,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .wish-publish-toggle input { width: 18px; height: 18px; accent-color: var(--blue); }
 .challenges-screen { width: min(100vw, 610px); margin: 0 auto; padding: 0 6px 20px; }
 .challenges-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 4px 14px; }
-.challenges-header span { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
-.challenges-header h1 { margin: 2px 0 0; }
+.challenges-header h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .challenges-header small { color: var(--muted); font-size: 12px; font-weight: 800; }
 .challenge-section { display: grid; gap: 8px; margin: 0 0 16px; }
 .challenge-section h2 { margin: 0 4px; color: var(--muted); font-size: 13px; font-weight: 900; text-transform: uppercase; }

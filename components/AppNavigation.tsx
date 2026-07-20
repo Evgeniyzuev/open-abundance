@@ -1,10 +1,10 @@
 "use client";
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper, ShoppingBag, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper, Rocket, ShoppingBag, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
-import ChallengesApp from "@/components/ChallengesApp";
+import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
 import GrowthMapApp from "@/components/GrowthMapApp";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
@@ -81,6 +81,11 @@ const walletTabs: TopTab[] = [
   { id: "market", titleKey: "app.nav.market", icon: ShoppingBag }
 ];
 
+const challengeTabs: TopTab[] = [
+  { id: "challenges", titleKey: "challenges.tabs.challenges", icon: Trophy },
+  { id: "projects", titleKey: "challenges.tabs.projects", icon: Rocket }
+];
+
 const socialTabs: TopTab[] = [
   { id: "feed", titleKey: "social.feed.title", icon: Newspaper },
   { id: "people", titleKey: "social.people.title", icon: Users },
@@ -107,6 +112,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
   const [activeWalletTab, setActiveWalletTab] = useState<WalletTabId>(DEFAULT_NAVIGATION_STATE.walletTab);
   const [activeSocialTab, setActiveSocialTab] = useState<SocialTabId>(DEFAULT_NAVIGATION_STATE.socialTab);
+  const [activeChallengeTab, setActiveChallengeTab] = useState<ChallengeTab>("challenges");
   const [navHidden, setNavHidden] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
@@ -153,6 +159,10 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   }, []);
 
   const updateNavFromScrollIntent = useCallback((delta: number) => {
+    if (window.scrollY <= 0) {
+      setNavHidden(false);
+      return;
+    }
     if (Math.abs(delta) <= NAV_HIDE_DELTA_PX) return;
     if (delta < 0) {
       setNavHidden(false);
@@ -216,10 +226,15 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   }, [activeGoalTab, activeHomeTab, activeMainTab, activeSocialTab, activeWalletTab]);
 
   useEffect(() => {
-    let lastScrollY = window.scrollY;
+    let lastScrollY = Math.max(0, window.scrollY);
 
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+      const currentScrollY = Math.max(0, window.scrollY);
+      if (currentScrollY === 0) {
+        setNavHidden(false);
+        lastScrollY = 0;
+        return;
+      }
       const delta = currentScrollY - lastScrollY;
 
       if (Math.abs(delta) > NAV_HIDE_DELTA_PX) {
@@ -313,7 +328,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const showWallet = activeMainTab === "wallet";
   const showPeople = activeMainTab === "people";
   const topTabs = getTopTabs(activeMainTab);
-  const activeTopTab = getActiveTopTab(activeMainTab, activeHomeTab, activeGoalTab, activeWalletTab, activeSocialTab);
+  const activeTopTab = getActiveTopTab(activeMainTab, activeHomeTab, activeGoalTab, activeChallengeTab, activeWalletTab, activeSocialTab);
 
   useEffect(() => {
     if (!showWishes && !showMap && !showChallenges && !showWallet && !showPeople) return;
@@ -330,6 +345,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   function handleTopTabChange(tab: string) {
     if (activeMainTab === "home") setActiveHomeTab(tab as HomeTabId);
     if (activeMainTab === "goals") setActiveGoalTab(tab as GoalTabId);
+    if (activeMainTab === "challenges") setActiveChallengeTab(tab as ChallengeTab);
     if (activeMainTab === "wallet") setActiveWalletTab(tab as WalletTabId);
     if (activeMainTab === "people") setActiveSocialTab(tab as SocialTabId);
   }
@@ -386,6 +402,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
         <KeepAliveView active={showChallenges} visited={visitedServerViews.challenges}>
           <ChallengesApp
             active={showChallenges}
+            activeTab={activeChallengeTab}
             focusNextChallengeNonce={challengeFocusNonce}
             refreshNonce={refreshNonce}
             onRefresh={() => requestServerRefresh("challenges")}
@@ -499,6 +516,7 @@ function getMainTabTitle(tab: MainTabId, t: TFunction): string {
 function getTopTabs(tab: MainTabId): TopTab[] {
   if (tab === "home") return homeTabs;
   if (tab === "goals") return goalTabs;
+  if (tab === "challenges") return challengeTabs;
   if (tab === "wallet") return walletTabs;
   if (tab === "people") return socialTabs;
   return [];
@@ -508,11 +526,13 @@ function getActiveTopTab(
   mainTab: MainTabId,
   homeTab: HomeTabId,
   goalTab: GoalTabId,
+  challengeTab: ChallengeTab,
   walletTab: WalletTabId,
   socialTab: SocialTabId
 ): string | undefined {
   if (mainTab === "home") return homeTab;
   if (mainTab === "goals") return goalTab;
+  if (mainTab === "challenges") return challengeTab;
   if (mainTab === "wallet") return walletTab;
   if (mainTab === "people") return socialTab;
   return undefined;

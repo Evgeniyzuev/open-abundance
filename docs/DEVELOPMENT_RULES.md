@@ -94,6 +94,15 @@ If the browser tool is unavailable, for example `Browser is not available: iab`:
 - stop the dev server after the fallback check;
 - do not present the change as visually verified.
 
+Known Windows sandbox failure (observed 2026-07-20):
+
+```text
+node_repl kernel exited unexpectedly
+windows sandbox failed: CreateProcessWithLogonW failed: 2
+```
+
+Treat this exact failure as definitive browser unavailability for the current task. Do not retry browser bootstrap, reset the browser kernel, read additional browser troubleshooting, or switch to another browser automation mechanism. Go directly to the fallback checks above. If this failure has already occurred earlier in the same conversation/session, skip further in-app browser attempts for later UI changes in that session.
+
 ```text
 f:\git\
   abundance-effect\          old app, reference only

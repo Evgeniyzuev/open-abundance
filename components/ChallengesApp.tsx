@@ -12,7 +12,7 @@ type LocaleText = Record<string, string> | null;
 type RewardLabel = LocaleText | string | number | null;
 type ChallengeStatus = "accepted" | "completed" | "declined" | "failed";
 type ProjectApplicationStatus = "pending" | "approved" | "rejected" | "withdrawn";
-type ChallengeTab = "challenges" | "projects";
+export type ChallengeTab = "challenges" | "projects";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 type Challenge = {
@@ -159,13 +159,13 @@ const COMPOUND_QUIZ_QUESTIONS: ChallengeQuizQuestion[] = [
 
 type ChallengesAppProps = {
   active: boolean;
+  activeTab: ChallengeTab;
   focusNextChallengeNonce?: number;
   refreshNonce: number;
   onRefresh: () => Promise<void>;
 };
 
-export default function ChallengesApp({ active, focusNextChallengeNonce = 0, refreshNonce, onRefresh }: ChallengesAppProps) {
-  const [activeTab, setActiveTab] = useState<ChallengeTab>("challenges");
+export default function ChallengesApp({ active, activeTab, focusNextChallengeNonce = 0, refreshNonce, onRefresh }: ChallengesAppProps) {
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
@@ -631,23 +631,9 @@ export default function ChallengesApp({ active, focusNextChallengeNonce = 0, ref
   return (
     <section className="challenges-screen">
       <header className="challenges-header">
-        <div>
-          <span>{activeTab === "challenges" ? t("challenges.tabs.challenges") : t("challenges.tabs.projects")}</span>
-          <h1>{activeTab === "challenges" ? t("challenges.title") : t("projects.title")}</h1>
-        </div>
+        <h1>{activeTab === "challenges" ? t("challenges.title") : t("projects.title")}</h1>
         {(activeTab === "challenges" ? isRefreshing : isProjectsRefreshing) ? <small>{t("wishes.refreshing")}</small> : null}
       </header>
-
-      <nav className="segmented-tabs challenge-tabs" aria-label={t("challenges.title")}>
-        <button className={activeTab === "challenges" ? "active" : ""} type="button" onClick={() => setActiveTab("challenges")}>
-          <Trophy size={17} />
-          {t("challenges.tabs.challenges")}
-        </button>
-        <button className={activeTab === "projects" ? "active" : ""} type="button" onClick={() => setActiveTab("projects")}>
-          <Rocket size={17} />
-          {t("challenges.tabs.projects")}
-        </button>
-      </nav>
 
       {activeTab === "challenges" ? (
         <>

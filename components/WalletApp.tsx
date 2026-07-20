@@ -334,6 +334,17 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     }
   }, [calculatorRequestDailyAdditions, calculatorRequestNonce, calculatorRequestTargetCore]);
 
+  useEffect(() => {
+    if (!active || activeTab !== "core" || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("calculator") !== "target") return;
+
+    setCalculatorOpen(true);
+    setCalculatorMode("target");
+    setTargetKind("core");
+    setTargetCalculationTouched(false);
+  }, [active, activeTab]);
+
   function toggleCoreHistory() {
     const nextOpen = !historyOpen;
     setHistoryOpen(nextOpen);
@@ -498,7 +509,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
 
   return (
     <section className="finance-screen">
-      {!user && !loading ? (
+      {!user && !loading && activeTab !== "core" ? (
         <FinanceState title={t("wallet.registration.title")} description={t("wallet.registration.description")} />
       ) : null}
 
@@ -595,23 +606,25 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
         </>
       ) : null}
 
-      {user && activeTab === "core" ? (
+      {activeTab === "core" ? (
         <>
-          {core ? <CoreLevelProgress core={core} locale={locale} t={t} wallet={wallet} onTopup={() => setTopupOpen(true)} /> : null}
-          <ReinvestPanel
-            value={reinvestValue}
-            savedPercent={savedReinvestPercent}
-            dailyIncome={currentDailyIncome}
-            valid={reinvestDraftValid}
-            changed={reinvestChanged}
-            saving={reinvestSaving}
-            error={reinvestError}
-            locale={locale}
-            t={t}
-            onChange={updateReinvestDraft}
-            onReset={resetReinvestPercent}
-            onSave={saveReinvestPercent}
-          />
+          {user && core ? <CoreLevelProgress core={core} locale={locale} t={t} wallet={wallet} onTopup={() => setTopupOpen(true)} /> : null}
+          {user ? (
+            <ReinvestPanel
+              value={reinvestValue}
+              savedPercent={savedReinvestPercent}
+              dailyIncome={currentDailyIncome}
+              valid={reinvestDraftValid}
+              changed={reinvestChanged}
+              saving={reinvestSaving}
+              error={reinvestError}
+              locale={locale}
+              t={t}
+              onChange={updateReinvestDraft}
+              onReset={resetReinvestPercent}
+              onSave={saveReinvestPercent}
+            />
+          ) : null}
           <CoreCalculatorPanel
             open={calculatorOpen}
             mode={calculatorMode}
@@ -662,32 +675,34 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               saveCalculatorGrowthPlan();
             }}
           />
-          <HistoryPanel
-            title={t("wallet.history.core")}
-            open={historyOpen}
-            loading={historyLoading}
-            error={historyError}
-            emptyText={t("wallet.history.coreEmpty")}
-            loadingText={t("app.common.loading")}
-            rowCount={historyRows?.length ?? 0}
-            onToggle={toggleCoreHistory}
-          >
-            <div className="payout-list">
-              {(historyRows ?? []).map((row) => (
-                <article className="payout-row" key={`${row.accrual_date}-${row.created_at}`}>
-                  <div>
-                    <strong>{formatDay(row.accrual_date, locale)}</strong>
-                    <span>{t("wallet.dailyRate")} {formatPercent(row.daily_rate * 100, locale)}</span>
-                  </div>
-                  <div>
-                    <strong>+{formatAdaptiveMoney(row.core_amount, locale)}</strong>
-                    <span>{t("wallet.toCore")}</span>
-                  </div>
-                  <p>{`${formatAdaptiveMoney(row.core_before, locale)} -> ${formatAdaptiveMoney(row.core_after, locale)} · ${t("wallet.wallet")} +${formatAdaptiveMoney(row.wallet_amount, locale)}`}</p>
-                </article>
-              ))}
-            </div>
-          </HistoryPanel>
+          {user ? (
+            <HistoryPanel
+              title={t("wallet.history.core")}
+              open={historyOpen}
+              loading={historyLoading}
+              error={historyError}
+              emptyText={t("wallet.history.coreEmpty")}
+              loadingText={t("app.common.loading")}
+              rowCount={historyRows?.length ?? 0}
+              onToggle={toggleCoreHistory}
+            >
+              <div className="payout-list">
+                {(historyRows ?? []).map((row) => (
+                  <article className="payout-row" key={`${row.accrual_date}-${row.created_at}`}>
+                    <div>
+                      <strong>{formatDay(row.accrual_date, locale)}</strong>
+                      <span>{t("wallet.dailyRate")} {formatPercent(row.daily_rate * 100, locale)}</span>
+                    </div>
+                    <div>
+                      <strong>+{formatAdaptiveMoney(row.core_amount, locale)}</strong>
+                      <span>{t("wallet.toCore")}</span>
+                    </div>
+                    <p>{`${formatAdaptiveMoney(row.core_before, locale)} -> ${formatAdaptiveMoney(row.core_after, locale)} · ${t("wallet.wallet")} +${formatAdaptiveMoney(row.wallet_amount, locale)}`}</p>
+                  </article>
+                ))}
+              </div>
+            </HistoryPanel>
+          ) : null}
         </>
       ) : null}
 

@@ -1,54 +1,38 @@
 import type { AppLocale } from "@/lib/i18n";
 
 export type LocalizedText = Record<AppLocale, string>;
-export type EffortOptionId = "light" | "steady" | "focused";
 
 type OnboardingContent = {
-  intro: {
-    badge: LocalizedText;
-    title: LocalizedText;
-    body: LocalizedText;
-  };
-  story: {
-    eyebrow: LocalizedText;
-    title: LocalizedText;
-    points: Array<{
-      title: LocalizedText;
-      body: LocalizedText;
-    }>;
-  };
-  wish: {
+  brand: LocalizedText;
+  mission: {
     eyebrow: LocalizedText;
     title: LocalizedText;
     body: LocalizedText;
-    placeholder: LocalizedText;
+    statement: LocalizedText;
+    imageAlt: LocalizedText;
   };
-  plan: {
-    eyebrow: LocalizedText;
-    title: LocalizedText;
-    targetLabel: LocalizedText;
-    targetPlaceholder: LocalizedText;
-    dailyLabel: LocalizedText;
-    dailyPlaceholder: LocalizedText;
-    effortLabel: LocalizedText;
-    effortOptions: Array<{
-      id: EffortOptionId;
-      label: LocalizedText;
-      multiplier: number;
-    }>;
-  };
-  result: {
+  stories: {
     eyebrow: LocalizedText;
     title: LocalizedText;
     body: LocalizedText;
-    disclaimer: LocalizedText;
+    imageAlt: LocalizedText;
+  };
+  program: {
+    eyebrow: LocalizedText;
+    title: LocalizedText;
+    body: LocalizedText;
+    prompt: LocalizedText;
+    imageAlt: LocalizedText;
   };
   actions: {
     back: LocalizedText;
+    calculatePath: LocalizedText;
     continue: LocalizedText;
-    createAccount: LocalizedText;
-    openFirstStep: LocalizedText;
-    startPlan: LocalizedText;
+    startFirstTask: LocalizedText;
+    viewStories: LocalizedText;
+  };
+  errors: {
+    complete: LocalizedText;
   };
 };
 
@@ -56,73 +40,60 @@ export const ONBOARDING_SEEN_STORAGE_KEY = "openAbundanceOnboardingSeen";
 export const ONBOARDING_DRAFT_STORAGE_KEY = "openAbundanceOnboardingDraft";
 
 export const onboardingContent: OnboardingContent = {
-  intro: {
-    badge: { ru: "Закрытый пилот", en: "Closed pilot" },
-    title: { ru: "Собери первый план роста", en: "Build your first growth plan" },
+  brand: { ru: "Open Abundance", en: "Open Abundance" },
+  mission: {
+    eyebrow: { ru: "Первая система ИИ-изобилия", en: "The first AI abundance system" },
+    title: { ru: "Мечты становятся целями", en: "Dreams become goals" },
     body: {
-      ru: "Open Abundance начинается не с рефералов и кошелька, а с простого маршрута: желание, Core-план, действие сегодня и первый подтвержденный результат.",
-      en: "Open Abundance starts with a simple route: a wish, a Core plan, today's action, and a first verified result."
+      ru: "Расскажи, чего ты хочешь. Искусственный интеллект поможет превратить желание в понятный путь к результату.",
+      en: "Share what you want. AI will help turn your wish into a clear path toward a result."
+    },
+    statement: {
+      ru: "ИИ преодолевает искусственный дефицит.",
+      en: "AI overcomes artificial scarcity."
+    },
+    imageAlt: {
+      ru: "Светящийся ИИ превращает желания человека в маршрут возможностей",
+      en: "A glowing AI turns a person's wishes into a path of opportunities"
     }
   },
-  story: {
-    eyebrow: { ru: "Как это работает", en: "How it works" },
-    title: { ru: "Один недельный цикл", en: "One weekly loop" },
-    points: [
-      {
-        title: { ru: "Желание дает смысл", en: "A wish gives direction" },
-        body: { ru: "Ты выбираешь результат, ради которого ежедневный рост становится личным.", en: "You choose the result that makes daily growth personal." }
-      },
-      {
-        title: { ru: "Core показывает траекторию", en: "Core shows the trajectory" },
-        body: { ru: "План связывает цель, ежедневные действия и рост Core.", en: "The plan connects your goal, daily actions, and Core growth." }
-      },
-      {
-        title: { ru: "Today держит фокус", en: "Today keeps focus" },
-        body: { ru: "Каждый день есть одно главное действие и понятный прогресс до Core-цели.", en: "Each day has one main action and visible progress toward the Core target." }
-      }
-    ]
-  },
-  wish: {
-    eyebrow: { ru: "Главное желание", en: "Main wish" },
-    title: { ru: "Что ты хочешь приблизить первым?", en: "What do you want to move closer first?" },
+  stories: {
+    eyebrow: { ru: "Истории Abundance", en: "Abundance stories" },
+    title: { ru: "У других уже получилось", en: "Others are already succeeding" },
     body: {
-      ru: "Это может быть вещь, поездка, навык, первые клиенты, закрытие долга или запас свободы.",
-      en: "It can be a thing, a trip, a skill, first clients, debt relief, or a freedom buffer."
+      ru: "Посмотри, как участники Open Abundance решают проблемы, достигают целей и меняют свою жизнь.",
+      en: "See how Open Abundance members solve problems, reach goals, and change their lives."
     },
-    placeholder: { ru: "Например: ноутбук для работы, 3 первых клиента, закрыть долг", en: "Example: work laptop, first 3 clients, pay down debt" }
+    imageAlt: {
+      ru: "Три участника радуются достигнутым творческим, рабочим и личным целям",
+      en: "Three members celebrate creative, professional, and personal goals"
+    }
   },
-  plan: {
-    eyebrow: { ru: "Финансовый план", en: "Financial plan" },
-    title: { ru: "Сколько Core нужно и какой ритм посилен?", en: "How much Core and what daily rhythm?" },
-    targetLabel: { ru: "Цель в Core, $", en: "Core target, $" },
-    targetPlaceholder: { ru: "1000", en: "1000" },
-    dailyLabel: { ru: "Дневная Core-цель, $", en: "Daily Core target, $" },
-    dailyPlaceholder: { ru: "1", en: "1" },
-    effortLabel: { ru: "Ритм на неделю", en: "Weekly rhythm" },
-    effortOptions: [
-      { id: "light", label: { ru: "Легко", en: "Light" }, multiplier: 0.75 },
-      { id: "steady", label: { ru: "Ровно", en: "Steady" }, multiplier: 1 },
-      { id: "focused", label: { ru: "Фокус", en: "Focused" }, multiplier: 1.5 }
-    ]
-  },
-  result: {
-    eyebrow: { ru: "Следующий шаг", en: "Next step" },
-    title: { ru: "Начни с первого Core-пути", en: "Start with the first Core path" },
+  program: {
+    eyebrow: { ru: "Твой маршрут", en: "Your route" },
+    title: { ru: "20 уровней до 1 000 000 $", en: "20 levels to $1,000,000" },
     body: {
-      ru: "Мы сохраним черновик плана на этом устройстве. Дальше открой челленджи: добавь желание, рассчитай срок и добери Today Core target.",
-      en: "We'll keep this draft on this device. Next, open challenges: add your wish, calculate the timeline, and reach the Today Core target."
+      ru: "Выполняй простые задания, развивай навыки и получай денежные награды. Чем выше уровень — тем больше возможностей и доход.",
+      en: "Complete simple tasks, build skills, and earn cash rewards. Higher levels bring more opportunities and income."
     },
-    disclaimer: {
-      ru: "Это не обещание дохода, а рабочий план для закрытого пилота.",
-      en: "This is not an income promise. It is a working plan for the closed pilot."
+    prompt: {
+      ru: "Узнай, как быстро ты сможешь пройти всю программу.",
+      en: "Find out how quickly you can complete the full program."
+    },
+    imageAlt: {
+      ru: "Путь из двадцати уровней поднимается к сияющей вершине",
+      en: "A twenty-level path climbs toward a radiant summit"
     }
   },
   actions: {
     back: { ru: "Назад", en: "Back" },
-    continue: { ru: "Дальше", en: "Continue" },
-    createAccount: { ru: "Сохранить через Google", en: "Save with Google" },
-    openFirstStep: { ru: "Открыть первый путь", en: "Open first path" },
-    startPlan: { ru: "Собрать план", en: "Build plan" }
+    calculatePath: { ru: "Рассчитать мой путь", en: "Calculate my path" },
+    continue: { ru: "Продолжить", en: "Continue" },
+    startFirstTask: { ru: "Начать первое задание", en: "Start the first task" },
+    viewStories: { ru: "Смотреть истории", en: "View stories" }
+  },
+  errors: {
+    complete: { ru: "Не удалось открыть следующий экран.", en: "Could not open the next screen." }
   }
 };
 

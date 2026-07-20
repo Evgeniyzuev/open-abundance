@@ -6,39 +6,28 @@ test("new guest sees the first onboarding promise", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Build your first growth plan" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Build plan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dreams become goals" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 
-test("new guest can build a draft plan and open the first Core path", async ({ page }) => {
+test("new guest can see the three-screen story and open the growth calculator", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Build plan" }).click();
-  await expect(page.getByRole("heading", { name: "One weekly loop" })).toBeVisible();
-
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByLabel("Main wish").fill("Work laptop");
+  await expect(page.getByRole("heading", { name: "Others are already succeeding" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("textbox", { name: "Core target, $", exact: true }).fill("1200");
-  await page.getByRole("textbox", { name: "Daily Core target, $", exact: true }).fill("2");
-  await page.getByText("Focused", { exact: true }).click();
+  await page.getByRole("button", { name: "View stories" }).click();
+  await expect(page.getByRole("heading", { name: "20 levels to $1,000,000" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Start with the first Core path" })).toBeVisible();
-  await expect(page.getByText("Work laptop", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Calculate my path" }).click();
 
-  await page.getByRole("button", { name: "Open first path" }).click();
-
-  await expect(page.getByRole("heading", { name: "First Core Path" })).toBeVisible();
-  await expect(page.getByText("Save Your Progress", { exact: true })).toBeVisible();
-
-  const draft = await page.evaluate(() => window.localStorage.getItem("openAbundanceOnboardingDraft"));
-  expect(draft).toContain("Work laptop");
+  await expect(page.getByText("Growth calculator", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Calculate time" })).toBeVisible();
+  await expect(page).toHaveURL(/view=wallet\.core/);
   expect(pageErrors).toEqual([]);
 });
 

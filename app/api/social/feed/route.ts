@@ -14,6 +14,8 @@ type FeedStatBlockRow = Tables<"feed_post_stat_blocks">;
 type FeedExternalLinkRow = Tables<"feed_post_external_links">;
 type FeedMediaRow = Tables<"feed_post_media">;
 type FeedTranslationRow = Tables<"feed_post_translations">;
+type FeedSystemAccountRow = Tables<"feed_system_accounts">;
+type FeedSystemStoryMetadataRow = Tables<"feed_system_story_metadata">;
 type FeedWishRow = Tables<"wishes"> & { viewer_has_copy: boolean };
 type FeedProfile = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "level" | "created_at">;
 type ExternalProvider = "tiktok" | "instagram" | "telegram" | "youtube" | "x" | "website" | "unknown";
@@ -35,11 +37,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     }
 
-    const scope = request.nextUrl.searchParams.get("scope") === "blog" ? "blog" : "feed";
+    const requestedScope = request.nextUrl.searchParams.get("scope");
+    const scope = requestedScope === "blog" ? "blog" : requestedScope === "system" ? "system" : "feed";
     const locale = normalizeLocale(request.nextUrl.searchParams.get("locale"));
     const requestedAuthorId = normalizeUuid(request.nextUrl.searchParams.get("authorUserId"));
     const authorUserId = scope === "blog" ? requestedAuthorId ?? user.id : null;
+    const systemAccountKey = scope === "system" ? normalizeSystemAccountKey(request.nextUrl.searchParams.get("systemAccountKey")) : null;
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
+
+    let systemAccount: FeedSystemAccountRow | null = null;
+    let systemStoryMetadata: FeedSystemStoryMetadataRow[] = [];
+
+    if (scope === "system" && systemAccountKey) {
+      const [{ data: account, error: accountError }, { data: metadata, error: metadataError }] = await Promise.all([
+        supabase
+          .from("feed_system_accounts")
+          .select("*")
+          .eq("account_key", systemAccountKey)
+          .eq("is_active", true)
+          .maybeSingle(),
+        supabase
+          .from("feed_system_story_metadata")
+          .select("*")
+          .eq("system_account_key", systemAccountKey)
+          .order("series_key", { ascending: true })
+          .order("series_order", { ascending: true })
+          .limit(limit)
+      ]);
+
+      if (accountError) throw accountError;
+      if (metadataError) throw metadataError;
+      if (!account) return NextResponse.json({ error: "System account not found." }, { status: 404, headers: NO_STORE_HEADERS });
+      systemAccount = account as FeedSystemAccountRow;
+      systemStoryMetadata = (metadata ?? []) as FeedSystemStoryMetadataRow[];
+    }
 
     let query = supabase
       .from("feed_posts")
@@ -50,6 +81,13 @@ export async function GET(request: NextRequest) {
 
     if (scope === "feed") {
       query = query.eq("status", "published").eq("visibility", "public");
+    } else if (scope === "system") {
+      const systemPostIds = systemStoryMetadata.map((item) => item.post_id);
+      query = query
+        .in("id", systemPostIds.length ? systemPostIds : ["00000000-0000-0000-0000-000000000000"])
+        .eq("post_type", "system_story")
+        .eq("status", "published")
+        .eq("visibility", "public");
     } else if (authorUserId === user.id) {
       query = query.eq("author_user_id", authorUserId);
     } else if (authorUserId) {
@@ -62,16 +100,26 @@ export async function GET(request: NextRequest) {
     const { data: posts, error: postsError } = await query;
     if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
-    const postRows = (posts ?? []) as FeedPostRow[];
+    const rawPostRows = (posts ?? []) as FeedPostRow[];
+    if (scope !== "system") {
+      systemStoryMetadata = await loadSystemStoryMetadata(supabase, rawPostRows.map((post) => post.id));
+    }
+    const systemStoryMetadataByPostId = new Map(systemStoryMetadata.map((item) => [item.post_id, item]));
+    const postRows = scope === "system"
+      ? [...rawPostRows].sort((left, right) => (systemStoryMetadataByPostId.get(left.id)?.series_order ?? 0) - (systemStoryMetadataByPostId.get(right.id)?.series_order ?? 0))
+      : rawPostRows;
     const postIds = postRows.map((post) => post.id);
-    const [profiles, statBlocks, externalLinks, wishPosts, translations, media] = await Promise.all([
+    const systemAccountKeys = Array.from(new Set(systemStoryMetadata.map((item) => item.system_account_key)));
+    const [profiles, statBlocks, externalLinks, wishPosts, translations, media, systemAccounts] = await Promise.all([
       loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id).filter(isString)))),
       loadStatBlocks(supabase, postRows.map((post) => post.id), scope === "blog" && authorUserId === user.id),
       loadExternalLinks(supabase, postIds),
       loadWishPosts(supabase, postIds, user.id),
       loadTranslations(supabase, postIds, locale),
-      loadMedia(supabase, postIds)
+      loadMedia(supabase, postIds),
+      loadSystemAccounts(supabase, systemAccountKeys)
     ]);
+    const systemAccountsByKey = new Map(systemAccounts.map((account) => [account.account_key, account]));
     const visiblePostRows = postRows.filter((post) => post.post_type !== "wish" || wishPosts.has(post.id));
 
     const authorProfile = authorUserId ? profiles.find((item) => item.user_id === authorUserId) ?? null : null;
@@ -80,8 +128,10 @@ export async function GET(request: NextRequest) {
       {
         scope,
         author: authorProfile,
+        systemAccount,
         posts: visiblePostRows.map((post) => {
           const translation = translations.get(post.id) ?? null;
+          const systemStory = systemStoryMetadataByPostId.get(post.id) ?? null;
           return {
             ...post,
             body: translation?.body ?? post.body,
@@ -90,7 +140,11 @@ export async function GET(request: NextRequest) {
             statBlocks: filterStatBlocksForViewer(post, statBlocks, user.id),
             externalLinks: externalLinks.filter((link) => link.post_id === post.id),
             media: media.filter((item) => item.post_id === post.id),
-            wish: wishPosts.get(post.id) ?? null
+            wish: wishPosts.get(post.id) ?? null,
+            systemStory: systemStory ? {
+              ...systemStory,
+              account: systemAccountsByKey.get(systemStory.system_account_key) ?? systemAccount
+            } : null
           };
         })
       },
@@ -171,7 +225,8 @@ export async function POST(request: NextRequest) {
           statBlocks: [],
           externalLinks: [externalLink],
           media: [],
-          wish: null
+          wish: null,
+          systemStory: null
         },
         created: true
       },
@@ -339,6 +394,37 @@ async function loadMedia(supabase: SupabaseClient<Database>, postIds: string[]):
 
   if (error) throw error;
   return (data ?? []) as FeedMediaRow[];
+}
+
+async function loadSystemStoryMetadata(
+  supabase: SupabaseClient<Database>,
+  postIds: string[]
+): Promise<FeedSystemStoryMetadataRow[]> {
+  if (!postIds.length) return [];
+
+  const { data, error } = await supabase
+    .from("feed_system_story_metadata")
+    .select("*")
+    .in("post_id", postIds);
+
+  if (error) throw error;
+  return (data ?? []) as FeedSystemStoryMetadataRow[];
+}
+
+async function loadSystemAccounts(
+  supabase: SupabaseClient<Database>,
+  accountKeys: string[]
+): Promise<FeedSystemAccountRow[]> {
+  if (!accountKeys.length) return [];
+
+  const { data, error } = await supabase
+    .from("feed_system_accounts")
+    .select("*")
+    .in("account_key", accountKeys)
+    .eq("is_active", true);
+
+  if (error) throw error;
+  return (data ?? []) as FeedSystemAccountRow[];
 }
 
 async function findExistingExternalPost(
@@ -528,6 +614,11 @@ function clampLimit(value: string | null): number {
 function normalizeUuid(value: unknown): string | null {
   if (typeof value !== "string") return null;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
+function normalizeSystemAccountKey(value: unknown): string {
+  if (typeof value !== "string" || !/^[a-z0-9_]{1,64}$/.test(value)) return "abundance_system";
+  return value;
 }
 
 function normalizeLocale(value: unknown): "ru" | "en" {

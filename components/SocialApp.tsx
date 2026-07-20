@@ -1,7 +1,7 @@
 "use client";
 
-import { Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, MessageCircle, Newspaper, Save, Search, Send, Share2, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, MessageCircle, Newspaper, Save, Search, Send, Share2, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -171,6 +171,23 @@ type FeedMedia = {
   created_at: string;
   updated_at: string;
 };
+type FeedSystemAccount = {
+  account_key: string;
+  avatar_url: string | null;
+  bio: unknown;
+  display_name: string;
+  is_active: boolean;
+};
+type FeedSystemStory = {
+  post_id: string;
+  system_account_key: string;
+  series_key: string;
+  series_order: number;
+  story_kind: string;
+  evidence_status: string;
+  next_story_key: string | null;
+  account: FeedSystemAccount | null;
+};
 type FeedPost = {
   id: string;
   author_user_id: string | null;
@@ -191,10 +208,12 @@ type FeedPost = {
   externalLinks: FeedExternalLink[];
   media: FeedMedia[];
   wish: PublicWish | null;
+  systemStory: FeedSystemStory | null;
 };
 type FeedPayload = {
-  scope: "feed" | "blog";
+  scope: "feed" | "blog" | "system";
   author: TeamProfile | null;
+  systemAccount: FeedSystemAccount | null;
   posts: FeedPost[];
   error?: string;
 };
@@ -295,12 +314,16 @@ export default function SocialApp({
   const [directSending, setDirectSending] = useState(false);
   const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
   const [blogPayload, setBlogPayload] = useState<FeedPayload | null>(null);
+  const [systemPayload, setSystemPayload] = useState<FeedPayload | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
+  const [systemLoading, setSystemLoading] = useState(false);
   const [feedSaving, setFeedSaving] = useState(false);
   const [dailyDraft, setDailyDraft] = useState<FeedPost | null>(null);
   const [externalLinkUrl, setExternalLinkUrl] = useState("");
   const [selectedBlogAuthorId, setSelectedBlogAuthorId] = useState<string | null>(null);
+  const [selectedSystemAccountKey, setSelectedSystemAccountKey] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
+  const feedScrollPositionRef = useRef(0);
 
   useEffect(() => {
     setSocialError(null);
@@ -338,11 +361,14 @@ export default function SocialApp({
     setDirectSending(false);
     setFeedPayload(null);
     setBlogPayload(null);
+    setSystemPayload(null);
     setFeedLoading(false);
+    setSystemLoading(false);
     setFeedSaving(false);
     setDailyDraft(null);
     setExternalLinkUrl("");
     setSelectedBlogAuthorId(null);
+    setSelectedSystemAccountKey(null);
     setSelectedPost(null);
   }, [user?.id]);
 
@@ -497,6 +523,33 @@ export default function SocialApp({
     }
   }, [locale, selectedBlogAuthorId, user]);
 
+  const loadSystemProfile = useCallback(async () => {
+    if (!user || !selectedSystemAccountKey) return;
+    setSystemLoading(true);
+    try {
+      const token = await getAccessToken();
+      const params = new URLSearchParams({
+        scope: "system",
+        systemAccountKey: selectedSystemAccountKey,
+        locale,
+        limit: "60",
+        ts: String(Date.now())
+      });
+      const response = await fetch(`/api/social/feed?${params.toString()}`, {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache"
+        }
+      });
+      const payload = (await response.json()) as FeedPayload;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load system profile.");
+      setSystemPayload(payload);
+    } finally {
+      setSystemLoading(false);
+    }
+  }, [locale, selectedSystemAccountKey, user]);
+
   useEffect(() => {
     if (!active) return;
     if (!user) {
@@ -513,13 +566,18 @@ export default function SocialApp({
       return;
     }
 
-    const load = activeTab === "feed" ? loadFeed : activeTab === "people" ? loadPeople : activeTab === "blog" ? loadBlog : activeTab === "teams" ? loadTeamContext : loadProfileTab;
+    const load = activeTab === "feed"
+      ? selectedSystemAccountKey ? loadSystemProfile : loadFeed
+      : activeTab === "people" ? loadPeople
+      : activeTab === "blog" ? loadBlog
+      : activeTab === "teams" ? loadTeamContext
+      : loadProfileTab;
     setSocialError(null);
     load().catch((loadError) => {
       console.warn("Social data load failed", loadError);
       setSocialError(loadError instanceof Error ? loadError.message : "Failed to load social data.");
     });
-  }, [active, activeTab, loadBlog, loadFeed, loadPeople, loadProfileTab, loadTeamContext, refreshNonce, user]);
+  }, [active, activeTab, loadBlog, loadFeed, loadPeople, loadProfileTab, loadSystemProfile, loadTeamContext, refreshNonce, selectedSystemAccountKey, user]);
 
   const displayName = profile?.display_name ?? user?.email ?? t("profile.guest");
   const handle = profile?.username ? `@${profile.username}` : user?.email ?? t("profile.localMode");
@@ -653,6 +711,7 @@ export default function SocialApp({
         : current);
     setFeedPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setBlogPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
+    setSystemPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setSelectedPost((current) => current ? updatePostWishCopyState(current, wishId, copiedIncrement) : current);
   }
 
@@ -961,6 +1020,23 @@ export default function SocialApp({
     onTabChange("blog");
   }
 
+  function openSystemAccount(accountKey: string) {
+    if (selectedSystemAccountKey === accountKey) {
+      setSelectedPost(null);
+      return;
+    }
+    feedScrollPositionRef.current = window.scrollY;
+    setSelectedPost(null);
+    setSelectedSystemAccountKey(accountKey);
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  }
+
+  function closeSystemAccount() {
+    const scrollPosition = feedScrollPositionRef.current;
+    setSelectedSystemAccountKey(null);
+    requestAnimationFrame(() => window.scrollTo({ top: scrollPosition }));
+  }
+
   async function toggleTeamRewards() {
     const nextOpen = !teamRewardsOpen;
     setTeamRewardsOpen(nextOpen);
@@ -1012,7 +1088,24 @@ export default function SocialApp({
         </section>
       ) : null}
 
-      {activeTab === "feed" && user ? (
+      {activeTab === "feed" && user && selectedSystemAccountKey ? (
+        <SystemProfileView
+          copyingWishId={copyingWishId}
+          currentUserId={user.id}
+          loading={systemLoading}
+          locale={locale}
+          payload={systemPayload?.systemAccount?.account_key === selectedSystemAccountKey ? systemPayload : null}
+          t={t}
+          onBack={closeSystemAccount}
+          onCopyWish={copyPublicWishToMine}
+          onDeletePost={deletePost}
+          onOpenPost={setSelectedPost}
+          onOpenSystemAccount={openSystemAccount}
+          onPublish={publishPost}
+        />
+      ) : null}
+
+      {activeTab === "feed" && user && !selectedSystemAccountKey ? (
         <FeedView
           copyingWishId={copyingWishId}
           currentUserId={user.id}
@@ -1031,6 +1124,7 @@ export default function SocialApp({
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
           onOpenPost={setSelectedPost}
+          onOpenSystemAccount={openSystemAccount}
           onDeletePost={deletePost}
           onPublish={publishPost}
           onToggleDraftBlock={toggleDailyDraftBlock}
@@ -1089,6 +1183,7 @@ export default function SocialApp({
           onOpenAuthor={openPublicProfile}
           onOpenOwnBlog={() => setSelectedBlogAuthorId(null)}
           onOpenPost={setSelectedPost}
+          onOpenSystemAccount={openSystemAccount}
           onCopyWish={copyPublicWishToMine}
           onDeletePost={deletePost}
           onPublish={publishPost}
@@ -1421,6 +1516,7 @@ export default function SocialApp({
           onDeletePost={deletePost}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
+          onOpenSystemAccount={openSystemAccount}
           onCopyWish={copyPublicWishToMine}
         />
       ) : null}
@@ -1667,6 +1763,74 @@ function PublicWishesPanel({
   );
 }
 
+function SystemProfileView({
+  copyingWishId,
+  currentUserId,
+  loading,
+  locale,
+  payload,
+  t,
+  onBack,
+  onCopyWish,
+  onDeletePost,
+  onOpenPost,
+  onOpenSystemAccount,
+  onPublish
+}: {
+  copyingWishId: string | null;
+  currentUserId: string;
+  loading: boolean;
+  locale: AppLocale;
+  payload: FeedPayload | null;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onBack: () => void;
+  onCopyWish: (wish: PublicWish) => void;
+  onDeletePost: (post: FeedPost) => void;
+  onOpenPost: (post: FeedPost) => void;
+  onOpenSystemAccount: (accountKey: string) => void;
+  onPublish: (post: FeedPost) => void;
+}) {
+  const account = payload?.systemAccount ?? null;
+  const posts = payload?.posts ?? [];
+
+  return (
+    <section className="feed-layout system-profile-view">
+      <section className="system-profile-header">
+        <button className="system-profile-back" type="button" onClick={onBack}>
+          <ArrowLeft size={18} />
+          {t("social.systemProfile.backToFeed")}
+        </button>
+        <span className="system-profile-avatar">
+          <img alt="" src={account?.avatar_url ?? "/icons/icon2.svg"} />
+        </span>
+        <div className="system-profile-copy">
+          <strong>{account?.display_name ?? "Abundance System"}</strong>
+          <p>{localizedSystemBio(account?.bio, locale)}</p>
+          <span>{t("social.systemProfile.chapterCount", { count: posts.length })}</span>
+        </div>
+      </section>
+      <PostList
+        copyingWishId={copyingWishId}
+        currentUserId={currentUserId}
+        emptyText={t("social.systemProfile.empty")}
+        loading={loading}
+        locale={locale}
+        posts={posts}
+        showBlogAction={false}
+        showSystemProfileAction={false}
+        t={t}
+        onCopyWish={onCopyWish}
+        onDeletePost={onDeletePost}
+        onOpenAuthor={() => undefined}
+        onOpenBlog={() => undefined}
+        onOpenPost={onOpenPost}
+        onOpenSystemAccount={onOpenSystemAccount}
+        onPublish={onPublish}
+      />
+    </section>
+  );
+}
+
 function FeedView({
   copyingWishId,
   currentUserId,
@@ -1685,6 +1849,7 @@ function FeedView({
   onOpenAuthor,
   onOpenBlog,
   onOpenPost,
+  onOpenSystemAccount,
   onDeletePost,
   onPublish,
   onToggleDraftBlock
@@ -1706,6 +1871,7 @@ function FeedView({
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenPost: (post: FeedPost) => void;
+  onOpenSystemAccount: (accountKey: string) => void;
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
   onToggleDraftBlock: (blockKey: string) => void;
@@ -1754,6 +1920,7 @@ function FeedView({
         onOpenAuthor={onOpenAuthor}
         onOpenBlog={onOpenBlog}
         onOpenPost={onOpenPost}
+        onOpenSystemAccount={onOpenSystemAccount}
         onDeletePost={onDeletePost}
         onPublish={onPublish}
       />
@@ -1808,6 +1975,7 @@ function BlogView({
   onOpenAuthor,
   onOpenOwnBlog,
   onOpenPost,
+  onOpenSystemAccount,
   onDeletePost,
   onPublish
 }: {
@@ -1823,6 +1991,7 @@ function BlogView({
   onOpenAuthor: (userId: string) => void;
   onOpenOwnBlog: () => void;
   onOpenPost: (post: FeedPost) => void;
+  onOpenSystemAccount: (accountKey: string) => void;
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
@@ -1858,6 +2027,7 @@ function BlogView({
         onOpenAuthor={onOpenAuthor}
         onOpenBlog={onOpenAuthor}
         onOpenPost={onOpenPost}
+        onOpenSystemAccount={onOpenSystemAccount}
         onDeletePost={onDeletePost}
         onPublish={onPublish}
       />
@@ -1928,11 +2098,13 @@ function PostList({
   posts,
   saving,
   showBlogAction,
+  showSystemProfileAction = true,
   t,
   onCopyWish,
   onOpenAuthor,
   onOpenBlog,
   onOpenPost,
+  onOpenSystemAccount,
   onDeletePost,
   onPublish
 }: {
@@ -1944,11 +2116,13 @@ function PostList({
   posts: FeedPost[];
   saving?: boolean;
   showBlogAction: boolean;
+  showSystemProfileAction?: boolean;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onCopyWish: (wish: PublicWish) => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenPost: (post: FeedPost) => void;
+  onOpenSystemAccount: (accountKey: string) => void;
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
@@ -1966,11 +2140,13 @@ function PostList({
           post={post}
           saving={Boolean(saving)}
           showBlogAction={showBlogAction}
+          showSystemProfileAction={showSystemProfileAction}
           t={t}
           onCopyWish={onCopyWish}
           onOpenAuthor={onOpenAuthor}
           onOpenBlog={onOpenBlog}
           onOpenPost={onOpenPost}
+          onOpenSystemAccount={onOpenSystemAccount}
           onDeletePost={onDeletePost}
           onPublish={onPublish}
         />
@@ -1986,11 +2162,13 @@ function PostCard({
   post,
   saving,
   showBlogAction,
+  showSystemProfileAction,
   t,
   onCopyWish,
   onOpenAuthor,
   onOpenBlog,
   onOpenPost,
+  onOpenSystemAccount,
   onDeletePost,
   onPublish
 }: {
@@ -2000,11 +2178,13 @@ function PostCard({
   post: FeedPost;
   saving: boolean;
   showBlogAction: boolean;
+  showSystemProfileAction: boolean;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onCopyWish: (wish: PublicWish) => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenPost: (post: FeedPost) => void;
+  onOpenSystemAccount: (accountKey: string) => void;
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
@@ -2014,9 +2194,15 @@ function PostCard({
     <article className="feed-post-card">
       <header>
         <div className="feed-author-block">
-          <PostAuthor post={post} onOpenAuthor={onOpenAuthor} />
+          <PostAuthor post={post} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
-          {post.post_type === "system_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
+          {post.post_type === "system_story" ? (
+            <span className="system-story-badge">
+              {showSystemProfileAction || !post.systemStory
+                ? t("social.feed.systemStoryBadge")
+                : t("social.systemProfile.chapterNumber", { number: post.systemStory.series_order })}
+            </span>
+          ) : null}
         </div>
         <small>{formatPostDate(post, locale)}</small>
       </header>
@@ -2040,6 +2226,12 @@ function PostCard({
           {showBlogAction && post.author_user_id ? (
             <button className="finance-small-icon-button" type="button" aria-label={t("social.feed.openBlog")} onClick={() => onOpenBlog(post.author_user_id!)}>
               <BookOpen size={15} />
+            </button>
+          ) : null}
+          {showSystemProfileAction && post.systemStory ? (
+            <button className="system-story-profile-link" type="button" onClick={() => onOpenSystemAccount(post.systemStory!.system_account_key)}>
+              <BookOpen size={14} />
+              {t("social.systemProfile.allChapters")}
             </button>
           ) : null}
           {post.status === "draft" ? (
@@ -2116,7 +2308,8 @@ function PostDetailModal({
   onCopyWish,
   onDeletePost,
   onOpenAuthor,
-  onOpenBlog
+  onOpenBlog,
+  onOpenSystemAccount
 }: {
   copyingWishId: string | null;
   currentUserId: string | null;
@@ -2128,6 +2321,7 @@ function PostDetailModal({
   onDeletePost: (post: FeedPost) => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
+  onOpenSystemAccount: (accountKey: string) => void;
 }) {
   const canDelete = Boolean(post.author_user_id) && post.author_user_id === currentUserId;
 
@@ -2138,7 +2332,7 @@ function PostDetailModal({
           <X size={18} />
         </button>
         <div className="post-detail-author-row">
-          <PostAuthor detail post={post} onOpenAuthor={onOpenAuthor} />
+          <PostAuthor detail post={post} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
           {post.post_type === "system_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
         </div>
@@ -2160,6 +2354,12 @@ function PostDetailModal({
             <button className="secondary-button" type="button" onClick={() => onOpenBlog(post.author_user_id!)}>
               <BookOpen size={16} />
               {t("social.feed.openBlog")}
+            </button>
+          ) : null}
+          {post.systemStory ? (
+            <button className="system-story-profile-link" type="button" onClick={() => onOpenSystemAccount(post.systemStory!.system_account_key)}>
+              <BookOpen size={14} />
+              {t("social.systemProfile.allChapters")}
             </button>
           ) : null}
           {canDelete ? (
@@ -2242,16 +2442,34 @@ function HistoryPanel({
   );
 }
 
-function PostAuthor({ detail = false, post, onOpenAuthor }: { detail?: boolean; post: FeedPost; onOpenAuthor: (userId: string) => void }) {
+function PostAuthor({
+  detail = false,
+  post,
+  onOpenAuthor,
+  onOpenSystemAccount
+}: {
+  detail?: boolean;
+  post: FeedPost;
+  onOpenAuthor: (userId: string) => void;
+  onOpenSystemAccount: (accountKey: string) => void;
+}) {
   const isSystemStory = post.post_type === "system_story";
   const content = (
     <>
       <span className="feed-author-avatar">
-        {isSystemStory ? <img alt="" src="/icons/icon2.svg" /> : post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
+        {isSystemStory ? <img alt="" src={post.systemStory?.account?.avatar_url ?? "/icons/icon2.svg"} /> : post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
       </span>
-      <span>{post.authorName ?? formatProfileName(post.author, post.author_user_id ?? "Open Abundance")}</span>
+      <span>{post.systemStory?.account?.display_name ?? post.authorName ?? formatProfileName(post.author, post.author_user_id ?? "Open Abundance")}</span>
     </>
   );
+
+  if (post.systemStory) {
+    return (
+      <button className={`feed-author${detail ? " detail-author" : ""}`} type="button" onClick={() => onOpenSystemAccount(post.systemStory!.system_account_key)}>
+        {content}
+      </button>
+    );
+  }
 
   if (!post.author_user_id) return <div className={`feed-author${detail ? " detail-author" : ""}`}>{content}</div>;
 
@@ -2457,6 +2675,15 @@ function localizedMediaAlt(value: unknown, locale: AppLocale): string {
   const preferred = localized[locale];
   if (typeof preferred === "string") return preferred;
   return typeof localized.en === "string" ? localized.en : "";
+}
+
+function localizedSystemBio(value: unknown, locale: AppLocale): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const localized = value as Record<string, unknown>;
+  const preferred = localized[locale];
+  if (typeof preferred === "string") return preferred;
+  if (typeof localized.en === "string") return localized.en;
+  return "";
 }
 
 function createProfileEditorState(payload: SocialProfilePayload | null): ProfileEditorState {

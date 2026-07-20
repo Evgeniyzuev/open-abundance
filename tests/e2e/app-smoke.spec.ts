@@ -14,13 +14,27 @@ test("new guest sees the first onboarding promise", async ({ page }) => {
 test("new guest can switch onboarding language and keep the choice", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: "RU" }).click();
+  await page.getByLabel("Language").selectOption("ru");
   await expect(page.getByRole("heading", { name: "Создавай изобилие в своей жизни" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "RU" })).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("openAbundanceLocale"))).toBe("ru");
+  await expect(page.locator(".onboarding-language-select")).toHaveValue("ru");
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("openAbundanceOnboardingLocale"))).toBe("ru");
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Создавай изобилие в своей жизни" })).toBeVisible();
+});
+
+test("new guest can use Chinese, Spanish, and Hindi onboarding copy", async ({ page }) => {
+  const locales = [
+    { value: "zh", title: "在生活中创造丰盛" },
+    { value: "es", title: "Crea abundancia en tu vida" },
+    { value: "hi", title: "अपने जीवन में समृद्धि बनाएं" }
+  ];
+
+  for (const locale of locales) {
+    await page.goto("/");
+    await page.locator(".onboarding-language-select").selectOption(locale.value);
+    await expect(page.getByRole("heading", { name: locale.title })).toBeVisible();
+  }
 });
 
 test("new guest can see the three-screen story and open the growth calculator", async ({ page }) => {

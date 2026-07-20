@@ -2,15 +2,18 @@
 
 ## Summary
 
-Open Abundance uses a small in-app language context instead of a full i18n framework. The first supported locales are `ru` and `en`.
+Open Abundance uses a small in-app language context instead of a full i18n framework. The main app and profile language remain `ru` and `en`.
+
+The first onboarding can additionally speak Simplified Chinese (`zh`, suitable for WeChat users), Spanish (`es`), and Hindi (`hi`). These three locales are intentionally scoped to onboarding and are not added to the global app dictionary or `user_profiles.default_locale`.
 
 The app resolves language like this:
 
 1. If the signed-in user has `user_profiles.default_locale = 'ru'`, show Russian.
 2. Any other profile value resolves to English.
-3. Guests first use the explicit local choice from `openAbundanceLocale`.
-4. Without a local choice, guests use the browser language: `ru*` becomes Russian, everything else becomes English.
-5. New registration sends the current selected locale to `/api/auth/claim`; the server validates it to `ru | en`.
+3. Guests first use the explicit main-app choice from `openAbundanceLocale`.
+4. Without a main-app choice, guests use the browser language: `ru*` becomes Russian, everything else becomes English.
+5. Onboarding uses its own `openAbundanceOnboardingLocale` preference and maps browser prefixes `ru`, `zh`, `es`, and `hi` to the matching onboarding copy; unsupported browsers use English.
+6. New registration maps onboarding `ru` to profile `ru`; onboarding `en`, `zh`, `es`, and `hi` map to profile `en`. The server still validates `ru | en`.
 
 ## Implementation
 
@@ -21,8 +24,9 @@ The app resolves language like this:
   - optimistically updates `profile.default_locale`;
   - persists profile language with Supabase RLS.
 - The Profile screen shows a language toggle button and saves the preference to `user_profiles.default_locale`.
-- The onboarding header shows a compact `RU | EN` switch. It applies instantly without changing the current onboarding step and persists the guest choice in `localStorage`.
-- The OAuth callback reads the explicit local choice before browser language, so registration keeps the language selected in onboarding.
+- `lib/onboardingContent.ts` owns the separate onboarding locale type, five-language copy, browser detection, compact native language selector, and `openAbundanceOnboardingLocale` persistence.
+- The onboarding header shows a compact selector with `RU`, `EN`, `中文`, `ES`, and `HI`. It applies instantly without changing the current onboarding step and does not mutate the main app language while the user is onboarding.
+- The OAuth callback and authenticated registration claim read the onboarding choice and map the onboarding-only locales back to the app's supported `ru | en` profile values.
 - Challenge JSON fields still support `{ en, ru }`, but the UI chooses by current app locale and falls back to English.
 - `app/layout.tsx` keeps static `lang="en"` until the client provider applies the current locale.
 
@@ -43,8 +47,8 @@ The app resolves language like this:
 
 - Browser `ru-RU` guest sees Russian UI.
 - Browser `en-US` or any non-Russian guest sees English UI.
-- Onboarding language switch updates all three screens immediately and survives reload.
-- A guest's explicit choice overrides browser detection and becomes the registration locale.
+- Onboarding language switch updates all three screens immediately and survives reload for `ru`, `en`, `zh`, `es`, and `hi`.
+- A guest's explicit onboarding choice overrides browser detection; `ru` becomes the registration locale and the onboarding-only locales safely fall back to `en` in the main app.
 - New Russian-browser registration stores `default_locale = 'ru'`.
 - New non-Russian registration stores `default_locale = 'en'`.
 - Existing users load from `user_profiles.default_locale`.

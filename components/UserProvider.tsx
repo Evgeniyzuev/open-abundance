@@ -6,6 +6,7 @@ import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseC
 import type { Tables } from "@/lib/database.types";
 import { capturePendingReferral, getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaimed } from "@/lib/guestIdentity";
 import { detectPreferredLocale, normalizeLocale, storeLocalePreference, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
+import { getOnboardingRegistrationLocale } from "@/lib/onboardingContent";
 
 export type UserProfile = Tables<"user_profiles">;
 export type CoreAccount = Tables<"core_accounts"> & {
@@ -187,7 +188,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const guest = await getOrCreateLocalGuest();
       if (guest.claimedUserId) return;
 
-      const userId = await claimRegistrationAfterAuth(currentLocaleRef.current);
+      const userId = await claimRegistrationAfterAuth(getOnboardingRegistrationLocale());
       await markLocalGuestClaimed(userId);
       await claimReferralAfterAuth(guest.pendingReferral, guest.guestId);
       await markPendingReferralClaimed();

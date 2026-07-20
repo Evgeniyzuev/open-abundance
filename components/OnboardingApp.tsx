@@ -5,8 +5,18 @@ import { ArrowLeft, ArrowRight, Calculator, ListChecks, Sparkles } from "lucide-
 import { ReactNode, useEffect, useState } from "react";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
-import type { AppLocale } from "@/lib/i18n";
-import { ONBOARDING_DRAFT_STORAGE_KEY, ONBOARDING_SEEN_STORAGE_KEY, onboardingContent, onboardingText } from "@/lib/onboardingContent";
+import {
+  ONBOARDING_DRAFT_STORAGE_KEY,
+  ONBOARDING_LOCALES,
+  ONBOARDING_LOCALE_LABELS,
+  ONBOARDING_SEEN_STORAGE_KEY,
+  detectPreferredOnboardingLocale,
+  normalizeOnboardingLocale,
+  onboardingContent,
+  onboardingText,
+  storeOnboardingLocalePreference,
+  type OnboardingLocale
+} from "@/lib/onboardingContent";
 import { trackProductEvent } from "@/lib/productAnalytics";
 
 type StepId = "mission" | "stories" | "program";
@@ -25,12 +35,17 @@ type OnboardingDraft = {
 const steps: StepId[] = ["mission", "stories", "program"];
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
-  const { applyServerData, authResolved, locale, profile, setLocale, user } = useUserContext();
+  const { applyServerData, authResolved, profile, user } = useUserContext();
   const [guestSeen, setGuestSeen] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const [onboardingLocale, setOnboardingLocale] = useState<OnboardingLocale | null>(null);
 
   useEffect(() => {
     setGuestSeen(readGuestSeen());
+  }, []);
+
+  useEffect(() => {
+    setOnboardingLocale(detectPreferredOnboardingLocale());
   }, []);
 
   const profileCompleted = hasCompletedFirstExperience(profile);
@@ -59,11 +74,16 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   const shouldShowGuestOnboarding = !user && !guestSeen;
   const shouldShowUserOnboarding = Boolean(user && profile && !profileCompleted && !guestSeen);
 
+  if (!dismissed && (shouldShowGuestOnboarding || shouldShowUserOnboarding) && onboardingLocale === null) return null;
+
   if (!dismissed && (shouldShowGuestOnboarding || shouldShowUserOnboarding)) {
     return (
       <OnboardingApp
-        locale={locale}
-        onLocaleChange={setLocale}
+        locale={onboardingLocale ?? "en"}
+        onLocaleChange={async (nextLocale) => {
+          storeOnboardingLocalePreference(nextLocale);
+          setOnboardingLocale(nextLocale);
+        }}
         onCalculatePath={async () => {
           await completeOnboarding(profile, applyServerData);
           openCalculatorPath();
@@ -89,8 +109,8 @@ function OnboardingApp({
   onCalculatePath,
   onOpenFirstTask
 }: {
-  locale: AppLocale;
-  onLocaleChange: (locale: AppLocale) => Promise<void>;
+  locale: OnboardingLocale;
+  onLocaleChange: (locale: OnboardingLocale) => Promise<void>;
   onCalculatePath: () => Promise<void>;
   onOpenFirstTask: () => Promise<void>;
 }) {
@@ -148,19 +168,16 @@ function OnboardingApp({
             <strong>{onboardingText(onboardingContent.brand, locale)}</strong>
           </div>
           <div className="onboarding-top-tools">
-            <div className="onboarding-language-switch" role="group" aria-label={onboardingText(onboardingContent.actions.language, locale)}>
-              {(["ru", "en"] as AppLocale[]).map((item) => (
-                <button
-                  className={locale === item ? "active" : ""}
-                  type="button"
-                  aria-pressed={locale === item}
-                  key={item}
-                  onClick={() => void onLocaleChange(item)}
-                >
-                  {item.toUpperCase()}
-                </button>
+            <select
+              className="onboarding-language-select"
+              aria-label={onboardingText(onboardingContent.actions.language, locale)}
+              value={locale}
+              onChange={(event) => void onLocaleChange(normalizeOnboardingLocale(event.target.value))}
+            >
+              {ONBOARDING_LOCALES.map((item) => (
+                <option key={item} value={item}>{ONBOARDING_LOCALE_LABELS[item]}</option>
               ))}
-            </div>
+            </select>
             <div
               className="onboarding-progress"
               role="progressbar"

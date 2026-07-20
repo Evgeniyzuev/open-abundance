@@ -83,9 +83,8 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .onboarding-brand-mark { background: linear-gradient(145deg, #665cff, #0a84ff); color: white; box-shadow: 0 9px 18px rgba(82,76,216,0.25); }
 .onboarding-back-button { border: 1px solid rgba(82,76,216,0.13); background: rgba(255,255,255,0.72); color: #5149bb; box-shadow: 0 6px 15px rgba(51,43,112,0.08); }
 .onboarding-top-tools { display: inline-flex; align-items: center; gap: 9px; }
-.onboarding-language-switch { display: inline-grid; grid-template-columns: repeat(2, 28px); gap: 2px; border: 1px solid rgba(82,76,216,0.13); border-radius: 10px; padding: 2px; background: rgba(255,255,255,0.62); }
-.onboarding-language-switch button { height: 25px; border-radius: 7px; padding: 0; background: transparent; color: #807b9d; font-size: 10px; font-weight: 950; letter-spacing: 0.025em; }
-.onboarding-language-switch button.active { background: #312875; color: white; box-shadow: 0 5px 12px rgba(49,40,117,0.2); }
+.onboarding-language-select { height: 29px; min-width: 61px; border: 1px solid rgba(82,76,216,0.13); border-radius: 10px; padding: 0 6px; background: rgba(255,255,255,0.72); color: #312875; font-size: 10px; font-weight: 950; letter-spacing: 0.025em; outline: none; }
+.onboarding-language-select:focus-visible { border-color: rgba(82,76,216,0.42); box-shadow: 0 0 0 3px rgba(103,93,255,0.14); }
 .onboarding-progress { display: inline-flex; align-items: center; gap: 6px; }
 .onboarding-progress i { width: 22px; height: 6px; border-radius: 999px; background: rgba(80,72,147,0.13); transition: width 220ms ease, background 220ms ease; }
 .onboarding-progress i.active { width: 28px; background: linear-gradient(90deg, #675dff, #0a84ff); }

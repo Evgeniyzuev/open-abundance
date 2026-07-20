@@ -11,6 +11,18 @@ test("new guest sees the first onboarding promise", async ({ page }) => {
   expect(pageErrors).toEqual([]);
 });
 
+test("new guest can switch onboarding language and keep the choice", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "RU" }).click();
+  await expect(page.getByRole("heading", { name: "Создавай изобилие в своей жизни" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "RU" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("openAbundanceLocale"))).toBe("ru");
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Создавай изобилие в своей жизни" })).toBeVisible();
+});
+
 test("new guest can see the three-screen story and open the growth calculator", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));

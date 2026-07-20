@@ -5,7 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import type { Tables } from "@/lib/database.types";
 import { capturePendingReferral, getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaimed } from "@/lib/guestIdentity";
-import { detectBrowserLocale, normalizeLocale, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
+import { detectPreferredLocale, normalizeLocale, storeLocalePreference, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
 
 export type UserProfile = Tables<"user_profiles">;
 export type CoreAccount = Tables<"core_accounts"> & {
@@ -55,10 +55,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const refreshRequestIdRef = useRef(0);
   const serverDataVersionRef = useRef(0);
   const currentUserIdRef = useRef<string | null>(null);
+  const currentLocaleRef = useRef<AppLocale>("en");
   const claimInFlightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    setGuestLocale(detectBrowserLocale());
+    setGuestLocale(detectPreferredLocale());
   }, []);
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const locale = normalizeLocale(profile?.default_locale ?? guestLocale);
+  currentLocaleRef.current = locale;
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -185,7 +187,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const guest = await getOrCreateLocalGuest();
       if (guest.claimedUserId) return;
 
-      const userId = await claimRegistrationAfterAuth();
+      const userId = await claimRegistrationAfterAuth(currentLocaleRef.current);
       await markLocalGuestClaimed(userId);
       await claimReferralAfterAuth(guest.pendingReferral, guest.guestId);
       await markPendingReferralClaimed();
@@ -335,8 +337,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const setLocale = useCallback(async (nextLocale: AppLocale) => {
     const normalizedLocale = normalizeLocale(nextLocale);
+    const previousLocale = currentLocaleRef.current;
     const previousProfile = profile;
 
+    storeLocalePreference(normalizedLocale);
     setGuestLocale(normalizedLocale);
     setProfile((current) => current ? { ...current, default_locale: normalizedLocale } : current);
 
@@ -352,6 +356,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (updateError) throw updateError;
       await refreshUserData();
     } catch (localeError) {
+      storeLocalePreference(previousLocale);
+      setGuestLocale(previousLocale);
       setProfile(previousProfile);
       setError(localeError instanceof Error ? localeError.message : "Failed to update language.");
       throw localeError;

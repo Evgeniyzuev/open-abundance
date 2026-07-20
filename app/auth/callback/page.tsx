@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaimed } from "@/lib/guestIdentity";
-import { detectBrowserLocale, translate } from "@/lib/i18n";
+import { detectPreferredLocale, translate } from "@/lib/i18n";
 
 export default function AuthCallbackPage() {
   const [status, setStatus] = useState("Finishing sign-in...");
 
   useEffect(() => {
     async function completeAuth() {
-      const locale = detectBrowserLocale();
+      const locale = detectPreferredLocale();
       const supabase = getBrowserSupabaseClient();
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");

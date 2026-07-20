@@ -7,19 +7,22 @@ Open Abundance uses a small in-app language context instead of a full i18n frame
 The app resolves language like this:
 
 1. If the signed-in user has `user_profiles.default_locale = 'ru'`, show Russian.
-2. Any other stored value resolves to English.
-3. Guests use the browser language: `ru*` becomes Russian, everything else becomes English.
-4. New registration sends the detected browser locale to `/api/auth/claim`; the server validates it to `ru | en`.
+2. Any other profile value resolves to English.
+3. Guests first use the explicit local choice from `openAbundanceLocale`.
+4. Without a local choice, guests use the browser language: `ru*` becomes Russian, everything else becomes English.
+5. New registration sends the current selected locale to `/api/auth/claim`; the server validates it to `ru | en`.
 
 ## Implementation
 
-- `lib/i18n.ts` owns `AppLocale`, `SUPPORTED_LOCALES`, `normalizeLocale`, `detectBrowserLocale`, and the message dictionary.
+- `lib/i18n.ts` owns `AppLocale`, locale detection, the local preference key, and the message dictionary.
 - `UserProvider` is the app language source:
   - exposes `locale`, `t(key, values)`, and `setLocale(nextLocale)`;
   - updates `<html lang>` on the client;
   - optimistically updates `profile.default_locale`;
   - persists profile language with Supabase RLS.
 - The Profile screen shows a language toggle button and saves the preference to `user_profiles.default_locale`.
+- The onboarding header shows a compact `RU | EN` switch. It applies instantly without changing the current onboarding step and persists the guest choice in `localStorage`.
+- The OAuth callback reads the explicit local choice before browser language, so registration keeps the language selected in onboarding.
 - Challenge JSON fields still support `{ en, ru }`, but the UI chooses by current app locale and falls back to English.
 - `app/layout.tsx` keeps static `lang="en"` until the client provider applies the current locale.
 
@@ -40,6 +43,8 @@ The app resolves language like this:
 
 - Browser `ru-RU` guest sees Russian UI.
 - Browser `en-US` or any non-Russian guest sees English UI.
+- Onboarding language switch updates all three screens immediately and survives reload.
+- A guest's explicit choice overrides browser detection and becomes the registration locale.
 - New Russian-browser registration stores `default_locale = 'ru'`.
 - New non-Russian registration stores `default_locale = 'en'`.
 - Existing users load from `user_profiles.default_locale`.

@@ -27,6 +27,7 @@ type OnboardingContent = {
     back: LocalizedText;
     calculatePath: LocalizedText;
     continue: LocalizedText;
+    language: LocalizedText;
     startFirstTask: LocalizedText;
     viewStories: LocalizedText;
   };
@@ -84,6 +85,7 @@ export const onboardingContent: OnboardingContent = {
     back: { ru: "Назад", en: "Back" },
     calculatePath: { ru: "Рассчитать мой путь", en: "Calculate my path" },
     continue: { ru: "Продолжить", en: "Continue" },
+    language: { ru: "Язык", en: "Language" },
     startFirstTask: { ru: "Начать первое задание", en: "Start the first task" },
     viewStories: { ru: "Смотреть истории", en: "View stories" }
   },

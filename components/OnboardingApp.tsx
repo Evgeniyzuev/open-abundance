@@ -25,7 +25,7 @@ type OnboardingDraft = {
 const steps: StepId[] = ["mission", "stories", "program"];
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
-  const { applyServerData, authResolved, locale, profile, user } = useUserContext();
+  const { applyServerData, authResolved, locale, profile, setLocale, user } = useUserContext();
   const [guestSeen, setGuestSeen] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -63,6 +63,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     return (
       <OnboardingApp
         locale={locale}
+        onLocaleChange={setLocale}
         onCalculatePath={async () => {
           await completeOnboarding(profile, applyServerData);
           openCalculatorPath();
@@ -84,10 +85,12 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
 
 function OnboardingApp({
   locale,
+  onLocaleChange,
   onCalculatePath,
   onOpenFirstTask
 }: {
   locale: AppLocale;
+  onLocaleChange: (locale: AppLocale) => Promise<void>;
   onCalculatePath: () => Promise<void>;
   onOpenFirstTask: () => Promise<void>;
 }) {
@@ -144,16 +147,31 @@ function OnboardingApp({
             )}
             <strong>{onboardingText(onboardingContent.brand, locale)}</strong>
           </div>
-          <div
-            className="onboarding-progress"
-            role="progressbar"
-            aria-valuemin={1}
-            aria-valuemax={steps.length}
-            aria-valuenow={currentIndex + 1}
-          >
-            {steps.map((item) => (
-              <i className={steps.indexOf(item) <= currentIndex ? "active" : ""} key={item} />
-            ))}
+          <div className="onboarding-top-tools">
+            <div className="onboarding-language-switch" role="group" aria-label={onboardingText(onboardingContent.actions.language, locale)}>
+              {(["ru", "en"] as AppLocale[]).map((item) => (
+                <button
+                  className={locale === item ? "active" : ""}
+                  type="button"
+                  aria-pressed={locale === item}
+                  key={item}
+                  onClick={() => void onLocaleChange(item)}
+                >
+                  {item.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <div
+              className="onboarding-progress"
+              role="progressbar"
+              aria-valuemin={1}
+              aria-valuemax={steps.length}
+              aria-valuenow={currentIndex + 1}
+            >
+              {steps.map((item) => (
+                <i className={steps.indexOf(item) <= currentIndex ? "active" : ""} key={item} />
+              ))}
+            </div>
           </div>
         </header>
 

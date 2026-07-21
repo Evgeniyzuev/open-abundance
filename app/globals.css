@@ -1081,13 +1081,22 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 }
 
 /* Reflection inbox */
-.reflection-capture { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; margin: 4px 0 14px; padding: 10px; border: 1px solid rgba(126, 98, 255, 0.18); border-radius: 18px; background: rgba(255,255,255,0.88); box-shadow: 0 10px 28px rgba(35, 27, 80, 0.06); }
-.reflection-capture textarea { width: 100%; min-height: 62px; border: 0; outline: 0; padding: 8px; background: transparent; color: var(--text); resize: none; font: inherit; line-height: 1.35; }
-.reflection-capture-button { min-height: 42px; border-radius: 13px; padding: 0 14px; background: #7e62ff; color: white; font-weight: 850; }
+.reflection-capture { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px; margin: 4px 0 12px; padding: 6px; border: 1px solid rgba(126, 98, 255, 0.18); border-radius: 15px; background: rgba(255,255,255,0.88); box-shadow: 0 7px 20px rgba(35, 27, 80, 0.05); }
+.reflection-capture textarea { width: 100%; height: 40px; min-height: 40px; max-height: 76px; overflow-y: auto; border: 0; outline: 0; padding: 10px 8px 8px; background: transparent; color: var(--text); resize: none; font: inherit; line-height: 1.35; }
+.reflection-capture-button { min-height: 38px; border-radius: 11px; padding: 0 13px; background: #7e62ff; color: white; font-size: 13px; font-weight: 850; }
 .reflection-capture-button:disabled { opacity: 0.42; }
-.reflection-captured, .reflection-reminder-setup { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -5px 0 14px; border-radius: 14px; padding: 10px 12px; background: #f0edff; color: #4f3aac; font-size: 13px; font-weight: 750; }
-.reflection-captured .text-button { margin-left: auto; }
+.reflection-capture-toast { position: fixed; z-index: 24; left: 50%; bottom: 92px; min-height: 34px; display: inline-flex; align-items: center; transform: translateX(-50%); border-radius: 999px; padding: 0 14px; background: rgba(40, 32, 76, 0.92); color: #fff; box-shadow: 0 8px 22px rgba(35, 27, 80, 0.18); font-size: 13px; font-weight: 850; animation: reflection-toast-in 180ms ease-out; }
+.reflection-queue-count { min-width: 30px; min-height: 30px; display: inline-flex; align-items: center; justify-content: center; justify-self: end; border-radius: 999px; background: #eee9ff; color: #6548d9; font-size: 13px; font-weight: 900; }
+.reflection-queue-hint { margin: 2px 0 9px; color: var(--muted); font-size: 13px; text-align: center; }
+.reflection-queue-reminder { display: grid; gap: 8px; margin-bottom: 12px; border-radius: 14px; padding: 9px 11px; background: #f0edff; color: #4f3aac; }
+.reflection-queue-reminder-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 850; }
+.reflection-queue-reminder-summary .text-button { min-height: 28px; padding: 0 5px; font-size: 12px; }
+.reflection-reminder-setup { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 7px; border-top: 1px solid rgba(79, 58, 172, 0.12); padding-top: 8px; font-size: 12px; font-weight: 750; }
 .reflection-reminder-setup input[type="time"] { width: auto; min-height: 36px; padding: 0 8px; }
+.reflection-reminder-setup .secondary-button { min-height: 36px; padding: 0 11px; }
+.reflection-reminder-setup .text-button { grid-column: 1 / -1; justify-self: start; min-height: 26px; }
+.reflection-row-action { margin-top: 3px; color: #6548d9; font-size: 13px; line-height: 1.2; }
+@keyframes reflection-toast-in { from { opacity: 0; transform: translate(-50%, 5px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .smart-card.purple { color: #6c4ee8; }
 .smart-card.purple .smart-icon { background: #eee9ff; }
 .reflection-backdrop { z-index: 35; }
@@ -1132,8 +1141,8 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .task-due-reminders button { border-radius: 10px; padding: 9px 10px; background: rgba(255,255,255,0.72); color: var(--text); text-align: left; }
 
 @media (max-width: 520px) {
-  .reflection-capture { grid-template-columns: 1fr; }
-  .reflection-capture-button { justify-self: end; }
+  .reflection-reminder-setup { grid-template-columns: minmax(0, 1fr) auto; }
+  .reflection-reminder-setup > span { grid-column: 1 / -1; }
   .reflection-final-actions { grid-template-columns: 1fr; }
 }
 

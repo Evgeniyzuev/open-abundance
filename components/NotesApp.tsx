@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   deleteList,
   deleteNote,
@@ -143,6 +143,12 @@ export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
     if (!reminderSettings.configured || !reminderSettings.enabled) return;
     void syncInboxReviewReminder(reflectionInboxCount > 0, locale, reminderSettings).catch(() => undefined);
   }, [locale, reflectionInboxCount, reminderSettings]);
+
+  useEffect(() => {
+    if (!capturedNoteId) return;
+    const timeoutId = window.setTimeout(() => setCapturedNoteId(null), 2400);
+    return () => window.clearTimeout(timeoutId);
+  }, [capturedNoteId]);
 
   function openList(view: ViewId) {
     setDetailView(view);
@@ -295,6 +301,13 @@ export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
           onEdit={openEditNote}
           onInfo={setInfoNoteId}
           onOpenReflection={(note) => setProcessingNoteId(note.id)}
+          isReflectionQueue={activeView === "process"}
+          reminderSettings={reminderSettings}
+          showReminderSetup={showReminderSetup}
+          onReviewTimeChange={(reviewTime) => setReminderSettings((current) => ({ ...current, reviewTime }))}
+          onEnableReminder={() => void enableDailyReviewReminder()}
+          onSkipReminder={skipDailyReviewReminder}
+          onShowReminderSetup={() => setShowReminderSetup(true)}
         />
       ) : (
         <HomeScreen
@@ -308,17 +321,8 @@ export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
           onOpenList={openList}
           captured={Boolean(capturedNoteId)}
           onCapture={handleQuickCapture}
-          onProcessCaptured={() => {
-            if (capturedNoteId) setProcessingNoteId(capturedNoteId);
-            setCapturedNoteId(null);
-          }}
           quickCapture={quickCapture}
           setQuickCapture={setQuickCapture}
-          reminderSettings={reminderSettings}
-          showReminderSetup={showReminderSetup}
-          onReviewTimeChange={(reviewTime) => setReminderSettings((current) => ({ ...current, reviewTime }))}
-          onEnableReminder={() => void enableDailyReviewReminder()}
-          onSkipReminder={skipDailyReviewReminder}
         />
       )}
 
@@ -382,18 +386,17 @@ type HomeScreenProps = {
   onOpenList: (view: ViewId) => void;
   captured: boolean;
   onCapture: (event: FormEvent<HTMLFormElement>) => void;
-  onProcessCaptured: () => void;
   quickCapture: string;
   setQuickCapture: (value: string) => void;
-  reminderSettings: ReturnType<typeof getReflectionReminderSettings>;
-  showReminderSetup: boolean;
-  onReviewTimeChange: (value: string) => void;
-  onEnableReminder: () => void;
-  onSkipReminder: () => void;
 };
 
-function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, onProcessCaptured, quickCapture, setQuickCapture, reminderSettings, showReminderSetup, onReviewTimeChange, onEnableReminder, onSkipReminder }: HomeScreenProps) {
+function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, quickCapture, setQuickCapture }: HomeScreenProps) {
   const { t } = useUserContext();
+  const captureRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!quickCapture && captureRef.current) captureRef.current.style.height = "";
+  }, [quickCapture]);
 
   return (
     <>
@@ -412,27 +415,21 @@ function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDe
 
       <form className="reflection-capture" onSubmit={onCapture}>
         <textarea
+          ref={captureRef}
           aria-label={t("reflections.captureLabel")}
           placeholder={t("reflections.capturePlaceholder")}
-          rows={2}
+          rows={1}
           value={quickCapture}
           onChange={(event) => setQuickCapture(event.target.value)}
+          onInput={(event) => {
+            event.currentTarget.style.height = "auto";
+            event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 76)}px`;
+          }}
         />
         <button className="reflection-capture-button" type="submit" disabled={!quickCapture.trim()}>{t("reflections.capture")}</button>
       </form>
       {captured ? (
-        <div className="reflection-captured" role="status">
-          <span>{t("reflections.captured")}</span>
-          <button className="text-button" type="button" onClick={onProcessCaptured}>{t("reflections.processNow")}</button>
-        </div>
-      ) : null}
-      {showReminderSetup ? (
-        <div className="reflection-reminder-setup">
-          <span>{t("reflections.reviewReminderPrompt")}</span>
-          <input aria-label={t("reflections.reviewTime")} type="time" value={reminderSettings.reviewTime} onChange={(event) => onReviewTimeChange(event.target.value)} />
-          <button className="secondary-button" type="button" onClick={onEnableReminder}>{t("reflections.enableReminder")}</button>
-          <button className="text-button" type="button" onClick={onSkipReminder}>{t("reflections.notNow")}</button>
-        </div>
+        <div className="reflection-capture-toast" role="status">{t("reflections.savedShort")}</div>
       ) : null}
 
       <div className="smart-grid compact">
@@ -477,26 +474,61 @@ type ListDetailProps = {
   onEdit: (note: Note) => void;
   onInfo: (id: string) => void;
   onOpenReflection: (note: Note) => void;
+  isReflectionQueue: boolean;
+  reminderSettings: ReturnType<typeof getReflectionReminderSettings>;
+  showReminderSetup: boolean;
+  onReviewTimeChange: (value: string) => void;
+  onEnableReminder: () => void;
+  onSkipReminder: () => void;
+  onShowReminderSetup: () => void;
 };
 
-function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCreateList, onComplete, onEdit, onInfo, onOpenReflection }: ListDetailProps) {
+function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCreateList, onComplete, onEdit, onInfo, onOpenReflection, isReflectionQueue, reminderSettings, showReminderSetup, onReviewTimeChange, onEnableReminder, onSkipReminder, onShowReminderSetup }: ListDetailProps) {
   const { t } = useUserContext();
+  const showReminderControls = isReflectionQueue && (notes.length > 0 || reminderSettings.configured);
+  const showReminderForm = isReflectionQueue && (showReminderSetup || (notes.length > 0 && !reminderSettings.configured));
 
   return (
     <section className="detail-screen">
       <header className="detail-topbar">
         <button className="back-button" type="button" onClick={onBack}>‹</button>
         <h1>{activeTitle}</h1>
-        <div className="top-actions">
-          <button className="round-button search-button" type="button" aria-label={t("app.common.search")}>⌕</button>
-          <button className="round-button list-create-button" type="button" aria-label={t("notes.createList")} onClick={onCreateList}>▦</button>
-          <button className="round-button primary-add-button" type="button" aria-label={t("notes.createNote")} onClick={onCreate}>+</button>
-        </div>
+        {isReflectionQueue ? (
+          <span className="reflection-queue-count">{notes.length}</span>
+        ) : (
+          <div className="top-actions">
+            <button className="round-button search-button" type="button" aria-label={t("app.common.search")}>⌕</button>
+            <button className="round-button list-create-button" type="button" aria-label={t("notes.createList")} onClick={onCreateList}>▦</button>
+            <button className="round-button primary-add-button" type="button" aria-label={t("notes.createNote")} onClick={onCreate}>+</button>
+          </div>
+        )}
       </header>
+
+      {isReflectionQueue && notes.length > 0 ? <p className="reflection-queue-hint">{t("reflections.returnLater")}</p> : null}
+      {showReminderControls ? (
+        <section className="reflection-queue-reminder">
+          <div className="reflection-queue-reminder-summary">
+            <span>{t("reflections.queueCount", { count: notes.length })}</span>
+            {reminderSettings.enabled ? (
+              <button className="text-button" type="button" onClick={onShowReminderSetup}>{t("reflections.dailyAt", { time: reminderSettings.reviewTime })}</button>
+            ) : !showReminderForm ? (
+              <button className="text-button" type="button" onClick={onShowReminderSetup}>{t("reflections.enableReminder")}</button>
+            ) : null}
+          </div>
+          {showReminderForm ? (
+            <div className="reflection-reminder-setup">
+              <span>{t("reflections.reviewReminderPrompt")}</span>
+              <input aria-label={t("reflections.reviewTime")} type="time" value={reminderSettings.reviewTime} onChange={(event) => onReviewTimeChange(event.target.value)} />
+              <button className="secondary-button" type="button" onClick={onEnableReminder}>{t("reflections.enableReminder")}</button>
+              <button className="text-button" type="button" onClick={onSkipReminder}>{t("reflections.notNow")}</button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="task-list compact-list">
         {notes.length === 0 ? (
-          <div className="empty-state">{t("notes.emptyList")}</div>
+          <div className="empty-state">{t(isReflectionQueue ? "reflections.inboxEmpty" : "notes.emptyList")}</div>
         ) : (
           notes.map((note) => {
             const list = lists.find((item) => item.id === note.listId);
@@ -507,6 +539,7 @@ function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCre
                   <span>{note.title}</span>
                   {note.body ? <small>{note.body}</small> : null}
                   {note.kind === "reflection" && note.processing ? <i>{getReflectionStatusLabel(note.processing.status, t)}</i> : null}
+                  {isReflectionQueue && note.kind === "reflection" ? <strong className="reflection-row-action">{t(note.processing?.status === "inbox" ? "reflections.processNow" : "reflections.openProcessing")}</strong> : null}
                   {note.reminders.length > 0 ? <em>{note.reminders.map((reminder) => formatReminder(reminder, locale)).join(" · ")}</em> : null}
                   {list ? <i>{list.icon} {list.title}</i> : null}
                 </button>

@@ -84,7 +84,8 @@ test("reflection inbox captures offline without calling AI and survives reload",
   await context.setOffline(true);
   await page.getByRole("textbox", { name: "Quick thought or feeling capture" }).fill("I keep postponing one difficult message.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("Saved. You can return to this later.")).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("Saved");
+  await expect(page.getByText("Remind me to process the inbox once a day")).toHaveCount(0);
   expect(aiCalls).toBe(0);
 
   const saved = await page.evaluate(async () => {
@@ -106,6 +107,9 @@ test("reflection inbox captures offline without calling AI and survives reload",
   await context.setOffline(false);
   await page.goto("/?view=goals.notes&reflectionInbox=1");
   await expect(page.getByRole("heading", { name: "Process" })).toBeVisible();
+  await expect(page.getByText("You can return to this later.")).toBeVisible();
+  await expect(page.getByText("Remind me to process the inbox once a day")).toBeVisible();
+  await expect(page.getByText("Process now", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /I keep postponing one difficult message/ })).toBeVisible();
   expect(aiCalls).toBe(0);
 });
@@ -159,7 +163,8 @@ test("reflection processing asks at most three questions and returns an editable
   await page.goto("/");
   await page.getByRole("textbox", { name: "Quick thought or feeling capture" }).fill("I keep postponing one difficult message.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await page.getByRole("button", { name: "Process now" }).click();
+  await page.getByRole("button", { name: /Process/ }).first().click();
+  await page.getByText("Process now", { exact: true }).click();
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Process with AI" }).click();

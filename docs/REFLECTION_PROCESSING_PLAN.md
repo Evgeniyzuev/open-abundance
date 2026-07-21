@@ -5,6 +5,7 @@
 Implemented locally on 2026-07-21:
 
 - one-field reflection capture in `Goals -> Notes`;
+- compact one-line capture with a short saved toast; processing guidance and daily-review controls live inside `Process` rather than on the Notes home screen;
 - local `Process` smart list and persisted processing state;
 - explicit AI processing with up to three questions;
 - editable proposal, possible-cause confirmation, alternatives, resources and if-then action;

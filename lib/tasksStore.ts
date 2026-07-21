@@ -28,6 +28,8 @@ export type TaskItem = {
   updatedAt: string;
   deleted?: boolean;
   syncStatus: SyncStatus;
+  sourceNoteId?: string;
+  remindAt?: string;
 };
 
 export type TaskCompletionType = "done" | "life";
@@ -46,6 +48,8 @@ export type TaskInput = Pick<TaskItem, "id" | "title" | "description" | "schedul
   streak?: TaskStreakSettings;
   imageUrl?: string;
   thumbnailDataUrl?: string;
+  sourceNoteId?: string;
+  remindAt?: string;
 };
 
 const DB_NAME = "open-abundance-offline";
@@ -135,7 +139,9 @@ export async function saveTask(input: TaskInput): Promise<TaskItem> {
     failedAt: existing?.failedAt,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
-    syncStatus: input.syncStatus
+    syncStatus: input.syncStatus,
+    sourceNoteId: input.sourceNoteId ?? existing?.sourceNoteId,
+    remindAt: input.remindAt ?? existing?.remindAt
   };
 
   await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) => store.put(task));

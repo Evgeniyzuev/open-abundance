@@ -69,6 +69,118 @@ test("returning guest sees the app shell", async ({ page }) => {
   expect(pageErrors).toEqual([]);
 });
 
+test("reflection inbox captures offline without calling AI and survives reload", async ({ page, context }) => {
+  let aiCalls = 0;
+  await page.route("**/api/ai/reflections/step", async (route) => {
+    aiCalls += 1;
+    await route.abort();
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("openAbundanceOnboardingSeen", "true");
+    window.localStorage.setItem("openAbundanceLocale", "en");
+  });
+  await page.goto("/");
+
+  await context.setOffline(true);
+  await page.getByRole("textbox", { name: "Quick thought or feeling capture" }).fill("I keep postponing one difficult message.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Saved. You can return to this later.")).toBeVisible();
+  expect(aiCalls).toBe(0);
+
+  const saved = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("open-abundance-offline", 4);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const notes = await new Promise<Array<{ body: string; kind?: string; processing?: { status?: string } }>>((resolve, reject) => {
+      const request = db.transaction("notes", "readonly").objectStore("notes").getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return notes.find((note) => note.body === "I keep postponing one difficult message.");
+  });
+  expect(saved).toMatchObject({ kind: "reflection", processing: { status: "inbox" } });
+
+  await context.setOffline(false);
+  await page.goto("/?view=goals.notes&reflectionInbox=1");
+  await expect(page.getByRole("heading", { name: "Process" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /I keep postponing one difficult message/ })).toBeVisible();
+  expect(aiCalls).toBe(0);
+});
+
+test("reflection processing asks at most three questions and returns an editable proposal", async ({ page }) => {
+  let aiCalls = 0;
+  await page.route("**/api/ai/reflections/step", async (route) => {
+    aiCalls += 1;
+    const body = route.request().postDataJSON() as { answers?: unknown[] };
+    const answerCount = body.answers?.length ?? 0;
+    if (answerCount < 3) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ mode: "question", question: { id: `question_${answerCount + 1}`, text: `Question ${answerCount + 1}?` } })
+      });
+      return;
+    }
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode: "proposal",
+        proposal: {
+          summary: "A difficult message is being postponed.",
+          facts: ["The message has not been sent"],
+          thoughts: ["The conversation may be uncomfortable"],
+          feelings: ["Anxiety"],
+          bodySignals: [],
+          reactions: ["Postponing"],
+          desiredOutcome: "Start the conversation respectfully",
+          causes: [{ id: "cause_1", text: "Fear of conflict", rationale: "Postponing reduces discomfort in the short term", confirmed: false }],
+          alternatives: [
+            { title: "Send a short opener", description: "Starts the conversation with limited effort" },
+            { title: "Schedule a call", description: "Provides more context but needs coordination" }
+          ],
+          resourcesHave: ["Contact details"],
+          resourcesNeed: ["A calm 10-minute window"],
+          resourcesObtain: ["Choose a time"],
+          practiceId: "implementation_intention",
+          outcomeKind: "act_now",
+          nextAction: "Write a two-sentence opener",
+          ifThen: "When it is 7 PM, I will write and send the opener."
+        }
+      })
+    });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("openAbundanceOnboardingSeen", "true");
+    window.localStorage.setItem("openAbundanceLocale", "en");
+    window.localStorage.setItem("open-abundance:reflection-settings:v1", JSON.stringify({ reviewTime: "19:00", enabled: false, configured: true }));
+  });
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "Quick thought or feeling capture" }).fill("I keep postponing one difficult message.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("button", { name: "Process now" }).click();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Process with AI" }).click();
+  for (let index = 1; index <= 3; index += 1) {
+    await expect(page.getByRole("heading", { name: `Question ${index}?` })).toBeVisible();
+    await page.getByRole("textbox", { name: "Short answer" }).fill(`Answer ${index}`);
+    await page.getByRole("button", { name: "Answer", exact: true }).click();
+  }
+
+  await expect(page.getByRole("heading", { name: "Possible causes" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Schedule" })).toBeVisible();
+  await expect(page.getByLabel("Next action")).toHaveValue("Write a two-sentence opener");
+  expect(aiCalls).toBe(4);
+});
+
+test("reflection safety gate stops ordinary AI processing", async ({ request }) => {
+  const response = await request.post("/api/ai/reflections/step", { data: { rawText: "I want to kill myself", answers: [], locale: "en" } });
+  expect(response.ok()).toBeTruthy();
+  await expect(response.json()).resolves.toMatchObject({ mode: "safety" });
+});
+
 test("local-first shell does not wait for a signed-in user context refresh", async ({ page }) => {
   const userId = "00000000-0000-4000-8000-000000000001";
 
@@ -168,6 +280,40 @@ test("local-first shell does not wait for a signed-in user context refresh", asy
 });
 
 test("returning guest sees the ordered first Core path", async ({ page }) => {
+  const pathTitles = [
+    "Save Your Progress",
+    "Choose Your Main Wish",
+    "Build Your Growth Plan",
+    "Reach Today Core Target",
+    "Publish Your First Result"
+  ];
+  await page.route("**/api/challenges?**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        authenticated: false,
+        challenges: pathTitles.map((title, index) => ({
+          id: `first-core-path-${index + 1}`,
+          title: { en: title },
+          description: { en: "" },
+          instructions: { en: "" },
+          requirements: { en: "" },
+          reward_label: null,
+          category: "onboarding",
+          difficulty_level: 1,
+          duration_days: 1,
+          image_url: null,
+          verification_type: "auto",
+          verification_logic: null,
+          sort_order: index + 1,
+          track_key: "first_core_path",
+          track_step: index + 1,
+          action_view: null,
+          user_challenge_status: null
+        }))
+      })
+    });
+  });
   await page.addInitScript(() => window.localStorage.setItem("openAbundanceOnboardingSeen", "true"));
   await page.goto("/?view=challenges");
 

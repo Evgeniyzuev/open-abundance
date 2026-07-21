@@ -104,6 +104,7 @@
 - [ ] Referrals/teams: referral claim, team membership, capacity, контакты команды и team bonus ledger.
 - [ ] Trust-lite: mutual confirmations, trust events, reciprocity summary и challenge checks.
 - [ ] AI Coordinator: streaming chat, knowledge base и provider fallback; чат доступен как вторичная вкладка Home и пока остается отдельным инструментом, а не контекстным союзником главного пути.
+- [x] Reflection Inbox: быстрый local-first захват в Notes, очередь `Разобрать`, явный AI-разбор до трёх вопросов, редактируемый итог, возможные причины, ресурсы, if-then действие, связь с Checks и нейтральные PWA reminders. Push требует применения миграции и настройки VAPID/Vault; детали в `docs/REFLECTION_PROCESSING_PLAN.md`.
 
 ### Поздние контуры, уже имеющие технический фундамент
 

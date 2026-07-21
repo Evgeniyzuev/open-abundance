@@ -15,6 +15,9 @@ import {
 import type { TaskCompletion, TaskItem, TaskSchedule, TaskStreakSettings } from "@/lib/tasksStore";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
+import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
+import type { ReflectionTaskDraft } from "@/lib/reflections";
+import { scheduleActionReminder } from "@/lib/pushReminders";
 
 type ScheduleType = "once" | "daily" | "weekdays";
 
@@ -47,6 +50,7 @@ const emptyTaskForm = {
   description: "",
   scheduleType: "daily" as ScheduleType,
   startDate: todayKey(),
+  remindAt: "",
   targetDays: "7",
   infinite: false,
   softMode: false,
@@ -60,7 +64,12 @@ const emptyTaskForm = {
   subtasks: [] as string[]
 };
 
-export default function TasksApp() {
+type TasksAppProps = {
+  createRequest?: ReflectionTaskDraft | null;
+  onCreateRequestHandled?: () => void;
+};
+
+export default function TasksApp({ createRequest, onCreateRequestHandled }: TasksAppProps) {
   const { locale, t } = useUserContext();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [completions, setCompletions] = useState<TaskCompletion[]>([]);
@@ -70,6 +79,7 @@ export default function TasksApp() {
   const [otherExpanded, setOtherExpanded] = useState(true);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
+  const [clock, setClock] = useState(() => Date.now());
 
   const selectedTask = selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) : undefined;
   const today = todayKey();
@@ -84,6 +94,27 @@ export default function TasksApp() {
     refreshTasks();
   }, []);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!createRequest) return;
+    const reminder = createRequest.remindAt ? toLocalDateTimeInput(createRequest.remindAt) : "";
+    setForm({
+      ...emptyTaskForm,
+      title: createRequest.title,
+      description: createRequest.description,
+      scheduleType: "once",
+      startDate: reminder ? reminder.slice(0, 10) : todayKey(),
+      remindAt: reminder
+    });
+    setSelectedTaskId(null);
+    setArchiveOpen(false);
+    setModalOpen(true);
+  }, [createRequest]);
+
   const todayTasks = useMemo(
     () => tasks.filter((task) => !task.deleted && !task.completed && isDueOn(task, today) && !isCompletedOn(task.id, today, completions)),
     [completions, tasks, today]
@@ -93,8 +124,15 @@ export default function TasksApp() {
     [tasks, todayTasks]
   );
   const archiveTasks = useMemo(() => tasks.filter((task) => task.completed || task.deleted), [tasks]);
+  const dueReminderTasks = useMemo(() => tasks.filter((task) => !task.deleted && !task.completed && task.remindAt && new Date(task.remindAt).getTime() <= clock), [clock, tasks]);
+
+  useEffect(() => {
+    const taskId = new URLSearchParams(window.location.search).get("task");
+    if (taskId && tasks.some((task) => task.id === taskId)) setSelectedTaskId(taskId);
+  }, [tasks]);
 
   function openNewTaskModal() {
+    onCreateRequestHandled?.();
     setForm({ ...emptyTaskForm, startDate: todayKey() });
     setModalOpen(true);
   }
@@ -111,8 +149,9 @@ export default function TasksApp() {
     const title = form.title.trim();
     if (!title) return;
 
+    const taskId = crypto.randomUUID();
     await saveTask({
-      id: crypto.randomUUID(),
+      id: taskId,
       title,
       description: form.description.trim(),
       subtasks: form.subtasks,
@@ -120,11 +159,21 @@ export default function TasksApp() {
       streak: buildStreakSettings(form),
       imageUrl: form.imageMode === "url" ? form.imageUrl.trim() || undefined : undefined,
       thumbnailDataUrl: form.imageMode === "upload" ? form.thumbnailDataUrl || undefined : undefined,
+      sourceNoteId: createRequest?.sourceNoteId,
+      remindAt: form.remindAt ? new Date(form.remindAt).toISOString() : undefined,
       syncStatus: "local"
     });
 
+    if (createRequest?.sourceNoteId) {
+      await linkReflectionTask(createRequest.sourceNoteId, taskId);
+    }
+    if (form.remindAt) {
+      void scheduleActionReminder(taskId, new Date(form.remindAt).toISOString(), locale);
+    }
+
     setForm({ ...emptyTaskForm, startDate: todayKey() });
     setModalOpen(false);
+    onCreateRequestHandled?.();
     await refreshTasks();
   }
 
@@ -161,6 +210,7 @@ export default function TasksApp() {
     await refreshTasks();
 
     if (task.schedule.type === "once") {
+      if (task.sourceNoteId) await closeReflectionForTask(task.id);
       setSelectedTaskId(null);
       window.alert(t("tasks.alertDone", { title: task.title }));
       return;
@@ -173,6 +223,7 @@ export default function TasksApp() {
 
   async function finishTask(task: TaskItem) {
     await completeTask(task.id);
+    if (task.sourceNoteId) await closeReflectionForTask(task.id);
     setStreakDecisionTask(null);
     setSelectedTaskId(null);
     await refreshTasks();
@@ -189,6 +240,8 @@ export default function TasksApp() {
       streak: task.streak,
       imageUrl: task.imageUrl,
       thumbnailDataUrl: task.thumbnailDataUrl,
+      sourceNoteId: task.sourceNoteId,
+      remindAt: task.remindAt,
       syncStatus: "local"
     });
     setStreakDecisionTask(null);
@@ -237,6 +290,13 @@ export default function TasksApp() {
         </button>
       </header>
 
+      {dueReminderTasks.length > 0 ? (
+        <section className="task-due-reminders" role="status">
+          <strong>{t("tasks.dueReminder", { count: dueReminderTasks.length })}</strong>
+          {dueReminderTasks.slice(0, 3).map((task) => <button key={task.id} type="button" onClick={() => setSelectedTaskId(task.id)}>{task.title}</button>)}
+        </section>
+      ) : null}
+
       <TaskSection title={t("tasks.today")} emptyText={t("tasks.todayEmpty")} tasks={todayTasks} completions={completions} today={today} onMarkToday={markToday} onOpen={setSelectedTaskId} onRepeat={repeatTask} />
 
       <section className="task-section">
@@ -256,7 +316,7 @@ export default function TasksApp() {
         </button>
       </section>
 
-      {modalOpen ? <TaskModal form={form} setForm={setForm} onClose={() => setModalOpen(false)} onSubmit={handleSubmit} /> : null}
+      {modalOpen ? <TaskModal form={form} setForm={setForm} onClose={() => { setModalOpen(false); onCreateRequestHandled?.(); }} onSubmit={handleSubmit} /> : null}
       {selectedTask ? (
         <TaskDetailModal
           task={selectedTask}
@@ -518,6 +578,13 @@ function TaskModal({ form, setForm, onClose, onSubmit }: TaskModalProps) {
 
         <input type="date" value={form.startDate} onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))} />
 
+        {form.scheduleType === "once" ? (
+          <label className="task-reminder-field">
+            <span>{t("tasks.remindAt")}</span>
+            <input type="datetime-local" value={form.remindAt} onChange={(event) => setForm((current) => ({ ...current, remindAt: event.target.value, startDate: event.target.value.slice(0, 10) || current.startDate }))} />
+          </label>
+        ) : null}
+
         {form.scheduleType === "weekdays" ? (
           <div className="weekday-picker">
             {weekdayOptions.map((day) => (
@@ -730,6 +797,7 @@ function buildFormFromTask(task: TaskItem, today: string): typeof emptyTaskForm 
     ...emptyTaskForm,
     title: task.title,
     description: task.description,
+    remindAt: task.remindAt ? toLocalDateTimeInput(task.remindAt) : "",
     scheduleType: task.schedule.type,
     startDate: today,
     targetDays,
@@ -743,6 +811,13 @@ function buildFormFromTask(task: TaskItem, today: string): typeof emptyTaskForm 
     thumbnailDataUrl: task.thumbnailDataUrl ?? "",
     subtasks: task.subtasks
   };
+}
+
+function toLocalDateTimeInput(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 }
 
 function buildSchedule(form: typeof emptyTaskForm): TaskSchedule {

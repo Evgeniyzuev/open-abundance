@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { flushPendingReminders } from "@/lib/pushReminders";
 
 const APP_UPDATE_CHECK_INTERVAL_MS = 30 * 1000;
 const DEV_SW_RELOAD_KEY = "open-abundance:dev-sw-cleanup-reload";
@@ -76,15 +77,20 @@ export default function ServiceWorkerRegister() {
 
         document.addEventListener("visibilitychange", handleVisibilityChange);
         removeVisibilityListener = () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+        void flushPendingReminders();
       })
       .catch((error) => {
         console.warn("Service worker registration failed", error);
       });
 
+    const handleOnline = () => void flushPendingReminders();
+    window.addEventListener("online", handleOnline);
+
     return () => {
       window.clearTimeout(reloadGuardReset);
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
       removeVisibilityListener?.();
+      window.removeEventListener("online", handleOnline);
     };
   }, []);
 

@@ -1,5 +1,13 @@
 ﻿export type SyncStatus = "local" | "pending_sync" | "synced" | "failed";
 
+import {
+  createReflectionProcessing,
+  normalizeReflectionProcessing,
+  type ReflectionFeedback,
+  type ReflectionProcessing,
+  type ReflectionProposal
+} from "@/lib/reflections";
+
 export type ReminderList = {
   id: string;
   title: string;
@@ -24,6 +32,8 @@ export type Note = {
   deleted?: boolean;
   syncStatus: SyncStatus;
   serverVersion?: string;
+  kind?: "regular" | "reflection";
+  processing?: ReflectionProcessing;
 };
 
 const DB_NAME = "open-abundance-offline";
@@ -38,6 +48,8 @@ type NoteInput = Pick<Note, "id" | "title" | "body" | "syncStatus"> & {
   listId?: string;
   reminders?: string[];
   completed?: boolean;
+  kind?: "regular" | "reflection";
+  processing?: ReflectionProcessing;
 };
 
 type ListInput = Pick<ReminderList, "id" | "title" | "icon" | "color" | "syncStatus">;
@@ -160,7 +172,9 @@ export async function saveNote(input: NoteInput): Promise<Note> {
     completed: input.completed ?? existing?.completed ?? false,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
-    syncStatus: input.syncStatus
+    syncStatus: input.syncStatus,
+    kind: input.kind ?? existing?.kind ?? "regular",
+    processing: input.processing ?? existing?.processing
   };
 
   await withStore<IDBValidKey>(NOTES_STORE, "readwrite", (store) => store.put(note));
@@ -178,6 +192,79 @@ export async function toggleNoteCompleted(id: string): Promise<void> {
       syncStatus: "local"
     })
   );
+}
+
+export async function saveReflectionCapture(body: string): Promise<Note> {
+  const text = body.trim();
+  const firstLine = text.split(/\r?\n/)[0]?.trim() ?? "";
+  return saveNote({
+    id: crypto.randomUUID(),
+    title: (firstLine || text).slice(0, 90),
+    body: text,
+    kind: "reflection",
+    processing: createReflectionProcessing(),
+    syncStatus: "local"
+  });
+}
+
+export async function updateReflectionProcessing(id: string, processing: ReflectionProcessing): Promise<Note | undefined> {
+  const note = await getNote(id);
+  if (!note || note.kind !== "reflection") return undefined;
+  return saveNote({
+    id: note.id,
+    title: note.title,
+    body: note.body,
+    listId: note.listId,
+    reminders: note.reminders,
+    completed: processing.status === "closed",
+    kind: "reflection",
+    processing,
+    syncStatus: "local"
+  });
+}
+
+export async function setReflectionProposal(id: string, proposal: ReflectionProposal): Promise<Note | undefined> {
+  const note = await getNote(id);
+  if (!note?.processing) return undefined;
+  return updateReflectionProcessing(id, { ...note.processing, proposal, status: "ready" });
+}
+
+export async function linkReflectionTask(noteId: string, taskId: string): Promise<void> {
+  const note = await getNote(noteId);
+  if (!note?.processing) return;
+  await updateReflectionProcessing(noteId, {
+    ...note.processing,
+    linkedTaskId: taskId,
+    status: "planned"
+  });
+}
+
+export async function closeReflectionForTask(taskId: string): Promise<void> {
+  const notes = await getNotes();
+  const note = notes.find((item) => item.processing?.linkedTaskId === taskId);
+  if (!note?.processing) return;
+  await updateReflectionProcessing(note.id, {
+    ...note.processing,
+    status: "closed",
+    completedAt: new Date().toISOString()
+  });
+}
+
+export async function closeReflection(id: string, feedback?: ReflectionFeedback): Promise<void> {
+  const note = await getNote(id);
+  if (!note?.processing) return;
+  await updateReflectionProcessing(id, {
+    ...note.processing,
+    status: "closed",
+    completedAt: new Date().toISOString(),
+    feedback: feedback ?? note.processing.feedback
+  });
+}
+
+export async function setReflectionFeedback(id: string, feedback: ReflectionFeedback): Promise<void> {
+  const note = await getNote(id);
+  if (!note?.processing) return;
+  await updateReflectionProcessing(id, { ...note.processing, feedback });
 }
 
 export async function deleteNote(id: string): Promise<void> {
@@ -208,7 +295,9 @@ function normalizeNote(note: Note): Note {
     ...note,
     reminders: Array.isArray(note.reminders) ? note.reminders : [],
     completed: Boolean(note.completed),
-    syncStatus: "local"
+    syncStatus: "local",
+    kind: note.kind ?? "regular",
+    processing: normalizeReflectionProcessing(note.processing)
   };
 }
 

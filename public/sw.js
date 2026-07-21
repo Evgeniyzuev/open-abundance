@@ -38,6 +38,39 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(handleAsset(request, event));
 });
 
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {};
+  }
+
+  event.waitUntil(self.registration.showNotification(payload.title || "Open Abundance", {
+    body: payload.body || "Open the app to see the details.",
+    icon: "/icons/twenty-levels-app-icon-192.png",
+    badge: "/icons/twenty-levels-app-icon-192.png",
+    tag: payload.tag || "open-abundance-reminder",
+    data: { deepLink: payload.deepLink || "/" }
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const deepLink = event.notification.data && event.notification.data.deepLink
+    ? event.notification.data.deepLink
+    : "/";
+  const targetUrl = new URL(deepLink, self.location.origin).href;
+
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
+    for (const client of clients) {
+      if ("navigate" in client) await client.navigate(targetUrl);
+      if ("focus" in client) return client.focus();
+    }
+    return self.clients.openWindow ? self.clients.openWindow(targetUrl) : undefined;
+  }));
+});
+
 async function handleNavigation(request, event) {
   const cache = await caches.open(CACHE_NAME);
   const cachedShell = await cache.match("/");

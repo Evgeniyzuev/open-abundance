@@ -1,5 +1,14 @@
 # Database
 
+## Reflection reminder delivery
+
+Reflection content remains local-only. Migration `20260721120000_reflection_push_reminders.sql` adds two closed service-role tables used only for neutral Web Push delivery:
+
+- `push_subscriptions`: endpoint capability and browser encryption keys;
+- `reminder_jobs`: due time, timezone, locale, opaque local entity id and delivery state.
+
+Both tables have RLS enabled with no client policies. Due jobs are claimed idempotently through service-role functions and dispatched by the scheduled `send-reflection-reminders` Edge Function. No note body, AI answer, possible cause or task title is stored in these tables.
+
 Supabase project ref: `bsikxrsguwketlloflgi`
 
 ## Source Of Truth

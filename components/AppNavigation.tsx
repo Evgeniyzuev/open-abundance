@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper, Rocket, ShoppingBag, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
@@ -11,11 +11,13 @@ import KeepAliveView from "@/components/KeepAliveView";
 import SocialApp from "@/components/SocialApp";
 import ResultsApp from "@/components/ResultsApp";
 import TasksApp from "@/components/TasksApp";
+import NotesApp from "@/components/NotesApp";
 import { useUserContext } from "@/components/UserProvider";
 import WalletApp from "@/components/WalletApp";
 import WishesApp from "@/components/WishesApp";
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
+import type { ReflectionTaskDraft } from "@/lib/reflections";
 
 type MainTabId = "home" | "goals" | "challenges" | "wallet" | "people";
 type HomeTabId = "home" | "ideas";
@@ -40,10 +42,6 @@ type TopTab = {
   id: string;
   titleKey: MessageKey;
   icon: LucideIcon;
-};
-
-type AppNavigationProps = {
-  notesSlot: ReactNode;
 };
 
 type NavigationState = {
@@ -105,7 +103,7 @@ const DEFAULT_NAVIGATION_STATE: NavigationState = {
   socialTab: "feed"
 };
 
-export default function AppNavigation({ notesSlot }: AppNavigationProps) {
+export default function AppNavigation() {
   const { refreshUserData, t } = useUserContext();
   const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTabId>(DEFAULT_NAVIGATION_STATE.homeTab);
@@ -119,6 +117,7 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
   const [pullDistance, setPullDistance] = useState(0);
   const [challengeFocusNonce, setChallengeFocusNonce] = useState(0);
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
+  const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
     map: false,
@@ -369,6 +368,12 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
     setActiveMainTab("wallet");
   }
 
+  function scheduleReflection(draft: ReflectionTaskDraft) {
+    setReflectionTaskDraft(draft);
+    setActiveGoalTab("checks");
+    setActiveMainTab("goals");
+  }
+
   return (
     <>
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
@@ -386,14 +391,14 @@ export default function AppNavigation({ notesSlot }: AppNavigationProps) {
           />
         </div>
         <KeepAliveView active={showNotes} visited>
-          {notesSlot}
+          <NotesApp onScheduleReflection={scheduleReflection} />
         </KeepAliveView>
         <KeepAliveView active={showWishes} visited={visitedServerViews.wishes}>
           <WishesApp active={showWishes} refreshNonce={refreshNonce} />
         </KeepAliveView>
         {showIdeas ? <AiChatApp active={showIdeas} /> : null}
         <KeepAliveView active={showChecks} visited>
-          <TasksApp />
+          <TasksApp createRequest={reflectionTaskDraft} onCreateRequestHandled={() => setReflectionTaskDraft(null)} />
         </KeepAliveView>
         <KeepAliveView active={showMap} visited={visitedServerViews.map}>
           <GrowthMapApp active={showMap} refreshNonce={refreshNonce} />

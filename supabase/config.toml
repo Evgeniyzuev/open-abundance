@@ -8,3 +8,6 @@ major_version = 17
 
 [studio]
 enabled = true
+
+[functions.send-reflection-reminders]
+verify_jwt = false

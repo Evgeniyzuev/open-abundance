@@ -7,7 +7,7 @@ Implemented locally on 2026-07-21:
 - one-field reflection capture in `Goals -> Notes`;
 - compact one-line capture with a short saved toast; processing guidance and daily-review controls live inside `Process` rather than on the Notes home screen;
 - local `Process` smart list and persisted processing state;
-- explicit AI processing with up to three questions;
+- four-step guided AI processing (feelings, possible causes/needs, desired change, available action) with selectable suggestions, a custom option, and no more than two adaptive follow-up questions;
 - editable proposal, possible-cause confirmation, alternatives, resources and if-then action;
 - safety response for immediate-risk language;
 - prefilled one-time task with source-note linkage and completion feedback;
@@ -18,13 +18,13 @@ The Supabase migration and Edge Function are committed but must be deployed and 
 
 ## Product Contract
 
-Raw captures stay in the local `open-abundance-offline` IndexedDB database. No request is made during capture. Pressing `Process with AI` explicitly sends only the selected note and up to three answers to the configured provider; the route does not persist or log that content.
+Raw captures stay in the local `open-abundance-offline` IndexedDB database. No request is made during capture. Pressing `Process with AI` explicitly sends only the selected note; after the guided steps, the confirmed selections and up to two adaptive answers are also sent to the configured provider. The route does not persist or log that content.
 
-AI output is advisory and editable. The UI says `Possible causes`, never claims a true or hidden cause, and requires the user to confirm hypotheses. Every successful session ends in one of: act now, wait, accept, learn, or ask a type of person. Closing without a task is valid.
+AI output is advisory and editable. The UI says `Possible causes`, never claims a true or hidden cause, and asks the user to choose only hypotheses that fit. The terminal result leads with an editable first-person I-statement built from the confirmed selections. Every successful session ends in one of: act now, wait, accept, learn, or ask a type of person. Closing without a task is valid.
 
 ## Local Data
 
-`Note` has optional `kind = reflection` and a versioned `processing` object. The object contains status, answers, current question, proposal, linked task, completion and optional feedback. This is a record-shape extension, so IndexedDB remains version 4.
+`Note` has optional `kind = reflection` and a versioned `processing` object. The object contains status, guided suggestions/selections/current step, adaptive answers, current question, proposal, linked task, completion and optional feedback. This is a record-shape extension, so IndexedDB remains version 4.
 
 `TaskItem` has optional `sourceNoteId` and `remindAt`. Completing a linked task closes the reflection. Legacy records normalize with both fields absent.
 
@@ -49,7 +49,7 @@ The server stores subscription keys, schedule, timezone, locale, opaque local ID
 
 - `pnpm exec tsc --noEmit`;
 - `pnpm lint`;
-- Playwright reflection capture smoke test;
+- Playwright reflection capture and guided-choice smoke tests, including a custom answer and the two-question cap;
 - manual production-device push test after VAPID/Vault configuration;
 - manual RU/EN review of the AI question, proposal, safety and task handoff screens.
 

@@ -1111,6 +1111,26 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .reflection-question > span { color: #7e62ff; font-size: 12px; font-weight: 900; text-transform: uppercase; }
 .reflection-question h3, .reflection-section h3, .reflection-feedback h3, .reflection-safety h3 { margin: 0; }
 .reflection-question textarea, .reflection-editable textarea { width: 100%; min-height: 82px; border: 1px solid var(--line); border-radius: 13px; outline: 0; padding: 11px; background: #fff; color: var(--text); resize: vertical; font: inherit; }
+.reflection-guided { display: grid; gap: 11px; margin-top: 14px; }
+.reflection-guided-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.reflection-guided-progress span { height: 4px; border-radius: 999px; background: #dedbe9; }
+.reflection-guided-progress span.active { background: #7e62ff; }
+.reflection-guided-counter { color: #6548d9; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.reflection-guided h3 { margin: 0; font-size: 21px; }
+.reflection-guided > p { margin: -4px 0 0; color: var(--muted); font-size: 14px; line-height: 1.4; }
+.reflection-guided-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.reflection-guided-options label { min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: #fff; color: var(--text); cursor: pointer; }
+.reflection-guided-options label.selected { border-color: #7e62ff; background: #f0edff; color: #4f3aac; }
+.reflection-guided-options input { width: 17px; height: 17px; flex: 0 0 auto; accent-color: #7e62ff; }
+.reflection-guided-options span { min-width: 0; overflow-wrap: anywhere; font-size: 14px; font-weight: 800; line-height: 1.25; }
+.reflection-guided-custom { display: grid; gap: 5px; }
+.reflection-guided-custom > span { color: var(--muted); font-size: 12px; font-weight: 850; }
+.reflection-guided-custom input { width: 100%; min-height: 42px; border: 1px solid var(--line); border-radius: 11px; outline: 0; padding: 0 11px; background: #fff; color: var(--text); font: inherit; }
+.reflection-guided-custom input:focus { border-color: #7e62ff; box-shadow: 0 0 0 3px rgba(126, 98, 255, 0.1); }
+.reflection-guided-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.reflection-self-statement { display: grid; gap: 7px; border-radius: 15px; padding: 13px; background: #f0edff; color: #4f3aac; }
+.reflection-self-statement > span { font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.reflection-self-statement textarea { width: 100%; min-height: 112px; border: 1px solid rgba(126, 98, 255, 0.2); border-radius: 11px; outline: 0; padding: 10px; background: rgba(255,255,255,0.78); color: var(--text); resize: vertical; font: inherit; line-height: 1.45; }
 .reflection-editable { display: grid; gap: 6px; }
 .reflection-section { display: grid; gap: 8px; border-radius: 14px; padding: 12px; background: #f7f7fa; }
 .reflection-section h3 { font-size: 15px; }
@@ -1143,6 +1163,7 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 @media (max-width: 520px) {
   .reflection-reminder-setup { grid-template-columns: minmax(0, 1fr) auto; }
   .reflection-reminder-setup > span { grid-column: 1 / -1; }
+  .reflection-guided-options { grid-template-columns: 1fr; }
   .reflection-final-actions { grid-template-columns: 1fr; }
 }
 

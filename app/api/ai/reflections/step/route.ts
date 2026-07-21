@@ -3,6 +3,8 @@ import {
   REFLECTION_PRACTICE_IDS,
   type ReflectionAlternative,
   type ReflectionCause,
+  type ReflectionGuidedSelections,
+  type ReflectionGuidedSuggestions,
   type ReflectionOutcomeKind,
   type ReflectionPracticeId,
   type ReflectionProposal,
@@ -21,12 +23,13 @@ type RequestAnswer = {
 type ReflectionRequest = {
   rawText?: string;
   answers?: RequestAnswer[];
+  guided?: ReflectionGuidedSelections;
   locale?: string;
 };
 
 const MAX_RAW_TEXT = 6_000;
 const MAX_ANSWER_TEXT = 2_000;
-const MAX_QUESTIONS = 3;
+const MAX_QUESTIONS = 2;
 const OUTCOME_KINDS: ReflectionOutcomeKind[] = ["act_now", "wait", "accept", "learn", "ask_human"];
 
 export async function POST(request: NextRequest) {
@@ -34,6 +37,7 @@ export async function POST(request: NextRequest) {
   const rawText = cleanText(body?.rawText, MAX_RAW_TEXT);
   const locale = body?.locale === "ru" ? "ru" : "en";
   const answers = normalizeAnswers(body?.answers);
+  const guided = normalizeGuidedSelections(body?.guided);
 
   if (!rawText) {
     return NextResponse.json({ error: "Reflection text is required." }, { status: 400 });
@@ -41,12 +45,15 @@ export async function POST(request: NextRequest) {
   if (answers === null) {
     return NextResponse.json({ error: "Invalid reflection answers." }, { status: 400 });
   }
+  if (guided === null) {
+    return NextResponse.json({ error: "Invalid guided reflection selections." }, { status: 400 });
+  }
 
-  if (hasImmediateSafetySignal(rawText, answers)) {
+  if (hasImmediateSafetySignal(rawText, answers, guided)) {
     return NextResponse.json(buildSafetyResponse(locale), { headers: noStoreHeaders() });
   }
 
-  const prompt = buildPrompt(rawText, answers, locale);
+  const prompt = buildPrompt(rawText, answers, guided, locale);
   const geminiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
 
@@ -58,7 +65,7 @@ export async function POST(request: NextRequest) {
   if (geminiKey) {
     try {
       const value = await callGemini(geminiKey, prompt);
-      return NextResponse.json(validateModelResponse(value, answers.length, locale), { headers: noStoreHeaders() });
+      return NextResponse.json(validateModelResponse(value, answers.length, locale, Boolean(guided)), { headers: noStoreHeaders() });
     } catch (error) {
       lastError = error;
       console.warn("Reflection processing provider failed; trying fallback.");
@@ -68,14 +75,14 @@ export async function POST(request: NextRequest) {
   if (groqKey) {
     try {
       const value = await callGroq(groqKey, prompt);
-      return NextResponse.json(validateModelResponse(value, answers.length, locale), { headers: noStoreHeaders() });
+      return NextResponse.json(validateModelResponse(value, answers.length, locale, Boolean(guided)), { headers: noStoreHeaders() });
     } catch (error) {
       lastError = error;
       console.warn("Reflection processing fallback failed.");
     }
   }
 
-  if (answers.length >= MAX_QUESTIONS) {
+  if (guided && answers.length >= MAX_QUESTIONS) {
     return NextResponse.json({ mode: "proposal", proposal: buildFallbackProposal(rawText, locale) }, { headers: noStoreHeaders() });
   }
 
@@ -90,6 +97,7 @@ function buildFallbackProposal(rawText: string, locale: "ru" | "en"): Reflection
   if (locale === "ru") {
     return {
       summary: shortSummary,
+      selfStatement: "Когда я возвращаюсь к этой ситуации, я хочу понять, на что могу повлиять. Я готов проверить один наблюдаемый факт.",
       facts: [], thoughts: [], feelings: [], bodySignals: [], reactions: [],
       desiredOutcome: "Понять, на какую часть ситуации я могу повлиять.",
       causes: [{ id: "cause_1", text: "Возможная причина пока не подтверждена", rationale: "Ответов недостаточно для надёжного вывода — проверьте и исправьте эту гипотезу.", confirmed: false }],
@@ -105,6 +113,7 @@ function buildFallbackProposal(rawText: string, locale: "ru" | "en"): Reflection
   }
   return {
     summary: shortSummary,
+    selfStatement: "When I return to this situation, I want to understand what I can influence. I am ready to check one observable fact.",
     facts: [], thoughts: [], feelings: [], bodySignals: [], reactions: [],
     desiredOutcome: "Understand which part of the situation I can influence.",
     causes: [{ id: "cause_1", text: "The possible cause is not confirmed yet", rationale: "There is not enough information for a reliable conclusion; check and edit this hypothesis.", confirmed: false }],
@@ -119,34 +128,59 @@ function buildFallbackProposal(rawText: string, locale: "ru" | "en"): Reflection
   };
 }
 
-function buildPrompt(rawText: string, answers: RequestAnswer[], locale: "ru" | "en"): string {
+function buildPrompt(rawText: string, answers: RequestAnswer[], guided: ReflectionGuidedSelections | undefined, locale: "ru" | "en"): string {
   const language = locale === "ru" ? "Russian" : "English";
-  return `You are a careful self-reflection and decision-support assistant. Respond in ${language}.
+  const common = `You are a careful self-reflection and decision-support assistant. Respond in ${language}.
 
-This is not therapy or diagnosis. Never claim to know a "true", hidden, unconscious, or repressed cause. Causes are tentative hypotheses that the user must confirm. Never invent stories about similar people. Do not encourage dependency or endless analysis.
+This is not therapy or diagnosis. Never claim to know a true, hidden, unconscious, or repressed cause. Possible causes are tentative hypotheses the user chooses or edits. Never invent stories about similar people. Keep wording warm, plain, and non-leading.
 
-Your job is to move one private note toward a safe terminal outcome:
+PRIVATE NOTE:
+${rawText}`;
+
+  if (!guided) {
+    return `${common}
+
+Suggest short, selectable options for a four-step guided reflection. Infer gently from the note:
+- feelings: 4-6 actual emotions, not judgments or interpretations;
+- causes: 4-6 possible interpretations, needs, values, triggers, or constraints; phrase them tentatively;
+- desiredChanges: 4-6 outcomes the user could want, including changing the situation, understanding it, communicating, changing their response, preparing, or accepting what is uncontrollable when relevant;
+- actions: 4-6 user-controlled options beginning with a verb. Prefer observable 5-15 minute steps; include waiting, asking a person, or a brief switching action when relevant.
+
+Do not decide for the user. Return only valid JSON:
+{"mode":"guided","suggestions":{"feelings":[{"id":"short_ascii_id","label":"short option"}],"causes":[{"id":"short_ascii_id","label":"short option"}],"desiredChanges":[{"id":"short_ascii_id","label":"short option"}],"actions":[{"id":"short_ascii_id","label":"short option"}]}}
+
+Each array must contain 4-6 distinct options.`;
+  }
+
+  return `${common}
+
+The user confirmed these guided selections:
+FEELINGS: ${guided.feelings.join("; ") || "Not selected"}
+POSSIBLE CAUSES OR NEEDS: ${guided.causes.join("; ") || "Not selected"}
+DESIRED CHANGE: ${guided.desiredChanges.join("; ") || "Not selected"}
+ACTION THEY ARE READY FOR: ${guided.actions.join("; ") || "Not selected"}
+
+Your job is to move this toward one safe terminal outcome:
 - act_now: a controllable, observable 5-15 minute action;
 - wait: a specific check-back condition or time;
-- accept: acknowledge a hypothetical/uncontrollable worry and choose a brief attention-shifting action;
+- accept: acknowledge an uncontrollable worry and choose a brief attention-shifting action;
 - learn: a concrete research step using an authoritative source;
 - ask_human: recommend a type of person, without contacting or selecting anyone.
 
-Ask at most one useful question in this response and no more than ${MAX_QUESTIONS} questions in total. The user already answered ${answers.length}. If the note is clear enough or ${answers.length} is ${MAX_QUESTIONS}, return a proposal now. Do not ask for sensitive detail unless it is necessary for the next action.
+Ask at most one adaptive question in this response and no more than ${MAX_QUESTIONS} adaptive questions in total. The user already answered ${answers.length}. Ask only if a gap prevents a concrete safe plan. Otherwise return the proposal now.
+
+Build selfStatement in first person using this pattern naturally: "When [observable fact], I feel [confirmed feelings], because [confirmed need/constraint] matters to me. I want [desired change]. I am ready to [action]." Do not turn a hypothesis into a fact.
 
 Allowed practiceId values: ${REFLECTION_PRACTICE_IDS.join(", ")}.
 
-Return only valid JSON, with exactly one of these shapes:
-{"mode":"question","question":{"id":"short_ascii_id","text":"one question"}}
+Return only valid JSON, with exactly one shape:
+{"mode":"question","question":{"id":"short_ascii_id","text":"one necessary question"}}
 or
-{"mode":"proposal","proposal":{"summary":"user-checkable summary","facts":["observable facts"],"thoughts":["interpretations"],"feelings":["feelings"],"bodySignals":[],"reactions":["actions or urges"],"desiredOutcome":"what the user wants","causes":[{"id":"cause_1","text":"possible cause","rationale":"why it may fit","confirmed":false}],"alternatives":[{"title":"option","description":"tradeoff"}],"resourcesHave":[],"resourcesNeed":[],"resourcesObtain":[],"practiceId":"one allowed id","outcomeKind":"act_now|wait|accept|learn|ask_human","nextAction":"controllable action starting with a verb","ifThen":"When/if X, I will Y","humanRecommendation":"only for ask_human, otherwise omit"}}
+{"mode":"proposal","proposal":{"summary":"short summary based on confirmed answers","selfStatement":"first-person I-statement","facts":["observable facts"],"thoughts":["interpretations"],"feelings":["confirmed feelings"],"bodySignals":[],"reactions":["actions or urges"],"desiredOutcome":"confirmed desired change","causes":[{"id":"cause_1","text":"confirmed or possible cause","rationale":"why it may fit","confirmed":true}],"alternatives":[{"title":"option","description":"tradeoff"}],"resourcesHave":[],"resourcesNeed":[],"resourcesObtain":[],"practiceId":"one allowed id","outcomeKind":"act_now|wait|accept|learn|ask_human","nextAction":"controllable action starting with a verb","ifThen":"When/if X, I will Y","humanRecommendation":"only for ask_human, otherwise omit"}}
 
-Keep arrays to 0-4 concise items, causes to 1-3, and alternatives to 2-3. Separate facts from interpretations. If another person's response is involved, the next action must be "write/call/ask", never obtaining the desired response.
+Keep arrays concise, causes to 1-3, and alternatives to 2-3. Separate facts from interpretations. If another person's response is involved, the next action is write/call/ask, never obtaining their response.
 
-PRIVATE NOTE:
-${rawText}
-
-ANSWERS:
+ADAPTIVE ANSWERS:
 ${answers.length ? answers.map((item, index) => `${index + 1}. Q: ${item.question}\nA: ${item.answer}`).join("\n") : "None"}`;
 }
 
@@ -181,8 +215,15 @@ async function callGroq(apiKey: string, prompt: string): Promise<unknown> {
   return parseJson(payload.choices?.[0]?.message?.content);
 }
 
-function validateModelResponse(value: unknown, answerCount: number, locale: "ru" | "en"): ReflectionStepResponse {
+function validateModelResponse(value: unknown, answerCount: number, locale: "ru" | "en", hasGuidedSelections: boolean): ReflectionStepResponse {
   if (!isRecord(value)) throw new Error("AI response is not an object.");
+
+  if (!hasGuidedSelections) {
+    if (value.mode !== "guided" || !isRecord(value.suggestions)) {
+      throw new Error("AI response has no guided suggestions.");
+    }
+    return { mode: "guided", suggestions: normalizeGuidedSuggestions(value.suggestions) };
+  }
 
   if (value.mode === "question" && answerCount < MAX_QUESTIONS && isRecord(value.question)) {
     const id = cleanAsciiId(value.question.id);
@@ -196,6 +237,7 @@ function validateModelResponse(value: unknown, answerCount: number, locale: "ru"
 
   const proposal = value.proposal;
   const summary = requiredText(proposal.summary, 1_200);
+  const selfStatement = requiredText(proposal.selfStatement, 1_200);
   const desiredOutcome = requiredText(proposal.desiredOutcome, 500);
   const nextAction = requiredText(proposal.nextAction, 500);
   const ifThen = requiredText(proposal.ifThen, 500);
@@ -204,12 +246,13 @@ function validateModelResponse(value: unknown, answerCount: number, locale: "ru"
   const causes = normalizeCauses(proposal.causes);
   const alternatives = normalizeAlternatives(proposal.alternatives);
 
-  if (!summary || !desiredOutcome || !nextAction || !ifThen || !practiceId || !outcomeKind || causes.length === 0 || alternatives.length < 2) {
+  if (!summary || !selfStatement || !desiredOutcome || !nextAction || !ifThen || !practiceId || !outcomeKind || causes.length === 0 || alternatives.length < 2) {
     throw new Error("AI proposal is incomplete.");
   }
 
   const result: ReflectionProposal = {
     summary,
+    selfStatement,
     facts: normalizeStringArray(proposal.facts),
     thoughts: normalizeStringArray(proposal.thoughts),
     feelings: normalizeStringArray(proposal.feelings),
@@ -260,8 +303,9 @@ function buildSafetyResponse(locale: "ru" | "en"): ReflectionStepResponse {
   };
 }
 
-function hasImmediateSafetySignal(rawText: string, answers: RequestAnswer[]): boolean {
-  const text = `${rawText}\n${answers.map((answer) => answer.answer).join("\n")}`.toLocaleLowerCase();
+function hasImmediateSafetySignal(rawText: string, answers: RequestAnswer[], guided: ReflectionGuidedSelections | undefined): boolean {
+  const guidedText = guided ? Object.values(guided).flat().join("\n") : "";
+  const text = `${rawText}\n${guidedText}\n${answers.map((answer) => answer.answer).join("\n")}`.toLocaleLowerCase();
   const patterns = [
     /(?:хочу|собираюсь|могу)\s+(?:убить|покончить|причинить вред)/u,
     /(?:покончу с собой|убью себя|суицид|не хочу жить)/u,
@@ -269,6 +313,26 @@ function hasImmediateSafetySignal(rawText: string, answers: RequestAnswer[]): bo
     /(?:suicide|end my life|don't want to live)/u
   ];
   return patterns.some((pattern) => pattern.test(text));
+}
+
+function normalizeGuidedSelections(value: unknown): ReflectionGuidedSelections | undefined | null {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) return null;
+  const feelings = normalizeSelectionArray(value.feelings, 6);
+  const causes = normalizeSelectionArray(value.causes, 6);
+  const desiredChanges = normalizeSelectionArray(value.desiredChanges, 2);
+  const actions = normalizeSelectionArray(value.actions, 2);
+  if (!feelings || !causes || !desiredChanges || !actions) return null;
+  return { feelings, causes, desiredChanges, actions };
+}
+
+function normalizeSelectionArray(value: unknown, maxItems: number): string[] | null {
+  if (!Array.isArray(value) || value.length > maxItems) return null;
+  const result = value.flatMap((item) => {
+    const text = cleanText(item, 200);
+    return text ? [text] : [];
+  });
+  return result.length === value.length ? result : null;
 }
 
 function normalizeAnswers(value: unknown): RequestAnswer[] | null {
@@ -293,8 +357,29 @@ function normalizeCauses(value: unknown): ReflectionCause[] {
     const text = cleanText(item.text, 500);
     const rationale = cleanText(item.rationale, 500);
     if (!text || !rationale) return [];
-    return [{ id: cleanAsciiId(item.id) || `cause_${index + 1}`, text, rationale, confirmed: false }];
+    return [{ id: cleanAsciiId(item.id) || `cause_${index + 1}`, text, rationale, confirmed: item.confirmed === true }];
   });
+}
+
+function normalizeGuidedSuggestions(value: Record<string, unknown>): ReflectionGuidedSuggestions {
+  return {
+    feelings: normalizeGuidedOptions(value.feelings, "feeling"),
+    causes: normalizeGuidedOptions(value.causes, "cause"),
+    desiredChanges: normalizeGuidedOptions(value.desiredChanges, "change"),
+    actions: normalizeGuidedOptions(value.actions, "action")
+  };
+}
+
+function normalizeGuidedOptions(value: unknown, prefix: string): Array<{ id: string; label: string }> {
+  if (!Array.isArray(value)) throw new Error("Guided options must be arrays.");
+  const options = value.slice(0, 6).flatMap((item, index) => {
+    if (!isRecord(item)) return [];
+    const label = cleanText(item.label, 160);
+    if (!label) return [];
+    return [{ id: cleanAsciiId(item.id) || `${prefix}_${index + 1}`, label }];
+  });
+  if (options.length < 3) throw new Error("Not enough guided options.");
+  return options;
 }
 
 function normalizeAlternatives(value: unknown): ReflectionAlternative[] {

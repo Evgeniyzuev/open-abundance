@@ -15,6 +15,9 @@ import {
   REFLECTION_PRACTICES,
   type ReflectionAnswer,
   type ReflectionFeedback,
+  type ReflectionGuidedDraft,
+  type ReflectionGuidedSelections,
+  type ReflectionGuidedStepId,
   type ReflectionProposal,
   type ReflectionStepResponse,
   type ReflectionTaskDraft
@@ -22,6 +25,7 @@ import {
 import { trackProductEvent } from "@/lib/productAnalytics";
 
 const PRIVACY_SEEN_KEY = "open-abundance:reflection-ai-privacy-seen:v1";
+const GUIDED_STEPS: ReflectionGuidedStepId[] = ["feelings", "causes", "desiredChanges", "actions"];
 
 type ReflectionProcessorProps = {
   note: Note;
@@ -34,6 +38,9 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
   const { locale, t } = useUserContext();
   const processing = note.processing!;
   const [question, setQuestion] = useState(processing?.currentQuestion);
+  const [answers, setAnswers] = useState(processing.answers);
+  const [guided, setGuided] = useState<ReflectionGuidedDraft | undefined>(processing.guided);
+  const [customValue, setCustomValue] = useState("");
   const [answer, setAnswer] = useState("");
   const [proposal, setProposal] = useState<ReflectionProposal | undefined>(processing?.proposal);
   const [safety, setSafety] = useState<Extract<ReflectionStepResponse, { mode: "safety" }> | null>(null);
@@ -49,7 +56,7 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
       localStorage.setItem(PRIVACY_SEEN_KEY, "1");
     }
     trackProductEvent("reflection_processing_started", { status: processing.status });
-    await runStep(processing.answers);
+    await runStep(answers);
   }
 
   async function submitAnswer(value: string) {
@@ -59,33 +66,38 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
       question: question.text,
       answer: value
     };
-    const answers = [...processing.answers, nextAnswer].slice(0, 3);
+    const nextAnswers = [...answers, nextAnswer].slice(0, 2);
+    setAnswers(nextAnswers);
     await updateReflectionProcessing(note.id, {
       ...processing,
-      answers,
-      questionCount: answers.length,
+      answers: nextAnswers,
+      questionCount: nextAnswers.length,
       currentQuestion: undefined,
+      guided,
       status: "clarifying",
       startedAt: processing.startedAt ?? new Date().toISOString()
     });
     setAnswer("");
     setQuestion(undefined);
-    await runStep(answers);
+    await runStep(nextAnswers, guided?.selections);
   }
 
-  async function runStep(answers: ReflectionAnswer[]) {
+  async function runStep(currentAnswers: ReflectionAnswer[], guidedSelections?: ReflectionGuidedSelections) {
     if (!navigator.onLine) {
       setError(t("reflections.offline"));
       return;
     }
     setLoading(true);
     setError(null);
+    const guidedForStorage = guided
+      ? { ...guided, selections: guidedSelections ?? guided.selections }
+      : undefined;
     try {
       const response = await fetch("/api/ai/reflections/step", {
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: note.body, answers, locale })
+        body: JSON.stringify({ rawText: note.body, answers: currentAnswers, guided: guidedSelections, locale })
       });
       const rawPayload = await response.json().catch(() => null) as unknown;
       if (!response.ok || !isReflectionStepResponse(rawPayload)) {
@@ -94,13 +106,31 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
       }
       const payload: ReflectionStepResponse = rawPayload;
 
-      if (payload.mode === "question") {
+      if (payload.mode === "guided") {
+        const nextGuided: ReflectionGuidedDraft = {
+          suggestions: payload.suggestions,
+          selections: emptyGuidedSelections(),
+          currentStep: 0
+        };
+        setGuided(nextGuided);
+        await updateReflectionProcessing(note.id, {
+          ...processing,
+          answers: currentAnswers,
+          questionCount: currentAnswers.length,
+          currentQuestion: undefined,
+          guided: nextGuided,
+          status: "clarifying",
+          startedAt: processing.startedAt ?? new Date().toISOString()
+        });
+        trackProductEvent("reflection_guided_started");
+      } else if (payload.mode === "question") {
         setQuestion(payload.question);
         await updateReflectionProcessing(note.id, {
           ...processing,
-          answers,
-          questionCount: answers.length,
+          answers: currentAnswers,
+          questionCount: currentAnswers.length,
           currentQuestion: payload.question,
+          guided: guidedForStorage,
           status: "clarifying",
           startedAt: processing.startedAt ?? new Date().toISOString()
         });
@@ -108,7 +138,7 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
         setProposal(payload.proposal);
         setQuestion(undefined);
         await setReflectionProposal(note.id, payload.proposal);
-        trackProductEvent("reflection_proposal_ready", { outcome: payload.proposal.outcomeKind, questions: answers.length });
+        trackProductEvent("reflection_proposal_ready", { outcome: payload.proposal.outcomeKind, questions: currentAnswers.length });
       } else {
         setSafety(payload);
         setQuestion(undefined);
@@ -120,6 +150,52 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
     } finally {
       setLoading(false);
     }
+  }
+
+  function toggleGuidedOption(stepId: ReflectionGuidedStepId, label: string, multiple: boolean) {
+    setGuided((current) => {
+      if (!current) return current;
+      const selected = current.selections[stepId];
+      const nextValues = multiple
+        ? selected.includes(label) ? selected.filter((item) => item !== label) : [...selected, label]
+        : [label];
+      return { ...current, selections: { ...current.selections, [stepId]: nextValues } };
+    });
+  }
+
+  async function advanceGuided() {
+    if (!guided) return;
+    const stepId = GUIDED_STEPS[Math.min(guided.currentStep, GUIDED_STEPS.length - 1)];
+    const custom = customValue.trim();
+    const isMultiple = stepId === "feelings" || stepId === "causes";
+    const selected = guided.selections[stepId];
+    const nextValues = custom
+      ? isMultiple ? [...new Set([...selected, custom])].slice(0, 6) : [custom]
+      : selected;
+    const nextSelections = { ...guided.selections, [stepId]: nextValues };
+    const isLast = guided.currentStep >= GUIDED_STEPS.length - 1;
+    const nextGuided = { ...guided, selections: nextSelections, currentStep: isLast ? guided.currentStep : guided.currentStep + 1 };
+    setGuided(nextGuided);
+    setCustomValue("");
+    await updateReflectionProcessing(note.id, {
+      ...processing,
+      answers,
+      questionCount: answers.length,
+      currentQuestion: undefined,
+      guided: nextGuided,
+      status: "clarifying",
+      startedAt: processing.startedAt ?? new Date().toISOString()
+    });
+    if (isLast) await runStep(answers, nextSelections);
+    else await onRefresh();
+  }
+
+  async function goBackGuided() {
+    if (!guided || guided.currentStep <= 0) return;
+    const nextGuided = { ...guided, currentStep: guided.currentStep - 1 };
+    setGuided(nextGuided);
+    setCustomValue("");
+    await updateReflectionProcessing(note.id, { ...processing, answers, questionCount: answers.length, guided: nextGuided, status: "clarifying" });
   }
 
   async function persistProposal() {
@@ -149,7 +225,7 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
       proposal.resourcesNeed.length ? `${t("reflections.resourcesNeed")}: ${proposal.resourcesNeed.join("; ")}` : "",
       proposal.resourcesObtain.length ? `${t("reflections.resourcesObtain")}: ${proposal.resourcesObtain.join("; ")}` : ""
     ].filter(Boolean).join("\n");
-    const description = [proposal.summary, proposal.ifThen, resources].filter(Boolean).join("\n\n");
+    const description = [proposal.selfStatement, proposal.summary, proposal.ifThen, resources].filter(Boolean).join("\n\n");
     const parsedReminder = remindAt ? new Date(remindAt) : null;
     onSchedule({
       sourceNoteId: note.id,
@@ -200,6 +276,10 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
           </div>
         ) : proposal ? (
           <div className="reflection-result">
+            <section className="reflection-self-statement">
+              <span>{t("reflections.selfStatement")}</span>
+              <textarea aria-label={t("reflections.selfStatement")} value={proposal.selfStatement} onChange={(event) => setProposal({ ...proposal, selfStatement: event.target.value })} />
+            </section>
             <EditableText label={t("reflections.summary")} value={proposal.summary} onChange={(summary) => setProposal({ ...proposal, summary })} />
             <EditableArray label={t("reflections.facts")} value={proposal.facts} onChange={(facts) => setProposal({ ...proposal, facts })} />
             <EditableArray label={t("reflections.thoughts")} value={proposal.thoughts} onChange={(thoughts) => setProposal({ ...proposal, thoughts })} />
@@ -270,7 +350,7 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
           </div>
         ) : question ? (
           <div className="reflection-question">
-            <span>{t("reflections.questionCounter", { count: Math.min(3, processing.answers.length + 1) })}</span>
+            <span>{t("reflections.questionCounter", { count: Math.min(2, answers.length + 1) })}</span>
             <h3>{question.text}</h3>
             <textarea autoFocus value={answer} placeholder={t("reflections.answerPlaceholder")} onChange={(event) => setAnswer(event.target.value)} />
             <div className="reflection-final-actions">
@@ -278,6 +358,16 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
               <button className="task-done-primary-button" type="button" disabled={!answer.trim() || loading} onClick={() => void submitAnswer(answer.trim())}>{t("reflections.answer")}</button>
             </div>
           </div>
+        ) : guided ? (
+          <GuidedReflectionStep
+            draft={guided}
+            customValue={customValue}
+            loading={loading}
+            onBack={() => void goBackGuided()}
+            onCustomChange={setCustomValue}
+            onNext={() => void advanceGuided()}
+            onToggle={toggleGuidedOption}
+          />
         ) : (
           <div className="reflection-start">
             <Sparkles size={32} />
@@ -289,9 +379,59 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
           </div>
         )}
 
-        {loading && (question || proposal) ? <div className="reflection-loading">{t("reflections.processing")}</div> : null}
+        {loading && (question || proposal || guided) ? <div className="reflection-loading">{t("reflections.processing")}</div> : null}
         {error ? <div className="reflection-error" role="alert">{error}</div> : null}
       </section>
+    </div>
+  );
+}
+
+function GuidedReflectionStep({ draft, customValue, loading, onBack, onCustomChange, onNext, onToggle }: {
+  draft: ReflectionGuidedDraft;
+  customValue: string;
+  loading: boolean;
+  onBack: () => void;
+  onCustomChange: (value: string) => void;
+  onNext: () => void;
+  onToggle: (stepId: ReflectionGuidedStepId, label: string, multiple: boolean) => void;
+}) {
+  const { t } = useUserContext();
+  const stepIndex = Math.min(draft.currentStep, GUIDED_STEPS.length - 1);
+  const stepId = GUIDED_STEPS[stepIndex];
+  const multiple = stepId === "feelings" || stepId === "causes";
+  const selected = draft.selections[stepId];
+
+  return (
+    <div className="reflection-guided">
+      <div className="reflection-guided-progress" aria-label={t("reflections.guided.progress", { current: stepIndex + 1 })}>
+        {GUIDED_STEPS.map((item, index) => <span className={index <= stepIndex ? "active" : ""} key={item} />)}
+      </div>
+      <span className="reflection-guided-counter">{t("reflections.guided.progress", { current: stepIndex + 1 })}</span>
+      <h3>{t(`reflections.guided.${stepId}.title`)}</h3>
+      <p>{t(`reflections.guided.${stepId}.description`)}</p>
+      <div className="reflection-guided-options">
+        {draft.suggestions[stepId].map((option) => (
+          <label className={selected.includes(option.label) ? "selected" : ""} key={option.id}>
+            <input
+              type={multiple ? "checkbox" : "radio"}
+              name={`reflection-${stepId}`}
+              checked={selected.includes(option.label)}
+              onChange={() => onToggle(stepId, option.label, multiple)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+      <label className="reflection-guided-custom">
+        <span>{t("reflections.guided.custom")}</span>
+        <input value={customValue} placeholder={t("reflections.guided.customPlaceholder")} onChange={(event) => onCustomChange(event.target.value)} />
+      </label>
+      <div className="reflection-guided-actions">
+        {stepIndex > 0 ? <button className="text-button" type="button" disabled={loading} onClick={onBack}>{t("reflections.guided.back")}</button> : <span />}
+        <button className="task-done-primary-button" type="button" disabled={loading} onClick={onNext}>
+          {t(stepIndex === GUIDED_STEPS.length - 1 ? "reflections.guided.buildSummary" : "reflections.guided.next")}
+        </button>
+      </div>
     </div>
   );
 }
@@ -323,7 +463,11 @@ function defaultReminderDateTime(): string {
 
 function isReflectionStepResponse(value: unknown): value is ReflectionStepResponse {
   if (!value || typeof value !== "object" || !("mode" in value)) return false;
-  return value.mode === "question" || value.mode === "proposal" || value.mode === "safety";
+  return value.mode === "guided" || value.mode === "question" || value.mode === "proposal" || value.mode === "safety";
+}
+
+function emptyGuidedSelections(): ReflectionGuidedSelections {
+  return { feelings: [], causes: [], desiredChanges: [], actions: [] };
 }
 
 function isErrorPayload(value: unknown): value is { error: string } {

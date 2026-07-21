@@ -12,6 +12,21 @@ export type ReflectionPracticeId = (typeof REFLECTION_PRACTICE_IDS)[number];
 export type ReflectionStatus = "inbox" | "clarifying" | "ready" | "planned" | "waiting" | "closed";
 export type ReflectionOutcomeKind = "act_now" | "wait" | "accept" | "learn" | "ask_human";
 export type ReflectionFeedback = "yes" | "partly" | "no";
+export type ReflectionGuidedStepId = "feelings" | "causes" | "desiredChanges" | "actions";
+
+export type ReflectionGuidedOption = {
+  id: string;
+  label: string;
+};
+
+export type ReflectionGuidedSuggestions = Record<ReflectionGuidedStepId, ReflectionGuidedOption[]>;
+export type ReflectionGuidedSelections = Record<ReflectionGuidedStepId, string[]>;
+
+export type ReflectionGuidedDraft = {
+  suggestions: ReflectionGuidedSuggestions;
+  selections: ReflectionGuidedSelections;
+  currentStep: number;
+};
 
 export type ReflectionAnswer = {
   questionId: string;
@@ -33,6 +48,7 @@ export type ReflectionAlternative = {
 
 export type ReflectionProposal = {
   summary: string;
+  selfStatement: string;
   facts: string[];
   thoughts: string[];
   feelings: string[];
@@ -57,6 +73,7 @@ export type ReflectionProcessing = {
   answers: ReflectionAnswer[];
   questionCount: number;
   currentQuestion?: { id: string; text: string };
+  guided?: ReflectionGuidedDraft;
   proposal?: ReflectionProposal;
   linkedTaskId?: string;
   startedAt?: string;
@@ -65,6 +82,10 @@ export type ReflectionProcessing = {
 };
 
 export type ReflectionStepResponse =
+  | {
+      mode: "guided";
+      suggestions: ReflectionGuidedSuggestions;
+    }
   | {
       mode: "question";
       question: { id: string; text: string };
@@ -180,10 +201,14 @@ export function normalizeReflectionProcessing(value: ReflectionProcessing | unde
   return {
     schemaVersion: 1,
     status: isReflectionStatus(value.status) ? value.status : "inbox",
-    answers: Array.isArray(value.answers) ? value.answers.slice(0, 3) : [],
-    questionCount: Math.min(3, Math.max(0, Number(value.questionCount) || 0)),
+    answers: Array.isArray(value.answers) ? value.answers.slice(0, 2) : [],
+    questionCount: Math.min(2, Math.max(0, Number(value.questionCount) || 0)),
     currentQuestion: value.currentQuestion,
-    proposal: value.proposal,
+    guided: value.guided,
+    proposal: value.proposal ? {
+      ...value.proposal,
+      selfStatement: value.proposal.selfStatement || value.proposal.summary
+    } : undefined,
     linkedTaskId: value.linkedTaskId,
     startedAt: value.startedAt,
     completedAt: value.completedAt,

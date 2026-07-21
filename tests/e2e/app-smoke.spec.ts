@@ -114,13 +114,30 @@ test("reflection inbox captures offline without calling AI and survives reload",
   expect(aiCalls).toBe(0);
 });
 
-test("reflection processing asks at most three questions and returns an editable proposal", async ({ page }) => {
+test("reflection processing uses guided choices, asks at most two follow-ups, and returns an editable proposal", async ({ page }) => {
   let aiCalls = 0;
+  let submittedGuided: { desiredChanges?: string[] } | undefined;
   await page.route("**/api/ai/reflections/step", async (route) => {
     aiCalls += 1;
-    const body = route.request().postDataJSON() as { answers?: unknown[] };
+    const body = route.request().postDataJSON() as { answers?: unknown[]; guided?: { desiredChanges?: string[] } };
+    if (body.guided) submittedGuided = body.guided;
     const answerCount = body.answers?.length ?? 0;
-    if (answerCount < 3) {
+    if (!body.guided) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          mode: "guided",
+          suggestions: {
+            feelings: [{ id: "anxiety", label: "Anxiety" }, { id: "irritation", label: "Irritation" }, { id: "uncertainty", label: "Uncertainty" }, { id: "tiredness", label: "Tiredness" }],
+            causes: [{ id: "conflict", label: "Fear of conflict" }, { id: "clarity", label: "Need for clarity" }, { id: "energy", label: "Not enough energy" }, { id: "control", label: "Lack of control" }],
+            desiredChanges: [{ id: "start", label: "Start the conversation" }, { id: "understand", label: "Understand the situation" }, { id: "prepare", label: "Prepare first" }, { id: "accept", label: "Accept what I cannot control" }],
+            actions: [{ id: "opener", label: "Write a two-sentence opener" }, { id: "ask", label: "Ask for clarification" }, { id: "time", label: "Set aside ten minutes" }, { id: "support", label: "Ask someone for support" }]
+          }
+        })
+      });
+      return;
+    }
+    if (answerCount < 2) {
       await route.fulfill({
         contentType: "application/json",
         body: JSON.stringify({ mode: "question", question: { id: `question_${answerCount + 1}`, text: `Question ${answerCount + 1}?` } })
@@ -133,6 +150,7 @@ test("reflection processing asks at most three questions and returns an editable
         mode: "proposal",
         proposal: {
           summary: "A difficult message is being postponed.",
+          selfStatement: "When I think about the unsent message, I feel anxiety because clarity matters to me. I want to start the conversation. I am ready to write a short opener.",
           facts: ["The message has not been sent"],
           thoughts: ["The conversation may be uncomfortable"],
           feelings: ["Anxiety"],
@@ -168,7 +186,17 @@ test("reflection processing asks at most three questions and returns an editable
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Process with AI" }).click();
-  for (let index = 1; index <= 3; index += 1) {
+  await expect(page.getByRole("heading", { name: "What am I feeling right now?" })).toBeVisible();
+  await page.getByText("Anxiety", { exact: true }).click();
+  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByText("Need for clarity", { exact: true }).click();
+  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByPlaceholder("Write it in your own words").fill("Clarify what I need from the conversation");
+  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByText("Write a two-sentence opener", { exact: true }).click();
+  await page.getByRole("button", { name: "Build summary" }).click();
+
+  for (let index = 1; index <= 2; index += 1) {
     await expect(page.getByRole("heading", { name: `Question ${index}?` })).toBeVisible();
     await page.getByRole("textbox", { name: "Short answer" }).fill(`Answer ${index}`);
     await page.getByRole("button", { name: "Answer", exact: true }).click();
@@ -176,7 +204,9 @@ test("reflection processing asks at most three questions and returns an editable
 
   await expect(page.getByRole("heading", { name: "Possible causes" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Schedule" })).toBeVisible();
+  await expect(page.getByLabel("I-statement")).toHaveValue(/clarity matters to me/);
   await expect(page.getByLabel("Next action")).toHaveValue("Write a two-sentence opener");
+  expect(submittedGuided).toMatchObject({ desiredChanges: ["Clarify what I need from the conversation"] });
   expect(aiCalls).toBe(4);
 });
 

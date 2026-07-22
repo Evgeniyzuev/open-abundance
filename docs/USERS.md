@@ -2,7 +2,7 @@
 
 This document describes the current authenticated user model, pre-auth onboarding, and database direction.
 
-Current status (2026-07-22): the user-facing guest mode has been removed. A visitor sees the three-screen onboarding, presses `GO` on the completed route, and then chooses Google or an email magic link on a separate auth screen before the app shell is mounted. The local guest identity remains an internal implementation detail for referral attribution, analytics continuity, and claiming existing local data; it no longer grants access to app features.
+Current status (2026-07-23): the user-facing guest mode has been removed. A visitor sees the three-screen onboarding, presses `GO` on the completed route, and then chooses Google or a six-digit email OTP on a separate auth screen before the app shell is mounted. The code is verified inside the installed PWA so its Supabase session is created in the same browser context. The local guest identity remains an internal implementation detail for referral attribution, analytics continuity, and claiming existing local data; it no longer grants access to app features.
 
 ## Product Approach
 
@@ -19,7 +19,7 @@ Recommended first-run flow:
 1. User opens the app.
 2. App shows `mission -> stories -> 20-level program`.
 3. The third screen shows `Route ready` and offers one action: `GO`.
-4. A separate auth screen offers Google and an email magic link.
+4. A separate auth screen offers Google and a six-digit email OTP.
 5. Successful auth creates or loads the profile, Core, and Wallet without replacing existing onboarding state.
 6. The server grants the idempotent `+2$ Core` starter bonus on first registration.
 7. The app shows the one-time first-reward receipt and opens the feed.
@@ -36,7 +36,7 @@ Properties:
 - generated on first launch;
 - stored locally;
 - can be reused on the same device for attribution and migration;
-- can complete only the marketing onboarding and start Google OAuth or request an email magic link;
+- can complete only the marketing onboarding and start Google OAuth or request an email OTP;
 - does not yet exist as a durable user in Supabase Auth;
 - cannot create new app data or receive preview/authoritative financial rewards.
 
@@ -60,7 +60,7 @@ Storage:
 
 A registered user exists in Supabase Auth and in app profile tables.
 
-Current registration options: Google and email magic link. Both paths use the same post-auth registration claim. Apple is the preferred future consumer/iOS option, Microsoft is the simplest broadly useful professional option, and other providers remain deferred.
+Current registration options: Google and email OTP. Both paths use the same post-auth registration claim. Apple is the preferred future consumer/iOS option, Microsoft is the simplest broadly useful professional option, and other providers remain deferred.
 
 After registration:
 
@@ -82,16 +82,16 @@ On app start:
 
 ## Registration As The Final Onboarding Action
 
-Registration is not a catalog challenge. The old `Save Your Progress` challenge is inactive but retained as the historical/idempotency backing record for existing challenge reward accounting. Its UI is replaced by `GO` on onboarding screen three, a separate Google/email auth screen, and a one-time `First reward` receipt after successful auth.
+Registration is not a catalog challenge. The old `Save Your Progress` challenge is inactive but retained as the historical/idempotency backing record for existing challenge reward accounting. Its UI is replaced by `GO` on onboarding screen three, a separate Google/email OTP auth screen, and a one-time `First reward` receipt after successful auth.
 
-## Email Magic Link Operations
+## Email OTP Operations
 
-The client calls Supabase `signInWithOtp` with `shouldCreateUser: true` and returns through `/auth/callback?method=email`. Before production use:
+The client calls Supabase `signInWithOtp` with `shouldCreateUser: true`, accepts the six-digit code in the installed PWA, and calls `verifyOtp({ email, token, type: "email" })`. A successful verification creates the session in that PWA context and then opens `/auth/callback?method=email` for the shared profile/reward/referral claim. The pending email and resend timestamp are retained locally for 15 minutes so an iOS process reload returns to the code-entry step. Before production use:
 
 1. Enable the Email provider in Supabase Authentication.
-2. Set the production Site URL and allow both the local and production `/auth/callback` URLs.
-3. Keep the Magic Link email action on `{{ .ConfirmationURL }}` and customize the template for Open Abundance.
-4. Configure a production SMTP provider and the sending domain's SPF/DKIM records. Supabase's built-in sender is only suitable for restricted testing.
+2. Change the Magic Link template to display `{{ .Token }}` and remove every `{{ .ConfirmationURL }}` sign-in link.
+3. Configure a production SMTP provider and the sending domain's SPF/DKIM records. Supabase's built-in sender is only suitable for restricted testing.
+4. Keep the default 60-second resend cooldown in the UI and review the matching Authentication rate limit before changing it.
 
 No database migration is needed for email auth. The existing auth user, profile claim, Core/Wallet creation, referral transfer, and starter reward contracts remain unchanged.
 

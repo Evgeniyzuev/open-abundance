@@ -7,8 +7,9 @@ import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import {
   consumePostAuthReward,
   getBrowserSupabaseClient,
+  requestEmailOtp,
   signInWithGoogle,
-  signInWithMagicLink,
+  verifyEmailOtp,
   type AuthMethod,
   type RegistrationReward
 } from "@/lib/supabaseClient";
@@ -41,6 +42,9 @@ type OnboardingDraft = {
 };
 
 const steps: StoryStepId[] = ["mission", "stories", "program"];
+const PENDING_EMAIL_OTP_STORAGE_KEY = "openAbundancePendingEmailOtp";
+const PENDING_EMAIL_OTP_TTL_MS = 15 * 60 * 1000;
+const EMAIL_OTP_RESEND_SECONDS = 60;
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
   const { applyServerData, authResolved, profile, t, user } = useUserContext();
@@ -92,7 +96,8 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         onGoogleSignIn={async () => {
           await signInWithGoogle();
         }}
-        onMagicLink={signInWithMagicLink}
+        onEmailOtpRequest={requestEmailOtp}
+        onEmailOtpVerify={verifyEmailOtp}
       />
     );
   }
@@ -124,26 +129,45 @@ function OnboardingApp({
   locale,
   onLocaleChange,
   onAuthScreenOpened,
+  onEmailOtpRequest,
+  onEmailOtpVerify,
   onGoogleSignIn,
-  onMagicLink
 }: {
   initialStep: StepId;
   locale: OnboardingLocale;
   onLocaleChange: (locale: OnboardingLocale) => Promise<void>;
   onAuthScreenOpened: () => void;
+  onEmailOtpRequest: (email: string) => Promise<void>;
+  onEmailOtpVerify: (email: string, token: string) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
-  onMagicLink: (email: string) => Promise<void>;
 }) {
   const [step, setStep] = useState<StepId>(initialStep);
   const [activeAuthMethod, setActiveAuthMethod] = useState<AuthMethod | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
-  const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
+  const [emailOtpSentTo, setEmailOtpSentTo] = useState<string | null>(null);
+  const [emailOtp, setEmailOtp] = useState("");
+  const [resendSeconds, setResendSeconds] = useState(0);
   const currentIndex = step === "auth" ? steps.length - 1 : steps.indexOf(step);
 
   useEffect(() => {
     trackProductEvent("onboarding_viewed", { locale, version: "abundance_mission_v3" });
   }, [locale]);
+
+  useEffect(() => {
+    const pendingOtp = readPendingEmailOtp();
+    if (!pendingOtp) return;
+    const elapsedSeconds = Math.floor((Date.now() - pendingOtp.sentAt) / 1000);
+    setEmail(pendingOtp.email);
+    setEmailOtpSentTo(pendingOtp.email);
+    setResendSeconds(Math.max(0, EMAIL_OTP_RESEND_SECONDS - elapsedSeconds));
+  }, []);
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timeoutId = window.setTimeout(() => setResendSeconds((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timeoutId);
+  }, [resendSeconds]);
 
   function goTo(nextStep: StepId) {
     setActionError(null);
@@ -170,29 +194,67 @@ function OnboardingApp({
     }
   }
 
-  async function handleMagicLink(event: FormEvent<HTMLFormElement>) {
+  async function handleEmailOtpRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedEmail = email.trim();
-    setMagicLinkSentTo(null);
+    setEmailOtpSentTo(null);
 
     if (!isValidEmail(normalizedEmail)) {
       setActionError(onboardingText(onboardingContent.errors.emailInvalid, locale));
       return;
     }
 
+    await sendEmailOtp(normalizedEmail, false);
+  }
+
+  async function sendEmailOtp(address: string, retry: boolean) {
     setActiveAuthMethod("email");
     setActionError(null);
-    trackProductEvent("onboarding_auth_started", { method: "email", retry: false, version: "abundance_mission_v3" });
+    trackProductEvent("onboarding_auth_started", { method: "email", retry, version: "abundance_mission_v3" });
 
     try {
-      await onMagicLink(normalizedEmail);
-      setMagicLinkSentTo(normalizedEmail);
-      trackProductEvent("onboarding_auth_email_sent", { method: "email", version: "abundance_mission_v3" });
+      await onEmailOtpRequest(address);
+      setEmailOtpSentTo(address);
+      setEmailOtp("");
+      setResendSeconds(EMAIL_OTP_RESEND_SECONDS);
+      storePendingEmailOtp(address);
+      trackProductEvent("onboarding_auth_email_sent", { method: "email", retry, version: "abundance_mission_v3" });
     } catch {
-      setActionError(onboardingText(onboardingContent.errors.magicLink, locale));
+      setActionError(onboardingText(onboardingContent.errors.emailOtpSend, locale));
     } finally {
       setActiveAuthMethod(null);
     }
+  }
+
+  async function handleEmailOtpVerify(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!emailOtpSentTo) return;
+
+    if (!/^\d{6}$/.test(emailOtp)) {
+      setActionError(onboardingText(onboardingContent.errors.emailOtpInvalid, locale));
+      return;
+    }
+
+    setActiveAuthMethod("email");
+    setActionError(null);
+    trackProductEvent("onboarding_auth_email_verification_started", { method: "email", version: "abundance_mission_v3" });
+
+    try {
+      await onEmailOtpVerify(emailOtpSentTo, emailOtp);
+      clearPendingEmailOtp();
+      window.location.assign("/auth/callback?method=email");
+    } catch {
+      setActionError(onboardingText(onboardingContent.errors.emailOtpVerify, locale));
+      setActiveAuthMethod(null);
+    }
+  }
+
+  function changeEmail() {
+    setEmailOtpSentTo(null);
+    setEmailOtp("");
+    setResendSeconds(0);
+    setActionError(null);
+    clearPendingEmailOtp();
   }
 
   const previousStep = step === "auth" ? "program" : currentIndex > 0 ? steps[currentIndex - 1] : null;
@@ -323,40 +385,78 @@ function OnboardingApp({
                 <span>{onboardingText(onboardingContent.auth.divider, locale)}</span>
               </div>
 
-              <form className="onboarding-email-form" noValidate onSubmit={(event) => void handleMagicLink(event)}>
-                <label htmlFor="onboarding-email">{onboardingText(onboardingContent.auth.emailLabel, locale)}</label>
-                <div className="onboarding-email-row">
-                  <input
-                    id="onboarding-email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    value={email}
-                    placeholder={onboardingText(onboardingContent.auth.emailPlaceholder, locale)}
-                    aria-invalid={actionError === onboardingText(onboardingContent.errors.emailInvalid, locale)}
-                    onChange={(event) => {
-                      setEmail(event.target.value);
-                      setActionError(null);
-                      setMagicLinkSentTo(null);
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={activeAuthMethod !== null}
-                    aria-label={onboardingText(onboardingContent.actions.sendMagicLink, locale)}
-                    title={onboardingText(onboardingContent.actions.sendMagicLink, locale)}
-                  >
-                    <Check size={22} />
-                  </button>
-                </div>
-              </form>
+              {!emailOtpSentTo ? (
+                <form className="onboarding-email-form" noValidate onSubmit={(event) => void handleEmailOtpRequest(event)}>
+                  <label htmlFor="onboarding-email">{onboardingText(onboardingContent.auth.emailLabel, locale)}</label>
+                  <div className="onboarding-email-row">
+                    <input
+                      id="onboarding-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={email}
+                      placeholder={onboardingText(onboardingContent.auth.emailPlaceholder, locale)}
+                      aria-invalid={actionError === onboardingText(onboardingContent.errors.emailInvalid, locale)}
+                      onChange={(event) => {
+                        setEmail(event.target.value);
+                        setActionError(null);
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={activeAuthMethod !== null}
+                      aria-label={onboardingText(onboardingContent.actions.sendEmailCode, locale)}
+                      title={onboardingText(onboardingContent.actions.sendEmailCode, locale)}
+                    >
+                      <Check size={22} />
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="onboarding-otp-step">
+                  <p className="onboarding-auth-status" role="status">
+                    <span>{onboardingText(onboardingContent.auth.otpSent, locale)}</span>
+                    <strong>{emailOtpSentTo}</strong>
+                  </p>
 
-              {magicLinkSentTo ? (
-                <p className="onboarding-auth-status" role="status">
-                  <span>{onboardingText(onboardingContent.auth.magicLinkSent, locale)}</span>
-                  <strong>{magicLinkSentTo}</strong>
-                </p>
-              ) : null}
+                  <form className="onboarding-otp-form" noValidate onSubmit={(event) => void handleEmailOtpVerify(event)}>
+                    <label htmlFor="onboarding-email-otp">{onboardingText(onboardingContent.auth.otpLabel, locale)}</label>
+                    <input
+                      id="onboarding-email-otp"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={emailOtp}
+                      placeholder={onboardingText(onboardingContent.auth.otpPlaceholder, locale)}
+                      aria-invalid={actionError === onboardingText(onboardingContent.errors.emailOtpInvalid, locale)}
+                      onChange={(event) => {
+                        setEmailOtp(event.target.value.replace(/\D/g, "").slice(0, 6));
+                        setActionError(null);
+                      }}
+                    />
+                    <button className="onboarding-primary-action" type="submit" disabled={activeAuthMethod !== null}>
+                      {onboardingText(onboardingContent.actions.verifyEmailCode, locale)}
+                    </button>
+                  </form>
+
+                  <div className="onboarding-auth-secondary-actions">
+                    <button
+                      type="button"
+                      disabled={activeAuthMethod !== null || resendSeconds > 0}
+                      onClick={() => void sendEmailOtp(emailOtpSentTo, true)}
+                    >
+                      {resendSeconds > 0
+                        ? onboardingText(onboardingContent.auth.resendIn, locale).replace("{seconds}", String(resendSeconds))
+                        : onboardingText(onboardingContent.actions.resendEmailCode, locale)}
+                    </button>
+                    <button type="button" disabled={activeAuthMethod !== null} onClick={changeEmail}>
+                      {onboardingText(onboardingContent.actions.changeEmail, locale)}
+                    </button>
+                  </div>
+                </div>
+              )}
               {actionError ? <p className="onboarding-error" role="alert">{actionError}</p> : null}
             </div>
           </section>
@@ -368,6 +468,42 @@ function OnboardingApp({
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+$/.test(value);
+}
+
+function readPendingEmailOtp(): { email: string; sentAt: number } | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(PENDING_EMAIL_OTP_STORAGE_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as { email?: unknown; sentAt?: unknown };
+    if (typeof value.email !== "string" || typeof value.sentAt !== "number" || Date.now() - value.sentAt > PENDING_EMAIL_OTP_TTL_MS) {
+      clearPendingEmailOtp();
+      return null;
+    }
+    return { email: value.email, sentAt: value.sentAt };
+  } catch {
+    clearPendingEmailOtp();
+    return null;
+  }
+}
+
+function storePendingEmailOtp(email: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PENDING_EMAIL_OTP_STORAGE_KEY, JSON.stringify({ email, sentAt: Date.now() }));
+  } catch {
+    // The active in-memory OTP flow still works when browser storage is unavailable.
+  }
+}
+
+function clearPendingEmailOtp() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(PENDING_EMAIL_OTP_STORAGE_KEY);
+  } catch {
+    // Nothing else to clear when browser storage is unavailable.
+  }
 }
 
 function OnboardingArtwork({ alt, priority = false, src }: { alt: string; priority?: boolean; src: string }) {

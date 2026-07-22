@@ -108,13 +108,13 @@ test("new guest can switch onboarding language and keep the choice", async ({ pa
   await expect(page.getByRole("heading", { name: "Создавай изобилие в своей жизни" })).toBeVisible();
 });
 
-test("new visitor completes the three-screen story and can request a magic link", async ({ page }) => {
+test("new visitor completes the three-screen story and can request an email OTP", async ({ page }) => {
   const pageErrors: string[] = [];
-  let magicLinkAttempts = 0;
+  let emailOtpAttempts = 0;
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.route("**/auth/v1/otp", async (route) => {
-    magicLinkAttempts += 1;
-    if (magicLinkAttempts === 1) {
+    emailOtpAttempts += 1;
+    if (emailOtpAttempts === 1) {
       await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "Temporary error" }) });
       return;
     }
@@ -135,16 +135,20 @@ test("new visitor completes the three-screen story and can request a magic link"
 
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   await page.getByLabel("Email").fill("not-an-email");
-  await page.getByRole("button", { name: "Send sign-in link" }).click();
-  await expect(page.getByRole("alert")).toHaveText("Enter a valid email address.");
+  await page.getByRole("button", { name: "Send verification code" }).click();
+  await expect(page.locator(".onboarding-error")).toHaveText("Enter a valid email address.");
 
   await page.getByLabel("Email").fill("new-user@example.com");
-  await page.getByRole("button", { name: "Send sign-in link" }).click();
-  await expect(page.getByRole("alert")).toContainText("Could not send the link");
+  await page.getByRole("button", { name: "Send verification code" }).click();
+  await expect(page.locator(".onboarding-error")).toContainText("Could not send the code");
 
-  await page.getByRole("button", { name: "Send sign-in link" }).click();
-  await expect(page.getByRole("status")).toContainText("Link sent");
+  await page.getByRole("button", { name: "Send verification code" }).click();
+  await expect(page.getByRole("status")).toContainText("Code sent");
   await expect(page.getByRole("status")).toContainText("new-user@example.com");
+  await page.getByLabel("Verification code").fill("123");
+  await page.getByRole("button", { name: "Verify code" }).click();
+  await expect(page.locator(".onboarding-error")).toHaveText("Enter the six-digit code from the email.");
+  await expect(page.getByRole("button", { name: /Resend in \d+s/ })).toBeDisabled();
   await expect(page.getByRole("navigation")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });

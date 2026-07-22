@@ -50,14 +50,24 @@ export async function signInWithGoogle(): Promise<void> {
   if (error) throw error;
 }
 
-export async function signInWithMagicLink(email: string): Promise<void> {
+export async function requestEmailOtp(email: string): Promise<void> {
   const supabase = getBrowserSupabaseClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim(),
     options: {
-      emailRedirectTo: getAuthCallbackUrl("email"),
       shouldCreateUser: true
     }
+  });
+
+  if (error) throw error;
+}
+
+export async function verifyEmailOtp(email: string, token: string): Promise<void> {
+  const supabase = getBrowserSupabaseClient();
+  const { error } = await supabase.auth.verifyOtp({
+    email: email.trim(),
+    token: token.trim(),
+    type: "email"
   });
 
   if (error) throw error;

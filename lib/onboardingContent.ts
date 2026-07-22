@@ -41,21 +41,29 @@ type OnboardingContent = {
     divider: OnboardingLocalizedText;
     emailLabel: OnboardingLocalizedText;
     emailPlaceholder: OnboardingLocalizedText;
-    magicLinkSent: OnboardingLocalizedText;
+    otpLabel: OnboardingLocalizedText;
+    otpPlaceholder: OnboardingLocalizedText;
+    otpSent: OnboardingLocalizedText;
+    resendIn: OnboardingLocalizedText;
   };
   actions: {
     back: OnboardingLocalizedText;
+    changeEmail: OnboardingLocalizedText;
     continue: OnboardingLocalizedText;
     go: OnboardingLocalizedText;
     language: OnboardingLocalizedText;
-    sendMagicLink: OnboardingLocalizedText;
+    resendEmailCode: OnboardingLocalizedText;
+    sendEmailCode: OnboardingLocalizedText;
     signInGoogle: OnboardingLocalizedText;
+    verifyEmailCode: OnboardingLocalizedText;
     viewStories: OnboardingLocalizedText;
   };
   errors: {
     auth: OnboardingLocalizedText;
     emailInvalid: OnboardingLocalizedText;
-    magicLink: OnboardingLocalizedText;
+    emailOtpInvalid: OnboardingLocalizedText;
+    emailOtpSend: OnboardingLocalizedText;
+    emailOtpVerify: OnboardingLocalizedText;
   };
 };
 
@@ -192,25 +200,54 @@ export const onboardingContent: OnboardingContent = {
       es: "you@example.com",
       hi: "you@example.com"
     },
-    magicLinkSent: {
-      ru: "Ссылка отправлена — проверь почту.",
-      en: "Link sent — check your email.",
-      zh: "链接已发送，请检查邮箱。",
-      es: "Enlace enviado: revisa tu correo.",
-      hi: "लिंक भेज दिया गया है — अपना ईमेल देखें।"
+    otpLabel: {
+      ru: "Код подтверждения",
+      en: "Verification code",
+      zh: "验证码",
+      es: "Código de verificación",
+      hi: "सत्यापन कोड"
+    },
+    otpPlaceholder: { ru: "000000", en: "000000", zh: "000000", es: "000000", hi: "000000" },
+    otpSent: {
+      ru: "Код отправлен — проверь почту.",
+      en: "Code sent — check your email.",
+      zh: "验证码已发送，请检查邮箱。",
+      es: "Código enviado: revisa tu correo.",
+      hi: "कोड भेज दिया गया है — अपना ईमेल देखें।"
+    },
+    resendIn: {
+      ru: "Отправить снова через {seconds} с",
+      en: "Resend in {seconds}s",
+      zh: "{seconds} 秒后重新发送",
+      es: "Reenviar en {seconds} s",
+      hi: "{seconds} सेकंड में फिर भेजें"
     }
   },
   actions: {
     back: { ru: "Назад", en: "Back", zh: "返回", es: "Atrás", hi: "वापस" },
+    changeEmail: {
+      ru: "Изменить email",
+      en: "Change email",
+      zh: "更改电子邮箱",
+      es: "Cambiar email",
+      hi: "ईमेल बदलें"
+    },
     continue: { ru: "Продолжить", en: "Continue", zh: "继续", es: "Continuar", hi: "जारी रखें" },
     go: { ru: "GO", en: "GO", zh: "GO", es: "GO", hi: "GO" },
     language: { ru: "Язык", en: "Language", zh: "语言", es: "Idioma", hi: "भाषा" },
-    sendMagicLink: {
-      ru: "Отправить ссылку",
-      en: "Send sign-in link",
-      zh: "发送登录链接",
-      es: "Enviar enlace de acceso",
-      hi: "साइन-इन लिंक भेजें"
+    resendEmailCode: {
+      ru: "Отправить код снова",
+      en: "Resend code",
+      zh: "重新发送验证码",
+      es: "Reenviar código",
+      hi: "कोड फिर भेजें"
+    },
+    sendEmailCode: {
+      ru: "Отправить код",
+      en: "Send verification code",
+      zh: "发送验证码",
+      es: "Enviar código",
+      hi: "सत्यापन कोड भेजें"
     },
     signInGoogle: {
       ru: "Продолжить с Google",
@@ -218,6 +255,13 @@ export const onboardingContent: OnboardingContent = {
       zh: "使用 Google 继续",
       es: "Continuar con Google",
       hi: "Google के साथ जारी रखें"
+    },
+    verifyEmailCode: {
+      ru: "Подтвердить",
+      en: "Verify code",
+      zh: "验证代码",
+      es: "Verificar código",
+      hi: "कोड सत्यापित करें"
     },
     viewStories: { ru: "Смотреть истории", en: "View stories", zh: "查看故事", es: "Ver historias", hi: "कहानियां देखें" }
   },
@@ -236,12 +280,26 @@ export const onboardingContent: OnboardingContent = {
       es: "Introduce un email válido.",
       hi: "एक मान्य ईमेल पता दर्ज करें।"
     },
-    magicLink: {
-      ru: "Не удалось отправить ссылку. Проверь подключение и попробуй ещё раз.",
-      en: "Could not send the link. Check your connection and try again.",
-      zh: "无法发送链接。请检查网络连接后重试。",
-      es: "No se pudo enviar el enlace. Comprueba tu conexión e inténtalo de nuevo.",
-      hi: "लिंक नहीं भेजा जा सका। अपना कनेक्शन जांचें और फिर कोशिश करें।"
+    emailOtpInvalid: {
+      ru: "Введи шестизначный код из письма.",
+      en: "Enter the six-digit code from the email.",
+      zh: "请输入邮件中的六位验证码。",
+      es: "Introduce el código de seis dígitos del correo.",
+      hi: "ईमेल में मिला छह अंकों का कोड दर्ज करें।"
+    },
+    emailOtpSend: {
+      ru: "Не удалось отправить код. Проверь подключение и попробуй ещё раз.",
+      en: "Could not send the code. Check your connection and try again.",
+      zh: "无法发送验证码。请检查网络连接后重试。",
+      es: "No se pudo enviar el código. Comprueba tu conexión e inténtalo de nuevo.",
+      hi: "कोड नहीं भेजा जा सका। अपना कनेक्शन जांचें और फिर कोशिश करें।"
+    },
+    emailOtpVerify: {
+      ru: "Код неверный или истёк. Проверь письмо и попробуй ещё раз.",
+      en: "The code is invalid or expired. Check the email and try again.",
+      zh: "验证码无效或已过期。请检查邮件后重试。",
+      es: "El código no es válido o ha caducado. Revisa el correo e inténtalo de nuevo.",
+      hi: "कोड गलत है या उसकी अवधि समाप्त हो गई है। ईमेल जांचें और फिर कोशिश करें।"
     }
   }
 };

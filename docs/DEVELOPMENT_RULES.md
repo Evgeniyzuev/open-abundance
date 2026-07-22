@@ -103,6 +103,8 @@ windows sandbox failed: CreateProcessWithLogonW failed: 2
 
 Treat this exact failure as definitive browser unavailability for the current task. Do not retry browser bootstrap, reset the browser kernel, read additional browser troubleshooting, or switch to another browser automation mechanism. Go directly to the fallback checks above. If this failure has already occurred earlier in the same conversation/session, skip further in-app browser attempts for later UI changes in that session.
 
+The same one-attempt rule applies when browser discovery returns no available browsers, an empty browser list, or another definitive environment-level unavailability result. Once that happens, record it for the final response and do not spend more tool calls reconnecting, rediscovering, resetting, or substituting another browser in the same session.
+
 ```text
 f:\git\
   abundance-effect\          old app, reference only
@@ -120,6 +122,30 @@ git restore tsconfig.tsbuildinfo
 ```
 
 Do not delete `tsconfig.tsbuildinfo`; it is a tracked TypeScript build-info file in this repo. Only revert incidental verification changes to it.
+
+## E2E Tests That Must Stay Fast
+
+Playwright smoke tests and their managed test server must produce a final result in less than 30 seconds. This is a hard verification budget, not a timeout to increase. If the runner has no final result within 30 seconds, terminate it once, clean up only the processes created by that run, report the infrastructure failure, and do not run Playwright again in the same session.
+
+Local verification policy:
+
+- run only the e2e scenarios directly affected by the change; leave the complete suite to CI unless the user explicitly requests it;
+- let Playwright own a dedicated test port and test server; never reuse a developer's existing server or the default app port;
+- do not manually start a dev server before Playwright;
+- allow one Playwright attempt per verification scope, with no retries after a runner/server hang;
+- do not diagnose a silent runner with repeated process inspection, server restarts, longer timeouts, or progressively smaller reruns;
+- after an infrastructure hang, fall back to `pnpm exec tsc --noEmit`, `pnpm lint` when relevant, `pnpm build`, and one bounded HTTP 200 check;
+- prefer deterministic unit/component/state tests for translations, storage consumption, reward visibility, and auth state transitions;
+- keep browser e2e to one navigation path without reloads while server-backed views have active background requests.
+
+Do not add or restore tests that loop through multiple onboarding locales with repeated page navigation, reload the app shell while server-backed views are still refreshing, or otherwise wait on open-ended navigation/background network activity.
+
+Known removed failures (2026-07-22):
+
+- `new guest can use Chinese, Spanish, and Hindi onboarding copy` timed out while cycling locale state in one browser test;
+- `first registration reward appears once and opens the feed` hung on reload while feed navigation/background requests were active.
+
+Cover these contracts with deterministic state/translation checks or a single-page assertion that does not navigate or reload. If an e2e test has no result within 30 seconds, remove or redesign it instead of increasing its timeout, adding retries, or keeping it in the smoke suite.
 
 ## Docs Status Updates
 

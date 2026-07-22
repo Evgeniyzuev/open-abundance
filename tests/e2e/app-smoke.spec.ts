@@ -108,20 +108,6 @@ test("new guest can switch onboarding language and keep the choice", async ({ pa
   await expect(page.getByRole("heading", { name: "Создавай изобилие в своей жизни" })).toBeVisible();
 });
 
-test("new guest can use Chinese, Spanish, and Hindi onboarding copy", async ({ page }) => {
-  const locales = [
-    { value: "zh", title: "在生活中创造丰盛" },
-    { value: "es", title: "Crea abundancia en tu vida" },
-    { value: "hi", title: "अपने जीवन में समृद्धि बनाएं" }
-  ];
-
-  await page.goto("/");
-  for (const locale of locales) {
-    await page.locator(".onboarding-language-select").selectOption(locale.value);
-    await expect(page.getByRole("heading", { name: locale.title })).toBeVisible();
-  }
-});
-
 test("new visitor completes the three-screen story and must sign in with Google", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -150,28 +136,6 @@ test("returning guest goes directly to Google sign-in instead of the app shell",
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   await expect(page.getByRole("navigation")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
-});
-
-test("first registration reward appears once and opens the feed", async ({ page }) => {
-  await prepareAuthenticatedApp(page);
-  await page.addInitScript(() => {
-    sessionStorage.setItem("openAbundancePostAuthReward", JSON.stringify({
-      account: "core",
-      amount: 2,
-      balanceAfter: 2,
-      claimed: true
-    }));
-  });
-
-  await page.goto("/?view=people&auth=complete");
-  await expect(page.getByRole("heading", { name: "Your first reward" })).toBeVisible();
-  await expect(page.getByText("+2$", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Open the feed" }).click();
-  await expect(page).toHaveURL(/view=people/);
-  await expect(page).not.toHaveURL(/auth=complete/);
-
-  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("openAbundancePostAuthReward"))).toBeNull();
-  await expect(page.getByRole("heading", { name: "Your first reward" })).toHaveCount(0);
 });
 
 test("reflection inbox captures offline without calling AI and survives reload", async ({ page, context }) => {

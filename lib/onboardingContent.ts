@@ -34,15 +34,28 @@ type OnboardingContent = {
     prompt: OnboardingLocalizedText;
     imageAlt: OnboardingLocalizedText;
   };
+  auth: {
+    eyebrow: OnboardingLocalizedText;
+    title: OnboardingLocalizedText;
+    body: OnboardingLocalizedText;
+    divider: OnboardingLocalizedText;
+    emailLabel: OnboardingLocalizedText;
+    emailPlaceholder: OnboardingLocalizedText;
+    magicLinkSent: OnboardingLocalizedText;
+  };
   actions: {
     back: OnboardingLocalizedText;
     continue: OnboardingLocalizedText;
+    go: OnboardingLocalizedText;
     language: OnboardingLocalizedText;
+    sendMagicLink: OnboardingLocalizedText;
     signInGoogle: OnboardingLocalizedText;
     viewStories: OnboardingLocalizedText;
   };
   errors: {
     auth: OnboardingLocalizedText;
+    emailInvalid: OnboardingLocalizedText;
+    magicLink: OnboardingLocalizedText;
   };
 };
 
@@ -134,11 +147,11 @@ export const onboardingContent: OnboardingContent = {
       hi: "सरल कार्य पूरे करें, कौशल विकसित करें और नकद पुरस्कार पाएं। स्तर जितना ऊंचा होगा, अवसर और आय उतनी अधिक होगी।"
     },
     prompt: {
-      ru: "Войди, чтобы сохранить свой путь, получить первую награду и открыть все возможности.",
-      en: "Sign in to save your path, receive your first reward, and unlock every feature.",
-      zh: "登录以保存你的路线、领取第一份奖励并解锁所有功能。",
-      es: "Inicia sesión para guardar tu ruta, recibir tu primera recompensa y desbloquear todas las funciones.",
-      hi: "अपना मार्ग सहेजने, पहला पुरस्कार पाने और सभी सुविधाएं खोलने के लिए साइन इन करें।"
+      ru: "Маршрут построен",
+      en: "Your route is ready",
+      zh: "你的路线已规划完成",
+      es: "Tu ruta está lista",
+      hi: "आपका मार्ग तैयार है"
     },
     imageAlt: {
       ru: "Путь из двадцати уровней поднимается к сияющей вершине",
@@ -148,10 +161,57 @@ export const onboardingContent: OnboardingContent = {
       hi: "बीस स्तरों का मार्ग एक उज्ज्वल शिखर की ओर बढ़ता है"
     }
   },
+  auth: {
+    eyebrow: {
+      ru: "Следующий шаг",
+      en: "Next step",
+      zh: "下一步",
+      es: "Siguiente paso",
+      hi: "अगला कदम"
+    },
+    title: {
+      ru: "Войти или создать аккаунт",
+      en: "Sign in or create an account",
+      zh: "登录或创建账户",
+      es: "Inicia sesión o crea una cuenta",
+      hi: "साइन इन करें या खाता बनाएं"
+    },
+    body: {
+      ru: "Выбери удобный способ продолжить.",
+      en: "Choose how you want to continue.",
+      zh: "选择你想继续的方式。",
+      es: "Elige cómo quieres continuar.",
+      hi: "चुनें कि आप कैसे आगे बढ़ना चाहते हैं।"
+    },
+    divider: { ru: "или", en: "or", zh: "或", es: "o", hi: "या" },
+    emailLabel: { ru: "Email", en: "Email", zh: "电子邮箱", es: "Email", hi: "ईमेल" },
+    emailPlaceholder: {
+      ru: "you@example.com",
+      en: "you@example.com",
+      zh: "you@example.com",
+      es: "you@example.com",
+      hi: "you@example.com"
+    },
+    magicLinkSent: {
+      ru: "Ссылка отправлена — проверь почту.",
+      en: "Link sent — check your email.",
+      zh: "链接已发送，请检查邮箱。",
+      es: "Enlace enviado: revisa tu correo.",
+      hi: "लिंक भेज दिया गया है — अपना ईमेल देखें।"
+    }
+  },
   actions: {
     back: { ru: "Назад", en: "Back", zh: "返回", es: "Atrás", hi: "वापस" },
     continue: { ru: "Продолжить", en: "Continue", zh: "继续", es: "Continuar", hi: "जारी रखें" },
+    go: { ru: "GO", en: "GO", zh: "GO", es: "GO", hi: "GO" },
     language: { ru: "Язык", en: "Language", zh: "语言", es: "Idioma", hi: "भाषा" },
+    sendMagicLink: {
+      ru: "Отправить ссылку",
+      en: "Send sign-in link",
+      zh: "发送登录链接",
+      es: "Enviar enlace de acceso",
+      hi: "साइन-इन लिंक भेजें"
+    },
     signInGoogle: {
       ru: "Продолжить с Google",
       en: "Continue with Google",
@@ -168,6 +228,20 @@ export const onboardingContent: OnboardingContent = {
       zh: "无法开始登录。请检查网络连接后重试。",
       es: "No se pudo iniciar sesión. Comprueba tu conexión e inténtalo de nuevo.",
       hi: "साइन इन शुरू नहीं हो सका। अपना कनेक्शन जांचें और फिर कोशिश करें।"
+    },
+    emailInvalid: {
+      ru: "Введи корректный email.",
+      en: "Enter a valid email address.",
+      zh: "请输入有效的电子邮箱地址。",
+      es: "Introduce un email válido.",
+      hi: "एक मान्य ईमेल पता दर्ज करें।"
+    },
+    magicLink: {
+      ru: "Не удалось отправить ссылку. Проверь подключение и попробуй ещё раз.",
+      en: "Could not send the link. Check your connection and try again.",
+      zh: "无法发送链接。请检查网络连接后重试。",
+      es: "No se pudo enviar el enlace. Comprueba tu conexión e inténtalo de nuevo.",
+      hi: "लिंक नहीं भेजा जा सका। अपना कनेक्शन जांचें और फिर कोशिश करें।"
     }
   }
 };

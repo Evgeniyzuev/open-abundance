@@ -8,6 +8,8 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const POST_AUTH_REWARD_STORAGE_KEY = "openAbundancePostAuthReward";
 
+export type AuthMethod = "google" | "email";
+
 export type RegistrationReward = {
   account: "core" | "wallet";
   amount: number;
@@ -40,13 +42,31 @@ export function getBrowserSupabaseClient(): SupabaseClient<Database> {
 
 export async function signInWithGoogle(): Promise<void> {
   const supabase = getBrowserSupabaseClient();
-  const redirectTo = `${window.location.origin}/auth/callback`;
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo }
+    options: { redirectTo: getAuthCallbackUrl("google") }
   });
 
   if (error) throw error;
+}
+
+export async function signInWithMagicLink(email: string): Promise<void> {
+  const supabase = getBrowserSupabaseClient();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim(),
+    options: {
+      emailRedirectTo: getAuthCallbackUrl("email"),
+      shouldCreateUser: true
+    }
+  });
+
+  if (error) throw error;
+}
+
+function getAuthCallbackUrl(method: AuthMethod): string {
+  const callbackUrl = new URL("/auth/callback", window.location.origin);
+  callbackUrl.searchParams.set("method", method);
+  return callbackUrl.toString();
 }
 
 export async function claimRegistrationAfterAuth(locale: AppLocale = detectBrowserLocale()): Promise<RegistrationClaimResult> {

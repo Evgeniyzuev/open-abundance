@@ -108,9 +108,18 @@ test("new guest can switch onboarding language and keep the choice", async ({ pa
   await expect(page.getByRole("heading", { name: "Создавай изобилие в своей жизни" })).toBeVisible();
 });
 
-test("new visitor completes the three-screen story and must sign in with Google", async ({ page }) => {
+test("new visitor completes the three-screen story and can request a magic link", async ({ page }) => {
   const pageErrors: string[] = [];
+  let magicLinkAttempts = 0;
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.route("**/auth/v1/otp", async (route) => {
+    magicLinkAttempts += 1;
+    if (magicLinkAttempts === 1) {
+      await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "Temporary error" }) });
+      return;
+    }
+    await route.fulfill({ contentType: "application/json", body: "{}" });
+  });
 
   await page.goto("/");
 
@@ -119,21 +128,37 @@ test("new visitor completes the three-screen story and must sign in with Google"
 
   await page.getByRole("button", { name: "View stories" }).click();
   await expect(page.getByRole("heading", { name: "20 levels to $1,000,000" })).toBeVisible();
+  await expect(page.getByText("Your route is ready")).toBeVisible();
+  await expect(page.getByRole("button", { name: "GO" })).toBeVisible();
+
+  await page.getByRole("button", { name: "GO" }).click();
 
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await page.getByLabel("Email").fill("not-an-email");
+  await page.getByRole("button", { name: "Send sign-in link" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Enter a valid email address.");
+
+  await page.getByLabel("Email").fill("new-user@example.com");
+  await page.getByRole("button", { name: "Send sign-in link" }).click();
+  await expect(page.getByRole("alert")).toContainText("Could not send the link");
+
+  await page.getByRole("button", { name: "Send sign-in link" }).click();
+  await expect(page.getByRole("status")).toContainText("Link sent");
+  await expect(page.getByRole("status")).toContainText("new-user@example.com");
   await expect(page.getByRole("navigation")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
-test("returning guest goes directly to Google sign-in instead of the app shell", async ({ page }) => {
+test("returning guest goes directly to sign-in options instead of the app shell", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.addInitScript(() => window.localStorage.setItem("openAbundanceOnboardingSeen", "true"));
 
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "20 levels to $1,000,000" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in or create an account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByRole("navigation")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });

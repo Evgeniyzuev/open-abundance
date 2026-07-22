@@ -2,7 +2,7 @@
 
 This document describes the current authenticated user model, pre-auth onboarding, and database direction.
 
-Current status (2026-07-22): the user-facing guest mode has been removed. A visitor sees the three-screen onboarding and must continue with Google before the app shell is mounted. The local guest identity remains an internal implementation detail for referral attribution, analytics continuity, and claiming existing local data; it no longer grants access to app features.
+Current status (2026-07-22): the user-facing guest mode has been removed. A visitor sees the three-screen onboarding, presses `GO` on the completed route, and then chooses Google or an email magic link on a separate auth screen before the app shell is mounted. The local guest identity remains an internal implementation detail for referral attribution, analytics continuity, and claiming existing local data; it no longer grants access to app features.
 
 ## Product Approach
 
@@ -18,11 +18,12 @@ Recommended first-run flow:
 
 1. User opens the app.
 2. App shows `mission -> stories -> 20-level program`.
-3. The third screen offers one action: `Continue with Google`.
-4. Successful auth creates or loads the profile, Core, and Wallet without replacing existing onboarding state.
-5. The server grants the idempotent `+2$ Core` starter bonus on first registration.
-6. The app shows the one-time first-reward receipt and opens the feed.
-7. Existing local identity/referral data is attached to the registered account.
+3. The third screen shows `Route ready` and offers one action: `GO`.
+4. A separate auth screen offers Google and an email magic link.
+5. Successful auth creates or loads the profile, Core, and Wallet without replacing existing onboarding state.
+6. The server grants the idempotent `+2$ Core` starter bonus on first registration.
+7. The app shows the one-time first-reward receipt and opens the feed.
+8. Existing local identity/referral data is attached to the registered account.
 
 ## Identity States
 
@@ -35,7 +36,7 @@ Properties:
 - generated on first launch;
 - stored locally;
 - can be reused on the same device for attribution and migration;
-- can complete only the marketing onboarding and start Google OAuth;
+- can complete only the marketing onboarding and start Google OAuth or request an email magic link;
 - does not yet exist as a durable user in Supabase Auth;
 - cannot create new app data or receive preview/authoritative financial rewards.
 
@@ -59,7 +60,7 @@ Storage:
 
 A registered user exists in Supabase Auth and in app profile tables.
 
-Current registration option: Google. Email, Telegram, and other providers are future additions behind the same auth gate.
+Current registration options: Google and email magic link. Both paths use the same post-auth registration claim. Apple is the preferred future consumer/iOS option, Microsoft is the simplest broadly useful professional option, and other providers remain deferred.
 
 After registration:
 
@@ -76,12 +77,23 @@ On app start:
 1. Check Supabase Auth session.
 2. If authenticated, load registered user context.
 3. If unauthenticated and onboarding was not seen, start at the mission screen.
-4. If unauthenticated and onboarding was already seen, open the third screen with Google sign-in.
+4. If unauthenticated and onboarding was already seen, open the separate sign-in options screen.
 5. Never mount the app shell for an unauthenticated visitor, including offline.
 
 ## Registration As The Final Onboarding Action
 
-Registration is not a catalog challenge. The old `Save Your Progress` challenge is inactive but retained as the historical/idempotency backing record for existing challenge reward accounting. Its UI is replaced by the Google CTA on onboarding screen three and a one-time `First reward` receipt after successful auth.
+Registration is not a catalog challenge. The old `Save Your Progress` challenge is inactive but retained as the historical/idempotency backing record for existing challenge reward accounting. Its UI is replaced by `GO` on onboarding screen three, a separate Google/email auth screen, and a one-time `First reward` receipt after successful auth.
+
+## Email Magic Link Operations
+
+The client calls Supabase `signInWithOtp` with `shouldCreateUser: true` and returns through `/auth/callback?method=email`. Before production use:
+
+1. Enable the Email provider in Supabase Authentication.
+2. Set the production Site URL and allow both the local and production `/auth/callback` URLs.
+3. Keep the Magic Link email action on `{{ .ConfirmationURL }}` and customize the template for Open Abundance.
+4. Configure a production SMTP provider and the sending domain's SPF/DKIM records. Supabase's built-in sender is only suitable for restricted testing.
+
+No database migration is needed for email auth. The existing auth user, profile claim, Core/Wallet creation, referral transfer, and starter reward contracts remain unchanged.
 
 ## Rewards Policy
 

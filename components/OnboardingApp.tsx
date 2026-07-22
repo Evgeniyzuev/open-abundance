@@ -1,13 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, CheckCircle2, LogIn, Sparkles } from "lucide-react";
-import { ReactNode, useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Sparkles } from "lucide-react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import {
   consumePostAuthReward,
   getBrowserSupabaseClient,
   signInWithGoogle,
+  signInWithMagicLink,
+  type AuthMethod,
   type RegistrationReward
 } from "@/lib/supabaseClient";
 import {
@@ -24,7 +26,8 @@ import {
 } from "@/lib/onboardingContent";
 import { trackProductEvent } from "@/lib/productAnalytics";
 
-type StepId = "mission" | "stories" | "program";
+type StoryStepId = "mission" | "stories" | "program";
+type StepId = StoryStepId | "auth";
 type OnboardingState = Record<string, unknown> & {
   firstExperienceCompleted?: boolean;
   firstPlanDraft?: OnboardingDraft;
@@ -37,7 +40,7 @@ type OnboardingDraft = {
   targetCore: number;
 };
 
-const steps: StepId[] = ["mission", "stories", "program"];
+const steps: StoryStepId[] = ["mission", "stories", "program"];
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
   const { applyServerData, authResolved, profile, t, user } = useUserContext();
@@ -65,10 +68,10 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   const profileCompleted = hasCompletedFirstExperience(profile);
 
   useEffect(() => {
-    if (!user || !profile || !onboardingSeen || profileCompleted) return;
+    if (!user || !profile || profileCompleted) return;
     const draft = readOnboardingDraft();
     void saveProfileCompletion(profile, applyServerData, draft);
-  }, [applyServerData, onboardingSeen, profile, profileCompleted, user]);
+  }, [applyServerData, profile, profileCompleted, user]);
 
   if (!authResolved || onboardingSeen === null) return null;
 
@@ -76,18 +79,20 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     if (onboardingLocale === null) return null;
     return (
       <OnboardingApp
-        initialStep={onboardingSeen ? "program" : "mission"}
+        initialStep={onboardingSeen || isAuthScreenRequested() ? "auth" : "mission"}
         locale={onboardingLocale ?? "en"}
         onLocaleChange={async (nextLocale) => {
           storeOnboardingLocalePreference(nextLocale);
           setOnboardingLocale(nextLocale);
         }}
-        onSignIn={async () => {
+        onAuthScreenOpened={() => {
           markOnboardingSeen();
           setOnboardingSeen(true);
-          trackProductEvent("onboarding_auth_started", { retry: false, version: "abundance_mission_v3" });
+        }}
+        onGoogleSignIn={async () => {
           await signInWithGoogle();
         }}
+        onMagicLink={signInWithMagicLink}
       />
     );
   }
@@ -118,17 +123,23 @@ function OnboardingApp({
   initialStep,
   locale,
   onLocaleChange,
-  onSignIn
+  onAuthScreenOpened,
+  onGoogleSignIn,
+  onMagicLink
 }: {
   initialStep: StepId;
   locale: OnboardingLocale;
   onLocaleChange: (locale: OnboardingLocale) => Promise<void>;
-  onSignIn: () => Promise<void>;
+  onAuthScreenOpened: () => void;
+  onGoogleSignIn: () => Promise<void>;
+  onMagicLink: (email: string) => Promise<void>;
 }) {
   const [step, setStep] = useState<StepId>(initialStep);
-  const [signingIn, setSigningIn] = useState(false);
+  const [activeAuthMethod, setActiveAuthMethod] = useState<AuthMethod | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const currentIndex = steps.indexOf(step);
+  const [email, setEmail] = useState("");
+  const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
+  const currentIndex = step === "auth" ? steps.length - 1 : steps.indexOf(step);
 
   useEffect(() => {
     trackProductEvent("onboarding_viewed", { locale, version: "abundance_mission_v3" });
@@ -141,19 +152,50 @@ function OnboardingApp({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleSignIn() {
-    setSigningIn(true);
+  function openAuthScreen() {
+    onAuthScreenOpened();
+    goTo("auth");
+  }
+
+  async function handleGoogleSignIn() {
+    setActiveAuthMethod("google");
     setActionError(null);
+    trackProductEvent("onboarding_auth_started", { method: "google", retry: false, version: "abundance_mission_v3" });
 
     try {
-      await onSignIn();
+      await onGoogleSignIn();
     } catch {
       setActionError(onboardingText(onboardingContent.errors.auth, locale));
-      setSigningIn(false);
+      setActiveAuthMethod(null);
     }
   }
 
-  const previousStep = currentIndex > 0 ? steps[currentIndex - 1] : null;
+  async function handleMagicLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedEmail = email.trim();
+    setMagicLinkSentTo(null);
+
+    if (!isValidEmail(normalizedEmail)) {
+      setActionError(onboardingText(onboardingContent.errors.emailInvalid, locale));
+      return;
+    }
+
+    setActiveAuthMethod("email");
+    setActionError(null);
+    trackProductEvent("onboarding_auth_started", { method: "email", retry: false, version: "abundance_mission_v3" });
+
+    try {
+      await onMagicLink(normalizedEmail);
+      setMagicLinkSentTo(normalizedEmail);
+      trackProductEvent("onboarding_auth_email_sent", { method: "email", version: "abundance_mission_v3" });
+    } catch {
+      setActionError(onboardingText(onboardingContent.errors.magicLink, locale));
+    } finally {
+      setActiveAuthMethod(null);
+    }
+  }
+
+  const previousStep = step === "auth" ? "program" : currentIndex > 0 ? steps[currentIndex - 1] : null;
 
   return (
     <main className={`onboarding-screen onboarding-theme-${step}`}>
@@ -185,17 +227,19 @@ function OnboardingApp({
                 <option key={item} value={item}>{ONBOARDING_LOCALE_LABELS[item]}</option>
               ))}
             </select>
-            <div
-              className="onboarding-progress"
-              role="progressbar"
-              aria-valuemin={1}
-              aria-valuemax={steps.length}
-              aria-valuenow={currentIndex + 1}
-            >
-              {steps.map((item) => (
-                <i className={steps.indexOf(item) <= currentIndex ? "active" : ""} key={item} />
-              ))}
-            </div>
+            {step !== "auth" ? (
+              <div
+                className="onboarding-progress"
+                role="progressbar"
+                aria-valuemin={1}
+                aria-valuemax={steps.length}
+                aria-valuenow={currentIndex + 1}
+              >
+                {steps.map((item) => (
+                  <i className={steps.indexOf(item) <= currentIndex ? "active" : ""} key={item} />
+                ))}
+              </div>
+            ) : null}
           </div>
         </header>
 
@@ -248,18 +292,82 @@ function OnboardingApp({
               <p>{onboardingText(onboardingContent.program.body, locale)}</p>
               <p className="onboarding-program-prompt">{onboardingText(onboardingContent.program.prompt, locale)}</p>
             </div>
-            {actionError ? <p className="onboarding-error">{actionError}</p> : null}
             <div className="onboarding-final-actions">
-              <button className="onboarding-primary-action" type="button" disabled={signingIn} onClick={() => void handleSignIn()}>
+              <button className="onboarding-primary-action" type="button" onClick={openAuthScreen}>
+                {onboardingText(onboardingContent.actions.go, locale)}
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {step === "auth" ? (
+          <section className="onboarding-slide onboarding-auth-slide">
+            <div className="onboarding-copy onboarding-auth-copy">
+              <span>{onboardingText(onboardingContent.auth.eyebrow, locale)}</span>
+              <h1>{onboardingText(onboardingContent.auth.title, locale)}</h1>
+              <p>{onboardingText(onboardingContent.auth.body, locale)}</p>
+            </div>
+            <div className="onboarding-auth-panel">
+              <button
+                className="onboarding-primary-action"
+                type="button"
+                disabled={activeAuthMethod !== null}
+                onClick={() => void handleGoogleSignIn()}
+              >
                 <LogIn size={18} />
                 {onboardingText(onboardingContent.actions.signInGoogle, locale)}
               </button>
+
+              <div className="onboarding-auth-divider">
+                <span>{onboardingText(onboardingContent.auth.divider, locale)}</span>
+              </div>
+
+              <form className="onboarding-email-form" noValidate onSubmit={(event) => void handleMagicLink(event)}>
+                <label htmlFor="onboarding-email">{onboardingText(onboardingContent.auth.emailLabel, locale)}</label>
+                <div className="onboarding-email-row">
+                  <input
+                    id="onboarding-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={email}
+                    placeholder={onboardingText(onboardingContent.auth.emailPlaceholder, locale)}
+                    aria-invalid={actionError === onboardingText(onboardingContent.errors.emailInvalid, locale)}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setActionError(null);
+                      setMagicLinkSentTo(null);
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={activeAuthMethod !== null}
+                    aria-label={onboardingText(onboardingContent.actions.sendMagicLink, locale)}
+                    title={onboardingText(onboardingContent.actions.sendMagicLink, locale)}
+                  >
+                    <Check size={22} />
+                  </button>
+                </div>
+              </form>
+
+              {magicLinkSentTo ? (
+                <p className="onboarding-auth-status" role="status">
+                  <span>{onboardingText(onboardingContent.auth.magicLinkSent, locale)}</span>
+                  <strong>{magicLinkSentTo}</strong>
+                </p>
+              ) : null}
+              {actionError ? <p className="onboarding-error" role="alert">{actionError}</p> : null}
             </div>
           </section>
         ) : null}
       </section>
     </main>
   );
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+$/.test(value);
 }
 
 function OnboardingArtwork({ alt, priority = false, src }: { alt: string; priority?: boolean; src: string }) {
@@ -307,6 +415,11 @@ function FirstRewardModal({
 function readOnboardingSeen(): boolean {
   if (typeof window === "undefined") return false;
   return window.localStorage.getItem(ONBOARDING_SEEN_STORAGE_KEY) === "true";
+}
+
+function isAuthScreenRequested(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("auth") === "signin";
 }
 
 function markOnboardingSeen() {

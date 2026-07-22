@@ -6,7 +6,8 @@ import {
   claimRegistrationAfterAuth,
   getBrowserSupabaseClient,
   signInWithGoogle,
-  storePostAuthReward
+  storePostAuthReward,
+  type AuthMethod
 } from "@/lib/supabaseClient";
 import { getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaimed } from "@/lib/guestIdentity";
 import { translate, type AppLocale } from "@/lib/i18n";
@@ -16,6 +17,7 @@ import { trackProductEvent } from "@/lib/productAnalytics";
 export default function AuthCallbackPage() {
   const [locale, setLocale] = useState<AppLocale>("en");
   const [status, setStatus] = useState<"loading" | "error">("loading");
+  const [method, setMethod] = useState<AuthMethod>("google");
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -27,8 +29,10 @@ export default function AuthCallbackPage() {
     async function completeAuth() {
       const supabase = getBrowserSupabaseClient();
       const params = new URLSearchParams(window.location.search);
+      const authMethod: AuthMethod = params.get("method") === "email" ? "email" : "google";
       const oauthError = params.get("error_description") ?? params.get("error");
       const code = params.get("code");
+      setMethod(authMethod);
 
       if (oauthError) throw new Error(oauthError);
 
@@ -42,7 +46,7 @@ export default function AuthCallbackPage() {
       await markLocalGuestClaimed(claim.userId);
       await claimReferralAfterAuth(guest.pendingReferral, guest.guestId);
       await markPendingReferralClaimed();
-      trackProductEvent("onboarding_completed", { path: "google", version: "abundance_mission_v3" });
+      trackProductEvent("onboarding_completed", { method: authMethod, version: "abundance_mission_v3" });
 
       if (claim.registrationReward.claimed) {
         storePostAuthReward(claim.registrationReward);
@@ -62,7 +66,7 @@ export default function AuthCallbackPage() {
   async function retrySignIn() {
     setStatus("loading");
     try {
-      trackProductEvent("onboarding_auth_started", { retry: true, version: "abundance_mission_v3" });
+      trackProductEvent("onboarding_auth_started", { method: "google", retry: true, version: "abundance_mission_v3" });
       await signInWithGoogle();
     } catch (error) {
       console.error(error);
@@ -76,10 +80,16 @@ export default function AuthCallbackPage() {
         <strong>{status === "loading" ? translate(locale, "auth.callback.finishing") : translate(locale, "auth.callback.error")}</strong>
         {status === "error" ? (
           <div className="auth-callback-actions">
-            <button className="challenge-primary-action" type="button" onClick={() => void retrySignIn()}>
-              {translate(locale, "auth.callback.retry")}
-            </button>
-            <button className="challenge-secondary-action" type="button" onClick={() => window.location.replace("/")}>
+            {method === "google" ? (
+              <button className="challenge-primary-action" type="button" onClick={() => void retrySignIn()}>
+                {translate(locale, "auth.callback.retry")}
+              </button>
+            ) : null}
+            <button
+              className={method === "email" ? "challenge-primary-action" : "challenge-secondary-action"}
+              type="button"
+              onClick={() => window.location.replace("/?auth=signin")}
+            >
               {translate(locale, "auth.callback.back")}
             </button>
           </div>

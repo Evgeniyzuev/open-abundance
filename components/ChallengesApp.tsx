@@ -611,7 +611,6 @@ export default function ChallengesApp({ active, activeTab, focusNextChallengeNon
         {selectedChallenge ? (
           <ChallengeDetailModal
             challenge={selectedChallenge}
-            isRegistered={Boolean(user)}
             locale={locale}
             userLevel={userLevel}
             t={t}
@@ -694,7 +693,6 @@ export default function ChallengesApp({ active, activeTab, focusNextChallengeNon
       {selectedChallenge ? (
         <ChallengeDetailModal
           challenge={selectedChallenge}
-          isRegistered={Boolean(user)}
           locale={locale}
           userLevel={userLevel}
           t={t}
@@ -963,7 +961,6 @@ function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: 
 
 function ChallengeDetailModal({
   challenge,
-  isRegistered,
   locale,
   userLevel,
   t,
@@ -975,7 +972,6 @@ function ChallengeDetailModal({
   onRefreshUserData
 }: {
   challenge: Challenge;
-  isRegistered: boolean;
   locale: AppLocale;
   userLevel: number;
   t: TFunction;
@@ -986,12 +982,10 @@ function ChallengeDetailModal({
   onApplyServerData: (data: { core?: CoreAccount | null; wallet?: WalletAccount | null }) => void;
   onRefreshUserData: () => Promise<void>;
 }) {
-  const signupChallenge = challenge.verification_logic === "signup";
   const completed = challenge.user_challenge_status === "completed";
   const accepted = isActiveChallenge(challenge);
   const locked = !accepted && challenge.difficulty_level > userLevel;
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
-  const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -1001,17 +995,6 @@ function ChallengeDetailModal({
   useEffect(() => {
     setCompoundQuizPassed(false);
   }, [challenge.id]);
-
-  async function handleSignup() {
-    setAuthStatus("loading");
-    try {
-      await getOrCreateLocalGuest();
-      await signInWithGoogle();
-    } catch (error) {
-      console.error(error);
-      setAuthStatus("error");
-    }
-  }
 
   async function handleCheck() {
     if (needsCompoundQuiz && !compoundQuizPassed) {
@@ -1186,12 +1169,6 @@ function ChallengeDetailModal({
             </div>
           ) : null}
 
-          {!completed && !locked && !isRegistered && signupChallenge ? (
-            <button className="challenge-primary-action" type="button" disabled={authStatus === "loading"} onClick={handleSignup}>
-              {authStatus === "loading" ? t("challenges.openingGoogle") : t("challenges.signInGoogle")}
-            </button>
-          ) : null}
-
           {needsCompoundQuiz ? (
             <ChallengeQuiz
               passScore={COMPOUND_QUIZ_PASS_SCORE}
@@ -1215,13 +1192,12 @@ function ChallengeDetailModal({
             </button>
           ) : null}
 
-          {!completed && !locked && !accepted && (!signupChallenge || isRegistered) ? (
+          {!completed && !locked && !accepted ? (
             <button className="challenge-primary-action" type="button" disabled={acceptStatus === "loading"} onClick={handleAccept}>
               {acceptStatus === "loading" ? t("app.common.loading") : t("challenges.accept")}
             </button>
           ) : null}
 
-          {authStatus === "error" ? <p className="challenge-error">{t("challenges.authError")}</p> : null}
           {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" || giveUpStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
         </div>
       </div>

@@ -1,42 +1,43 @@
 # Users
 
-This document describes the planned user model, guest-first onboarding, and database direction.
+This document describes the current authenticated user model, pre-auth onboarding, and database direction.
+
+Current status (2026-07-22): the user-facing guest mode has been removed. A visitor sees the three-screen onboarding and must continue with Google before the app shell is mounted. The local guest identity remains an internal implementation detail for referral attribution, analytics continuity, and claiming existing local data; it no longer grants access to app features.
 
 ## Product Approach
 
-The app should allow a first session without registration forms.
+The app should explain its value before asking for authentication, then create a durable account before any personal or server-backed feature is used.
 
 Goal:
 
-- no barrier on first launch;
-- user can create value immediately;
-- registration appears later as a useful task, not as a wall.
+- keep the first three onboarding screens focused on value and outcomes;
+- make account creation the single final onboarding action;
+- ensure every action and financial reward belongs to a durable user from the start.
 
 Recommended first-run flow:
 
 1. User opens the app.
-2. App creates a local guest identity.
-3. User can create notes, tasks, wishes and progress locally.
-4. App stores data local-first in IndexedDB.
-5. After the user has a reason to care, app suggests a task like `Save your progress`.
-6. User registers with email, Google, Telegram, or another supported provider.
-7. Optional phone verification can unlock a bonus.
-8. Guest data is attached to the registered account and synced.
+2. App shows `mission -> stories -> 20-level program`.
+3. The third screen offers one action: `Continue with Google`.
+4. Successful auth creates or loads the profile, Core, and Wallet without replacing existing onboarding state.
+5. The server grants the idempotent `+2$ Core` starter bonus on first registration.
+6. The app shows the one-time first-reward receipt and opens the feed.
+7. Existing local identity/referral data is attached to the registered account.
 
 ## Identity States
 
-### Guest
+### Pre-auth Visitor
 
-A guest is a local-only user identity.
+A pre-auth visitor is not an application user and cannot mount the app shell.
 
 Properties:
 
 - generated on first launch;
 - stored locally;
-- can be reused on the same device;
-- can create local-first data;
+- can be reused on the same device for attribution and migration;
+- can complete only the marketing onboarding and start Google OAuth;
 - does not yet exist as a durable user in Supabase Auth;
-- can receive local preview rewards, but not authoritative financial rewards.
+- cannot create new app data or receive preview/authoritative financial rewards.
 
 Possible local fields:
 
@@ -58,12 +59,7 @@ Storage:
 
 A registered user exists in Supabase Auth and in app profile tables.
 
-Registration options:
-
-- email;
-- Google;
-- Telegram;
-- phone verification as an additional bonus step.
+Current registration option: Google. Email, Telegram, and other providers are future additions behind the same auth gate.
 
 After registration:
 
@@ -79,40 +75,17 @@ On app start:
 
 1. Check Supabase Auth session.
 2. If authenticated, load registered user context.
-3. If not authenticated, check local guest identity.
-4. If guest exists, continue guest mode.
-5. If no guest exists, create guest identity.
+3. If unauthenticated and onboarding was not seen, start at the mission screen.
+4. If unauthenticated and onboarding was already seen, open the third screen with Google sign-in.
+5. Never mount the app shell for an unauthenticated visitor, including offline.
 
-Do not ask for login immediately.
+## Registration As The Final Onboarding Action
 
-## Registration As A Task
-
-Registration should be one of the first tasks after the user has interacted with the app.
-
-Example task copy:
-
-- `Save your progress`
-- `Protect your data`
-- `Sync between devices`
-- `Claim your bonus`
-
-This task can offer:
-
-- email signup;
-- Google login;
-- Telegram login;
-- phone verification bonus.
-
-Phone should be optional unless legally/product-wise required.
+Registration is not a catalog challenge. The old `Save Your Progress` challenge is inactive but retained as the historical/idempotency backing record for existing challenge reward accounting. Its UI is replaced by the Google CTA on onboarding screen three and a one-time `First reward` receipt after successful auth.
 
 ## Rewards Policy
 
-Before registration:
-
-- local progress can be shown;
-- preview bonuses can be shown;
-- local achievements can be unlocked;
-- financial/accounting records are not authoritative.
+Before registration no progress, achievements, or financial previews are created.
 
 After registration:
 
@@ -227,7 +200,9 @@ with check (auth.uid() = user_id);
 
 Rewards should generally be written by server-side code or controlled database functions, not directly by the client.
 
-## Development Plan
+## Historical Development Plan
+
+The checklist below records the original guest-first direction. The current auth-required decision above supersedes items that say the app remains usable in guest mode or that registration is a task.
 
 1. Add local guest identity storage.
    - Generate `guestId` on first launch.

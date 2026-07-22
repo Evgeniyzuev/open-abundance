@@ -36,14 +36,13 @@ type OnboardingContent = {
   };
   actions: {
     back: OnboardingLocalizedText;
-    calculatePath: OnboardingLocalizedText;
     continue: OnboardingLocalizedText;
     language: OnboardingLocalizedText;
-    startFirstTask: OnboardingLocalizedText;
+    signInGoogle: OnboardingLocalizedText;
     viewStories: OnboardingLocalizedText;
   };
   errors: {
-    complete: OnboardingLocalizedText;
+    auth: OnboardingLocalizedText;
   };
 };
 
@@ -135,11 +134,11 @@ export const onboardingContent: OnboardingContent = {
       hi: "सरल कार्य पूरे करें, कौशल विकसित करें और नकद पुरस्कार पाएं। स्तर जितना ऊंचा होगा, अवसर और आय उतनी अधिक होगी।"
     },
     prompt: {
-      ru: "Узнай, как быстро ты сможешь пройти всю программу.",
-      en: "Find out how quickly you can complete the full program.",
-      zh: "看看你能多快完成整个计划。",
-      es: "Descubre qué tan rápido puedes completar todo el programa.",
-      hi: "जानें कि आप पूरा कार्यक्रम कितनी जल्दी पूरा कर सकते हैं।"
+      ru: "Войди, чтобы сохранить свой путь, получить первую награду и открыть все возможности.",
+      en: "Sign in to save your path, receive your first reward, and unlock every feature.",
+      zh: "登录以保存你的路线、领取第一份奖励并解锁所有功能。",
+      es: "Inicia sesión para guardar tu ruta, recibir tu primera recompensa y desbloquear todas las funciones.",
+      hi: "अपना मार्ग सहेजने, पहला पुरस्कार पाने और सभी सुविधाएं खोलने के लिए साइन इन करें।"
     },
     imageAlt: {
       ru: "Путь из двадцати уровней поднимается к сияющей вершине",
@@ -151,31 +150,24 @@ export const onboardingContent: OnboardingContent = {
   },
   actions: {
     back: { ru: "Назад", en: "Back", zh: "返回", es: "Atrás", hi: "वापस" },
-    calculatePath: {
-      ru: "Рассчитать мой путь",
-      en: "Calculate my path",
-      zh: "计算我的路线",
-      es: "Calcular mi ruta",
-      hi: "मेरा मार्ग जानें"
-    },
     continue: { ru: "Продолжить", en: "Continue", zh: "继续", es: "Continuar", hi: "जारी रखें" },
     language: { ru: "Язык", en: "Language", zh: "语言", es: "Idioma", hi: "भाषा" },
-    startFirstTask: {
-      ru: "Начать первое задание",
-      en: "Start the first task",
-      zh: "开始第一个任务",
-      es: "Empezar la primera tarea",
-      hi: "पहला कार्य शुरू करें"
+    signInGoogle: {
+      ru: "Продолжить с Google",
+      en: "Continue with Google",
+      zh: "使用 Google 继续",
+      es: "Continuar con Google",
+      hi: "Google के साथ जारी रखें"
     },
     viewStories: { ru: "Смотреть истории", en: "View stories", zh: "查看故事", es: "Ver historias", hi: "कहानियां देखें" }
   },
   errors: {
-    complete: {
-      ru: "Не удалось открыть следующий экран.",
-      en: "Could not open the next screen.",
-      zh: "无法打开下一步。",
-      es: "No se pudo abrir la siguiente pantalla.",
-      hi: "अगली स्क्रीन नहीं खुल सकी।"
+    auth: {
+      ru: "Не удалось начать вход. Проверь подключение и попробуй ещё раз.",
+      en: "Could not start sign-in. Check your connection and try again.",
+      zh: "无法开始登录。请检查网络连接后重试。",
+      es: "No se pudo iniciar sesión. Comprueba tu conexión e inténtalo de nuevo.",
+      hi: "साइन इन शुरू नहीं हो सका। अपना कनेक्शन जांचें और फिर कोशिश करें।"
     }
   }
 };

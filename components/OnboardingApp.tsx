@@ -1,10 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, Calculator, ListChecks, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, LogIn, Sparkles } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
-import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import {
+  consumePostAuthReward,
+  getBrowserSupabaseClient,
+  signInWithGoogle,
+  type RegistrationReward
+} from "@/lib/supabaseClient";
 import {
   ONBOARDING_DRAFT_STORAGE_KEY,
   ONBOARDING_LOCALES,
@@ -35,13 +40,22 @@ type OnboardingDraft = {
 const steps: StepId[] = ["mission", "stories", "program"];
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
-  const { applyServerData, authResolved, profile, user } = useUserContext();
-  const [guestSeen, setGuestSeen] = useState<boolean | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const { applyServerData, authResolved, profile, t, user } = useUserContext();
+  const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
   const [onboardingLocale, setOnboardingLocale] = useState<OnboardingLocale | null>(null);
+  const [registrationReward, setRegistrationReward] = useState<RegistrationReward | null>(null);
 
   useEffect(() => {
-    setGuestSeen(readGuestSeen());
+    setOnboardingSeen(readOnboardingSeen());
+    const reward = consumePostAuthReward();
+    if (reward) {
+      setRegistrationReward(reward);
+      trackProductEvent("registration_reward_viewed", {
+        account: reward.account,
+        amount: reward.amount,
+        version: "abundance_mission_v3"
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -51,98 +65,91 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   const profileCompleted = hasCompletedFirstExperience(profile);
 
   useEffect(() => {
-    if (!profileCompleted || guestSeen !== false) return;
-    markGuestSeen();
-    setGuestSeen(true);
-  }, [guestSeen, profileCompleted]);
-
-  useEffect(() => {
-    if (!user || !profile || !guestSeen || profileCompleted) return;
+    if (!user || !profile || !onboardingSeen || profileCompleted) return;
     const draft = readOnboardingDraft();
     void saveProfileCompletion(profile, applyServerData, draft);
-  }, [applyServerData, guestSeen, profile, profileCompleted, user]);
+  }, [applyServerData, onboardingSeen, profile, profileCompleted, user]);
 
-  if (guestSeen === null) return null;
+  if (!authResolved || onboardingSeen === null) return null;
 
-  // A returning device can open local-first views without waiting for auth or API refreshes.
-  if (guestSeen) return <>{children}</>;
-
-  // For a new device, only the locally persisted auth session is needed to choose
-  // between onboarding and the app shell. Profile/context loading remains background work.
-  if (!authResolved) return null;
-
-  const shouldShowGuestOnboarding = !user && !guestSeen;
-  const shouldShowUserOnboarding = Boolean(user && profile && !profileCompleted && !guestSeen);
-
-  if (!dismissed && (shouldShowGuestOnboarding || shouldShowUserOnboarding) && onboardingLocale === null) return null;
-
-  if (!dismissed && (shouldShowGuestOnboarding || shouldShowUserOnboarding)) {
+  if (!user) {
+    if (onboardingLocale === null) return null;
     return (
       <OnboardingApp
+        initialStep={onboardingSeen ? "program" : "mission"}
         locale={onboardingLocale ?? "en"}
         onLocaleChange={async (nextLocale) => {
           storeOnboardingLocalePreference(nextLocale);
           setOnboardingLocale(nextLocale);
         }}
-        onCalculatePath={async () => {
-          await completeOnboarding(profile, applyServerData);
-          openCalculatorPath();
-          setGuestSeen(true);
-          setDismissed(true);
-        }}
-        onOpenFirstTask={async () => {
-          await completeOnboarding(profile, applyServerData);
-          openFirstPath();
-          setGuestSeen(true);
-          setDismissed(true);
+        onSignIn={async () => {
+          markOnboardingSeen();
+          setOnboardingSeen(true);
+          trackProductEvent("onboarding_auth_started", { retry: false, version: "abundance_mission_v3" });
+          await signInWithGoogle();
         }}
       />
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {registrationReward ? (
+        <FirstRewardModal
+          reward={registrationReward}
+          t={t}
+          onClose={() => {
+            trackProductEvent("registration_reward_closed", {
+              account: registrationReward.account,
+              amount: registrationReward.amount,
+              version: "abundance_mission_v3"
+            });
+            setRegistrationReward(null);
+            openFeedAfterAuth();
+          }}
+        />
+      ) : null}
+    </>
+  );
 }
 
 function OnboardingApp({
+  initialStep,
   locale,
   onLocaleChange,
-  onCalculatePath,
-  onOpenFirstTask
+  onSignIn
 }: {
+  initialStep: StepId;
   locale: OnboardingLocale;
   onLocaleChange: (locale: OnboardingLocale) => Promise<void>;
-  onCalculatePath: () => Promise<void>;
-  onOpenFirstTask: () => Promise<void>;
+  onSignIn: () => Promise<void>;
 }) {
-  const [step, setStep] = useState<StepId>("mission");
-  const [savingAction, setSavingAction] = useState<"calculate" | "task" | null>(null);
+  const [step, setStep] = useState<StepId>(initialStep);
+  const [signingIn, setSigningIn] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const currentIndex = steps.indexOf(step);
 
   useEffect(() => {
-    trackProductEvent("onboarding_viewed", { locale, version: "abundance_mission_v2" });
+    trackProductEvent("onboarding_viewed", { locale, version: "abundance_mission_v3" });
   }, [locale]);
 
   function goTo(nextStep: StepId) {
     setActionError(null);
     setStep(nextStep);
-    trackProductEvent("onboarding_step_viewed", { step: nextStep, version: "abundance_mission_v2" });
+    trackProductEvent("onboarding_step_viewed", { step: nextStep, version: "abundance_mission_v3" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleComplete(action: "calculate" | "task") {
-    setSavingAction(action);
+  async function handleSignIn() {
+    setSigningIn(true);
     setActionError(null);
 
     try {
-      trackProductEvent("onboarding_completed", {
-        path: action === "calculate" ? "growth_calculator" : "first_task",
-        version: "abundance_mission_v2"
-      });
-      await (action === "calculate" ? onCalculatePath() : onOpenFirstTask());
+      await onSignIn();
     } catch {
-      setActionError(onboardingText(onboardingContent.errors.complete, locale));
-      setSavingAction(null);
+      setActionError(onboardingText(onboardingContent.errors.auth, locale));
+      setSigningIn(false);
     }
   }
 
@@ -243,13 +250,9 @@ function OnboardingApp({
             </div>
             {actionError ? <p className="onboarding-error">{actionError}</p> : null}
             <div className="onboarding-final-actions">
-              <button className="onboarding-primary-action" type="button" disabled={savingAction !== null} onClick={() => void handleComplete("calculate")}>
-                <Calculator size={18} />
-                {onboardingText(onboardingContent.actions.calculatePath, locale)}
-              </button>
-              <button className="onboarding-secondary-action" type="button" disabled={savingAction !== null} onClick={() => void handleComplete("task")}>
-                <ListChecks size={18} />
-                {onboardingText(onboardingContent.actions.startFirstTask, locale)}
+              <button className="onboarding-primary-action" type="button" disabled={signingIn} onClick={() => void handleSignIn()}>
+                <LogIn size={18} />
+                {onboardingText(onboardingContent.actions.signInGoogle, locale)}
               </button>
             </div>
           </section>
@@ -268,12 +271,45 @@ function OnboardingArtwork({ alt, priority = false, src }: { alt: string; priori
   );
 }
 
-function readGuestSeen(): boolean {
+function FirstRewardModal({
+  reward,
+  t,
+  onClose
+}: {
+  reward: RegistrationReward;
+  t: ReturnType<typeof useUserContext>["t"];
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="first-reward-title">
+        <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
+        <h2 id="first-reward-title">{t("onboarding.reward.title")}</h2>
+        <p>{t("onboarding.reward.description")}</p>
+        <div className="challenge-receipt">
+          <div className="challenge-receipt-row emphasis">
+            <span>{t("onboarding.reward.added")}</span>
+            <strong>+{formatReward(reward.amount)}$</strong>
+          </div>
+          {typeof reward.balanceAfter === "number" ? (
+            <div className="challenge-receipt-row">
+              <span>{t("onboarding.reward.balance")}</span>
+              <strong>{formatReward(reward.balanceAfter)}$</strong>
+            </div>
+          ) : null}
+        </div>
+        <button className="challenge-primary-action" type="button" onClick={onClose}>{t("onboarding.reward.openFeed")}</button>
+      </div>
+    </div>
+  );
+}
+
+function readOnboardingSeen(): boolean {
   if (typeof window === "undefined") return false;
   return window.localStorage.getItem(ONBOARDING_SEEN_STORAGE_KEY) === "true";
 }
 
-function markGuestSeen() {
+function markOnboardingSeen() {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(ONBOARDING_SEEN_STORAGE_KEY, "true");
 }
@@ -296,16 +332,6 @@ function readOnboardingDraft(): OnboardingDraft | undefined {
   } catch {
     return undefined;
   }
-}
-
-async function completeOnboarding(
-  profile: UserProfile | null,
-  applyServerData: ReturnType<typeof useUserContext>["applyServerData"],
-  draft?: OnboardingDraft
-) {
-  markGuestSeen();
-  if (!profile) return;
-  await saveProfileCompletion(profile, applyServerData, draft);
 }
 
 async function saveProfileCompletion(
@@ -348,18 +374,14 @@ function readOnboardingState(value: unknown): OnboardingState {
   return value as OnboardingState;
 }
 
-function openCalculatorPath() {
+function openFeedAfterAuth() {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
-  url.searchParams.set("view", "wallet.core");
-  url.searchParams.set("calculator", "target");
-  window.history.replaceState({ view: "wallet.core" }, "", `${url.pathname}${url.search}${url.hash}`);
+  url.searchParams.set("view", "people");
+  url.searchParams.delete("auth");
+  window.history.replaceState({ view: "people" }, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
-function openFirstPath() {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  url.searchParams.set("view", "challenges");
-  url.searchParams.delete("calculator");
-  window.history.replaceState({ view: "challenges" }, "", `${url.pathname}${url.search}${url.hash}`);
+function formatReward(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.00$/, "");
 }

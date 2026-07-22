@@ -188,8 +188,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const guest = await getOrCreateLocalGuest();
       if (guest.claimedUserId) return;
 
-      const userId = await claimRegistrationAfterAuth(getOnboardingRegistrationLocale());
-      await markLocalGuestClaimed(userId);
+      const claim = await claimRegistrationAfterAuth(getOnboardingRegistrationLocale());
+      await markLocalGuestClaimed(claim.userId);
       await claimReferralAfterAuth(guest.pendingReferral, guest.guestId);
       await markPendingReferralClaimed();
     })().finally(() => {

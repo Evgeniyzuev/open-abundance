@@ -1,4 +1,89 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+const TEST_USER_ID = "00000000-0000-4000-8000-000000000001";
+
+async function prepareAuthenticatedApp(page: Page) {
+  await page.route("**/api/user/context?**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: {
+          id: TEST_USER_ID,
+          aud: "authenticated",
+          role: "authenticated",
+          email: "e2e@example.com",
+          app_metadata: {},
+          user_metadata: {},
+          created_at: new Date().toISOString()
+        },
+        profile: null,
+        core: null,
+        wallet: null
+      })
+    });
+  });
+
+  await page.addInitScript(async ({ userId }) => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const encodePart = (value: object) => btoa(JSON.stringify(value))
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+    const user = {
+      id: userId,
+      aud: "authenticated",
+      role: "authenticated",
+      email: "e2e@example.com",
+      app_metadata: {},
+      user_metadata: {},
+      created_at: new Date().toISOString()
+    };
+    const accessToken = [
+      encodePart({ alg: "HS256", typ: "JWT" }),
+      encodePart({ aud: "authenticated", exp: nowSeconds + 3600, role: "authenticated", sub: userId }),
+      "test-signature"
+    ].join(".");
+
+    localStorage.setItem("openAbundanceOnboardingSeen", "true");
+    localStorage.setItem("sb-bsikxrsguwketlloflgi-auth-token", JSON.stringify({
+      access_token: accessToken,
+      expires_at: nowSeconds + 3600,
+      expires_in: 3600,
+      refresh_token: "test-refresh-token",
+      token_type: "bearer",
+      user
+    }));
+
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("open-abundance-offline", 4);
+      request.onupgradeneeded = () => {
+        for (const storeName of ["notes", "lists", "tasks", "taskCompletions", "guestIdentity"]) {
+          if (!request.result.objectStoreNames.contains(storeName)) {
+            request.result.createObjectStore(storeName, { keyPath: storeName === "guestIdentity" ? "key" : "id" });
+          }
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction("guestIdentity", "readwrite");
+      transaction.objectStore("guestIdentity").put({
+        key: "current",
+        value: {
+          guestId: "e2e-claimed-guest",
+          claimedUserId: userId,
+          createdAt: new Date().toISOString(),
+          lastSeenAt: new Date().toISOString()
+        }
+      });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  }, { userId: TEST_USER_ID });
+}
 
 test("new guest sees the first onboarding promise", async ({ page }) => {
   const pageErrors: string[] = [];
@@ -30,14 +115,14 @@ test("new guest can use Chinese, Spanish, and Hindi onboarding copy", async ({ p
     { value: "hi", title: "अपने जीवन में समृद्धि बनाएं" }
   ];
 
+  await page.goto("/");
   for (const locale of locales) {
-    await page.goto("/");
     await page.locator(".onboarding-language-select").selectOption(locale.value);
     await expect(page.getByRole("heading", { name: locale.title })).toBeVisible();
   }
 });
 
-test("new guest can see the three-screen story and open the growth calculator", async ({ page }) => {
+test("new visitor completes the three-screen story and must sign in with Google", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
@@ -49,34 +134,54 @@ test("new guest can see the three-screen story and open the growth calculator", 
   await page.getByRole("button", { name: "View stories" }).click();
   await expect(page.getByRole("heading", { name: "20 levels to $1,000,000" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Calculate my path" }).click();
-
-  await expect(page.getByText("Growth calculator", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Calculate time" })).toBeVisible();
-  await expect(page).toHaveURL(/view=wallet\.core/);
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByRole("navigation")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
-test("returning guest sees the app shell", async ({ page }) => {
+test("returning guest goes directly to Google sign-in instead of the app shell", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.addInitScript(() => window.localStorage.setItem("openAbundanceOnboardingSeen", "true"));
 
   await page.goto("/");
 
-  await expect(page.getByRole("navigation", { name: /Main navigation|Основная навигация/i })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: /Nested navigation|Вложенная навигация/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "20 levels to $1,000,000" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByRole("navigation")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
+test("first registration reward appears once and opens the feed", async ({ page }) => {
+  await prepareAuthenticatedApp(page);
+  await page.addInitScript(() => {
+    sessionStorage.setItem("openAbundancePostAuthReward", JSON.stringify({
+      account: "core",
+      amount: 2,
+      balanceAfter: 2,
+      claimed: true
+    }));
+  });
+
+  await page.goto("/?view=people&auth=complete");
+  await expect(page.getByRole("heading", { name: "Your first reward" })).toBeVisible();
+  await expect(page.getByText("+2$", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Open the feed" }).click();
+  await expect(page).toHaveURL(/view=people/);
+  await expect(page).not.toHaveURL(/auth=complete/);
+
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("openAbundancePostAuthReward"))).toBeNull();
+  await expect(page.getByRole("heading", { name: "Your first reward" })).toHaveCount(0);
+});
+
 test("reflection inbox captures offline without calling AI and survives reload", async ({ page, context }) => {
+  await prepareAuthenticatedApp(page);
   let aiCalls = 0;
   await page.route("**/api/ai/reflections/step", async (route) => {
     aiCalls += 1;
     await route.abort();
   });
   await page.addInitScript(() => {
-    window.localStorage.setItem("openAbundanceOnboardingSeen", "true");
     window.localStorage.setItem("openAbundanceLocale", "en");
   });
   await page.goto("/");
@@ -117,7 +222,43 @@ test("reflection inbox captures offline without calling AI and survives reload",
   expect(aiCalls).toBe(0);
 });
 
+test("Home shows one local item for due reflection notes", async ({ page }) => {
+  await prepareAuthenticatedApp(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("openAbundanceLocale", "en");
+  });
+  await page.goto("/?view=home");
+  await page.evaluate(() => {
+    const request = indexedDB.open("open-abundance-offline", 4);
+    request.onsuccess = () => {
+      const db = request.result;
+      const note = {
+        id: "due-reflection-test",
+        title: "Due note",
+        body: "A local due note",
+        reminders: [],
+        completed: false,
+        createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date().toISOString(),
+        syncStatus: "local",
+        kind: "reflection",
+        processing: { schemaVersion: 1, status: "inbox", reviewAt: new Date(Date.now() - 60_000).toISOString(), answers: [], questionCount: 0 }
+      };
+      const transaction = db.transaction("notes", "readwrite");
+      transaction.objectStore("notes").put(note);
+      transaction.oncomplete = () => {
+        db.close();
+        window.dispatchEvent(new Event("open-abundance:notes-changed"));
+      };
+    };
+  });
+  await expect(page.getByRole("button", { name: /Review notes/ })).toBeVisible();
+  await page.getByRole("button", { name: /Review notes/ }).click();
+  await expect(page.getByRole("heading", { name: "Process" })).toBeVisible();
+});
+
 test("reflection processing uses guided choices, asks at most two follow-ups, and returns an editable proposal", async ({ page }) => {
+  await prepareAuthenticatedApp(page);
   let aiCalls = 0;
   let submittedGuided: { desiredChanges?: string[] } | undefined;
   await page.route("**/api/ai/reflections/step", async (route) => {
@@ -177,7 +318,6 @@ test("reflection processing uses guided choices, asks at most two follow-ups, an
     });
   });
   await page.addInitScript(() => {
-    window.localStorage.setItem("openAbundanceOnboardingSeen", "true");
     window.localStorage.setItem("openAbundanceLocale", "en");
     window.localStorage.setItem("open-abundance:reflection-settings:v1", JSON.stringify({ reviewTime: "19:00", enabled: false, configured: true }));
   });
@@ -317,9 +457,9 @@ test("local-first shell does not wait for a signed-in user context refresh", asy
   }
 });
 
-test("returning guest sees the ordered first Core path", async ({ page }) => {
+test("authenticated user sees the ordered first Core path without the registration challenge", async ({ page }) => {
+  await prepareAuthenticatedApp(page);
   const pathTitles = [
-    "Save Your Progress",
     "Choose Your Main Wish",
     "Build Your Growth Plan",
     "Reach Today Core Target",
@@ -329,7 +469,8 @@ test("returning guest sees the ordered first Core path", async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        authenticated: false,
+        authenticated: true,
+        viewerUserId: TEST_USER_ID,
         challenges: pathTitles.map((title, index) => ({
           id: `first-core-path-${index + 1}`,
           title: { en: title },
@@ -352,11 +493,10 @@ test("returning guest sees the ordered first Core path", async ({ page }) => {
       })
     });
   });
-  await page.addInitScript(() => window.localStorage.setItem("openAbundanceOnboardingSeen", "true"));
   await page.goto("/?view=challenges");
 
   await expect(page.getByRole("heading", { name: "First Core Path" })).toBeVisible();
-  await expect(page.getByText("Save Your Progress", { exact: true })).toBeVisible();
+  await expect(page.getByText("Save Your Progress", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Choose Your Main Wish", { exact: true })).toBeVisible();
   await expect(page.getByText("Build Your Growth Plan", { exact: true })).toBeVisible();
   await expect(page.getByText("Reach Today Core Target", { exact: true })).toBeVisible();

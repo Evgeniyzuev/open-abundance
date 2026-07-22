@@ -6,6 +6,20 @@ import { detectBrowserLocale, normalizeLocale, type AppLocale } from "@/lib/i18n
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://bsikxrsguwketlloflgi.supabase.co";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+export const POST_AUTH_REWARD_STORAGE_KEY = "openAbundancePostAuthReward";
+
+export type RegistrationReward = {
+  account: "core" | "wallet";
+  amount: number;
+  balanceAfter: number | null;
+  claimed: boolean;
+};
+
+export type RegistrationClaimResult = {
+  registrationReward: RegistrationReward;
+  userId: string;
+};
+
 let browserClient: SupabaseClient<Database> | undefined;
 
 export function getBrowserSupabaseClient(): SupabaseClient<Database> {
@@ -35,7 +49,7 @@ export async function signInWithGoogle(): Promise<void> {
   if (error) throw error;
 }
 
-export async function claimRegistrationAfterAuth(locale: AppLocale = detectBrowserLocale()): Promise<string> {
+export async function claimRegistrationAfterAuth(locale: AppLocale = detectBrowserLocale()): Promise<RegistrationClaimResult> {
   const supabase = getBrowserSupabaseClient();
   const {
     data: { session },
@@ -54,12 +68,42 @@ export async function claimRegistrationAfterAuth(locale: AppLocale = detectBrows
     body: JSON.stringify({ defaultLocale: normalizeLocale(locale) })
   });
 
-  const payload = (await response.json()) as { userId?: string; error?: string };
-  if (!response.ok || !payload.userId) {
+  const payload = (await response.json()) as Partial<RegistrationClaimResult> & { error?: string };
+  if (!response.ok || !payload.userId || !payload.registrationReward) {
     throw new Error(payload.error ?? "Failed to claim guest identity.");
   }
 
-  return payload.userId;
+  return {
+    registrationReward: payload.registrationReward,
+    userId: payload.userId
+  };
+}
+
+export function storePostAuthReward(reward: RegistrationReward): void {
+  if (typeof window === "undefined" || !reward.claimed) return;
+  window.sessionStorage.setItem(POST_AUTH_REWARD_STORAGE_KEY, JSON.stringify(reward));
+}
+
+export function consumePostAuthReward(): RegistrationReward | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(POST_AUTH_REWARD_STORAGE_KEY);
+  window.sessionStorage.removeItem(POST_AUTH_REWARD_STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    const value = JSON.parse(raw) as Partial<RegistrationReward>;
+    if (!value.claimed || (value.account !== "core" && value.account !== "wallet") || typeof value.amount !== "number") {
+      return null;
+    }
+    return {
+      account: value.account,
+      amount: value.amount,
+      balanceAfter: typeof value.balanceAfter === "number" ? value.balanceAfter : null,
+      claimed: true
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function claimReferralAfterAuth(

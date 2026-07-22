@@ -108,6 +108,7 @@ type TodayItem = {
 type TodayPayload = {
   checkInStreak: number;
   completionStreak: number;
+  totalCompletions: number;
   completed?: boolean;
   error?: string;
   items: TodayItem[];

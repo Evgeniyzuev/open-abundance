@@ -70,6 +70,7 @@ export type ReflectionProposal = {
 export type ReflectionProcessing = {
   schemaVersion: 1;
   status: ReflectionStatus;
+  reviewAt?: string;
   answers: ReflectionAnswer[];
   questionCount: number;
   currentQuestion?: { id: string; text: string };
@@ -187,10 +188,11 @@ export function getReflectionPractice(id: ReflectionPracticeId): ReflectionPract
   return REFLECTION_PRACTICES.find((practice) => practice.id === id) ?? REFLECTION_PRACTICES[0];
 }
 
-export function createReflectionProcessing(): ReflectionProcessing {
+export function createReflectionProcessing(reviewAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()): ReflectionProcessing {
   return {
     schemaVersion: 1,
     status: "inbox",
+    reviewAt,
     answers: [],
     questionCount: 0
   };
@@ -201,6 +203,7 @@ export function normalizeReflectionProcessing(value: ReflectionProcessing | unde
   return {
     schemaVersion: 1,
     status: isReflectionStatus(value.status) ? value.status : "inbox",
+    reviewAt: isIsoDate(value.reviewAt) ? value.reviewAt : undefined,
     answers: Array.isArray(value.answers) ? value.answers.slice(0, 2) : [],
     questionCount: Math.min(2, Math.max(0, Number(value.questionCount) || 0)),
     currentQuestion: value.currentQuestion,
@@ -214,6 +217,10 @@ export function normalizeReflectionProcessing(value: ReflectionProcessing | unde
     completedAt: value.completedAt,
     feedback: value.feedback
   };
+}
+
+function isIsoDate(value: unknown): value is string {
+  return typeof value === "string" && !Number.isNaN(new Date(value).getTime());
 }
 
 function isReflectionStatus(value: string): value is ReflectionStatus {

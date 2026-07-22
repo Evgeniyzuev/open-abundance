@@ -55,6 +55,20 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .home-goal-card strong { color: var(--blue); font-size: 25px; line-height: 1; }
 .home-goal-card small { color: var(--muted); font-size: 12px; line-height: 1.25; }
 .home-today-card { gap: 11px; }
+.today-milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.today-milestone { min-width: 0; display: grid; gap: 7px; border-radius: 12px; padding: 9px 10px; background: #f6f7fb; color: var(--text); text-align: left; }
+.today-milestone > span { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.today-milestone strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.today-milestone small { flex: 0 0 auto; color: var(--muted); font-size: 11px; font-weight: 850; }
+.today-milestone > i { height: 4px; overflow: hidden; border-radius: 999px; background: #e3e5ec; }
+.today-milestone > i > b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #675dff, var(--blue)); }
+.today-local-item { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px; border-radius: 10px; padding: 8px 9px; background: #f0edff; color: #5149bb; font-size: 13px; font-weight: 850; text-align: left; }
+.today-reminder-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 9px; color: var(--muted); font-size: 12px; }
+.today-reminder-row > span:first-child { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+.today-reminder-controls { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; }
+.today-reminder-controls input { width: 92px; min-height: 30px; border: 1px solid var(--line); border-radius: 9px; padding: 0 6px; background: white; color: var(--text); }
+.today-reminder-row .text-button { min-height: 30px; padding: 0 5px; font-size: 12px; }
+.today-reminder-error { margin: -4px 0 0; color: var(--danger); font-size: 12px; }
 .home-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .home-card-heading > span { min-width: 0; display: grid; gap: 3px; }
 .home-card-heading strong { font-size: 18px; line-height: 1.15; }
@@ -68,6 +82,8 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .home-error { color: #ffb4bc !important; }
 @media (max-width: 430px) {
   .home-plan-grid { grid-template-columns: 1fr; }
+  .today-milestones { grid-template-columns: 1fr; }
+  .today-reminder-row { align-items: flex-start; }
 }
 .onboarding-screen { position: relative; min-height: 100dvh; display: grid; place-items: center; overflow: hidden; padding: max(18px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom)); background: linear-gradient(145deg, #dff5ff 0%, #ece3ff 46%, #fff2d8 100%); isolation: isolate; transition: background 360ms ease; }
 .onboarding-screen::before, .onboarding-screen::after { content: ""; position: fixed; z-index: -1; width: 48vw; aspect-ratio: 1; border-radius: 999px; opacity: 0.7; filter: blur(12px); pointer-events: none; }

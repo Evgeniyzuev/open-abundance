@@ -23,6 +23,7 @@ type TodaySyncOptions = {
 export type TodayPayload = {
   checkInStreak: number;
   completionStreak: number;
+  totalCompletions: number;
   items: TodayItem[];
   plan: CoreGrowthPlan | null;
   progressEvents: TodayProgressEvent[];
@@ -95,6 +96,7 @@ export async function syncTodayForUser(
   return {
     checkInStreak: streaks.checkInStreak,
     completionStreak: streaks.completionStreak,
+    totalCompletions: streaks.totalCompletions,
     items,
     plan,
     progressEvents,
@@ -327,23 +329,37 @@ async function getTodayStreaks(
   supabase: ServerSupabase,
   userId: string,
   localDate: string
-): Promise<{ checkInStreak: number; completionStreak: number }> {
-  const { data, error } = await supabase
-    .from("user_today_instances")
-    .select("local_date,status")
-    .eq("user_id", userId)
-    .lte("local_date", localDate)
-    .order("local_date", { ascending: false })
-    .limit(90);
+): Promise<{ checkInStreak: number; completionStreak: number; totalCompletions: number }> {
+  const [datesResult, totalResult] = await Promise.all([
+    supabase
+      .from("user_today_instances")
+      .select("local_date,status")
+      .eq("user_id", userId)
+      .lte("local_date", localDate)
+      .order("local_date", { ascending: false }),
+    supabase
+      .from("user_today_instances")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "completed")
+  ]);
 
-  if (error) throw error;
+  if (datesResult.error) throw datesResult.error;
+  if (totalResult.error) throw totalResult.error;
 
-  const dates = new Set((data ?? []).map((row) => row.local_date));
-  const completedDates = new Set((data ?? []).filter((row) => row.status === "completed").map((row) => row.local_date));
+  const dates = new Set((datesResult.data ?? []).map((row) => row.local_date));
+  const completedDates = new Set((datesResult.data ?? []).filter((row) => row.status === "completed").map((row) => row.local_date));
+  const completionCursor = completedDates.has(localDate) ? localDate : previousLocalDate(localDate);
   return {
     checkInStreak: countConsecutiveDays(localDate, dates),
-    completionStreak: countConsecutiveDays(localDate, completedDates)
+    completionStreak: countConsecutiveDays(completionCursor, completedDates),
+    totalCompletions: totalResult.count ?? 0
   };
+}
+
+function previousLocalDate(localDate: string): string {
+  const current = parseLocalDate(localDate);
+  return formatDate(new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() - 1)));
 }
 
 function countConsecutiveDays(localDate: string, dates: Set<string>): number {

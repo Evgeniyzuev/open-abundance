@@ -1,11 +1,18 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Heart, RefreshCw, Target } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, FileText, Heart, RefreshCw, Target } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import { ONBOARDING_DRAFT_STORAGE_KEY } from "@/lib/onboardingContent";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
+import { getNotes, isReflectionDue, NOTES_CHANGED_EVENT } from "@/lib/notesStore";
+import {
+  enableDailyPush,
+  getDailyReminderSettings,
+  saveDailyReminderSettings,
+  syncTodayDailyReminder
+} from "@/lib/pushReminders";
 
 export type HomePlanDraft = {
   dailyCoreTarget: number;
@@ -34,6 +41,7 @@ type TodayItem = {
 type TodayPayload = {
   checkInStreak: number;
   completionStreak: number;
+  totalCompletions: number;
   error?: string;
   items: TodayItem[];
   plan: TodayPlan | null;
@@ -50,6 +58,7 @@ type HomeTodayAppProps = {
   refreshNonce: number;
   onOpenCalculator: (draft: HomePlanDraft | null) => void;
   onOpenNextChallenge: () => void;
+  onOpenReflectionInbox: () => void;
   onOpenToday: () => void;
 };
 
@@ -58,6 +67,7 @@ export default function HomeTodayApp({
   refreshNonce,
   onOpenCalculator,
   onOpenNextChallenge,
+  onOpenReflectionInbox,
   onOpenToday
 }: HomeTodayAppProps) {
   const { locale, loading, profile, t, user } = useUserContext();
@@ -65,8 +75,16 @@ export default function HomeTodayApp({
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [actionError, setActionError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  const [dueReflectionCount, setDueReflectionCount] = useState(0);
+  const [reminderSettings, setReminderSettings] = useState(getDailyReminderSettings);
+  const [reminderError, setReminderError] = useState(false);
   const requestIdRef = useRef(0);
   const draft = useMemo(() => readDraft(profile?.onboarding_state), [profile?.onboarding_state]);
+
+  const loadDueReflections = useCallback(async () => {
+    const notes = await getNotes();
+    setDueReflectionCount(notes.filter((note) => isReflectionDue(note)).length);
+  }, []);
 
   const loadHome = useCallback(async () => {
     const requestId = requestIdRef.current + 1;
@@ -125,6 +143,23 @@ export default function HomeTodayApp({
     void loadHome();
   }, [active, loadHome, refreshNonce]);
 
+  useEffect(() => {
+    if (!active) return;
+    const refresh = () => void loadDueReflections();
+    refresh();
+    window.addEventListener(NOTES_CHANGED_EVENT, refresh);
+    const intervalId = window.setInterval(refresh, 60_000);
+    return () => {
+      window.removeEventListener(NOTES_CHANGED_EVENT, refresh);
+      window.clearInterval(intervalId);
+    };
+  }, [active, loadDueReflections]);
+
+  useEffect(() => {
+    if (!active || !reminderSettings.configured) return;
+    void syncTodayDailyReminder(Boolean(user), locale, reminderSettings).catch(() => undefined);
+  }, [active, locale, reminderSettings, user]);
+
   async function handleSignIn() {
     setSigningIn(true);
     setActionError(null);
@@ -134,6 +169,30 @@ export default function HomeTodayApp({
       setActionError(error instanceof Error ? error.message : t("home.action.signInError"));
       setSigningIn(false);
     }
+  }
+
+  async function enableDailyReminder() {
+    setReminderError(false);
+    const enabled = await enableDailyPush().catch(() => false);
+    const next = { ...reminderSettings, configured: true, enabled };
+    saveDailyReminderSettings(next);
+    setReminderSettings(next);
+    if (enabled) await syncTodayDailyReminder(Boolean(user), locale, next).catch(() => setReminderError(true));
+    else setReminderError(true);
+  }
+
+  async function disableDailyReminder() {
+    const next = { ...reminderSettings, configured: true, enabled: false };
+    saveDailyReminderSettings(next);
+    setReminderSettings(next);
+    setReminderError(false);
+    await syncTodayDailyReminder(false, locale, next).catch(() => undefined);
+  }
+
+  function changeDailyReminderTime(reviewTime: string) {
+    const next = { ...reminderSettings, reviewTime };
+    saveDailyReminderSettings(next);
+    setReminderSettings(next);
   }
 
   const serverPlan = today?.plan;
@@ -189,8 +248,11 @@ export default function HomeTodayApp({
         {user && today ? (
           <>
             <div className="today-streak-row">
-              <span>{t("today.checkInStreak", { count: today.checkInStreak })}</span>
-              <span>{t("today.completionStreak", { count: today.completionStreak })}</span>
+              <span>{t("today.streakSummary", { streak: today.completionStreak, total: today.totalCompletions })}</span>
+            </div>
+            <div className="today-milestones">
+              <MilestoneButton current={today.completionStreak} label={t("today.streakChallenge7")} target={7} onClick={onOpenNextChallenge} />
+              <MilestoneButton current={today.totalCompletions} label={t("today.totalChallenge30")} target={30} onClick={onOpenNextChallenge} />
             </div>
             <div className="today-checklist">
               {today.items.slice(0, 4).map((item) => (
@@ -199,9 +261,41 @@ export default function HomeTodayApp({
                   {text(item.title, item.item_key, locale)}
                 </span>
               ))}
+              {dueReflectionCount > 0 ? (
+                <button className="today-local-item" type="button" onClick={onOpenReflectionInbox}>
+                  <FileText size={15} />
+                  {t("today.reviewNotes", { count: dueReflectionCount })}
+                  <ArrowRight size={14} />
+                </button>
+              ) : null}
             </div>
+            <div className="today-reminder-row">
+              <span><Bell size={15} />{t("today.dailyReminder")}</span>
+              {reminderSettings.enabled ? (
+                <span className="today-reminder-controls">
+                  <input aria-label={t("today.dailyReminderTime")} type="time" value={reminderSettings.reviewTime} onChange={(event) => changeDailyReminderTime(event.target.value)} />
+                  <button className="text-button" type="button" onClick={() => void disableDailyReminder()}>{t("today.dailyReminderDisable")}</button>
+                </span>
+              ) : (
+                <button className="text-button" type="button" onClick={() => void enableDailyReminder()}>{t("today.dailyReminderEnable", { time: reminderSettings.reviewTime })}</button>
+              )}
+            </div>
+            {reminderError ? <p className="today-reminder-error">{t("today.dailyReminderUnavailable")}</p> : null}
           </>
-        ) : <p className="today-note">{t("home.today.preview")}</p>}
+        ) : (
+          <>
+            <p className="today-note">{t("home.today.preview")}</p>
+            {dueReflectionCount > 0 ? (
+              <div className="today-checklist">
+                <button className="today-local-item" type="button" onClick={onOpenReflectionInbox}>
+                  <FileText size={15} />
+                  {t("today.reviewNotes", { count: dueReflectionCount })}
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            ) : null}
+          </>
+        )}
       </section>
 
       <section className="home-action-card">
@@ -230,6 +324,16 @@ export default function HomeTodayApp({
         </button>
       </section>
     </section>
+  );
+}
+
+function MilestoneButton({ current, label, target, onClick }: { current: number; label: string; target: number; onClick: () => void }) {
+  const progress = Math.min(current, target);
+  return (
+    <button className="today-milestone" type="button" onClick={onClick}>
+      <span><strong>{label}</strong><small>{progress} / {target}</small></span>
+      <i><b style={{ width: `${Math.round(progress / target * 100)}%` }} /></i>
+    </button>
   );
 }
 

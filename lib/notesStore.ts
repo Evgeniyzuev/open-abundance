@@ -36,6 +36,8 @@ export type Note = {
   processing?: ReflectionProcessing;
 };
 
+export const NOTES_CHANGED_EVENT = "open-abundance:notes-changed";
+
 const DB_NAME = "open-abundance-offline";
 const DB_VERSION = 4;
 const NOTES_STORE = "notes";
@@ -127,6 +129,7 @@ export async function saveList(input: ListInput): Promise<ReminderList> {
   };
 
   await withStore<IDBValidKey>(LISTS_STORE, "readwrite", (store) => store.put(list));
+  notifyNotesChanged();
   return list;
 }
 
@@ -158,6 +161,7 @@ export async function deleteList(id: string): Promise<void> {
         )
       )
   );
+  notifyNotesChanged();
 }
 
 export async function saveNote(input: NoteInput): Promise<Note> {
@@ -178,6 +182,7 @@ export async function saveNote(input: NoteInput): Promise<Note> {
   };
 
   await withStore<IDBValidKey>(NOTES_STORE, "readwrite", (store) => store.put(note));
+  notifyNotesChanged();
   return note;
 }
 
@@ -192,6 +197,7 @@ export async function toggleNoteCompleted(id: string): Promise<void> {
       syncStatus: "local"
     })
   );
+  notifyNotesChanged();
 }
 
 export async function saveReflectionCapture(body: string): Promise<Note> {
@@ -202,7 +208,7 @@ export async function saveReflectionCapture(body: string): Promise<Note> {
     title: (firstLine || text).slice(0, 90),
     body: text,
     kind: "reflection",
-    processing: createReflectionProcessing(),
+    processing: createReflectionProcessing(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()),
     syncStatus: "local"
   });
 }
@@ -278,6 +284,7 @@ export async function deleteNote(id: string): Promise<void> {
       syncStatus: "local"
     })
   );
+  notifyNotesChanged();
 }
 
 async function getNote(id: string): Promise<Note | undefined> {
@@ -291,14 +298,34 @@ async function getList(id: string): Promise<ReminderList | undefined> {
 }
 
 function normalizeNote(note: Note): Note {
+  const processing = normalizeReflectionProcessing(note.processing);
+  const normalizedProcessing = processing && processing.status !== "closed"
+    ? { ...processing, reviewAt: processing.reviewAt ?? addHours(note.createdAt, 24) }
+    : processing;
   return {
     ...note,
     reminders: Array.isArray(note.reminders) ? note.reminders : [],
     completed: Boolean(note.completed),
     syncStatus: "local",
     kind: note.kind ?? "regular",
-    processing: normalizeReflectionProcessing(note.processing)
+    processing: normalizedProcessing
   };
+}
+
+export function isReflectionDue(note: Note, now = Date.now()): boolean {
+  if (note.deleted || note.kind !== "reflection" || !note.processing) return false;
+  if (!["inbox", "clarifying", "ready", "waiting"].includes(note.processing.status)) return false;
+  const reviewAt = note.processing.reviewAt ? new Date(note.processing.reviewAt).getTime() : NaN;
+  return Number.isFinite(reviewAt) && reviewAt <= now;
+}
+
+function addHours(value: string, hours: number): string {
+  const time = new Date(value).getTime();
+  return new Date((Number.isFinite(time) ? time : Date.now()) + hours * 60 * 60 * 1000).toISOString();
+}
+
+function notifyNotesChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(NOTES_CHANGED_EVENT));
 }
 
 function normalizeList(list: ReminderList): ReminderList {

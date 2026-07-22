@@ -2,10 +2,11 @@ import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import type { AppLocale } from "@/lib/i18n";
 
-export const REFLECTION_SETTINGS_KEY = "open-abundance:reflection-settings:v1";
+export const DAILY_REMINDER_SETTINGS_KEY = "open-abundance:daily-reminder-settings:v1";
+export const LEGACY_REFLECTION_SETTINGS_KEY = "open-abundance:reflection-settings:v1";
 const PENDING_REMINDERS_KEY = "open-abundance:pending-reminders:v1";
 
-export type ReflectionReminderSettings = {
+export type DailyReminderSettings = {
   reviewTime: string;
   enabled: boolean;
   configured: boolean;
@@ -13,7 +14,7 @@ export type ReflectionReminderSettings = {
 
 type ReminderRequest = {
   clientReminderId: string;
-  kind: "action" | "inbox_review";
+  kind: "action" | "today_daily";
   locale: AppLocale;
   dueAt: string;
   recurring: boolean;
@@ -22,25 +23,29 @@ type ReminderRequest = {
   deepLink: string;
 };
 
-export function getReflectionReminderSettings(): ReflectionReminderSettings {
+export function getDailyReminderSettings(): DailyReminderSettings {
   if (typeof window === "undefined") return { reviewTime: "19:00", enabled: false, configured: false };
   try {
-    const value = JSON.parse(localStorage.getItem(REFLECTION_SETTINGS_KEY) ?? "null") as Partial<ReflectionReminderSettings> | null;
-    return {
+    const currentValue = localStorage.getItem(DAILY_REMINDER_SETTINGS_KEY);
+    const sourceValue = currentValue ?? localStorage.getItem(LEGACY_REFLECTION_SETTINGS_KEY);
+    const value = JSON.parse(sourceValue ?? "null") as Partial<DailyReminderSettings> | null;
+    const settings = {
       reviewTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(value?.reviewTime ?? "") ? value!.reviewTime! : "19:00",
       enabled: Boolean(value?.enabled),
       configured: Boolean(value?.configured)
     };
+    if (!currentValue && sourceValue) localStorage.setItem(DAILY_REMINDER_SETTINGS_KEY, JSON.stringify(settings));
+    return settings;
   } catch {
     return { reviewTime: "19:00", enabled: false, configured: false };
   }
 }
 
-export function saveReflectionReminderSettings(settings: ReflectionReminderSettings) {
-  localStorage.setItem(REFLECTION_SETTINGS_KEY, JSON.stringify(settings));
+export function saveDailyReminderSettings(settings: DailyReminderSettings) {
+  localStorage.setItem(DAILY_REMINDER_SETTINGS_KEY, JSON.stringify(settings));
 }
 
-export async function enableReflectionPush(): Promise<boolean> {
+export async function enableDailyPush(): Promise<boolean> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return false;
   const publicKey = process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY;
   if (!publicKey) return false;
@@ -54,24 +59,25 @@ export async function enableReflectionPush(): Promise<boolean> {
   return true;
 }
 
-export async function syncInboxReviewReminder(active: boolean, locale: AppLocale, settings = getReflectionReminderSettings()) {
-  if (!settings.enabled || !("Notification" in window) || Notification.permission !== "granted") return;
+export async function syncTodayDailyReminder(active: boolean, locale: AppLocale, settings = getDailyReminderSettings()) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
   const subscription = await getSubscription();
   if (!subscription) return;
-  if (!active) {
-    await cancelReminder(subscription, "reflection-inbox-review");
+  await cancelReminder(subscription, "reflection-inbox-review");
+  if (!active || !settings.enabled) {
+    await cancelReminder(subscription, "today-daily");
     return;
   }
   const dueAt = nextLocalTime(settings.reviewTime);
   await submitReminder(subscription, {
-    clientReminderId: "reflection-inbox-review",
-    kind: "inbox_review",
+    clientReminderId: "today-daily",
+    kind: "today_daily",
     locale,
     dueAt: dueAt.toISOString(),
     recurring: true,
     localTime: settings.reviewTime,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-    deepLink: "/?view=goals.notes&reflectionInbox=1"
+    deepLink: "/?view=home"
   });
 }
 
@@ -168,7 +174,9 @@ function queuePendingReminder(reminder: ReminderRequest) {
 function readPendingReminders(): ReminderRequest[] {
   try {
     const value = JSON.parse(localStorage.getItem(PENDING_REMINDERS_KEY) ?? "[]");
-    return Array.isArray(value) ? value : [];
+    return Array.isArray(value)
+      ? value.filter((item): item is ReminderRequest => item?.kind === "action" || item?.kind === "today_daily")
+      : [];
   } catch {
     return [];
   }

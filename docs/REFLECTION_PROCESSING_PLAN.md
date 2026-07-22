@@ -16,6 +16,8 @@ Implemented locally on 2026-07-21:
 
 The Supabase migration and Edge Function are committed but must be deployed and configured before closed-app push delivery works.
 
+2026-07-22: ежедневный review reminder перенесён из Notes в Home/Today. Новые reflection-записи получают локальный `reviewAt` через 24 часа; Home показывает только агрегированный счётчик созревших записей, а push больше не содержит inbox-текст и ведёт на `/?view=home`. Legacy setting переносится в `open-abundance:daily-reminder-settings:v1`.
+
 ## Product Contract
 
 Raw captures stay in the local `open-abundance-offline` IndexedDB database. No request is made during capture. Pressing `Process with AI` explicitly sends only the selected note; after the guided steps, the confirmed selections and up to two adaptive answers are also sent to the configured provider. The route does not persist or log that content.
@@ -28,7 +30,7 @@ AI output is advisory and editable. The UI says `Possible causes`, never claims 
 
 `TaskItem` has optional `sourceNoteId` and `remindAt`. Completing a linked task closes the reflection. Legacy records normalize with both fields absent.
 
-Daily-review settings use `open-abundance:reflection-settings:v1`. Pending server reminder registrations use `open-abundance:pending-reminders:v1` and retry when connectivity returns.
+Daily-review settings migrate from `open-abundance:reflection-settings:v1` to `open-abundance:daily-reminder-settings:v1`. Pending server reminder registrations use `open-abundance:pending-reminders:v1` and retry when connectivity returns.
 
 ## Push Deployment
 

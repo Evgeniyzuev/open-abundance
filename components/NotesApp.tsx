@@ -7,6 +7,7 @@ import {
   closeReflection,
   getLists,
   getNotes,
+  isReflectionDue,
   Note,
   ReminderList,
   saveList,
@@ -19,12 +20,6 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import ReflectionProcessor from "@/components/ReflectionProcessor";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { trackProductEvent } from "@/lib/productAnalytics";
-import {
-  enableReflectionPush,
-  getReflectionReminderSettings,
-  saveReflectionReminderSettings,
-  syncInboxReviewReminder
-} from "@/lib/pushReminders";
 
 type ConnectionState = "online" | "offline";
 type ViewId = "process" | "today" | "planned" | "all" | "completed" | `list:${string}`;
@@ -69,10 +64,11 @@ const emptyListForm = {
 };
 
 type NotesAppProps = {
+  openInboxNonce?: number;
   onScheduleReflection: (draft: ReflectionTaskDraft) => void;
 };
 
-export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
+export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: NotesAppProps) {
   const { locale, t } = useUserContext();
   const [notes, setNotes] = useState<Note[]>([]);
   const [lists, setLists] = useState<ReminderList[]>([]);
@@ -87,14 +83,16 @@ export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
   const [quickCapture, setQuickCapture] = useState("");
   const [capturedNoteId, setCapturedNoteId] = useState<string | null>(null);
   const [processingNoteId, setProcessingNoteId] = useState<string | null>(null);
-  const [reminderSettings, setReminderSettings] = useState(getReflectionReminderSettings);
-  const [showReminderSetup, setShowReminderSetup] = useState(false);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("reflectionInbox") === "1") {
       setDetailView("process");
     }
   }, []);
+
+  useEffect(() => {
+    if (openInboxNonce > 0) setDetailView("process");
+  }, [openInboxNonce]);
 
   const activeView = detailView ?? "all";
   const activeTitle = getViewTitle(activeView, lists, t);
@@ -104,6 +102,13 @@ export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
   const visibleNotes = useMemo(() => {
     const source = notes.filter((note) => !note.deleted);
     return filterNotes(source, activeView).sort((a, b) => {
+      if (activeView === "process") {
+        const dueDifference = Number(isReflectionDue(b)) - Number(isReflectionDue(a));
+        if (dueDifference !== 0) return dueDifference;
+        const leftReviewAt = a.processing?.reviewAt ?? a.updatedAt;
+        const rightReviewAt = b.processing?.reviewAt ?? b.updatedAt;
+        if (leftReviewAt !== rightReviewAt) return leftReviewAt.localeCompare(rightReviewAt);
+      }
       if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
       return b.updatedAt.localeCompare(a.updatedAt);
     });
@@ -136,13 +141,6 @@ export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
       window.removeEventListener("offline", handleOffline);
     };
   }, [refreshData]);
-
-  const reflectionInboxCount = notes.filter((note) => !note.deleted && note.kind === "reflection" && note.processing?.status !== "closed").length;
-
-  useEffect(() => {
-    if (!reminderSettings.configured || !reminderSettings.enabled) return;
-    void syncInboxReviewReminder(reflectionInboxCount > 0, locale, reminderSettings).catch(() => undefined);
-  }, [locale, reflectionInboxCount, reminderSettings]);
 
   useEffect(() => {
     if (!capturedNoteId) return;
@@ -209,25 +207,8 @@ export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
     const captured = await saveReflectionCapture(body);
     setQuickCapture("");
     setCapturedNoteId(captured.id);
-    if (!reminderSettings.configured) setShowReminderSetup(true);
     trackProductEvent("reflection_captured", { lengthBucket: getLengthBucket(body.length) });
     await refreshData();
-  }
-
-  async function enableDailyReviewReminder() {
-    const enabled = await enableReflectionPush().catch(() => false);
-    const next = { ...reminderSettings, enabled, configured: true };
-    saveReflectionReminderSettings(next);
-    setReminderSettings(next);
-    setShowReminderSetup(false);
-    if (enabled) await syncInboxReviewReminder(true, locale, next).catch(() => undefined);
-  }
-
-  function skipDailyReviewReminder() {
-    const next = { ...reminderSettings, enabled: false, configured: true };
-    saveReflectionReminderSettings(next);
-    setReminderSettings(next);
-    setShowReminderSetup(false);
   }
 
   async function handleListSubmit(event: FormEvent<HTMLFormElement>) {
@@ -302,12 +283,6 @@ export default function NotesApp({ onScheduleReflection }: NotesAppProps) {
           onInfo={setInfoNoteId}
           onOpenReflection={(note) => setProcessingNoteId(note.id)}
           isReflectionQueue={activeView === "process"}
-          reminderSettings={reminderSettings}
-          showReminderSetup={showReminderSetup}
-          onReviewTimeChange={(reviewTime) => setReminderSettings((current) => ({ ...current, reviewTime }))}
-          onEnableReminder={() => void enableDailyReviewReminder()}
-          onSkipReminder={skipDailyReviewReminder}
-          onShowReminderSetup={() => setShowReminderSetup(true)}
         />
       ) : (
         <HomeScreen
@@ -475,18 +450,10 @@ type ListDetailProps = {
   onInfo: (id: string) => void;
   onOpenReflection: (note: Note) => void;
   isReflectionQueue: boolean;
-  reminderSettings: ReturnType<typeof getReflectionReminderSettings>;
-  showReminderSetup: boolean;
-  onReviewTimeChange: (value: string) => void;
-  onEnableReminder: () => void;
-  onSkipReminder: () => void;
-  onShowReminderSetup: () => void;
 };
 
-function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCreateList, onComplete, onEdit, onInfo, onOpenReflection, isReflectionQueue, reminderSettings, showReminderSetup, onReviewTimeChange, onEnableReminder, onSkipReminder, onShowReminderSetup }: ListDetailProps) {
+function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCreateList, onComplete, onEdit, onInfo, onOpenReflection, isReflectionQueue }: ListDetailProps) {
   const { t } = useUserContext();
-  const showReminderControls = isReflectionQueue && (notes.length > 0 || reminderSettings.configured);
-  const showReminderForm = isReflectionQueue && (showReminderSetup || (notes.length > 0 && !reminderSettings.configured));
 
   return (
     <section className="detail-screen">
@@ -504,28 +471,6 @@ function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCre
         )}
       </header>
 
-      {isReflectionQueue && notes.length > 0 ? <p className="reflection-queue-hint">{t("reflections.returnLater")}</p> : null}
-      {showReminderControls ? (
-        <section className="reflection-queue-reminder">
-          <div className="reflection-queue-reminder-summary">
-            <span>{t("reflections.queueCount", { count: notes.length })}</span>
-            {reminderSettings.enabled ? (
-              <button className="text-button" type="button" onClick={onShowReminderSetup}>{t("reflections.dailyAt", { time: reminderSettings.reviewTime })}</button>
-            ) : !showReminderForm ? (
-              <button className="text-button" type="button" onClick={onShowReminderSetup}>{t("reflections.enableReminder")}</button>
-            ) : null}
-          </div>
-          {showReminderForm ? (
-            <div className="reflection-reminder-setup">
-              <span>{t("reflections.reviewReminderPrompt")}</span>
-              <input aria-label={t("reflections.reviewTime")} type="time" value={reminderSettings.reviewTime} onChange={(event) => onReviewTimeChange(event.target.value)} />
-              <button className="secondary-button" type="button" onClick={onEnableReminder}>{t("reflections.enableReminder")}</button>
-              <button className="text-button" type="button" onClick={onSkipReminder}>{t("reflections.notNow")}</button>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
       <div className="task-list compact-list">
         {notes.length === 0 ? (
           <div className="empty-state">{t(isReflectionQueue ? "reflections.inboxEmpty" : "notes.emptyList")}</div>
@@ -539,6 +484,7 @@ function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCre
                   <span>{note.title}</span>
                   {note.body ? <small>{note.body}</small> : null}
                   {note.kind === "reflection" && note.processing ? <i>{getReflectionStatusLabel(note.processing.status, t)}</i> : null}
+                  {isReflectionQueue && note.processing?.reviewAt ? <em>{t("reflections.reviewDue", { time: formatReminder(note.processing.reviewAt, locale) })}</em> : null}
                   {isReflectionQueue && note.kind === "reflection" ? <strong className="reflection-row-action">{t(note.processing?.status === "inbox" ? "reflections.processNow" : "reflections.openProcessing")}</strong> : null}
                   {note.reminders.length > 0 ? <em>{note.reminders.map((reminder) => formatReminder(reminder, locale)).join(" · ")}</em> : null}
                   {list ? <i>{list.icon} {list.title}</i> : null}

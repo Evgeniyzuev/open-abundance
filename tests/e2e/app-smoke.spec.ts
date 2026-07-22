@@ -100,15 +100,18 @@ test("reflection inbox captures offline without calling AI and survives reload",
       request.onerror = () => reject(request.error);
     });
     db.close();
-    return notes.find((note) => note.body === "I keep postponing one difficult message.");
+    const note = notes.find((note) => note.body === "I keep postponing one difficult message.");
+    return note ? { ...note, reviewAt: (note as { processing?: { reviewAt?: string } }).processing?.reviewAt } : undefined;
   });
   expect(saved).toMatchObject({ kind: "reflection", processing: { status: "inbox" } });
+  expect(new Date(saved?.reviewAt ?? "").getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
+  expect(new Date(saved?.reviewAt ?? "").getTime()).toBeLessThan(Date.now() + 25 * 60 * 60 * 1000);
 
   await context.setOffline(false);
   await page.goto("/?view=goals.notes&reflectionInbox=1");
   await expect(page.getByRole("heading", { name: "Process" })).toBeVisible();
-  await expect(page.getByText("You can return to this later.")).toBeVisible();
-  await expect(page.getByText("Remind me to process the inbox once a day")).toBeVisible();
+  await expect(page.getByText("You can return to this later.")).toHaveCount(0);
+  await expect(page.getByText("Remind me to process the inbox once a day")).toHaveCount(0);
   await expect(page.getByText("Process now", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /I keep postponing one difficult message/ })).toBeVisible();
   expect(aiCalls).toBe(0);

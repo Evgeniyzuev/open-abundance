@@ -4,9 +4,10 @@ import webpush from "npm:web-push@3.6.7";
 type ReminderJob = {
   id: string;
   subscription_id: string;
-  kind: "action" | "inbox_review";
+  kind: "action" | "today_daily";
   locale: "ru" | "en";
   deep_link: string;
+  timezone: string;
 };
 
 type PushSubscriptionRow = {
@@ -14,6 +15,7 @@ type PushSubscriptionRow = {
   endpoint: string;
   p256dh: string;
   auth: string;
+  owner_key: string;
 };
 
 Deno.serve(async (request) => {
@@ -41,7 +43,7 @@ Deno.serve(async (request) => {
   for (const job of (jobs ?? []) as ReminderJob[]) {
     const { data: subscription, error: subscriptionError } = await supabase
       .from("push_subscriptions")
-      .select("id,endpoint,p256dh,auth")
+      .select("id,endpoint,p256dh,auth,owner_key")
       .eq("id", job.subscription_id)
       .maybeSingle();
 
@@ -52,6 +54,10 @@ Deno.serve(async (request) => {
 
     try {
       const pushSubscription = subscription as PushSubscriptionRow;
+      if (job.kind === "today_daily" && await isTodayComplete(supabase, pushSubscription.owner_key, job.timezone)) {
+        await finishJob(supabase, job.id, true, null);
+        continue;
+      }
       await webpush.sendNotification({
         endpoint: pushSubscription.endpoint,
         keys: { p256dh: pushSubscription.p256dh, auth: pushSubscription.auth }
@@ -75,15 +81,38 @@ Deno.serve(async (request) => {
 
 function buildPayload(job: ReminderJob) {
   const isRussian = job.locale === "ru";
-  const inbox = job.kind === "inbox_review";
   return {
-    title: inbox
-      ? (isRussian ? "Время разобрать входящие" : "Time to process your inbox")
+    title: job.kind === "today_daily"
+      ? (isRussian ? "Ваш личный план на сегодня готов" : "Your personal plan for today is ready")
       : (isRussian ? "У вас есть запланированное действие" : "You have a planned action"),
     body: isRussian ? "Откройте приложение, чтобы увидеть детали." : "Open the app to see the details.",
     deepLink: job.deep_link,
-    tag: `reflection-reminder:${job.id}`
+    tag: `open-abundance-reminder:${job.id}`
   };
+}
+
+async function isTodayComplete(supabase: ReturnType<typeof createClient>, ownerKey: string, timezone: string): Promise<boolean> {
+  if (!ownerKey.startsWith("user:")) return false;
+  const userId = ownerKey.slice("user:".length);
+  const localDate = getLocalDate(new Date(), timezone);
+  const { data, error } = await supabase
+    .from("user_today_instances")
+    .select("status")
+    .eq("user_id", userId)
+    .eq("local_date", localDate)
+    .maybeSingle();
+  return !error && data?.status === "completed";
+}
+
+function getLocalDate(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 async function finishJob(supabase: ReturnType<typeof createClient>, jobId: string, success: boolean, error: string | null) {

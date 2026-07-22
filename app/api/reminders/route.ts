@@ -13,7 +13,7 @@ type ScheduleBody = {
   subscription?: SubscriptionInput;
   guestId?: string;
   clientReminderId?: string;
-  kind?: "action" | "inbox_review";
+  kind?: "action" | "today_daily";
   locale?: string;
   dueAt?: string;
   recurring?: boolean;
@@ -95,7 +95,7 @@ function validateBody(body: ScheduleBody | null) {
   const auth = cleanToken(body?.subscription?.keys?.auth, 500);
   const guestId = cleanToken(body?.guestId, 160);
   const clientReminderId = cleanToken(body?.clientReminderId, 160);
-  const kind = body?.kind === "inbox_review" ? "inbox_review" : body?.kind === "action" ? "action" : null;
+  const kind = body?.kind === "today_daily" ? "today_daily" : body?.kind === "action" ? "action" : null;
   const locale = body?.locale === "ru" ? "ru" : "en";
   const dueDate = body?.dueAt ? new Date(body.dueAt) : null;
   const recurring = Boolean(body?.recurring);

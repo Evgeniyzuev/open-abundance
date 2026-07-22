@@ -118,6 +118,7 @@ export default function AppNavigation() {
   const [challengeFocusNonce, setChallengeFocusNonce] = useState(0);
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
   const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
+  const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
     map: false,
@@ -374,6 +375,12 @@ export default function AppNavigation() {
     setActiveMainTab("goals");
   }
 
+  function openReflectionInbox() {
+    setReflectionInboxNonce((value) => value + 1);
+    setActiveGoalTab("notes");
+    setActiveMainTab("goals");
+  }
+
   return (
     <>
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
@@ -386,12 +393,13 @@ export default function AppNavigation() {
             active={showHome}
             onOpenCalculator={openCalculator}
             onOpenNextChallenge={openNextChallenge}
+            onOpenReflectionInbox={openReflectionInbox}
             onOpenToday={openToday}
             refreshNonce={refreshNonce}
           />
         </div>
         <KeepAliveView active={showNotes} visited>
-          <NotesApp onScheduleReflection={scheduleReflection} />
+          <NotesApp openInboxNonce={reflectionInboxNonce} onScheduleReflection={scheduleReflection} />
         </KeepAliveView>
         <KeepAliveView active={showWishes} visited={visitedServerViews.wishes}>
           <WishesApp active={showWishes} refreshNonce={refreshNonce} />

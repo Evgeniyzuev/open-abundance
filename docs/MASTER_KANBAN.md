@@ -103,8 +103,8 @@
 - [ ] People/public profiles: поиск людей, `/u/[userId]`, публичный блог, контакты и простой Direct.
 - [ ] Referrals/teams: referral claim, team membership, capacity, контакты команды и team bonus ledger.
 - [ ] Trust-lite: mutual confirmations, trust events, reciprocity summary и challenge checks.
-- [ ] AI Coordinator: streaming chat, knowledge base и provider fallback; чат доступен как вторичная вкладка Home и пока остается отдельным инструментом, а не контекстным союзником главного пути.
-- [x] Reflection Inbox: быстрый local-first захват в Notes, очередь `Разобрать`, guided AI-разбор из четырёх выборов с собственным вариантом и максимум двумя адаптивными уточнениями, редактируемое я-высказывание, возможные причины, ресурсы, if-then действие, связь с Checks и нейтральные PWA reminders. Push требует применения миграции и настройки VAPID/Vault; детали в `docs/REFLECTION_PROCESSING_PLAN.md`.
+- [ ] AI Coordinator: единый AI Gateway, capability registry, consent-aware Context Broker и подтверждаемая память пользователя; чат доступен как вторичная вкладка Home и пока не получает user context. Архитектура и этапы: `docs/AI_CONTEXT_MEMORY_ARCHITECTURE.md`.
+- [x] Reflection Inbox + Today rhythm: быстрый local-first захват в Notes с `reviewAt = +24h`, агрегированный локальный пункт `Разобрать заметки · N` на Home, guided AI-разбор из четырёх выборов с собственным вариантом и максимум двумя адаптивными уточнениями, редактируемое я-высказывание, возможные причины, ресурсы, if-then действие, связь с Checks, единый Today reminder и completion-streak челленджи 7/30. Push требует применения миграций и настройки VAPID/Vault; детали в `docs/REFLECTION_PROCESSING_PLAN.md` и `docs/TODAY_DAILY_CHALLENGE_PLAN.md`.
 
 ### Поздние контуры, уже имеющие технический фундамент
 

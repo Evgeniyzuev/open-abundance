@@ -321,6 +321,26 @@ async function verifyChallenge(
     }
   }
 
+  if (challenge.verification_logic === "today_completion_streak_7") {
+    try {
+      const payload = await syncTodayForUser(supabase, userId);
+      if (payload.completionStreak >= 7) return { ok: true };
+      return { ok: false, reason: `Complete Today for 7 consecutive days. Current streak: ${payload.completionStreak}.` };
+    } catch {
+      return { ok: false, reason: "Could not check the Today streak. Try again." };
+    }
+  }
+
+  if (challenge.verification_logic === "today_completion_total_30") {
+    try {
+      const payload = await syncTodayForUser(supabase, userId);
+      if (payload.totalCompletions >= 30) return { ok: true };
+      return { ok: false, reason: `Complete Today 30 times. Current total: ${payload.totalCompletions}.` };
+    } catch {
+      return { ok: false, reason: "Could not check completed Today days. Try again." };
+    }
+  }
+
   if (challenge.verification_logic === "first_wallet_to_core") {
     const { data, error } = await supabase
       .from("wallet_ledger")

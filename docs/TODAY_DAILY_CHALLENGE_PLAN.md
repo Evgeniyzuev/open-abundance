@@ -6,6 +6,8 @@ Today - ежедневный персональный челлендж поль�
 
 ## Current Status
 
+2026-07-22: Home объединяет Today с локальным due-счётчиком Reflection Inbox; серверный payload теперь отдаёт активную completion-серию и lifetime total. В каталог добавлены `today_completion_streak_7` и `today_completion_total_30`; ежедневный push ведёт на Home и пропускается для уже завершённого Today.
+
 2026-06-13: первый технический MVP реализован.
 
 - Добавлены таблицы `user_core_growth_plans`, `user_today_instances`, `user_today_items`, `today_progress_events` с RLS и read-only доступом пользователя к своим данным.

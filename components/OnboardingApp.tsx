@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Mail, Sparkles } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import {
@@ -28,7 +28,7 @@ import {
 import { trackProductEvent } from "@/lib/productAnalytics";
 
 type StoryStepId = "mission" | "stories" | "program";
-type StepId = StoryStepId | "auth";
+type StepId = StoryStepId | "auth" | "email";
 type OnboardingState = Record<string, unknown> & {
   firstExperienceCompleted?: boolean;
   firstPlanDraft?: OnboardingDraft;
@@ -148,7 +148,7 @@ function OnboardingApp({
   const [emailOtpSentTo, setEmailOtpSentTo] = useState<string | null>(null);
   const [emailOtp, setEmailOtp] = useState("");
   const [resendSeconds, setResendSeconds] = useState(0);
-  const currentIndex = step === "auth" ? steps.length - 1 : steps.indexOf(step);
+  const currentIndex = step === "auth" || step === "email" ? steps.length - 1 : steps.indexOf(step);
 
   useEffect(() => {
     trackProductEvent("onboarding_viewed", { locale, version: "abundance_mission_v3" });
@@ -161,6 +161,7 @@ function OnboardingApp({
     setEmail(pendingOtp.email);
     setEmailOtpSentTo(pendingOtp.email);
     setResendSeconds(Math.max(0, EMAIL_OTP_RESEND_SECONDS - elapsedSeconds));
+    setStep("email");
   }, []);
 
   useEffect(() => {
@@ -257,7 +258,7 @@ function OnboardingApp({
     clearPendingEmailOtp();
   }
 
-  const previousStep = step === "auth" ? "program" : currentIndex > 0 ? steps[currentIndex - 1] : null;
+  const previousStep = step === "email" ? "auth" : step === "auth" ? "program" : currentIndex > 0 ? steps[currentIndex - 1] : null;
 
   return (
     <main className={`onboarding-screen onboarding-theme-${step}`}>
@@ -289,7 +290,7 @@ function OnboardingApp({
                 <option key={item} value={item}>{ONBOARDING_LOCALE_LABELS[item]}</option>
               ))}
             </select>
-            {step !== "auth" ? (
+            {step !== "auth" && step !== "email" ? (
               <div
                 className="onboarding-progress"
                 role="progressbar"
@@ -370,7 +371,7 @@ function OnboardingApp({
               <h1>{onboardingText(onboardingContent.auth.title, locale)}</h1>
               <p>{onboardingText(onboardingContent.auth.body, locale)}</p>
             </div>
-            <div className="onboarding-auth-panel">
+            <div className="onboarding-auth-panel onboarding-auth-methods">
               <button
                 className="onboarding-primary-action"
                 type="button"
@@ -380,83 +381,97 @@ function OnboardingApp({
                 <LogIn size={18} />
                 {onboardingText(onboardingContent.actions.signInGoogle, locale)}
               </button>
+              <button className="onboarding-secondary-action" type="button" onClick={() => goTo("email")}>
+                <Mail size={18} />
+                {onboardingText(onboardingContent.actions.signInEmail, locale)}
+              </button>
+              {actionError ? <p className="onboarding-error" role="alert">{actionError}</p> : null}
+            </div>
+          </section>
+        ) : null}
 
-              <div className="onboarding-auth-divider">
-                <span>{onboardingText(onboardingContent.auth.divider, locale)}</span>
-              </div>
-
-              {!emailOtpSentTo ? (
-                <form className="onboarding-email-form" noValidate onSubmit={(event) => void handleEmailOtpRequest(event)}>
-                  <label htmlFor="onboarding-email">{onboardingText(onboardingContent.auth.emailLabel, locale)}</label>
-                  <div className="onboarding-email-row">
-                    <input
-                      id="onboarding-email"
-                      type="email"
-                      inputMode="email"
-                      autoComplete="email"
-                      value={email}
-                      placeholder={onboardingText(onboardingContent.auth.emailPlaceholder, locale)}
-                      aria-invalid={actionError === onboardingText(onboardingContent.errors.emailInvalid, locale)}
-                      onChange={(event) => {
-                        setEmail(event.target.value);
-                        setActionError(null);
-                      }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={activeAuthMethod !== null}
-                      aria-label={onboardingText(onboardingContent.actions.sendEmailCode, locale)}
-                      title={onboardingText(onboardingContent.actions.sendEmailCode, locale)}
-                    >
-                      <Check size={22} />
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="onboarding-otp-step">
-                  <p className="onboarding-auth-status" role="status">
-                    <span>{onboardingText(onboardingContent.auth.otpSent, locale)}</span>
-                    <strong>{emailOtpSentTo}</strong>
-                  </p>
-
-                  <form className="onboarding-otp-form" noValidate onSubmit={(event) => void handleEmailOtpVerify(event)}>
-                    <label htmlFor="onboarding-email-otp">{onboardingText(onboardingContent.auth.otpLabel, locale)}</label>
-                    <input
-                      id="onboarding-email-otp"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      pattern="[0-9]*"
-                      maxLength={6}
-                      value={emailOtp}
-                      placeholder={onboardingText(onboardingContent.auth.otpPlaceholder, locale)}
-                      aria-invalid={actionError === onboardingText(onboardingContent.errors.emailOtpInvalid, locale)}
-                      onChange={(event) => {
-                        setEmailOtp(event.target.value.replace(/\D/g, "").slice(0, 6));
-                        setActionError(null);
-                      }}
-                    />
-                    <button className="onboarding-primary-action" type="submit" disabled={activeAuthMethod !== null}>
-                      {onboardingText(onboardingContent.actions.verifyEmailCode, locale)}
-                    </button>
-                  </form>
-
-                  <div className="onboarding-auth-secondary-actions">
-                    <button
-                      type="button"
-                      disabled={activeAuthMethod !== null || resendSeconds > 0}
-                      onClick={() => void sendEmailOtp(emailOtpSentTo, true)}
-                    >
-                      {resendSeconds > 0
-                        ? onboardingText(onboardingContent.auth.resendIn, locale).replace("{seconds}", String(resendSeconds))
-                        : onboardingText(onboardingContent.actions.resendEmailCode, locale)}
-                    </button>
-                    <button type="button" disabled={activeAuthMethod !== null} onClick={changeEmail}>
-                      {onboardingText(onboardingContent.actions.changeEmail, locale)}
-                    </button>
-                  </div>
+        {step === "email" ? (
+          <section className="onboarding-slide onboarding-auth-slide onboarding-email-auth-slide">
+            <div className="onboarding-copy onboarding-auth-copy">
+              <span>{onboardingText(onboardingContent.emailAuth.eyebrow, locale)}</span>
+              <h1>{onboardingText(onboardingContent.emailAuth.title, locale)}</h1>
+              <p>{onboardingText(onboardingContent.emailAuth.body, locale)}</p>
+            </div>
+            <div className="onboarding-auth-panel">
+              <form className="onboarding-email-form" noValidate onSubmit={(event) => void handleEmailOtpRequest(event)}>
+                <label htmlFor="onboarding-email">{onboardingText(onboardingContent.emailAuth.emailLabel, locale)}</label>
+                <div className="onboarding-email-row">
+                  <input
+                    id="onboarding-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={email}
+                    disabled={emailOtpSentTo !== null}
+                    placeholder={onboardingText(onboardingContent.emailAuth.emailPlaceholder, locale)}
+                    aria-invalid={actionError === onboardingText(onboardingContent.errors.emailInvalid, locale)}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setActionError(null);
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={activeAuthMethod !== null || emailOtpSentTo !== null}
+                    aria-label={onboardingText(onboardingContent.actions.sendEmailCode, locale)}
+                    title={onboardingText(onboardingContent.actions.sendEmailCode, locale)}
+                  >
+                    <Check size={22} />
+                  </button>
                 </div>
-              )}
+              </form>
+
+              {emailOtpSentTo ? (
+                <p className="onboarding-auth-status" role="status">
+                  <span>{onboardingText(onboardingContent.emailAuth.otpSent, locale)}</span>
+                  <strong>{emailOtpSentTo}</strong>
+                </p>
+              ) : null}
+
+              <form className="onboarding-otp-form" noValidate onSubmit={(event) => void handleEmailOtpVerify(event)}>
+                <label htmlFor="onboarding-email-otp">{onboardingText(onboardingContent.emailAuth.otpLabel, locale)}</label>
+                <input
+                  id="onboarding-email-otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  value={emailOtp}
+                  disabled={emailOtpSentTo === null}
+                  placeholder={onboardingText(onboardingContent.emailAuth.otpPlaceholder, locale)}
+                  aria-invalid={actionError === onboardingText(onboardingContent.errors.emailOtpInvalid, locale) || actionError === onboardingText(onboardingContent.errors.emailOtpVerify, locale)}
+                  onChange={(event) => {
+                    setEmailOtp(event.target.value.replace(/\D/g, "").slice(0, 6));
+                    setActionError(null);
+                  }}
+                />
+                <button className="onboarding-primary-action" type="submit" disabled={activeAuthMethod !== null || emailOtpSentTo === null}>
+                  {onboardingText(onboardingContent.actions.verifyEmailCode, locale)}
+                </button>
+              </form>
+
+              {emailOtpSentTo ? (
+                <div className="onboarding-auth-secondary-actions">
+                  <button
+                    type="button"
+                    disabled={activeAuthMethod !== null || resendSeconds > 0}
+                    onClick={() => void sendEmailOtp(emailOtpSentTo, true)}
+                  >
+                    {resendSeconds > 0
+                      ? onboardingText(onboardingContent.emailAuth.resendIn, locale).replace("{seconds}", String(resendSeconds))
+                      : onboardingText(onboardingContent.actions.resendEmailCode, locale)}
+                  </button>
+                  <button type="button" disabled={activeAuthMethod !== null} onClick={changeEmail}>
+                    {onboardingText(onboardingContent.actions.changeEmail, locale)}
+                  </button>
+                </div>
+              ) : null}
               {actionError ? <p className="onboarding-error" role="alert">{actionError}</p> : null}
             </div>
           </section>

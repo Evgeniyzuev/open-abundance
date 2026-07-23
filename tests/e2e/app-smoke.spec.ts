@@ -134,6 +134,12 @@ test("new visitor completes the three-screen story and can request an email OTP"
   await page.getByRole("button", { name: "GO" }).click();
 
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with email" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Continue with email" }).click();
+  await expect(page.getByRole("heading", { name: "Continue with email" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Verification code" })).toBeDisabled();
   await page.getByLabel("Email").fill("not-an-email");
   await page.getByRole("button", { name: "Send verification code" }).click();
   await expect(page.locator(".onboarding-error")).toHaveText("Enter a valid email address.");
@@ -145,7 +151,7 @@ test("new visitor completes the three-screen story and can request an email OTP"
   await page.getByRole("button", { name: "Send verification code" }).click();
   await expect(page.getByRole("status")).toContainText("Code sent");
   await expect(page.getByRole("status")).toContainText("new-user@example.com");
-  await page.getByLabel("Verification code").fill("123");
+  await page.getByRole("textbox", { name: "Verification code" }).fill("123");
   await page.getByRole("button", { name: "Verify code" }).click();
   await expect(page.locator(".onboarding-error")).toHaveText("Enter the six-digit code from the email.");
   await expect(page.getByRole("button", { name: /Resend in \d+s/ })).toBeDisabled();
@@ -162,7 +168,8 @@ test("returning guest goes directly to sign-in options instead of the app shell"
 
   await expect(page.getByRole("heading", { name: "Sign in or create an account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
-  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with email" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toHaveCount(0);
   await expect(page.getByRole("navigation")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });

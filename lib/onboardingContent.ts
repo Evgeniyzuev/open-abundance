@@ -38,7 +38,11 @@ type OnboardingContent = {
     eyebrow: OnboardingLocalizedText;
     title: OnboardingLocalizedText;
     body: OnboardingLocalizedText;
-    divider: OnboardingLocalizedText;
+  };
+  emailAuth: {
+    eyebrow: OnboardingLocalizedText;
+    title: OnboardingLocalizedText;
+    body: OnboardingLocalizedText;
     emailLabel: OnboardingLocalizedText;
     emailPlaceholder: OnboardingLocalizedText;
     otpLabel: OnboardingLocalizedText;
@@ -54,6 +58,7 @@ type OnboardingContent = {
     language: OnboardingLocalizedText;
     resendEmailCode: OnboardingLocalizedText;
     sendEmailCode: OnboardingLocalizedText;
+    signInEmail: OnboardingLocalizedText;
     signInGoogle: OnboardingLocalizedText;
     verifyEmailCode: OnboardingLocalizedText;
     viewStories: OnboardingLocalizedText;
@@ -190,8 +195,30 @@ export const onboardingContent: OnboardingContent = {
       zh: "选择你想继续的方式。",
       es: "Elige cómo quieres continuar.",
       hi: "चुनें कि आप कैसे आगे बढ़ना चाहते हैं।"
+    }
+  },
+  emailAuth: {
+    eyebrow: {
+      ru: "Вход по почте",
+      en: "Email sign-in",
+      zh: "邮箱登录",
+      es: "Acceso por email",
+      hi: "ईमेल साइन-इन"
     },
-    divider: { ru: "или", en: "or", zh: "或", es: "o", hi: "या" },
+    title: {
+      ru: "Продолжить с email",
+      en: "Continue with email",
+      zh: "使用邮箱继续",
+      es: "Continuar con email",
+      hi: "ईमेल के साथ जारी रखें"
+    },
+    body: {
+      ru: "Получи шестизначный код и введи его здесь.",
+      en: "Get a six-digit code and enter it here.",
+      zh: "获取六位验证码并在此输入。",
+      es: "Recibe un código de seis dígitos e introdúcelo aquí.",
+      hi: "छह अंकों का कोड पाएं और उसे यहां दर्ज करें।"
+    },
     emailLabel: { ru: "Email", en: "Email", zh: "电子邮箱", es: "Email", hi: "ईमेल" },
     emailPlaceholder: {
       ru: "you@example.com",
@@ -248,6 +275,13 @@ export const onboardingContent: OnboardingContent = {
       zh: "发送验证码",
       es: "Enviar código",
       hi: "सत्यापन कोड भेजें"
+    },
+    signInEmail: {
+      ru: "Продолжить с Email",
+      en: "Continue with email",
+      zh: "使用邮箱继续",
+      es: "Continuar con email",
+      hi: "ईमेल के साथ जारी रखें"
     },
     signInGoogle: {
       ru: "Продолжить с Google",

@@ -2,7 +2,7 @@
 
 This document describes the current authenticated user model, pre-auth onboarding, and database direction.
 
-Current status (2026-07-23): the user-facing guest mode has been removed. A visitor sees the three-screen onboarding, presses `GO` on the completed route, and then chooses Google or a six-digit email OTP on a separate auth screen before the app shell is mounted. The code is verified inside the installed PWA so its Supabase session is created in the same browser context. The local guest identity remains an internal implementation detail for referral attribution, analytics continuity, and claiming existing local data; it no longer grants access to app features.
+Current status (2026-07-23): the user-facing guest mode has been removed. A visitor sees the three-screen onboarding, presses `GO` on the completed route, and then chooses Google or Email on a dedicated method-picker screen. Email opens a separate screen with the address, send action, and always-visible six-digit OTP field. The code is verified inside the installed PWA so its Supabase session is created in the same browser context. The local guest identity remains an internal implementation detail for referral attribution, analytics continuity, and claiming existing local data; it no longer grants access to app features.
 
 ## Product Approach
 
@@ -19,11 +19,12 @@ Recommended first-run flow:
 1. User opens the app.
 2. App shows `mission -> stories -> 20-level program`.
 3. The third screen shows `Route ready` and offers one action: `GO`.
-4. A separate auth screen offers Google and a six-digit email OTP.
-5. Successful auth creates or loads the profile, Core, and Wallet without replacing existing onboarding state.
-6. The server grants the idempotent `+2$ Core` starter bonus on first registration.
-7. The app shows the one-time first-reward receipt and opens the feed.
-8. Existing local identity/referral data is attached to the registered account.
+4. A separate auth screen offers Google and Email buttons.
+5. Email opens a second auth screen where the user requests and enters a six-digit OTP.
+6. Successful auth creates or loads the profile, Core, and Wallet without replacing existing onboarding state.
+7. The server grants the idempotent `+2$ Core` starter bonus on first registration.
+8. The app shows the one-time first-reward receipt and opens the feed.
+9. Existing local identity/referral data is attached to the registered account.
 
 ## Identity States
 
@@ -82,7 +83,7 @@ On app start:
 
 ## Registration As The Final Onboarding Action
 
-Registration is not a catalog challenge. The old `Save Your Progress` challenge is inactive but retained as the historical/idempotency backing record for existing challenge reward accounting. Its UI is replaced by `GO` on onboarding screen three, a separate Google/email OTP auth screen, and a one-time `First reward` receipt after successful auth.
+Registration is not a catalog challenge. The old `Save Your Progress` challenge is inactive but retained as the historical/idempotency backing record for existing challenge reward accounting. Its UI is replaced by `GO` on onboarding screen three, a Google/Email method picker, a dedicated email OTP screen, and a one-time `First reward` receipt after successful auth.
 
 ## Email OTP Operations
 

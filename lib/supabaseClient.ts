@@ -5,10 +5,8 @@ import { detectBrowserLocale, normalizeLocale, type AppLocale } from "@/lib/i18n
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://bsikxrsguwketlloflgi.supabase.co";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const SUPABASE_PROJECT_REF = new URL(SUPABASE_URL).hostname.split(".")[0] ?? "open-abundance";
 
 export const POST_AUTH_REWARD_STORAGE_KEY = "openAbundancePostAuthReward";
-export const SUPABASE_AUTH_STORAGE_KEY = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
 
 export type AuthMethod = "google" | "email";
 
@@ -35,31 +33,11 @@ export function getBrowserSupabaseClient(): SupabaseClient<Database> {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: SUPABASE_AUTH_STORAGE_KEY
+      detectSessionInUrl: true
     }
   });
 
   return browserClient;
-}
-
-export function clearBrowserSupabaseSession(): void {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.removeItem(SUPABASE_AUTH_STORAGE_KEY);
-    window.localStorage.removeItem(`${SUPABASE_AUTH_STORAGE_KEY}-code-verifier`);
-  } catch {
-    // A reload still gives the browser another chance to recover inaccessible storage.
-  }
-
-  try {
-    window.sessionStorage.removeItem(POST_AUTH_REWARD_STORAGE_KEY);
-  } catch {
-    // The reward notice is non-critical when session storage is unavailable.
-  }
-
-  browserClient = undefined;
 }
 
 export async function signInWithGoogle(): Promise<void> {
@@ -138,12 +116,11 @@ export function storePostAuthReward(reward: RegistrationReward): void {
 
 export function consumePostAuthReward(): RegistrationReward | null {
   if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(POST_AUTH_REWARD_STORAGE_KEY);
+  window.sessionStorage.removeItem(POST_AUTH_REWARD_STORAGE_KEY);
+  if (!raw) return null;
 
   try {
-    const raw = window.sessionStorage.getItem(POST_AUTH_REWARD_STORAGE_KEY);
-    window.sessionStorage.removeItem(POST_AUTH_REWARD_STORAGE_KEY);
-    if (!raw) return null;
-
     const value = JSON.parse(raw) as Partial<RegistrationReward>;
     if (!value.claimed || (value.account !== "core" && value.account !== "wallet") || typeof value.amount !== "number") {
       return null;

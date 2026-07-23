@@ -13,13 +13,9 @@ export function trackProductEvent(eventName: string, properties: Record<string, 
 }
 
 function getAnonymousId(): string {
-  try {
-    const existing = window.localStorage.getItem(ANALYTICS_ID_KEY);
-    if (existing) return existing;
-    const value = crypto.randomUUID();
-    window.localStorage.setItem(ANALYTICS_ID_KEY, value);
-    return value;
-  } catch {
-    return crypto.randomUUID();
-  }
+  const existing = window.localStorage.getItem(ANALYTICS_ID_KEY);
+  if (existing) return existing;
+  const value = crypto.randomUUID();
+  window.localStorage.setItem(ANALYTICS_ID_KEY, value);
+  return value;
 }

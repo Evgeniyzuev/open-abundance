@@ -13,7 +13,6 @@ export type CoreAccount = Tables<"core_accounts"> & {
   next_level_threshold?: number | null;
 };
 export type WalletAccount = Tables<"wallet_accounts">;
-export type AuthBootstrapStatus = "loading" | "ready" | "error";
 
 type UserContextValue = {
   user: User | null;
@@ -21,7 +20,6 @@ type UserContextValue = {
   core: CoreAccount | null;
   wallet: WalletAccount | null;
   authResolved: boolean;
-  authStatus: AuthBootstrapStatus;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -41,7 +39,6 @@ type UserContextResponse = {
 };
 
 const SERVER_FETCH_TIMEOUT_MS = 12_000;
-const AUTH_BOOTSTRAP_TIMEOUT_MS = 8_000;
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
 
@@ -51,7 +48,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [core, setCore] = useState<CoreAccount | null>(null);
   const [wallet, setWallet] = useState<WalletAccount | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
-  const [authStatus, setAuthStatus] = useState<AuthBootstrapStatus>("loading");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -205,24 +201,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    let authStageResolved = false;
-    let supabase: ReturnType<typeof getBrowserSupabaseClient>;
-
-    try {
-      supabase = getBrowserSupabaseClient();
-    } catch (bootstrapError) {
-      setAuthStatus("error");
-      setError(bootstrapError instanceof Error ? bootstrapError.message : "User bootstrap failed.");
-      setLoading(false);
-      return;
-    }
+    const supabase = getBrowserSupabaseClient();
 
     async function bootstrapUser() {
       if (isOffline()) {
         if (mounted) {
           clearServerData();
           setAuthResolved(true);
-          setAuthStatus("ready");
           setLoading(false);
         }
         return;
@@ -231,11 +216,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const {
         data: { session },
         error: sessionError
-      } = await withTimeout(
-        supabase.auth.getSession(),
-        AUTH_BOOTSTRAP_TIMEOUT_MS,
-        "Restoring the sign-in session timed out."
-      );
+      } = await supabase.auth.getSession();
 
       if (sessionError) throw sessionError;
 
@@ -245,9 +226,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         currentUserIdRef.current = session.user.id;
         setUser(session.user);
       }
-      authStageResolved = true;
       setAuthResolved(true);
-      setAuthStatus("ready");
 
       const guest = await getOrCreateLocalGuest();
 
@@ -261,9 +240,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     bootstrapUser().catch((bootstrapError) => {
       console.warn("User bootstrap failed", bootstrapError);
       if (mounted) {
-        if (!authStageResolved) {
-          setAuthStatus("error");
-        }
+        setAuthResolved(true);
         setError(bootstrapError instanceof Error ? bootstrapError.message : "User bootstrap failed.");
         setLoading(false);
       }
@@ -272,13 +249,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((event, session) => {
-      authStageResolved = true;
       if (session?.user) {
         currentUserIdRef.current = session.user.id;
         setUser(session.user);
       }
       setAuthResolved(true);
-      setAuthStatus("ready");
 
       if (event === "SIGNED_IN") {
         claimCurrentUserIfNeeded()
@@ -402,7 +377,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       core,
       wallet,
       authResolved,
-      authStatus,
       loading,
       refreshing,
       error,
@@ -412,7 +386,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLocale,
       t
     }),
-    [applyServerData, authResolved, authStatus, core, error, loading, locale, profile, refreshUserData, refreshing, setLocale, t, user, wallet]
+    [applyServerData, authResolved, core, error, loading, locale, profile, refreshUserData, refreshing, setLocale, t, user, wallet]
   );
 
   return (
@@ -451,19 +425,6 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Pr
     return await fetch(input, { ...init, signal: controller.signal });
   } finally {
     window.clearTimeout(timeoutId);
-  }
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  let timeoutId: number | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-  });
-
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
   }
 }
 

@@ -1,5 +1,3 @@
-import { openOfflineDatabase } from "@/lib/offlineDatabase";
-
 export type SyncStatus = "local" | "pending_sync" | "synced" | "failed";
 
 export type TaskSchedule =
@@ -54,15 +52,46 @@ export type TaskInput = Pick<TaskItem, "id" | "title" | "description" | "schedul
   remindAt?: string;
 };
 
+const DB_NAME = "open-abundance-offline";
+const DB_VERSION = 4;
 const TASKS_STORE = "tasks";
 const TASK_COMPLETIONS_STORE = "taskCompletions";
+const GUEST_STORE = "guestIdentity";
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("notes")) {
+        db.createObjectStore("notes", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("lists")) {
+        db.createObjectStore("lists", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(TASKS_STORE)) {
+        db.createObjectStore(TASKS_STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(TASK_COMPLETIONS_STORE)) {
+        db.createObjectStore(TASK_COMPLETIONS_STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(GUEST_STORE)) {
+        db.createObjectStore(GUEST_STORE, { keyPath: "key" });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
 
 async function withStore<T>(
   storeName: string,
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>
 ): Promise<T> {
-  const db = await openOfflineDatabase();
+  const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, mode);
     const store = tx.objectStore(storeName);

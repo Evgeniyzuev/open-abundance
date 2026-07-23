@@ -2,10 +2,9 @@
 
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Mail, Sparkles } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import {
-  clearBrowserSupabaseSession,
   consumePostAuthReward,
   getBrowserSupabaseClient,
   requestEmailOtp,
@@ -46,16 +45,12 @@ const steps: StoryStepId[] = ["mission", "stories", "program"];
 const PENDING_EMAIL_OTP_STORAGE_KEY = "openAbundancePendingEmailOtp";
 const PENDING_EMAIL_OTP_TTL_MS = 15 * 60 * 1000;
 const EMAIL_OTP_RESEND_SECONDS = 60;
-const STARTUP_RECOVERY_DELAY_MS = 4_000;
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
-  const { applyServerData, authStatus, profile, t, user } = useUserContext();
+  const { applyServerData, authResolved, profile, t, user } = useUserContext();
   const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
   const [onboardingLocale, setOnboardingLocale] = useState<OnboardingLocale | null>(null);
   const [registrationReward, setRegistrationReward] = useState<RegistrationReward | null>(null);
-  const [startupSlow, setStartupSlow] = useState(false);
-  const startupStartedAtRef = useRef(Date.now());
-  const startupEventRef = useRef<"ready" | "error" | null>(null);
 
   useEffect(() => {
     setOnboardingSeen(readOnboardingSeen());
@@ -74,30 +69,6 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     setOnboardingLocale(detectPreferredOnboardingLocale());
   }, []);
 
-  const startupPending = authStatus !== "ready" || onboardingSeen === null;
-
-  useEffect(() => {
-    if (!startupPending) {
-      setStartupSlow(false);
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => setStartupSlow(true), STARTUP_RECOVERY_DELAY_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [startupPending]);
-
-  useEffect(() => {
-    if (authStatus === "ready" && startupEventRef.current !== "ready") {
-      startupEventRef.current = "ready";
-      trackProductEvent("app_boot_ready", { durationMs: Date.now() - startupStartedAtRef.current });
-    }
-
-    if (authStatus === "error" && startupEventRef.current !== "error") {
-      startupEventRef.current = "error";
-      trackProductEvent("app_boot_failed", { durationMs: Date.now() - startupStartedAtRef.current, stage: "auth" });
-    }
-  }, [authStatus]);
-
   const profileCompleted = hasCompletedFirstExperience(profile);
 
   useEffect(() => {
@@ -106,9 +77,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     void saveProfileCompletion(profile, applyServerData, draft);
   }, [applyServerData, profile, profileCompleted, user]);
 
-  if (startupPending) {
-    return <StartupScreen recoverable={authStatus === "error" || startupSlow} t={t} />;
-  }
+  if (!authResolved || onboardingSeen === null) return null;
 
   if (!user) {
     if (onboardingLocale === null) return null;
@@ -152,35 +121,6 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         />
       ) : null}
     </>
-  );
-}
-
-function StartupScreen({
-  recoverable,
-  t
-}: {
-  recoverable: boolean;
-  t: ReturnType<typeof useUserContext>["t"];
-}) {
-  function resetSession() {
-    trackProductEvent("app_auth_session_reset");
-    clearBrowserSupabaseSession();
-    window.location.replace("/?auth-reset=1");
-  }
-
-  return (
-    <section className="startup-screen" aria-live="polite">
-      <div className="startup-card">
-        <span className="startup-brand" aria-hidden="true">OA</span>
-        <span className="startup-spinner" aria-hidden="true" />
-        <h1>{recoverable ? t("startup.slow.title") : t("startup.loading.title")}</h1>
-        <p>{recoverable ? t("startup.slow.description") : t("startup.loading.description")}</p>
-        <div className={`startup-actions${recoverable ? " visible" : ""}`}>
-          <a className="startup-retry" href="/?startup-retry=1">{t("startup.retry")}</a>
-          <button className="startup-reset-session" type="button" onClick={resetSession}>{t("startup.resetSession")}</button>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -625,11 +565,7 @@ function FirstRewardModal({
 
 function readOnboardingSeen(): boolean {
   if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(ONBOARDING_SEEN_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
+  return window.localStorage.getItem(ONBOARDING_SEEN_STORAGE_KEY) === "true";
 }
 
 function isAuthScreenRequested(): boolean {
@@ -639,19 +575,15 @@ function isAuthScreenRequested(): boolean {
 
 function markOnboardingSeen() {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(ONBOARDING_SEEN_STORAGE_KEY, "true");
-  } catch {
-    // Sign-in remains available even when persistent browser storage is unavailable.
-  }
+  window.localStorage.setItem(ONBOARDING_SEEN_STORAGE_KEY, "true");
 }
 
 function readOnboardingDraft(): OnboardingDraft | undefined {
   if (typeof window === "undefined") return undefined;
+  const raw = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+  if (!raw) return undefined;
 
   try {
-    const raw = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
-    if (!raw) return undefined;
     const parsed = JSON.parse(raw) as Partial<OnboardingDraft>;
     if (typeof parsed !== "object" || !parsed) return undefined;
     return {

@@ -7,7 +7,6 @@ import {
   type ReflectionProcessing,
   type ReflectionProposal
 } from "@/lib/reflections";
-import { openOfflineDatabase } from "@/lib/offlineDatabase";
 
 export type ReminderList = {
   id: string;
@@ -39,8 +38,13 @@ export type Note = {
 
 export const NOTES_CHANGED_EVENT = "open-abundance:notes-changed";
 
+const DB_NAME = "open-abundance-offline";
+const DB_VERSION = 4;
 const NOTES_STORE = "notes";
 const LISTS_STORE = "lists";
+const TASKS_STORE = "tasks";
+const TASK_COMPLETIONS_STORE = "taskCompletions";
+const GUEST_STORE = "guestIdentity";
 
 type NoteInput = Pick<Note, "id" | "title" | "body" | "syncStatus"> & {
   listId?: string;
@@ -52,12 +56,40 @@ type NoteInput = Pick<Note, "id" | "title" | "body" | "syncStatus"> & {
 
 type ListInput = Pick<ReminderList, "id" | "title" | "icon" | "color" | "syncStatus">;
 
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(NOTES_STORE)) {
+        db.createObjectStore(NOTES_STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(LISTS_STORE)) {
+        db.createObjectStore(LISTS_STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(TASKS_STORE)) {
+        db.createObjectStore(TASKS_STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(TASK_COMPLETIONS_STORE)) {
+        db.createObjectStore(TASK_COMPLETIONS_STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(GUEST_STORE)) {
+        db.createObjectStore(GUEST_STORE, { keyPath: "key" });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 async function withStore<T>(
   storeName: string,
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>
 ): Promise<T> {
-  const db = await openOfflineDatabase();
+  const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, mode);
     const store = tx.objectStore(storeName);

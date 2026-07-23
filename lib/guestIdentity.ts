@@ -1,5 +1,3 @@
-import { openOfflineDatabase } from "@/lib/offlineDatabase";
-
 export type LocalGuestIdentity = {
   guestId: string;
   createdAt: string;
@@ -15,14 +13,44 @@ export type PendingReferral = {
   claimedAt?: string;
 };
 
+const DB_NAME = "open-abundance-offline";
+const DB_VERSION = 4;
 const GUEST_STORE = "guestIdentity";
 const GUEST_KEY = "current";
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("notes")) {
+        db.createObjectStore("notes", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("lists")) {
+        db.createObjectStore("lists", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("tasks")) {
+        db.createObjectStore("tasks", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("taskCompletions")) {
+        db.createObjectStore("taskCompletions", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(GUEST_STORE)) {
+        db.createObjectStore(GUEST_STORE, { keyPath: "key" });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
 
 async function withGuestStore<T>(
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest<T>
 ): Promise<T> {
-  const db = await openOfflineDatabase();
+  const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(GUEST_STORE, mode);
     const store = tx.objectStore(GUEST_STORE);

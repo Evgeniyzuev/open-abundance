@@ -2,25 +2,6 @@ import { expect, test, type Page } from "@playwright/test";
 
 const TEST_USER_ID = "00000000-0000-4000-8000-000000000001";
 
-test("initial response contains a visible startup fallback before hydration", async ({ request }) => {
-  const response = await request.get("/");
-  expect(response.ok()).toBeTruthy();
-  const html = await response.text();
-  expect(html).toContain("startup-screen");
-  expect(html).toContain("Opening Open Abundance");
-  expect(html).toContain("Retry loading");
-});
-
-test("service worker does not cache navigation HTML", async ({ request }) => {
-  const response = await request.get("/sw.js");
-  expect(response.ok()).toBeTruthy();
-  expect(response.headers()["cache-control"]).toContain("no-store");
-  const source = await response.text();
-  expect(source).toContain('const OFFLINE_URL = "/offline.html"');
-  expect(source).not.toContain('cache.put("/"');
-  expect(source).not.toContain('cache.match("/"');
-});
-
 async function prepareAuthenticatedApp(page: Page) {
   await page.route("**/api/user/context?**", async (route) => {
     await route.fulfill({

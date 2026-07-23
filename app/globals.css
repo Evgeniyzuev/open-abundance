@@ -25,6 +25,19 @@ button, input, textarea, select { font: inherit; }
 button { border: 0; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.45; }
 .app-shell { min-height: 100vh; padding: 0; }
+.startup-screen, .app-error-screen { min-height: 100dvh; display: grid; place-items: center; padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom)); background: linear-gradient(145deg, #dff5ff 0%, #ece3ff 48%, #fff2d8 100%); }
+.startup-card, .app-error-card { width: min(100%, 430px); display: grid; justify-items: center; gap: 13px; border: 1px solid rgba(255,255,255,0.88); border-radius: 28px; padding: 34px 24px; background: rgba(255,255,255,0.84); box-shadow: 0 28px 80px rgba(44,38,86,0.18); text-align: center; backdrop-filter: blur(24px) saturate(1.2); }
+.startup-brand { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; background: linear-gradient(145deg, #665cff, #0a84ff); color: white; font-size: 19px; font-weight: 950; box-shadow: 0 12px 26px rgba(82,76,216,0.28); }
+.startup-spinner { width: 26px; height: 26px; margin-top: 4px; border: 3px solid rgba(81,73,187,0.16); border-top-color: #5149bb; border-radius: 999px; animation: startupSpin 800ms linear infinite; }
+.startup-card h1, .app-error-card h1 { margin: 2px 0 0; color: #17142c; font-size: 25px; line-height: 1.08; letter-spacing: -0.025em; text-wrap: balance; }
+.startup-card p, .app-error-card p { max-width: 350px; margin: 0; color: #5d596e; font-size: 14px; line-height: 1.42; text-wrap: balance; }
+.startup-actions { width: 100%; display: grid; gap: 8px; margin-top: 7px; visibility: hidden; opacity: 0; animation: startupActionsReveal 0s linear 4s forwards; }
+.startup-actions.visible { visibility: visible; opacity: 1; animation: none; }
+.startup-retry, .startup-reset-session, .app-error-retry { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; border-radius: 15px; padding: 0 16px; font-weight: 900; text-decoration: none; }
+.startup-retry, .app-error-retry { background: linear-gradient(115deg, #675dff, #0a84ff); color: white; box-shadow: 0 12px 24px rgba(66,86,218,0.22); }
+.startup-reset-session { border: 1px solid rgba(82,76,216,0.15); background: rgba(255,255,255,0.78); color: #5149bb; }
+@keyframes startupSpin { to { transform: rotate(360deg); } }
+@keyframes startupActionsReveal { to { visibility: visible; opacity: 1; } }
 .app-content { min-height: 100vh; padding: 84px 0 98px; }
 .app-view { display: contents; }
 .app-view[hidden] { display: none; }
@@ -146,7 +159,10 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .onboarding-auth-secondary-actions button { min-height: 30px; color: #5149bb; font-size: 12px; font-weight: 850; text-decoration: underline; text-underline-offset: 3px; }
 .onboarding-auth-secondary-actions button:disabled { text-decoration: none; }
 @keyframes onboardingSlideIn { from { opacity: 0; transform: translateY(10px) scale(0.992); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@media (prefers-reduced-motion: reduce) { .onboarding-screen, .onboarding-progress i, .onboarding-slide, .onboarding-primary-action, .onboarding-secondary-action { animation: none; transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .startup-spinner { animation-duration: 1.8s; }
+  .onboarding-screen, .onboarding-progress i, .onboarding-slide, .onboarding-primary-action, .onboarding-secondary-action { animation: none; transition: none; }
+}
 .results-screen { width: min(100vw, 610px); display: grid; gap: 10px; margin: 0 auto; padding: 0 6px 20px; }
 .results-inventory-section { display: grid; gap: 8px; }
 .results-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 0 3px; }

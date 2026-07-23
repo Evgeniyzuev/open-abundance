@@ -1,21 +1,29 @@
-const CACHE_NAME = "open-abundance-v6";
-const APP_SHELL = [
-  "/",
+const CACHE_PREFIX = "open-abundance-";
+const CACHE_NAME = "open-abundance-v7";
+const OFFLINE_URL = "/offline.html";
+const PRECACHE_URLS = [
+  OFFLINE_URL,
   "/manifest.webmanifest",
   "/icons/icon.svg",
   "/icons/icon2.svg",
   "/icons/twenty-levels-app-icon-192.png",
   "/icons/twenty-levels-app-icon-512.png"
 ];
-const NAVIGATION_NETWORK_TIMEOUT_MS = 700;
+const NAVIGATION_NETWORK_TIMEOUT_MS = 5_000;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(
+      keys
+        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+        .map((key) => caches.delete(key))
+    ))
+  );
   self.clients.claim();
 });
 
@@ -31,11 +39,20 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(handleNavigation(request, event));
+    event.respondWith(handleNavigation(request));
     return;
   }
 
-  event.respondWith(handleAsset(request, event));
+  if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  if (isRuntimeStaticAsset(url.pathname)) {
+    event.respondWith(staleWhileRevalidate(request, event));
+  }
 });
 
 self.addEventListener("push", (event) => {
@@ -71,38 +88,36 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-async function handleNavigation(request, event) {
-  const cache = await caches.open(CACHE_NAME);
-  const cachedShell = await cache.match("/");
-  const fetchPromise = fetch(request)
-    .then((response) => {
-      if (response.ok) {
-        cache.put("/", response.clone()).catch(() => undefined);
-      }
-      return response;
-    });
-
-  if (!cachedShell) {
-    return fetchPromise.catch(() => offlineResponse());
-  }
-
-  event.waitUntil(fetchPromise.catch(() => undefined));
+async function handleNavigation(request) {
+  const networkRequest = fetch(request, { cache: "no-store" });
 
   if (self.navigator && self.navigator.onLine === false) {
-    return cachedShell;
+    return offlinePage();
   }
 
-  const timeoutPromise = new Promise((resolve) => {
-    setTimeout(() => resolve(cachedShell), NAVIGATION_NETWORK_TIMEOUT_MS);
+  const timeout = new Promise((resolve) => {
+    setTimeout(() => resolve(null), NAVIGATION_NETWORK_TIMEOUT_MS);
   });
-
-  return Promise.race([fetchPromise, timeoutPromise]).catch(() => cachedShell);
+  const response = await Promise.race([networkRequest.catch(() => null), timeout]);
+  return response || offlinePage();
 }
 
-async function handleAsset(request, event) {
+async function cacheFirst(request) {
   const cached = await caches.match(request);
-  const fetchPromise = fetch(request).then(async (response) => {
-    if (shouldCache(response)) {
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response && response.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone()).catch(() => undefined);
+  }
+  return response;
+}
+
+async function staleWhileRevalidate(request, event) {
+  const cached = await caches.match(request);
+  const networkRequest = fetch(request).then(async (response) => {
+    if (response && response.ok) {
       const cache = await caches.open(CACHE_NAME);
       await cache.put(request, response.clone()).catch(() => undefined);
     }
@@ -110,23 +125,24 @@ async function handleAsset(request, event) {
   });
 
   if (cached) {
-    event.waitUntil(fetchPromise.catch(() => undefined));
+    event.waitUntil(networkRequest.catch(() => undefined));
     return cached;
   }
 
-  return fetchPromise;
+  return networkRequest;
 }
 
-function shouldCache(response) {
-  return response && (response.ok || response.type === "opaque");
+function isRuntimeStaticAsset(pathname) {
+  return pathname === "/manifest.webmanifest"
+    || pathname.startsWith("/icons/")
+    || pathname.startsWith("/onboarding/");
 }
 
-function offlineResponse() {
-  return new Response("Offline", {
+async function offlinePage() {
+  const cached = await caches.match(OFFLINE_URL);
+  return cached || new Response("Offline", {
     status: 503,
     statusText: "Offline",
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8"
-    }
+    headers: { "Content-Type": "text/plain; charset=utf-8" }
   });
 }

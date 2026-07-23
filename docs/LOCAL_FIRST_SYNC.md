@@ -248,19 +248,19 @@ For these server-backed screens, stale UI can be caused by HTTP/CDN/route cachin
 - Critical GET route handlers use `dynamic = "force-dynamic"`, `revalidate = 0`, and `fetchCache = "force-no-store"`.
 - Client refresh calls use `cache: "no-store"` and a timestamp query parameter for repeated manual refreshes.
 - Service worker fetch handling must pass `/api/*` requests directly to network with `cache: "no-store"` and must not cache API JSON.
-- Navigation/app-shell handling may use a short network-first timeout and then fall back to the cached shell, so offline startup stays instant.
+- Navigation HTML is always network-first and is never stored as a reusable Next.js shell. After a bounded wait, the service worker falls back to a self-contained `/offline.html` page that has no dependency on versioned JavaScript chunks.
 
 This keeps notes/tasks instant and offline-friendly while preventing server-backed UI from being overwritten by stale server responses.
 
 ## Startup Contract
 
-The app shell and local-first views must not wait for Supabase session refresh or `/api/user/context`.
+The first server-rendered response must always contain a visible startup state. Auth or storage initialization must never produce an empty document.
 
-- A returning device uses the local onboarding-completion marker to render the app shell immediately.
-- On a new device, the gate waits only for the locally persisted auth session so it can choose between onboarding and the app shell.
-- User profile, Core, Wallet, and other server context load in the background.
-- Notes and Checks stay mounted after the shell opens and hydrate from IndexedDB independently of network state.
-- Server-backed tabs may show their own first-payload loading state, but their requests must never blank or suspend local-first tabs.
+- Supabase session restoration has an 8-second deadline. After 4 seconds the startup screen exposes retry and local-session-reset actions.
+- Session reset removes only Supabase auth storage; it must preserve the `open-abundance-offline` IndexedDB database.
+- User profile, Core, Wallet, and other server context load after auth resolution without replacing the startup state with a blank screen.
+- IndexedDB open requests share one schema helper, close on `versionchange`, and fail visibly on `blocked` or timeout instead of waiting forever.
+- Route and global error boundaries provide a retry UI for render failures.
 
 ## Cleanup Notes After Cache Fix
 
@@ -271,7 +271,7 @@ Changes from the investigation that are probably temporary and can be removed af
 - API response debug blocks with `debug.supabaseProjectRef` and `debug.serverReadAt`.
 - Diagnostic response fields used only to prove auth/read context, such as `viewerUserId`, `authenticated`, and `userChallengeCount`, unless the UI still needs them for safety.
 - Any one-off `needsClientRefresh` response flag left from the reinvest investigation.
-- A very short service worker update check interval, such as 30 seconds, if it was only used to make the fixed deployment arrive faster. Restore a calmer interval after update delivery is confirmed, but keep the short navigation fallback timeout for offline startup.
+- A very short service worker update check interval, such as 30 seconds, if it was only used to make the fixed deployment arrive faster. The normal interval is one hour; navigation uses a bounded network wait and then the static offline page.
 
 Changes that are still useful as defensive behavior and should not be removed just because caching was the root cause:
 

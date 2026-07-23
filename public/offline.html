@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#0f8f72">
+    <title>Open Abundance — Offline</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: linear-gradient(145deg, #dff5ff 0%, #ece3ff 48%, #fff2d8 100%);
+        color: #17142c;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      main {
+        width: min(100%, 430px);
+        display: grid;
+        justify-items: center;
+        gap: 13px;
+        border: 1px solid rgba(255,255,255,0.88);
+        border-radius: 28px;
+        padding: 34px 24px;
+        background: rgba(255,255,255,0.86);
+        box-shadow: 0 28px 80px rgba(44,38,86,0.18);
+        text-align: center;
+      }
+      .brand {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        border-radius: 18px;
+        background: linear-gradient(145deg, #665cff, #0a84ff);
+        color: white;
+        font-size: 19px;
+        font-weight: 950;
+      }
+      h1 { margin: 5px 0 0; font-size: 25px; line-height: 1.08; }
+      p { margin: 0; color: #5d596e; font-size: 14px; line-height: 1.42; }
+      a {
+        width: 100%;
+        min-height: 46px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 8px;
+        border-radius: 15px;
+        padding: 0 16px;
+        background: linear-gradient(115deg, #675dff, #0a84ff);
+        color: white;
+        font-weight: 900;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="brand" aria-hidden="true">OA</span>
+      <h1>No connection / Нет сети</h1>
+      <p>Connect to the internet and retry.<br>Подключитесь к интернету и повторите загрузку.</p>
+      <a href="/?offline-retry=1">Retry / Повторить</a>
+    </main>
+  </body>
+</html>

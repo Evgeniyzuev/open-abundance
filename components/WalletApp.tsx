@@ -1265,11 +1265,11 @@ function CoreLevelProgress({
   return (
     <section className={`core-level-panel${chargeClass}`} aria-label={t("wallet.coreProgress.aria")}>
       <div className="core-reactor" aria-hidden="true">
-        <span className="core-reactor-glow" />
-        <span className="core-reactor-ring one"><i /></span>
-        <span className="core-reactor-ring two"><i /></span>
-        <span className="core-reactor-ring three"><i /></span>
-        <span className="core-reactor-core" />
+        <span className="core-reactor-halo" />
+        <span className="core-reactor-orb">
+          <span className="core-reactor-energy" />
+          <span className="core-reactor-nucleus" />
+        </span>
       </div>
       <div className="core-level-content">
         <div className="core-level-head">
@@ -1283,9 +1283,7 @@ function CoreLevelProgress({
           aria-valuemax={threshold ?? Math.max(1, core.balance)}
           aria-valuenow={threshold ? Math.min(core.balance, threshold) : Math.max(1, core.balance)}
         >
-          <div className="core-level-fill" style={{ width: `${displayProgress}%` }}>
-            <span className="core-level-spark" />
-          </div>
+          <div className="core-level-fill" style={{ width: `${displayProgress}%` }} />
         </div>
         <div className="core-level-meta">
           <span>{displayProgress}%</span>

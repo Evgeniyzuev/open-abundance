@@ -31,7 +31,7 @@
 
 ### Verified Reality Feed
 
-- **Статус:** Сейчас — 23 server-backed demo posts реализованы, 10 согласованных demo-текстов обновлены, 12 system stories опубликованы; профиль `Abundance System` реализован, real verified `Challenge Done` остается следующим срезом.
+- **Статус:** Сейчас — 23 server-backed demo posts реализованы, 10 согласованных demo-текстов обновлены, 12 system stories опубликованы; профиль `Abundance System` реализован, real verified `Challenge Done` реализован (миграция + API + интеграция с check route), ожидает применения миграции и User QA.
 - **Пользовательский результат:** в `People → Feed` пользователь различает fictional `Демо-истории`, системные объясняющие главы `Abundance System` и ручной контент по автору, аватару и отдельным бейджам; у всех demo и system stories есть изображения.
 - **Почему сейчас:** Notes и Home/Today уже поддерживают личное действие, а receipt подтверждает награду; следующий риск — пользователь не видит накопленный результат и не получает безопасного социального сигнала для возвращения.
 - **Главное решение:** Verified Reality Feed остается вторичной вкладкой `People → Feed`; первый slice строится только из server-backed completion факта challenge и метаданных challenge, без суммы reward/ledger и финансовых обещаний. `Демо`, системно подтвержденные факты и ручной пользовательский контент никогда не смешиваются.
@@ -60,14 +60,37 @@
 
 ## Следующие шаги
 
-1. [ ] **Возврат Day 1/3/7 и недельная сюжетная дуга**
+1. [ ] **Verified Challenge Done (завершение Reality Feed)**
+   - Server-backed read model для challenge completion snapshot.
+   - Один verified пост на один completion, без reward/ledger.
+   - CTA в challenge/Today.
+
+2. [ ] **Marketplace Phase 3-4: Deals + Atomic Completion**
+   - `marketplace_deals`, `marketplace_deal_events`, создание сделки, Wallet reserve/escrow.
+   - Атомарное завершение: transfer Wallet + item ownership, refund/cancel/expire.
+   - Связанные документы: `docs/MARKETPLACE_ESCROW_PLAN.md`, `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
+
+3. [ ] **MVP панели команды (лидерский дашборд)**
+   - Список участников, свободное Лидерство, прогресс команды.
+   - Базовая коммуникация: личный чат лид → участник.
+   - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/BLOGGER_OUTREACH_PLAN.md`.
+
+4. [ ] **Daily Progress автопост (Reality Feed MVP-2)**
+   - Daily snapshot, выбор видимых блоков, stat card.
+   - Публикация в ленту и личный блог.
+
+5. [ ] **Обучающие челленджи для лидеров**
+   - "Приведи первого участника", "Помоги новичку", "Стань лидером".
+   - Связанные документы: `docs/LEADER_GROWTH_PROGRAM.md`.
+
+6. [ ] **Возврат Day 1/3/7 и недельная сюжетная дуга**
    - Связать новый Today, streak без наказаний, обновленный прогноз и результаты других участников.
 
-2. [ ] **Реферальное приглашение после первого результата**
+7. [ ] **Реферальное приглашение после первого результата**
    - Открывать активное приглашение после подтвержденной награды.
    - Считать активированных участников, а не регистрации.
 
-3. [ ] **Ограниченный автоматический вывод Wallet**
+8. [ ] **Ограниченный автоматический вывод Wallet**
    - Выбрать одну сеть, разделить cold treasury и hot payout wallet, реализовать idempotent payout worker и светофор ликвидности.
    - Начать только после подтверждения допустимой для юрисдикции модели частных переводов/custody.
 

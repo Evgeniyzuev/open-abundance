@@ -107,6 +107,22 @@ export async function POST(request: NextRequest) {
       source: "server",
       userId: user.id
     });
+
+    // Create verified Challenge Done post in feed
+    try {
+      const { error: verifiedPostError } = await (supabase as any).rpc("create_verified_challenge_post", {
+        p_user_id: user.id,
+        p_challenge_id: challenge.id,
+        p_challenge_title: challenge.title,
+        p_challenge_category: challenge.category,
+        p_verification_type: challenge.verification_type
+      });
+      if (verifiedPostError) {
+        console.error("Failed to create verified challenge post:", verifiedPostError.message);
+      }
+    } catch (postError) {
+      console.error("Failed to create verified challenge post:", postError instanceof Error ? postError.message : "Unknown error");
+    }
   }
   const [coreResult, walletResult] = await Promise.all([
     supabase.from("core_accounts").select("*").eq("user_id", user.id).maybeSingle(),

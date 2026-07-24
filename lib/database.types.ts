@@ -12,8 +12,87 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      challenge_completion_snapshots: {
+        Row: {
+          challenge_category: string | null
+          challenge_id: string
+          challenge_title: Json
+          completed_at: string
+          created_at: string
+          feed_post_id: string | null
+          id: string
+          metadata: Json
+          user_id: string
+          verification_type: string | null
+        }
+        Insert: {
+          challenge_category?: string | null
+          challenge_id: string
+          challenge_title: Json
+          completed_at: string
+          created_at?: string
+          feed_post_id?: string | null
+          id?: string
+          metadata?: Json
+          user_id: string
+          verification_type?: string | null
+        }
+        Update: {
+          challenge_category?: string | null
+          challenge_id?: string
+          challenge_title?: Json
+          completed_at?: string
+          created_at?: string
+          feed_post_id?: string | null
+          id?: string
+          metadata?: Json
+          user_id?: string
+          verification_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_completion_snapshots_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_completion_snapshots_feed_post_id_fkey"
+            columns: ["feed_post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenges: {
         Row: {
           action_view: string | null
@@ -30,9 +109,9 @@ export type Database = {
           requirements: Json
           reward_label: Json
           sort_order: number
+          title: Json
           track_key: string | null
           track_step: number | null
-          title: Json
           verification_logic: string | null
           verification_type: string
         }
@@ -51,9 +130,9 @@ export type Database = {
           requirements?: Json
           reward_label?: Json
           sort_order?: number
+          title?: Json
           track_key?: string | null
           track_step?: number | null
-          title?: Json
           verification_logic?: string | null
           verification_type?: string
         }
@@ -72,9 +151,9 @@ export type Database = {
           requirements?: Json
           reward_label?: Json
           sort_order?: number
+          title?: Json
           track_key?: string | null
           track_step?: number | null
-          title?: Json
           verification_logic?: string | null
           verification_type?: string
         }
@@ -87,190 +166,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      product_events: {
-        Row: {
-          anonymous_id: string | null
-          created_at: string
-          entity_id: string | null
-          entity_type: string | null
-          event_name: string
-          id: string
-          occurred_at: string
-          properties: Json
-          source: string
-          user_id: string | null
-        }
-        Insert: {
-          anonymous_id?: string | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type?: string | null
-          event_name: string
-          id?: string
-          occurred_at?: string
-          properties?: Json
-          source?: string
-          user_id?: string | null
-        }
-        Update: {
-          anonymous_id?: string | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type?: string | null
-          event_name?: string
-          id?: string
-          occurred_at?: string
-          properties?: Json
-          source?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      project_applications: {
-        Row: {
-          applied_at: string
-          id: string
-          message: string | null
-          project_id: string
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          applied_at?: string
-          id?: string
-          message?: string | null
-          project_id: string
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          applied_at?: string
-          id?: string
-          message?: string | null
-          project_id?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_applications_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      project_tasks: {
-        Row: {
-          created_at: string
-          description: Json
-          difficulty_level: number
-          id: string
-          is_active: boolean
-          project_id: string
-          reward_label: Json
-          sort_order: number
-          title: Json
-          verification_type: string
-        }
-        Insert: {
-          created_at?: string
-          description?: Json
-          difficulty_level?: number
-          id?: string
-          is_active?: boolean
-          project_id: string
-          reward_label?: Json
-          sort_order?: number
-          title?: Json
-          verification_type?: string
-        }
-        Update: {
-          created_at?: string
-          description?: Json
-          difficulty_level?: number
-          id?: string
-          is_active?: boolean
-          project_id?: string
-          reward_label?: Json
-          sort_order?: number
-          title?: Json
-          verification_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_tasks_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      projects: {
-        Row: {
-          category: string
-          created_at: string
-          current_participants: number
-          deadline: string | null
-          description: Json
-          id: string
-          image_url: string | null
-          instructions: Json
-          is_active: boolean
-          level: number
-          max_participants: number
-          owner_id: string | null
-          owner_name: string
-          priority: number
-          requirements: Json
-          title: Json
-          updated_at: string
-        }
-        Insert: {
-          category?: string
-          created_at?: string
-          current_participants?: number
-          deadline?: string | null
-          description?: Json
-          id?: string
-          image_url?: string | null
-          instructions?: Json
-          is_active?: boolean
-          level?: number
-          max_participants?: number
-          owner_id?: string | null
-          owner_name?: string
-          priority?: number
-          requirements?: Json
-          title?: Json
-          updated_at?: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          current_participants?: number
-          deadline?: string | null
-          description?: Json
-          id?: string
-          image_url?: string | null
-          instructions?: Json
-          is_active?: boolean
-          level?: number
-          max_participants?: number
-          owner_id?: string | null
-          owner_name?: string
-          priority?: number
-          requirements?: Json
-          title?: Json
-          updated_at?: string
-        }
-        Relationships: []
       }
       core_accounts: {
         Row: {
@@ -971,6 +866,45 @@ export type Database = {
           },
         ]
       }
+      product_events: {
+        Row: {
+          anonymous_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          event_name: string
+          id: string
+          occurred_at: string
+          properties: Json
+          source: string
+          user_id: string | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_name: string
+          id?: string
+          occurred_at?: string
+          properties?: Json
+          source?: string
+          user_id?: string | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_name?: string
+          id?: string
+          occurred_at?: string
+          properties?: Json
+          source?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       progress_snapshots: {
         Row: {
           core_after: number | null
@@ -1019,6 +953,190 @@ export type Database = {
           updated_at?: string
           user_id?: string
           wallet_amount?: number | null
+        }
+        Relationships: []
+      }
+      project_applications: {
+        Row: {
+          applied_at: string
+          id: string
+          message: string | null
+          project_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string
+          id?: string
+          message?: string | null
+          project_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string
+          id?: string
+          message?: string | null
+          project_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_applications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_tasks: {
+        Row: {
+          created_at: string
+          description: Json
+          difficulty_level: number
+          id: string
+          is_active: boolean
+          project_id: string
+          reward_label: Json
+          sort_order: number
+          title: Json
+          verification_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: Json
+          difficulty_level?: number
+          id?: string
+          is_active?: boolean
+          project_id: string
+          reward_label?: Json
+          sort_order?: number
+          title?: Json
+          verification_type?: string
+        }
+        Update: {
+          created_at?: string
+          description?: Json
+          difficulty_level?: number
+          id?: string
+          is_active?: boolean
+          project_id?: string
+          reward_label?: Json
+          sort_order?: number
+          title?: Json
+          verification_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          category: string
+          created_at: string
+          current_participants: number
+          deadline: string | null
+          description: Json
+          id: string
+          image_url: string | null
+          instructions: Json
+          is_active: boolean
+          level: number
+          max_participants: number
+          owner_id: string | null
+          owner_name: string
+          priority: number
+          requirements: Json
+          title: Json
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          current_participants?: number
+          deadline?: string | null
+          description?: Json
+          id?: string
+          image_url?: string | null
+          instructions?: Json
+          is_active?: boolean
+          level?: number
+          max_participants?: number
+          owner_id?: string | null
+          owner_name?: string
+          priority?: number
+          requirements?: Json
+          title?: Json
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          current_participants?: number
+          deadline?: string | null
+          description?: Json
+          id?: string
+          image_url?: string | null
+          instructions?: Json
+          is_active?: boolean
+          level?: number
+          max_participants?: number
+          owner_id?: string | null
+          owner_name?: string
+          priority?: number
+          requirements?: Json
+          title?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          enabled: boolean
+          endpoint: string
+          id: string
+          last_success_at: string | null
+          owner_key: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          enabled?: boolean
+          endpoint: string
+          id?: string
+          last_success_at?: string | null
+          owner_key: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          enabled?: boolean
+          endpoint?: string
+          id?: string
+          last_success_at?: string | null
+          owner_key?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
         }
         Relationships: []
       }
@@ -1156,6 +1274,98 @@ export type Database = {
           },
         ]
       }
+      reminder_jobs: {
+        Row: {
+          attempts: number
+          client_reminder_id: string
+          created_at: string
+          deep_link: string
+          due_at: string
+          id: string
+          kind: string
+          last_error: string | null
+          local_time: string | null
+          locale: string
+          recurring: boolean
+          status: string
+          subscription_id: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          client_reminder_id: string
+          created_at?: string
+          deep_link?: string
+          due_at: string
+          id?: string
+          kind: string
+          last_error?: string | null
+          local_time?: string | null
+          locale?: string
+          recurring?: boolean
+          status?: string
+          subscription_id: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          client_reminder_id?: string
+          created_at?: string
+          deep_link?: string
+          due_at?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          local_time?: string | null
+          locale?: string
+          recurring?: boolean
+          status?: string
+          subscription_id?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_jobs_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "push_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_assignment_queue: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          last_attempt_at: string | null
+          member_user_id: string
+          reason: string
+          referrer_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          last_attempt_at?: string | null
+          member_user_id: string
+          reason?: string
+          referrer_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          last_attempt_at?: string | null
+          member_user_id?: string
+          reason?: string
+          referrer_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_core_growth_rewards: {
         Row: {
           batch_id: string | null
@@ -1198,36 +1408,6 @@ export type Database = {
           source_core_before?: number
           source_core_delta?: number
           source_user_id?: string
-        }
-        Relationships: []
-      }
-      team_assignment_queue: {
-        Row: {
-          attempt_count: number
-          created_at: string
-          last_attempt_at: string | null
-          member_user_id: string
-          reason: string
-          referrer_user_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          attempt_count?: number
-          created_at?: string
-          last_attempt_at?: string | null
-          member_user_id: string
-          reason?: string
-          referrer_user_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          attempt_count?: number
-          created_at?: string
-          last_attempt_at?: string | null
-          member_user_id?: string
-          reason?: string
-          referrer_user_id?: string | null
-          updated_at?: string
         }
         Relationships: []
       }
@@ -1315,6 +1495,41 @@ export type Database = {
         }
         Relationships: []
       }
+      today_progress_events: {
+        Row: {
+          amount_core: number
+          created_at: string
+          id: string
+          source_id: string
+          source_type: string
+          today_instance_id: string
+        }
+        Insert: {
+          amount_core: number
+          created_at?: string
+          id?: string
+          source_id: string
+          source_type: string
+          today_instance_id: string
+        }
+        Update: {
+          amount_core?: number
+          created_at?: string
+          id?: string
+          source_id?: string
+          source_type?: string
+          today_instance_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "today_progress_events_today_instance_id_fkey"
+            columns: ["today_instance_id"]
+            isOneToOne: false
+            referencedRelation: "user_today_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trust_events: {
         Row: {
           actor_user_id: string
@@ -1362,192 +1577,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      user_core_growth_plans: {
-        Row: {
-          calculated_days_to_goal: number | null
-          created_at: string
-          daily_additions: number
-          id: string
-          is_active: boolean
-          metadata: Json
-          reinvest_percent: number
-          start_core: number
-          target_type: string
-          target_value: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          calculated_days_to_goal?: number | null
-          created_at?: string
-          daily_additions?: number
-          id?: string
-          is_active?: boolean
-          metadata?: Json
-          reinvest_percent?: number
-          start_core?: number
-          target_type?: string
-          target_value: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          calculated_days_to_goal?: number | null
-          created_at?: string
-          daily_additions?: number
-          id?: string
-          is_active?: boolean
-          metadata?: Json
-          reinvest_percent?: number
-          start_core?: number
-          target_type?: string
-          target_value?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_today_instances: {
-        Row: {
-          completed_at: string | null
-          core_growth_plan_id: string | null
-          created_at: string
-          first_seen_at: string
-          id: string
-          info_seen_at: string | null
-          local_date: string
-          progress_core: number
-          status: string
-          target_core: number
-          timezone: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          core_growth_plan_id?: string | null
-          created_at?: string
-          first_seen_at?: string
-          id?: string
-          info_seen_at?: string | null
-          local_date: string
-          progress_core?: number
-          status?: string
-          target_core?: number
-          timezone?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          core_growth_plan_id?: string | null
-          created_at?: string
-          first_seen_at?: string
-          id?: string
-          info_seen_at?: string | null
-          local_date?: string
-          progress_core?: number
-          status?: string
-          target_core?: number
-          timezone?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_today_instances_core_growth_plan_id_fkey"
-            columns: ["core_growth_plan_id"]
-            isOneToOne: false
-            referencedRelation: "user_core_growth_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_today_items: {
-        Row: {
-          completed_at: string | null
-          created_at: string
-          id: string
-          item_key: string
-          sort_order: number
-          source_id: string | null
-          source_type: string
-          status: string
-          title: Json
-          today_instance_id: string
-          updated_at: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string
-          id?: string
-          item_key: string
-          sort_order?: number
-          source_id?: string | null
-          source_type?: string
-          status?: string
-          title?: Json
-          today_instance_id: string
-          updated_at?: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string
-          id?: string
-          item_key?: string
-          sort_order?: number
-          source_id?: string | null
-          source_type?: string
-          status?: string
-          title?: Json
-          today_instance_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_today_items_today_instance_id_fkey"
-            columns: ["today_instance_id"]
-            isOneToOne: false
-            referencedRelation: "user_today_instances"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      today_progress_events: {
-        Row: {
-          amount_core: number
-          created_at: string
-          id: string
-          source_id: string
-          source_type: string
-          today_instance_id: string
-        }
-        Insert: {
-          amount_core: number
-          created_at?: string
-          id?: string
-          source_id: string
-          source_type: string
-          today_instance_id: string
-        }
-        Update: {
-          amount_core?: number
-          created_at?: string
-          id?: string
-          source_id?: string
-          source_type?: string
-          today_instance_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "today_progress_events_today_instance_id_fkey"
-            columns: ["today_instance_id"]
-            isOneToOne: false
-            referencedRelation: "user_today_instances"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_artifacts: {
         Row: {
@@ -1674,6 +1703,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_core_growth_plans: {
+        Row: {
+          calculated_days_to_goal: number | null
+          created_at: string
+          daily_additions: number
+          id: string
+          is_active: boolean
+          metadata: Json
+          reinvest_percent: number
+          start_core: number
+          target_type: string
+          target_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calculated_days_to_goal?: number | null
+          created_at?: string
+          daily_additions?: number
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          reinvest_percent?: number
+          start_core?: number
+          target_type?: string
+          target_value: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calculated_days_to_goal?: number | null
+          created_at?: string
+          daily_additions?: number
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          reinvest_percent?: number
+          start_core?: number
+          target_type?: string
+          target_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_profile_links: {
         Row: {
           created_at: string
@@ -1784,6 +1858,112 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      user_today_instances: {
+        Row: {
+          completed_at: string | null
+          core_growth_plan_id: string | null
+          created_at: string
+          first_seen_at: string
+          id: string
+          info_seen_at: string | null
+          local_date: string
+          progress_core: number
+          status: string
+          target_core: number
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          core_growth_plan_id?: string | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          info_seen_at?: string | null
+          local_date: string
+          progress_core?: number
+          status?: string
+          target_core?: number
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          core_growth_plan_id?: string | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          info_seen_at?: string | null
+          local_date?: string
+          progress_core?: number
+          status?: string
+          target_core?: number
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_today_instances_core_growth_plan_id_fkey"
+            columns: ["core_growth_plan_id"]
+            isOneToOne: false
+            referencedRelation: "user_core_growth_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_today_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          item_key: string
+          sort_order: number
+          source_id: string | null
+          source_type: string
+          status: string
+          title: Json
+          today_instance_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          item_key: string
+          sort_order?: number
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          title?: Json
+          today_instance_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          item_key?: string
+          sort_order?: number
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          title?: Json
+          today_instance_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_today_items_today_instance_id_fkey"
+            columns: ["today_instance_id"]
+            isOneToOne: false
+            referencedRelation: "user_today_instances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wallet_accounts: {
         Row: {
@@ -1958,6 +2138,51 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_team_member: {
+        Args: {
+          p_allow_transition?: boolean
+          p_member_user_id: string
+          p_reason?: string
+          p_referrer_user_id?: string
+        }
+        Returns: {
+          assigned_leader_user_id: string
+          assignment_source: string
+          assignment_status: string
+          queue_reason: string
+        }[]
+      }
+      calculate_core_level: { Args: { core_balance: number }; Returns: number }
+      can_be_team_leader: {
+        Args: { p_leader_user_id: string; p_member_user_id: string }
+        Returns: boolean
+      }
+      claim_due_reminder_jobs: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          client_reminder_id: string
+          created_at: string
+          deep_link: string
+          due_at: string
+          id: string
+          kind: string
+          last_error: string | null
+          local_time: string | null
+          locale: string
+          recurring: boolean
+          status: string
+          subscription_id: string
+          timezone: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "reminder_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_referral_and_assign_team: {
         Args: {
           p_captured_at?: string
@@ -1966,13 +2191,16 @@ export type Database = {
           p_referral_code?: string
         }
         Returns: {
-          assigned_leader_user_id: string | null
+          assigned_leader_user_id: string
           assignment_source: string
           assignment_status: string
-          queue_reason: string | null
+          queue_reason: string
         }[]
       }
-      calculate_core_level: { Args: { core_balance: number }; Returns: number }
+      complete_reminder_job: {
+        Args: { p_error?: string; p_job_id: string; p_success: boolean }
+        Returns: undefined
+      }
       complete_user_challenge: {
         Args: {
           p_challenge_id: string
@@ -1987,7 +2215,50 @@ export type Database = {
           rewarded_amount: number
         }[]
       }
+      create_verified_challenge_post: {
+        Args: {
+          p_challenge_category: string
+          p_challenge_id: string
+          p_challenge_title: Json
+          p_user_id: string
+          p_verification_type: string
+        }
+        Returns: Json
+      }
+      find_team_leader: {
+        Args: {
+          p_excluded_leader_user_id?: string
+          p_member_user_id: string
+          p_prefer_referrer?: boolean
+          p_referrer_user_id?: string
+        }
+        Returns: {
+          assignment_source: string
+          leader_user_id: string
+        }[]
+      }
+      invoke_reflection_reminder_dispatch: { Args: never; Returns: undefined }
+      invoke_reminder_dispatch: { Args: never; Returns: undefined }
+      preview_team_distribution: {
+        Args: { p_limit?: number }
+        Returns: {
+          assignment_source: string
+          member_level: number
+          member_user_id: string
+          proposed_leader_user_id: string
+          reason: string
+          referrer_user_id: string
+        }[]
+      }
       process_team_assignment_queue: {
+        Args: { p_limit?: number }
+        Returns: {
+          assigned_count: number
+          processed_count: number
+          queued_count: number
+        }[]
+      }
+      reconcile_team_distribution: {
         Args: { p_limit?: number }
         Returns: {
           assigned_count: number
@@ -2020,6 +2291,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      sync_team_contacts_for_member: {
+        Args: { p_member_user_id: string }
+        Returns: undefined
+      }
+      team_assignment_would_create_cycle: {
+        Args: { p_leader_user_id: string; p_member_user_id: string }
+        Returns: boolean
+      }
+      team_leader_level_rank: {
+        Args: { p_leader_level: number; p_member_level: number }
+        Returns: number
+      }
       team_leadership_snapshot: {
         Args: { p_user_id: string }
         Returns: {
@@ -2030,10 +2313,6 @@ export type Database = {
           total_points: number
           used_points: number
         }[]
-      }
-      sync_team_contacts_for_member: {
-        Args: { p_member_user_id: string }
-        Returns: undefined
       }
       wallet_core_topup: {
         Args: {
@@ -2188,6 +2467,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

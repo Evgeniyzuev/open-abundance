@@ -59,8 +59,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-ui-scale="100" data-theme="system" suppressHydrationWarning>
+    <html lang="en" className="notranslate" data-ui-scale="100" data-theme="system" suppressHydrationWarning translate="no">
       <head>
+        <meta name="google" content="notranslate" />
         <script dangerouslySetInnerHTML={{ __html: appearanceBootstrapScript }} />
       </head>
       <body>{children}</body>

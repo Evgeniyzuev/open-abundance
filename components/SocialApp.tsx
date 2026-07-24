@@ -4,6 +4,7 @@ import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, 
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
@@ -1220,7 +1221,12 @@ export default function SocialApp({
                 <span>{t("profile.teams.leader")}</span>
                 {teamContext?.leader.type === "user" && teamContext.membership?.leader_user_id ? (
                   <button className="inline-profile-button" type="button" onClick={() => { void openPublicProfile(teamContext.membership?.leader_user_id ?? ""); }}>
-                    {formatLeader(teamContext, locale)}
+                    <UserNameWithLevel
+                      label={t("profile.levelBadge", { level: teamContext.leader.profile?.level ?? 0 })}
+                      level={teamContext.leader.profile?.level}
+                    >
+                      {formatLeader(teamContext, locale)}
+                    </UserNameWithLevel>
                   </button>
                 ) : (
                   <strong>{formatLeader(teamContext, locale)}</strong>
@@ -1229,8 +1235,14 @@ export default function SocialApp({
               </div>
               <div className="team-summary">
                 <span>{t("profile.teams.leadership")}</span>
-                <strong>
-                  {teamContext?.leadership.used_points ?? 0} / {teamContext?.leadership.total_points ?? 0}
+                <strong
+                  className="leadership-value"
+                  aria-label={t("profile.teams.leadershipUsage", {
+                    total: teamContext?.leadership.total_points ?? 0,
+                    used: teamContext?.leadership.used_points ?? 0
+                  })}
+                >
+                  {teamContext?.leadership.used_points ?? 0}/{teamContext?.leadership.total_points ?? 0}
                 </strong>
                 <progress
                   className="leadership-progress"
@@ -1256,8 +1268,14 @@ export default function SocialApp({
                   <div className="compact-profile-list">
                     {teamContext.directMembers.map((member) => (
                       <button className="compact-profile-button" type="button" key={member.userId} onClick={() => { void openPublicProfile(member.userId); }}>
-                        {formatProfileName(member.profile, member.userId)} · {t("profile.teams.memberCost", {
-                          level: member.profile?.level ?? 0,
+                        <UserNameWithLevel
+                          label={t("profile.levelBadge", { level: member.profile?.level ?? 0 })}
+                          level={member.profile?.level}
+                        >
+                          {formatProfileName(member.profile, member.userId)}
+                        </UserNameWithLevel>
+                        {" · "}
+                        {t("profile.teams.memberCost", {
                           points: member.leadershipCost
                         })}
                       </button>
@@ -1312,10 +1330,16 @@ export default function SocialApp({
           <div className="profile-avatar">
             {profile?.avatar_url ? <img alt="" src={profile.avatar_url} /> : <UserRound size={34} />}
           </div>
-          <strong>{displayName}</strong>
+          <strong>
+            <UserNameWithLevel
+              label={t("profile.levelBadge", { level: core?.level ?? profile?.level ?? 0 })}
+              level={core?.level ?? profile?.level ?? 0}
+            >
+              {displayName}
+            </UserNameWithLevel>
+          </strong>
           <p>{handle}</p>
           <div className="profile-facts">
-            <span>Lvl {core?.level ?? profile?.level ?? 0}</span>
             <span>{t("profile.created", { date: profile ? formatDate(profile.created_at, locale) : "..." })}</span>
             <span>{locale.toUpperCase()}</span>
           </div>
@@ -1414,7 +1438,12 @@ export default function SocialApp({
                   return (
                     <article className="contact-row" key={`${contact.contact_user_id}-${contact.source}`}>
                       <button type="button" onClick={() => { void openPublicProfile(contact.contact_user_id); }}>
-                        <span>{formatProfileName(contact.profile, contact.contact_user_id)}</span>
+                        <UserNameWithLevel
+                          label={t("profile.levelBadge", { level: contact.profile?.level ?? 0 })}
+                          level={contact.profile?.level}
+                        >
+                          {formatProfileName(contact.profile, contact.contact_user_id)}
+                        </UserNameWithLevel>
                         <small>{t(contactSourceLabelKey(contact.source))}</small>
                       </button>
                       <div className="contact-actions">
@@ -1535,9 +1564,15 @@ export default function SocialApp({
             <div className="profile-avatar">
               {publicProfile.profile.avatar_url ? <img alt="" src={publicProfile.profile.avatar_url} /> : <UserRound size={34} />}
             </div>
-            <strong>{formatProfileName(publicProfile.profile, publicProfile.profile.user_id)}</strong>
+            <strong>
+              <UserNameWithLevel
+                label={t("profile.levelBadge", { level: publicProfile.profile.level })}
+                level={publicProfile.profile.level}
+              >
+                {formatProfileName(publicProfile.profile, publicProfile.profile.user_id)}
+              </UserNameWithLevel>
+            </strong>
             <div className="profile-facts">
-              <span>Lvl {publicProfile.profile.level}</span>
               {publicProfile.relation.isTeam ? <span>{t("profile.visibility.team")}</span> : null}
               {publicProfile.relation.isContact ? <span>{t("profile.visibility.contacts")}</span> : null}
             </div>
@@ -1653,9 +1688,13 @@ function DirectMessageModal({
             <span className="feed-author-avatar">
               {targetProfile?.avatar_url ? <img alt="" src={targetProfile.avatar_url} /> : <UserRound size={18} />}
             </span>
-            <span>{targetName}</span>
+            <UserNameWithLevel
+              label={targetProfile ? t("profile.levelBadge", { level: targetProfile.level }) : undefined}
+              level={targetProfile?.level}
+            >
+              {targetName}
+            </UserNameWithLevel>
           </button>
-          {targetProfile ? <small>Lvl {targetProfile.level}</small> : null}
         </header>
         <div className="direct-message-list">
           {loading ? <p>{t("app.common.loading")}</p> : null}
@@ -1757,8 +1796,14 @@ function PeopleView({
                   </span>
                   <span className="people-row-copy">
                     <span className="people-row-title">
-                      <strong>{name}</strong>
-                      <em>Lvl {row.profile.level}</em>
+                      <strong>
+                        <UserNameWithLevel
+                          label={t("profile.levelBadge", { level: row.profile.level })}
+                          level={row.profile.level}
+                        >
+                          {name}
+                        </UserNameWithLevel>
+                      </strong>
                     </span>
                     <small>{row.profile.username ? `@${row.profile.username}` : row.headline ?? t("social.people.noHeadline")}</small>
                     {row.headline && row.profile.username ? <p>{row.headline}</p> : null}
@@ -2082,7 +2127,16 @@ function BlogView({
       <section className="blog-heading">
         <div>
           <span>{t("social.blog.title")}</span>
-          <strong>{title}</strong>
+          <strong>
+            {selectedBlogAuthorId ? (
+              <UserNameWithLevel
+                label={author ? t("profile.levelBadge", { level: author.level }) : undefined}
+                level={author?.level}
+              >
+                {title}
+              </UserNameWithLevel>
+            ) : title}
+          </strong>
         </div>
         {selectedBlogAuthorId && selectedBlogAuthorId !== currentUserId ? (
           <button className="secondary-button" type="button" onClick={onOpenOwnBlog}>
@@ -2272,7 +2326,7 @@ function PostCard({
     <article className="feed-post-card">
       <header>
         <div className="feed-author-block">
-          <PostAuthor post={post} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+          <PostAuthor post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
           {post.post_type === "system_story" ? (
             <span className="system-story-badge">
@@ -2410,7 +2464,7 @@ function PostDetailModal({
           <X size={18} />
         </button>
         <div className="post-detail-author-row">
-          <PostAuthor detail post={post} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+          <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
           {post.post_type === "system_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
         </div>
@@ -2523,11 +2577,13 @@ function HistoryPanel({
 function PostAuthor({
   detail = false,
   post,
+  t,
   onOpenAuthor,
   onOpenSystemAccount
 }: {
   detail?: boolean;
   post: FeedPost;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onOpenAuthor: (userId: string) => void;
   onOpenSystemAccount: (accountKey: string) => void;
 }) {
@@ -2537,7 +2593,16 @@ function PostAuthor({
       <span className="feed-author-avatar">
         {isSystemStory ? <img alt="" src={post.systemStory?.account?.avatar_url ?? "/icons/icon2.svg"} /> : post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
       </span>
-      <span>{post.systemStory?.account?.display_name ?? post.authorName ?? formatProfileName(post.author, post.author_user_id ?? "Open Abundance")}</span>
+      {isSystemStory ? (
+        <span>{post.systemStory?.account?.display_name ?? post.authorName ?? "Open Abundance"}</span>
+      ) : (
+        <UserNameWithLevel
+          label={post.author ? t("profile.levelBadge", { level: post.author.level }) : undefined}
+          level={post.author?.level}
+        >
+          {post.authorName ?? formatProfileName(post.author, post.author_user_id ?? "Open Abundance")}
+        </UserNameWithLevel>
+      )}
     </>
   );
 
@@ -2626,7 +2691,12 @@ function TrustConfirmationsPanel({
               <article className={`trust-confirmation-row status-${confirmation.status}`} key={confirmation.id}>
                 <div className="trust-confirmation-main">
                   <button className="trust-profile-button" type="button" onClick={() => onOpenProfile(otherUserId)}>
-                    {formatProfileName(otherProfile, otherUserId)}
+                    <UserNameWithLevel
+                      label={otherProfile ? t("profile.levelBadge", { level: otherProfile.level }) : undefined}
+                      level={otherProfile?.level}
+                    >
+                      {formatProfileName(otherProfile, otherUserId)}
+                    </UserNameWithLevel>
                   </button>
                   <span className="trust-confirmation-meta">
                     {t(isIncoming ? "profile.trust.incoming" : "profile.trust.outgoing")} · {t(trustConfirmationTypeLabelKey(confirmation.confirmation_type))}

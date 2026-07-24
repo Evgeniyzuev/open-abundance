@@ -16,7 +16,7 @@ type ListingPostBody = {
 
 type MarketplaceListingRow = Tables<"marketplace_listings">;
 type UserArtifactRow = Tables<"user_artifacts">;
-type UserProfileRow = Pick<Tables<"user_profiles">, "avatar_url" | "display_name" | "user_id" | "username">;
+type UserProfileRow = Pick<Tables<"user_profiles">, "avatar_url" | "display_name" | "level" | "user_id" | "username">;
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("user_profiles")
-      .select("user_id,username,display_name,avatar_url")
+      .select("user_id,username,display_name,avatar_url,level")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -318,7 +318,7 @@ async function loadProfiles(supabase: SupabaseClient<Database>, userIds: string[
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id,username,display_name,avatar_url")
+    .select("user_id,username,display_name,avatar_url,level")
     .in("user_id", uniqueIds);
 
   if (error) throw error;

@@ -3,6 +3,7 @@
 import { BookOpen, ExternalLink, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
@@ -128,9 +129,15 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
               <div className="profile-avatar">
                 {profile?.avatar_url ? <img alt="" src={profile.avatar_url} /> : <UserRound size={34} />}
               </div>
-              <strong>{displayName}</strong>
+              <strong>
+                <UserNameWithLevel
+                  label={t("profile.levelBadge", { level: profile?.level ?? 0 })}
+                  level={profile?.level}
+                >
+                  {displayName}
+                </UserNameWithLevel>
+              </strong>
               <div className="profile-facts">
-                <span>Lvl {profile?.level ?? 0}</span>
                 {profilePayload?.relation.isTeam ? <span>{t("profile.visibility.team")}</span> : null}
                 {profilePayload?.relation.isContact ? <span>{t("profile.visibility.contacts")}</span> : null}
               </div>

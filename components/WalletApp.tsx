@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
+import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
 import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -70,6 +71,7 @@ type WalletTransferContact = {
   profile: {
     avatar_url: string | null;
     display_name: string | null;
+    level: number;
     username: string | null;
     user_id: string;
   } | null;
@@ -86,6 +88,7 @@ type MarketplaceListing = Tables<"marketplace_listings"> & {
   sellerProfile: {
     avatar_url: string | null;
     display_name: string | null;
+    level: number;
     user_id: string;
     username: string | null;
   } | null;
@@ -1361,7 +1364,16 @@ function MarketplacePanel({
                   {listing.description ? <p>{listing.description}</p> : null}
                   <div className="market-card-meta">
                     <span>{formatAdaptiveMoney(Number(listing.price_amount), locale)}</span>
-                    <small>{own ? t("market.yours") : sellerName(listing)}</small>
+                    <small>
+                      {own ? t("market.yours") : (
+                        <UserNameWithLevel
+                          label={listing.sellerProfile ? t("profile.levelBadge", { level: listing.sellerProfile.level }) : undefined}
+                          level={listing.sellerProfile?.level}
+                        >
+                          {sellerName(listing)}
+                        </UserNameWithLevel>
+                      )}
+                    </small>
                   </div>
                   {own ? (
                     <button className="text-button danger" type="button" disabled={savingId === listing.id} onClick={() => onCancel(listing.id)}>
@@ -1630,7 +1642,14 @@ function WalletTransferModal({
                   >
                     <span className="transfer-avatar">{contactInitial(contact)}</span>
                     <span>
-                      <strong>{contactName(contact)}</strong>
+                      <strong>
+                        <UserNameWithLevel
+                          label={contact.profile ? t("profile.levelBadge", { level: contact.profile.level }) : undefined}
+                          level={contact.profile?.level}
+                        >
+                          {contactName(contact)}
+                        </UserNameWithLevel>
+                      </strong>
                       <small>{shortId(contact.contact_user_id)}</small>
                     </span>
                   </button>
@@ -1668,6 +1687,15 @@ function WalletTransferModal({
           {selectedContact ? (
             <p className="transfer-summary">
               {t("wallet.transfer.summary", { amount: formatAdaptiveMoney(parsedAmount, locale), recipient: contactName(selectedContact) })}
+              {selectedContact.profile ? (
+                <>
+                  {" "}
+                  <UserLevelBadge
+                    label={t("profile.levelBadge", { level: selectedContact.profile.level })}
+                    level={selectedContact.profile.level}
+                  />
+                </>
+              ) : null}
             </p>
           ) : null}
           {!validRecipient && recipientUserId.trim() ? <p className="topup-error">{t("wallet.transfer.error.recipient")}</p> : null}

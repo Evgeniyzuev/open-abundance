@@ -10,6 +10,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
+import { COLOR_THEMES, UI_SCALES, type ColorTheme, type UiScale } from "@/lib/appearance";
 
 type SocialTab = "feed" | "people" | "blog" | "profile" | "teams";
 type SocialTabChange = (tab: SocialTab) => void;
@@ -295,7 +296,20 @@ export default function SocialApp({
   refreshNonce: number;
   onTabChange: SocialTabChange;
 }) {
-  const { user, profile, core, loading, error, locale, setLocale, t } = useUserContext();
+  const {
+    user,
+    profile,
+    core,
+    loading,
+    error,
+    locale,
+    uiScale,
+    colorTheme,
+    setLocale,
+    setUiScale,
+    setColorTheme,
+    t
+  } = useUserContext();
   const [referralLink, setReferralLink] = useState<ReferralLink | null>(null);
   const [teamContext, setTeamContext] = useState<TeamContext | null>(null);
   const [socialError, setSocialError] = useState<string | null>(null);
@@ -1347,6 +1361,43 @@ export default function SocialApp({
             <Languages size={16} />
             {t(nextLocale === "ru" ? "profile.language.ru" : "profile.language.en")}
           </button>
+          <section className="profile-appearance" aria-label={t("profile.appearance.title")}>
+            <div className="section-heading-row">
+              <span>{t("profile.appearance.title")}</span>
+            </div>
+            <div className="appearance-setting-row">
+              <span>{t("profile.appearance.scale")}</span>
+              <div className="appearance-options" role="group" aria-label={t("profile.appearance.scale")}>
+                {UI_SCALES.map((scale) => (
+                  <button
+                    className={uiScale === scale ? "active" : ""}
+                    type="button"
+                    aria-pressed={uiScale === scale}
+                    key={scale}
+                    onClick={() => setUiScale(scale as UiScale)}
+                  >
+                    {scale}%
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="appearance-setting-row">
+              <span>{t("profile.appearance.theme")}</span>
+              <div className="appearance-options" role="group" aria-label={t("profile.appearance.theme")}>
+                {COLOR_THEMES.map((theme) => (
+                  <button
+                    className={colorTheme === theme ? "active" : ""}
+                    type="button"
+                    aria-pressed={colorTheme === theme}
+                    key={theme}
+                    onClick={() => setColorTheme(theme as ColorTheme)}
+                  >
+                    {t(`profile.appearance.theme.${theme}` as MessageKey)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
           <section className="public-profile-box">
             <div className="section-heading-row">
               <span>{t("profile.public.title")}</span>

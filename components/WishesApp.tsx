@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { Archive, Check, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { Archive, Check, Pencil, Plus, Send, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
@@ -14,6 +14,7 @@ type RecommendedWish = Pick<
 >;
 type WishStatus = Wish["status"];
 type WishVisibility = Wish["visibility"];
+type WishTab = "recommended" | "mine" | "completed";
 type LocaleText = Json;
 
 type WishesResponse = {
@@ -71,10 +72,12 @@ type SavedWishResult = {
 };
 
 export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
-  const { loading: userLoading, locale, t, user } = useUserContext();
+  const { loading: userLoading, locale, profile, t, user } = useUserContext();
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [recommendedWishes, setRecommendedWishes] = useState<RecommendedWish[]>([]);
+  const [activeTab, setActiveTab] = useState<WishTab>("recommended");
   const [selectedWish, setSelectedWish] = useState<SelectedWish | null>(null);
+  const [completingWish, setCompletingWish] = useState<Wish | null>(null);
   const [editingWish, setEditingWish] = useState<Wish | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [recommendedDraft, setRecommendedDraft] = useState<RecommendedWish | null>(null);
@@ -82,9 +85,8 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const activeWishes = useMemo(() => wishes.filter((wish) => wish.status === "active"), [wishes]);
+  const myWishes = useMemo(() => wishes.filter((wish) => wish.status !== "completed"), [wishes]);
   const completedWishes = useMemo(() => wishes.filter((wish) => wish.status === "completed"), [wishes]);
-  const archivedWishes = useMemo(() => wishes.filter((wish) => wish.status === "archived"), [wishes]);
 
   useEffect(() => {
     let mounted = true;
@@ -178,7 +180,22 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
   async function setWishStatus(wish: Wish, nextStatus: WishStatus) {
     const { wish: updatedWish } = await sendWishRequest(`/api/wishes/${wish.id}`, "PATCH", { status: nextStatus });
     replaceWish(updatedWish);
-    setSelectedWish({ type: "wish", wish: updatedWish });
+    setSelectedWish(null);
+    setActiveTab(nextStatus === "completed" ? "completed" : "mine");
+  }
+
+  async function completeWish(wish: Wish, publishToFeed: boolean) {
+    setErrorMessage(null);
+    const { notice, wish: updatedWish } = await sendWishRequest(`/api/wishes/${wish.id}`, "PATCH", {
+      completionPostLocale: locale,
+      publishCompletionToFeed: publishToFeed,
+      status: "completed"
+    });
+    replaceWish(updatedWish);
+    setCompletingWish(null);
+    setSelectedWish(null);
+    setActiveTab("completed");
+    if (notice) setErrorMessage(notice);
   }
 
   async function deleteWish(wish: Wish) {
@@ -229,6 +246,24 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
 
   return (
     <section className="wishes-screen">
+      {status !== "unauthenticated" ? (
+        <nav className="wish-tabs" role="tablist" aria-label={t("wishes.tabs.label")}>
+          {(["recommended", "mine", "completed"] as const).map((tab) => (
+            <button
+              aria-controls={`wish-panel-${tab}`}
+              aria-selected={activeTab === tab}
+              className={activeTab === tab ? "active" : ""}
+              id={`wish-tab-${tab}`}
+              key={tab}
+              role="tab"
+              type="button"
+              onClick={() => setActiveTab(tab)}
+            >
+              {t(`wishes.tabs.${tab}`)}
+            </button>
+          ))}
+        </nav>
+      ) : null}
       {isRefreshing && wishes.length > 0 ? <div className="wishes-refreshing">{t("wishes.refreshing")}</div> : null}
       {errorMessage && status === "ready" ? <p className="finance-error neutral">{errorMessage}</p> : null}
       {status === "loading" && wishes.length === 0 ? <WishState title={t("app.common.loading")} description={t("wishes.loading.description")} /> : null}
@@ -236,41 +271,43 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
       {status === "unauthenticated" ? <WishState title={t("wishes.authRequiredTitle")} description={t("wishes.authRequiredDescription")} /> : null}
       {status === "error" && wishes.length === 0 ? <WishState title={t("wishes.error")} description={errorMessage ?? t("wishes.errorDescription")} /> : null}
 
-      {status !== "unauthenticated" ? (
+      {status !== "unauthenticated" && (status === "ready" || wishes.length > 0 || recommendedWishes.length > 0) ? (
         <>
-          <WishSection title={t("wishes.mine")} emptyText={t("wishes.emptyMine")} itemsCount={activeWishes.length}>
-            <button className="wish-tile wish-add-tile" type="button" onClick={() => setIsCreateOpen(true)}>
-              <Plus size={28} />
-              <span>{t("wishes.add")}</span>
-            </button>
-            {activeWishes.map((wish) => (
-              <WishTile key={wish.id} title={wish.title} imageUrl={wish.image_url} badge={visibilityLabel(wish.visibility, t)} onClick={() => setSelectedWish({ type: "wish", wish })} />
-            ))}
-          </WishSection>
-
-          <WishSection title={t("wishes.recommendations")} emptyText={t("wishes.emptyRecommendations")} itemsCount={recommendedWishes.length}>
-            {recommendedWishes.map((wish) => (
-              <WishTile
-                key={wish.id}
-                title={text(wish.title, locale)}
-                imageUrl={wish.image_url}
-                onClick={() => setSelectedWish({ type: "recommended", wish })}
-              />
-            ))}
-          </WishSection>
-
-          {completedWishes.length > 0 ? (
-            <WishSection title={t("wishes.completed")} emptyText={t("wishes.emptyCompleted")} itemsCount={completedWishes.length}>
-              {completedWishes.map((wish) => (
-                <WishTile key={wish.id} title={wish.title} imageUrl={wish.image_url} badge={t("wishes.status.completed")} onClick={() => setSelectedWish({ type: "wish", wish })} />
+          {activeTab === "recommended" ? (
+            <WishSection id="wish-panel-recommended" labelledBy="wish-tab-recommended" emptyText={t("wishes.emptyRecommendations")} itemsCount={recommendedWishes.length}>
+              {recommendedWishes.map((wish) => (
+                <WishTile
+                  key={wish.id}
+                  title={text(wish.title, locale)}
+                  imageUrl={wish.image_url}
+                  onClick={() => setSelectedWish({ type: "recommended", wish })}
+                />
               ))}
             </WishSection>
           ) : null}
 
-          {archivedWishes.length > 0 ? (
-            <WishSection title={t("wishes.archived")} emptyText={t("wishes.emptyArchived")} itemsCount={archivedWishes.length}>
-              {archivedWishes.map((wish) => (
-                <WishTile key={wish.id} title={wish.title} imageUrl={wish.image_url} badge={t("wishes.status.archived")} onClick={() => setSelectedWish({ type: "wish", wish })} />
+          {activeTab === "mine" ? (
+            <WishSection id="wish-panel-mine" labelledBy="wish-tab-mine" emptyText={t("wishes.emptyMine")} itemsCount={myWishes.length}>
+              <button className="wish-tile wish-add-tile" type="button" onClick={() => setIsCreateOpen(true)}>
+                <Plus size={28} />
+                <span>{t("wishes.add")}</span>
+              </button>
+              {myWishes.map((wish) => (
+                <WishTile
+                  key={wish.id}
+                  title={wish.title}
+                  imageUrl={wish.image_url}
+                  badge={wish.status === "archived" ? t("wishes.status.archived") : visibilityLabel(wish.visibility, t)}
+                  onClick={() => setSelectedWish({ type: "wish", wish })}
+                />
+              ))}
+            </WishSection>
+          ) : null}
+
+          {activeTab === "completed" ? (
+            <WishSection id="wish-panel-completed" labelledBy="wish-tab-completed" emptyText={t("wishes.emptyCompleted")} itemsCount={completedWishes.length}>
+              {completedWishes.map((wish) => (
+                <WishTile key={wish.id} title={wish.title} imageUrl={wish.image_url} badge={t("wishes.status.completed")} onClick={() => setSelectedWish({ type: "wish", wish })} />
               ))}
             </WishSection>
           ) : null}
@@ -282,7 +319,10 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
           selectedWish={selectedWish}
           onArchive={(wish) => setWishStatus(wish, "archived").catch((detailError) => setErrorMessage(detailError instanceof Error ? detailError.message : t("wishes.error")))}
           onClose={() => setSelectedWish(null)}
-          onComplete={(wish) => setWishStatus(wish, "completed").catch((detailError) => setErrorMessage(detailError instanceof Error ? detailError.message : t("wishes.error")))}
+          onComplete={(wish) => {
+            setSelectedWish(null);
+            setCompletingWish(wish);
+          }}
           onDelete={(wish) => deleteWish(wish).catch((detailError) => setErrorMessage(detailError instanceof Error ? detailError.message : t("wishes.error")))}
           onEdit={(wish) => {
             setSelectedWish(null);
@@ -294,6 +334,15 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
             setRecommendedDraft(wish);
           }}
           onRestore={(wish) => setWishStatus(wish, "active").catch((detailError) => setErrorMessage(detailError instanceof Error ? detailError.message : t("wishes.error")))}
+        />
+      ) : null}
+
+      {completingWish ? (
+        <WishCompletionModal
+          displayName={profileDisplayName(profile, t("profile.guest"))}
+          wish={completingWish}
+          onClose={() => setCompletingWish(null)}
+          onComplete={(publishToFeed) => completeWish(completingWish, publishToFeed)}
         />
       ) : null}
 
@@ -327,12 +376,23 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
   );
 }
 
-function WishSection({ children, emptyText, itemsCount, title }: { children: ReactNode; emptyText: string; itemsCount: number; title: string }) {
+function WishSection({
+  children,
+  emptyText,
+  id,
+  itemsCount,
+  labelledBy
+}: {
+  children: ReactNode;
+  emptyText: string;
+  id: string;
+  itemsCount: number;
+  labelledBy: string;
+}) {
   return (
-    <section className="wish-section">
-      <h2>{title}</h2>
+    <section aria-labelledby={labelledBy} className="wish-section" id={id} role="tabpanel">
       {itemsCount === 0 ? <div className="wish-empty">{emptyText}</div> : null}
-      <div className="wish-grid" aria-label={title}>{children}</div>
+      <div className="wish-grid">{children}</div>
     </section>
   );
 }
@@ -353,6 +413,63 @@ function WishState({ title, description }: { title: string; description: string 
       <div className="wish-offline-icon">OA</div>
       <strong>{title}</strong>
       <p>{description}</p>
+    </div>
+  );
+}
+
+function WishCompletionModal({
+  displayName,
+  onClose,
+  onComplete,
+  wish
+}: {
+  displayName: string;
+  onClose: () => void;
+  onComplete: (publishToFeed: boolean) => Promise<void>;
+  wish: Wish;
+}) {
+  const { t } = useUserContext();
+  const [error, setError] = useState<string | null>(null);
+  const [savingAction, setSavingAction] = useState<"publish" | "only" | null>(null);
+
+  async function handleComplete(publishToFeed: boolean) {
+    setSavingAction(publishToFeed ? "publish" : "only");
+    setError(null);
+    try {
+      await onComplete(publishToFeed);
+    } catch (completeError) {
+      setError(completeError instanceof Error ? completeError.message : t("wishes.error"));
+      setSavingAction(null);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={() => savingAction === null && onClose()}>
+      <section
+        aria-label={t("wishes.completionPrompt.title")}
+        aria-modal="true"
+        className="modal-sheet small wish-completion-modal"
+        role="dialog"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button className="modal-close" type="button" aria-label={t("app.common.close")} disabled={savingAction !== null} onClick={onClose}>
+          <X size={18} />
+        </button>
+        <span className="wish-completion-icon"><Check size={30} /></span>
+        <h2>{t("wishes.completionPrompt.title")}</h2>
+        <p>{t("wishes.completionPrompt.description", { name: displayName, title: wish.title })}</p>
+        <small>{t("wishes.completionPrompt.visibility")}</small>
+        {error ? <p className="finance-error inline">{error}</p> : null}
+        <div className="wish-completion-actions">
+          <button className="task-done-primary-button" type="button" disabled={savingAction !== null} onClick={() => void handleComplete(true)}>
+            <Send size={16} />
+            {savingAction === "publish" ? t("wishes.saving") : t("wishes.completeAndPublish")}
+          </button>
+          <button className="secondary-button" type="button" disabled={savingAction !== null} onClick={() => void handleComplete(false)}>
+            {savingAction === "only" ? t("wishes.saving") : t("wishes.completeOnly")}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -637,4 +754,11 @@ function visibilityLabel(visibility: WishVisibility, t: ReturnType<typeof useUse
   if (visibility === "team") return t("wishes.visibility.team");
   if (visibility === "contacts") return t("wishes.visibility.contacts");
   return t("wishes.visibility.private");
+}
+
+function profileDisplayName(profile: ReturnType<typeof useUserContext>["profile"], fallback: string): string {
+  return profile?.display_name?.trim()
+    || profile?.username?.trim()
+    || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim()
+    || fallback;
 }

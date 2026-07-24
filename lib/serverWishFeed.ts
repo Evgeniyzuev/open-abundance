@@ -119,3 +119,63 @@ async function countTodayWishPosts(supabase: SupabaseClient<Database>, userId: s
   if (error) throw error;
   return count ?? 0;
 }
+
+export async function publishWishCompletionToFeed(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  wish: WishRow,
+  locale: "ru" | "en"
+): Promise<WishFeedPublishResult> {
+  if (wish.owner_user_id !== userId || wish.deleted_at !== null || wish.status !== "completed") {
+    return {
+      post: null,
+      notice: locale === "ru"
+        ? "\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043c\u043e\u0436\u043d\u043e \u0442\u043e\u043b\u044c\u043a\u043e \u0441\u0432\u043e\u0451 \u0436\u0435\u043b\u0430\u043d\u0438\u0435."
+        : "Only your completed wish can be published."
+    };
+  }
+
+  const sourceKey = `wish-completed:${wish.id}:${wish.completed_at ?? "unknown"}`;
+  const body = locale === "ru"
+    ? `\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u043b \u0436\u0435\u043b\u0430\u043d\u0438\u0435 \u00ab${wish.title}\u00bb.`
+    : `Fulfilled the wish \u201c${wish.title}\u201d.`;
+  const { data: existingPost, error: existingError } = await supabase
+    .from("feed_posts")
+    .select("*")
+    .eq("source_key", sourceKey)
+    .eq("author_user_id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  if (existingPost) return { post: existingPost };
+
+  const now = new Date().toISOString();
+  const { data: post, error: postError } = await supabase
+    .from("feed_posts")
+    .insert({
+      author_user_id: userId,
+      body,
+      post_type: "manual",
+      published_at: now,
+      source_key: sourceKey,
+      status: "published",
+      visibility: "public"
+    } satisfies TablesInsert<"feed_posts">)
+    .select("*")
+    .single();
+
+  if (!postError) return { post };
+
+  const { data: racedPost, error: racedError } = await supabase
+    .from("feed_posts")
+    .select("*")
+    .eq("source_key", sourceKey)
+    .eq("author_user_id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (racedError) throw racedError;
+  if (racedPost) return { post: racedPost };
+  throw postError;
+}

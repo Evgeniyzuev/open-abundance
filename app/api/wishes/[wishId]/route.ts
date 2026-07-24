@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Tables, TablesUpdate } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
-import { publishWishToFeed } from "@/lib/serverWishFeed";
+import { publishWishCompletionToFeed, publishWishToFeed } from "@/lib/serverWishFeed";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -28,6 +28,10 @@ type WishPatchBody = {
   status?: unknown;
   publishToFeed?: unknown;
   publish_to_feed?: unknown;
+  publishCompletionToFeed?: unknown;
+  publish_completion_to_feed?: unknown;
+  completionPostLocale?: unknown;
+  completion_post_locale?: unknown;
 };
 
 export async function GET(request: NextRequest, { params }: { params: { wishId: string } }) {
@@ -107,14 +111,30 @@ export async function PATCH(request: NextRequest, { params }: { params: { wishId
       data = updatedWish as WishRow;
     }
 
+    const shouldPublishCompletion = data.status === "completed"
+      && normalizeBoolean(body.publishCompletionToFeed ?? body.publish_completion_to_feed);
     const shouldPublishToFeed = normalizeBoolean(body.publishToFeed ?? body.publish_to_feed);
-    const publishResult = shouldPublishToFeed ? await publishWishToFeed(supabase, user.id, data) : null;
+    let publishResult = null;
+    let completionNotice: string | undefined;
+
+    if (shouldPublishCompletion) {
+      const completionLocale = normalizeLocale(body.completionPostLocale ?? body.completion_post_locale);
+      try {
+        publishResult = await publishWishCompletionToFeed(supabase, user.id, data, completionLocale);
+      } catch {
+        completionNotice = completionLocale === "ru"
+          ? "\u0416\u0435\u043b\u0430\u043d\u0438\u0435 \u0438\u0441\u043f\u043e\u043b\u043d\u0435\u043d\u043e, \u043d\u043e \u043f\u043e\u0441\u0442 \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u0442\u044c."
+          : "Wish completed, but the post could not be published.";
+      }
+    } else if (shouldPublishToFeed) {
+      publishResult = await publishWishToFeed(supabase, user.id, data);
+    }
 
     return NextResponse.json(
       {
         wish: data,
         feedPost: publishResult?.post ?? null,
-        notice: publishResult?.notice
+        notice: completionNotice ?? publishResult?.notice
       },
       { headers: NO_STORE_HEADERS }
     );
@@ -161,6 +181,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { wishI
 
 function normalizeBoolean(value: unknown): boolean {
   return value === true || value === "true";
+}
+
+function normalizeLocale(value: unknown): "ru" | "en" {
+  return value === "ru" ? "ru" : "en";
 }
 
 function canReadWish(wish: WishRow, viewerUserId: string): boolean {
@@ -233,7 +257,7 @@ function normalizeDifficulty(value: unknown): number {
 
 function normalizeUuid(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value) ? value : null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
 }
 
 async function readJsonBody(request: NextRequest): Promise<WishPatchBody> {

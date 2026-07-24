@@ -159,18 +159,16 @@ test("new visitor completes the three-screen story and can request an email OTP"
   expect(pageErrors).toEqual([]);
 });
 
-test("returning guest goes directly to sign-in options instead of the app shell", async ({ page }) => {
+test("returning device opens local-first notes without waiting for sign-in", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.addInitScript(() => window.localStorage.setItem("openAbundanceOnboardingSeen", "true"));
 
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Sign in or create an account" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue with email" })).toBeVisible();
-  await expect(page.getByLabel("Email")).toHaveCount(0);
-  await expect(page.getByRole("navigation")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "My lists" })).toBeVisible();
+  await expect(page.getByRole("navigation")).not.toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Sign in or create an account" })).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 

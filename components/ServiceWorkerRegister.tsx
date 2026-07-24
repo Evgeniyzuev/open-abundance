@@ -62,7 +62,7 @@ export default function ServiceWorkerRegister() {
 
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 
-    navigator.serviceWorker.register("/sw.js")
+    navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
       .then((registration) => {
         checkForAppUpdate(registration).catch((error) => {
           console.warn("Service worker update check failed", error);

@@ -77,35 +77,13 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     void saveProfileCompletion(profile, applyServerData, draft);
   }, [applyServerData, profile, profileCompleted, user]);
 
-  if (!authResolved || onboardingSeen === null) return null;
+  if (onboardingSeen === null) return <StartupRecovery />;
 
-  if (!user) {
-    if (onboardingLocale === null) return null;
-    return (
-      <OnboardingApp
-        initialStep={onboardingSeen || isAuthScreenRequested() ? "auth" : "mission"}
-        locale={onboardingLocale ?? "en"}
-        onLocaleChange={async (nextLocale) => {
-          storeOnboardingLocalePreference(nextLocale);
-          setOnboardingLocale(nextLocale);
-        }}
-        onAuthScreenOpened={() => {
-          markOnboardingSeen();
-          setOnboardingSeen(true);
-        }}
-        onGoogleSignIn={async () => {
-          await signInWithGoogle();
-        }}
-        onEmailOtpRequest={requestEmailOtp}
-        onEmailOtpVerify={verifyEmailOtp}
-      />
-    );
-  }
-
-  return (
+  const authScreenRequested = isAuthScreenRequested();
+  const appShell = (
     <>
       {children}
-      {registrationReward ? (
+      {user && registrationReward ? (
         <FirstRewardModal
           reward={registrationReward}
           t={t}
@@ -121,6 +99,57 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         />
       ) : null}
     </>
+  );
+
+  if (onboardingSeen && !authScreenRequested) return appShell;
+  if (!authResolved) return <StartupRecovery />;
+  if (user) return appShell;
+
+  if (onboardingLocale === null) return <StartupRecovery />;
+
+  return (
+    <OnboardingApp
+      initialStep={onboardingSeen || authScreenRequested ? "auth" : "mission"}
+      locale={onboardingLocale}
+      onLocaleChange={async (nextLocale) => {
+        storeOnboardingLocalePreference(nextLocale);
+        setOnboardingLocale(nextLocale);
+      }}
+      onAuthScreenOpened={() => {
+        markOnboardingSeen();
+        markAuthScreenRequested();
+      }}
+      onGoogleSignIn={async () => {
+        await signInWithGoogle();
+      }}
+      onEmailOtpRequest={requestEmailOtp}
+      onEmailOtpVerify={verifyEmailOtp}
+    />
+  );
+}
+
+function StartupRecovery() {
+  const { t } = useUserContext();
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), 1500);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return (
+    <main className="startup-recovery-screen">
+      <section className="startup-recovery-card" aria-live="polite">
+        <span className="startup-recovery-spinner" aria-hidden="true" />
+        <strong>{t("startup.loading")}</strong>
+        {slow ? (
+          <>
+            <p>{t("startup.slow")}</p>
+            <button type="button" onClick={() => window.location.reload()}>{t("startup.retry")}</button>
+          </>
+        ) : null}
+      </section>
+    </main>
   );
 }
 
@@ -565,7 +594,11 @@ function FirstRewardModal({
 
 function readOnboardingSeen(): boolean {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(ONBOARDING_SEEN_STORAGE_KEY) === "true";
+  try {
+    return window.localStorage.getItem(ONBOARDING_SEEN_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
 }
 
 function isAuthScreenRequested(): boolean {
@@ -573,17 +606,28 @@ function isAuthScreenRequested(): boolean {
   return new URLSearchParams(window.location.search).get("auth") === "signin";
 }
 
+function markAuthScreenRequested() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("auth", "signin");
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 function markOnboardingSeen() {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ONBOARDING_SEEN_STORAGE_KEY, "true");
+  try {
+    window.localStorage.setItem(ONBOARDING_SEEN_STORAGE_KEY, "true");
+  } catch {
+    // The current session can continue when browser storage is unavailable.
+  }
 }
 
 function readOnboardingDraft(): OnboardingDraft | undefined {
   if (typeof window === "undefined") return undefined;
-  const raw = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
-  if (!raw) return undefined;
 
   try {
+    const raw = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+    if (!raw) return undefined;
     const parsed = JSON.parse(raw) as Partial<OnboardingDraft>;
     if (typeof parsed !== "object" || !parsed) return undefined;
     return {

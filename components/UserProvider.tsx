@@ -201,7 +201,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    const supabase = getBrowserSupabaseClient();
+    let supabase: ReturnType<typeof getBrowserSupabaseClient>;
+
+    try {
+      supabase = getBrowserSupabaseClient();
+    } catch (bootstrapError) {
+      console.warn("User bootstrap failed", bootstrapError);
+      setAuthResolved(true);
+      setError(bootstrapError instanceof Error ? bootstrapError.message : "User bootstrap failed.");
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
 
     async function bootstrapUser() {
       if (isOffline()) {

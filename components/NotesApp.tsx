@@ -18,10 +18,12 @@ import {
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import ReflectionProcessor from "@/components/ReflectionProcessor";
+import LocalDataNotice from "@/components/LocalDataNotice";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { trackProductEvent } from "@/lib/productAnalytics";
 
 type ConnectionState = "online" | "offline";
+type LocalDataStatus = "loading" | "slow" | "ready" | "error";
 type ViewId = "process" | "today" | "planned" | "all" | "completed" | `list:${string}`;
 type ModalMode = "create" | "edit";
 
@@ -83,6 +85,8 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
   const [quickCapture, setQuickCapture] = useState("");
   const [capturedNoteId, setCapturedNoteId] = useState<string | null>(null);
   const [processingNoteId, setProcessingNoteId] = useState<string | null>(null);
+  const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
+  const localLoadRequestRef = useRef(0);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("reflectionInbox") === "1") {
@@ -126,9 +130,28 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
     });
   }, []);
 
+  const loadLocalData = useCallback(async () => {
+    const requestId = localLoadRequestRef.current + 1;
+    localLoadRequestRef.current = requestId;
+    setLocalDataStatus("loading");
+    const slowTimer = window.setTimeout(() => {
+      if (localLoadRequestRef.current === requestId) setLocalDataStatus("slow");
+    }, 1500);
+
+    try {
+      await refreshData();
+      if (localLoadRequestRef.current === requestId) setLocalDataStatus("ready");
+    } catch (loadError) {
+      console.warn("Notes local data load failed", loadError);
+      if (localLoadRequestRef.current === requestId) setLocalDataStatus("error");
+    } finally {
+      window.clearTimeout(slowTimer);
+    }
+  }, [refreshData]);
+
   useEffect(() => {
     setConnection(navigator.onLine ? "online" : "offline");
-    refreshData();
+    void loadLocalData();
 
     const handleOnline = () => setConnection("online");
     const handleOffline = () => setConnection("offline");
@@ -137,10 +160,11 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
     window.addEventListener("offline", handleOffline);
 
     return () => {
+      localLoadRequestRef.current += 1;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [refreshData]);
+  }, [loadLocalData]);
 
   useEffect(() => {
     if (!capturedNoteId) return;
@@ -269,6 +293,7 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
 
   return (
     <section className="reminders-app">
+      <LocalDataNotice status={localDataStatus} onRetry={() => void loadLocalData()} />
       {detailView ? (
         <ListDetail
           activeTitle={activeTitle}

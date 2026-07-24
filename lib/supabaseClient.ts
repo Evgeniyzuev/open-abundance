@@ -116,11 +116,11 @@ export function storePostAuthReward(reward: RegistrationReward): void {
 
 export function consumePostAuthReward(): RegistrationReward | null {
   if (typeof window === "undefined") return null;
-  const raw = window.sessionStorage.getItem(POST_AUTH_REWARD_STORAGE_KEY);
-  window.sessionStorage.removeItem(POST_AUTH_REWARD_STORAGE_KEY);
-  if (!raw) return null;
 
   try {
+    const raw = window.sessionStorage.getItem(POST_AUTH_REWARD_STORAGE_KEY);
+    window.sessionStorage.removeItem(POST_AUTH_REWARD_STORAGE_KEY);
+    if (!raw) return null;
     const value = JSON.parse(raw) as Partial<RegistrationReward>;
     if (!value.claimed || (value.account !== "core" && value.account !== "wallet") || typeof value.amount !== "number") {
       return null;

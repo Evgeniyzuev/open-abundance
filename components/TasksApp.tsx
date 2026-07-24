@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckSquare, ChevronLeft, ChevronRight, ImagePlus, Link, Plus, Repeat2, Trash2 } from "lucide-react";
 import {
   completeTask,
@@ -18,8 +18,10 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { scheduleActionReminder } from "@/lib/pushReminders";
+import LocalDataNotice from "@/components/LocalDataNotice";
 
 type ScheduleType = "once" | "daily" | "weekdays";
+type LocalDataStatus = "loading" | "slow" | "ready" | "error";
 
 const weekdayOptions = [
   { value: 1, labelKey: "tasks.weekday.mon" },
@@ -80,19 +82,43 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
   const [clock, setClock] = useState(() => Date.now());
+  const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
+  const localLoadRequestRef = useRef(0);
 
   const selectedTask = selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) : undefined;
   const today = todayKey();
 
-  async function refreshTasks() {
+  const refreshTasks = useCallback(async () => {
     const [storedTasks, storedCompletions] = await Promise.all([getAllTasks(), getTaskCompletions()]);
     setTasks(storedTasks);
     setCompletions(storedCompletions);
-  }
+  }, []);
+
+  const loadLocalData = useCallback(async () => {
+    const requestId = localLoadRequestRef.current + 1;
+    localLoadRequestRef.current = requestId;
+    setLocalDataStatus("loading");
+    const slowTimer = window.setTimeout(() => {
+      if (localLoadRequestRef.current === requestId) setLocalDataStatus("slow");
+    }, 1500);
+
+    try {
+      await refreshTasks();
+      if (localLoadRequestRef.current === requestId) setLocalDataStatus("ready");
+    } catch (loadError) {
+      console.warn("Checks local data load failed", loadError);
+      if (localLoadRequestRef.current === requestId) setLocalDataStatus("error");
+    } finally {
+      window.clearTimeout(slowTimer);
+    }
+  }, [refreshTasks]);
 
   useEffect(() => {
-    refreshTasks();
-  }, []);
+    void loadLocalData();
+    return () => {
+      localLoadRequestRef.current += 1;
+    };
+  }, [loadLocalData]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 60_000);
@@ -289,6 +315,8 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
           <Plus size={24} />
         </button>
       </header>
+
+      <LocalDataNotice status={localDataStatus} onRetry={() => void loadLocalData()} />
 
       {dueReminderTasks.length > 0 ? (
         <section className="task-due-reminders" role="status">

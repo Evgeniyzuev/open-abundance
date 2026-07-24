@@ -24,6 +24,14 @@ body {
 button, input, textarea, select { font: inherit; }
 button { border: 0; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.45; }
+.startup-recovery-screen { min-height: 100dvh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); background: var(--bg); }
+.startup-recovery-card { width: min(100%, 390px); display: grid; justify-items: center; gap: 12px; border-radius: 22px; padding: 28px 22px; background: rgba(255,255,255,0.88); color: var(--text); text-align: center; box-shadow: var(--shadow); }
+.startup-recovery-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.startup-recovery-card button { min-height: 40px; border-radius: 13px; padding: 0 16px; background: #eaf4ff; color: var(--blue); font-weight: 850; }
+.startup-recovery-spinner { width: 28px; height: 28px; border: 3px solid #dfe9f4; border-top-color: var(--blue); border-radius: 50%; animation: spin 900ms linear infinite; }
+.local-data-notice { margin: 0 6px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid #f0dfaf; border-radius: 13px; padding: 10px 12px; background: #fff9e9; color: #725c23; font-size: 13px; line-height: 1.35; }
+.local-data-notice.error { border-color: #f4c6c6; background: #fff2f2; color: #8c3333; }
+.local-data-notice button { flex: 0 0 auto; border-radius: 10px; padding: 7px 10px; background: rgba(255,255,255,0.82); color: inherit; font-size: 12px; font-weight: 850; }
 .app-shell { min-height: 100vh; padding: 0; }
 .app-content { min-height: 100vh; padding: 84px 0 98px; }
 .app-view { display: contents; }

@@ -1,22 +1,31 @@
-const CACHE_NAME = "open-abundance-v6";
-const APP_SHELL = [
-  "/",
+const CACHE_PREFIX = "open-abundance-";
+const CACHE_NAME = "open-abundance-v8";
+const ROOT_SHELL_KEY = "/";
+const STATIC_APP_ASSETS = [
   "/manifest.webmanifest",
   "/icons/icon.svg",
   "/icons/icon2.svg",
   "/icons/twenty-levels-app-icon-192.png",
   "/icons/twenty-levels-app-icon-512.png"
 ];
-const NAVIGATION_NETWORK_TIMEOUT_MS = 700;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(STATIC_APP_ASSETS);
+    await refreshShell(cache);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys
+      .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+      .map((key) => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener("fetch", (event) => {
@@ -24,18 +33,34 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
+  const sameOrigin = url.origin === self.location.origin;
 
-  if (url.origin === self.location.origin && url.pathname.startsWith("/api/")) {
+  if (sameOrigin && url.pathname.startsWith("/api/")) {
     event.respondWith(fetch(request, { cache: "no-store" }));
     return;
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(handleNavigation(request, event));
+    if (sameOrigin && url.pathname === "/") {
+      const refreshPromise = refreshCachedShell();
+      event.waitUntil(refreshPromise.catch(() => undefined));
+      event.respondWith(handleRootNavigation(refreshPromise));
+    } else {
+      event.respondWith(fetch(request, { cache: "no-store" }));
+    }
     return;
   }
 
-  event.respondWith(handleAsset(request, event));
+  if (sameOrigin && url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(cacheFirstStaticAsset(request));
+    return;
+  }
+
+  if (sameOrigin && isRuntimeAppAsset(url.pathname)) {
+    const updatePromise = fetchAndCache(request);
+    event.waitUntil(updatePromise.catch(() => undefined));
+    event.respondWith(cachedAssetOrNetwork(request, updatePromise));
+  }
 });
 
 self.addEventListener("push", (event) => {
@@ -71,62 +96,107 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-async function handleNavigation(request, event) {
+async function handleRootNavigation(refreshPromise) {
   const cache = await caches.open(CACHE_NAME);
-  const cachedShell = await cache.match("/");
-  const fetchPromise = fetch(request)
-    .then((response) => {
-      if (response.ok) {
-        cache.put("/", response.clone()).catch(() => undefined);
+  const cachedShell = await cache.match(ROOT_SHELL_KEY);
+  if (cachedShell) return cachedShell;
+
+  try {
+    return await refreshPromise;
+  } catch {
+    return missingShellResponse();
+  }
+}
+
+async function refreshCachedShell() {
+  const cache = await caches.open(CACHE_NAME);
+  return refreshShell(cache);
+}
+
+async function refreshShell(cache) {
+  const shellUrl = new URL(ROOT_SHELL_KEY, self.location.origin).href;
+  const shellResponse = await fetch(new Request(shellUrl, {
+    cache: "no-store",
+    credentials: "same-origin"
+  }));
+  if (!shellResponse.ok) throw new Error(`App shell request failed with ${shellResponse.status}.`);
+
+  const html = await shellResponse.clone().text();
+  const assetUrls = extractNextStaticUrls(html);
+  const assetResponses = await Promise.all(assetUrls.map(async (assetUrl) => {
+    const response = await fetch(new Request(assetUrl, {
+      cache: "reload",
+      credentials: "same-origin"
+    }));
+    if (!response.ok) throw new Error(`Static asset request failed with ${response.status}.`);
+    return [assetUrl, response];
+  }));
+
+  for (const [assetUrl, response] of assetResponses) {
+    await cache.put(assetUrl, response);
+  }
+  await cache.put(ROOT_SHELL_KEY, shellResponse.clone());
+  return shellResponse;
+}
+
+function extractNextStaticUrls(html) {
+  const urls = new Set();
+  const attributePattern = /(?:src|href)=["']([^"']+)["']/g;
+  let match;
+
+  while ((match = attributePattern.exec(html)) !== null) {
+    try {
+      const url = new URL(match[1], self.location.origin);
+      if (url.origin === self.location.origin && url.pathname.startsWith("/_next/static/")) {
+        urls.add(url.href);
       }
-      return response;
-    });
-
-  if (!cachedShell) {
-    return fetchPromise.catch(() => offlineResponse());
-  }
-
-  event.waitUntil(fetchPromise.catch(() => undefined));
-
-  if (self.navigator && self.navigator.onLine === false) {
-    return cachedShell;
-  }
-
-  const timeoutPromise = new Promise((resolve) => {
-    setTimeout(() => resolve(cachedShell), NAVIGATION_NETWORK_TIMEOUT_MS);
-  });
-
-  return Promise.race([fetchPromise, timeoutPromise]).catch(() => cachedShell);
-}
-
-async function handleAsset(request, event) {
-  const cached = await caches.match(request);
-  const fetchPromise = fetch(request).then(async (response) => {
-    if (shouldCache(response)) {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(request, response.clone()).catch(() => undefined);
+    } catch {
+      // Ignore malformed, non-navigation asset references.
     }
-    return response;
-  });
-
-  if (cached) {
-    event.waitUntil(fetchPromise.catch(() => undefined));
-    return cached;
   }
 
-  return fetchPromise;
+  return [...urls];
 }
 
-function shouldCache(response) {
-  return response && (response.ok || response.type === "opaque");
+async function cacheFirstStaticAsset(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  return fetchAndCache(request);
 }
 
-function offlineResponse() {
-  return new Response("Offline", {
+async function cachedAssetOrNetwork(request, updatePromise) {
+  const cached = await caches.match(request);
+  return cached ?? updatePromise;
+}
+
+async function fetchAndCache(request) {
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
+function isRuntimeAppAsset(pathname) {
+  return pathname === "/manifest.webmanifest"
+    || pathname.startsWith("/icons/")
+    || pathname.startsWith("/onboarding/")
+    || pathname === "/_next/image";
+}
+
+function missingShellResponse() {
+  return new Response(`<!doctype html>
+<html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Open Abundance</title>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f2f2f7;font:16px system-ui;color:#232323">
+<main style="max-width:360px;padding:24px;text-align:center"><strong>Open Abundance</strong><p>The local app shell is being restored. Reconnect and try again.</p><a href="/">Try again</a></main>
+</body></html>`, {
     status: 503,
-    statusText: "Offline",
+    statusText: "App shell unavailable",
     headers: {
-      "Content-Type": "text/plain; charset=utf-8"
+      "Cache-Control": "no-store",
+      "Content-Type": "text/html; charset=utf-8"
     }
   });
 }

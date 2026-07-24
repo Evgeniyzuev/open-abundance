@@ -23,6 +23,7 @@ Current IndexedDB stores:
 - `lists`
 - `tasks`
 - `taskCompletions`
+- `guestIdentity`
 
 Current localStorage usage:
 
@@ -248,7 +249,7 @@ For these server-backed screens, stale UI can be caused by HTTP/CDN/route cachin
 - Critical GET route handlers use `dynamic = "force-dynamic"`, `revalidate = 0`, and `fetchCache = "force-no-store"`.
 - Client refresh calls use `cache: "no-store"` and a timestamp query parameter for repeated manual refreshes.
 - Service worker fetch handling must pass `/api/*` requests directly to network with `cache: "no-store"` and must not cache API JSON.
-- Navigation/app-shell handling may use a short network-first timeout and then fall back to the cached shell, so offline startup stays instant.
+- Root navigation returns the cached app shell immediately and refreshes it in the background. A refreshed HTML shell is stored only after all referenced `/_next/static/` files are available in the same cache generation.
 
 This keeps notes/tasks instant and offline-friendly while preventing server-backed UI from being overwritten by stale server responses.
 
@@ -262,6 +263,13 @@ The app shell and local-first views must not wait for Supabase session refresh o
 - Notes and Checks stay mounted after the shell opens and hydrate from IndexedDB independently of network state.
 - Server-backed tabs may show their own first-payload loading state, but their requests must never blank or suspend local-first tabs.
 
+Implemented on 2026-07-23:
+
+- `OnboardingGate` renders the local app shell immediately for a returning device; auth and `/api/user/context` continue in `UserProvider` without blocking Notes or Checks.
+- Notes and Checks show a delayed local-storage recovery notice if IndexedDB does not answer promptly. The original read remains active, so a later successful response hydrates the views and removes the notice automatically.
+- IndexedDB opening is shared by notes, tasks, and guest identity, including all known stores and version-change connection cleanup.
+- Service worker cache `open-abundance-v8` serves the cached root immediately and updates HTML plus its Next.js static dependencies as one coherent shell generation.
+
 ## Cleanup Notes After Cache Fix
 
 The stale challenge/core/wallet issue was most likely caused by cached server-backed API responses, not by local-first notes/tasks.
@@ -271,7 +279,7 @@ Changes from the investigation that are probably temporary and can be removed af
 - API response debug blocks with `debug.supabaseProjectRef` and `debug.serverReadAt`.
 - Diagnostic response fields used only to prove auth/read context, such as `viewerUserId`, `authenticated`, and `userChallengeCount`, unless the UI still needs them for safety.
 - Any one-off `needsClientRefresh` response flag left from the reinvest investigation.
-- A very short service worker update check interval, such as 30 seconds, if it was only used to make the fixed deployment arrive faster. Restore a calmer interval after update delivery is confirmed, but keep the short navigation fallback timeout for offline startup.
+- A very short service worker update check interval, such as 30 seconds, if it was only used to make the fixed deployment arrive faster. Restore a calmer interval after update delivery is confirmed; cached root navigation itself remains immediate.
 
 Changes that are still useful as defensive behavior and should not be removed just because caching was the root cause:
 

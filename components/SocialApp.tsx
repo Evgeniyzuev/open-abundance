@@ -29,7 +29,22 @@ type TeamContext = {
     is_active: boolean;
   } | null;
   leader: { type: "system"; profile: null } | { type: "user"; profile: TeamProfile | null };
-  directMembers: Array<{ userId: string; assignedAt: string; profile: TeamProfile | null }>;
+  directMembers: Array<{ userId: string; assignedAt: string; profile: TeamProfile | null; leadershipCost: number }>;
+  assignment: {
+    status: "assigned" | "queued" | "system" | "missing";
+    reason: string | null;
+    attemptCount: number;
+    queuedAt: string | null;
+    lastAttemptAt: string | null;
+  };
+  leadership: {
+    base_points: number;
+    bonus_points: number;
+    total_points: number;
+    used_points: number;
+    free_points: number;
+    overcommitted: boolean;
+  };
   error?: string;
 };
 type TeamRewardDay = {
@@ -1210,7 +1225,29 @@ export default function SocialApp({
                 ) : (
                   <strong>{formatLeader(teamContext, locale)}</strong>
                 )}
-                <p>{teamContext?.membership ? t("profile.teams.assigned", { date: formatDate(teamContext.membership.assigned_at, locale) }) : t("profile.teams.pending")}</p>
+                <p>{formatTeamAssignment(teamContext, locale, t)}</p>
+              </div>
+              <div className="team-summary">
+                <span>{t("profile.teams.leadership")}</span>
+                <strong>
+                  {teamContext?.leadership.used_points ?? 0} / {teamContext?.leadership.total_points ?? 0}
+                </strong>
+                <progress
+                  className="leadership-progress"
+                  max={Math.max(teamContext?.leadership.total_points ?? 0, 1)}
+                  value={Math.min(
+                    teamContext?.leadership.used_points ?? 0,
+                    Math.max(teamContext?.leadership.total_points ?? 0, 1)
+                  )}
+                />
+                <p>
+                  {t("profile.teams.leadershipBreakdown", {
+                    base: teamContext?.leadership.base_points ?? 0,
+                    bonus: teamContext?.leadership.bonus_points ?? 0,
+                    free: teamContext?.leadership.free_points ?? 0
+                  })}
+                </p>
+                {teamContext?.leadership.overcommitted ? <p className="finance-error">{t("profile.teams.overcommitted")}</p> : null}
               </div>
               <div className="team-summary">
                 <span>{t("profile.teams.members")}</span>
@@ -1219,7 +1256,10 @@ export default function SocialApp({
                   <div className="compact-profile-list">
                     {teamContext.directMembers.map((member) => (
                       <button className="compact-profile-button" type="button" key={member.userId} onClick={() => { void openPublicProfile(member.userId); }}>
-                        {formatProfileName(member.profile, member.userId)}
+                        {formatProfileName(member.profile, member.userId)} · {t("profile.teams.memberCost", {
+                          level: member.profile?.level ?? 0,
+                          points: member.leadershipCost
+                        })}
                       </button>
                     ))}
                   </div>
@@ -2701,6 +2741,19 @@ function formatLeader(teamContext: TeamContext | null, locale: AppLocale): strin
   if (!teamContext?.membership) return locale === "ru" ? "Система" : "System";
   if (teamContext.leader.type === "system") return locale === "ru" ? "Система" : "System";
   return formatProfileName(teamContext.leader.profile, teamContext.membership.leader_user_id ?? "");
+}
+
+function formatTeamAssignment(
+  teamContext: TeamContext | null,
+  locale: AppLocale,
+  t: (key: MessageKey, values?: Record<string, string | number>) => string
+): string {
+  if (!teamContext) return t("app.common.loading");
+  if (teamContext.assignment.status === "queued") return t("profile.teams.queued");
+  if (teamContext.assignment.status === "system") return t("profile.teams.system");
+  if (teamContext.assignment.status === "missing") return t("profile.teams.missing");
+  if (!teamContext.membership) return t("profile.teams.pending");
+  return t("profile.teams.assigned", { date: formatDate(teamContext.membership.assigned_at, locale) });
 }
 
 function formatProfileName(profile: TeamProfile | null, fallback: string): string {

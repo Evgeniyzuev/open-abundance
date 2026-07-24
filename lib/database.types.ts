@@ -1201,6 +1201,93 @@ export type Database = {
         }
         Relationships: []
       }
+      team_assignment_queue: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          last_attempt_at: string | null
+          member_user_id: string
+          reason: string
+          referrer_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          last_attempt_at?: string | null
+          member_user_id: string
+          reason?: string
+          referrer_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          last_attempt_at?: string | null
+          member_user_id?: string
+          reason?: string
+          referrer_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      team_leadership: {
+        Row: {
+          bonus_points: number
+          created_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bonus_points?: number
+          created_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bonus_points?: number
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      team_membership_events: {
+        Row: {
+          assignment_source: string
+          created_at: string
+          event_type: string
+          id: string
+          member_user_id: string
+          metadata: Json
+          new_leader_user_id: string | null
+          previous_leader_user_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          assignment_source: string
+          created_at?: string
+          event_type: string
+          id?: string
+          member_user_id: string
+          metadata?: Json
+          new_leader_user_id?: string | null
+          previous_leader_user_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          assignment_source?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          member_user_id?: string
+          metadata?: Json
+          new_leader_user_id?: string | null
+          previous_leader_user_id?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       team_memberships: {
         Row: {
           assigned_at: string
@@ -1871,6 +1958,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_referral_and_assign_team: {
+        Args: {
+          p_captured_at?: string
+          p_guest_id?: string
+          p_member_user_id: string
+          p_referral_code?: string
+        }
+        Returns: {
+          assigned_leader_user_id: string | null
+          assignment_source: string
+          assignment_status: string
+          queue_reason: string | null
+        }[]
+      }
       calculate_core_level: { Args: { core_balance: number }; Returns: number }
       complete_user_challenge: {
         Args: {
@@ -1884,6 +1985,14 @@ export type Database = {
           reward_claimed: boolean
           rewarded_account: string
           rewarded_amount: number
+        }[]
+      }
+      process_team_assignment_queue: {
+        Args: { p_limit?: number }
+        Returns: {
+          assigned_count: number
+          processed_count: number
+          queued_count: number
         }[]
       }
       revalidate_team_membership_for_level_change: {
@@ -1910,6 +2019,17 @@ export type Database = {
           p_settlement_kind?: string
         }
         Returns: undefined
+      }
+      team_leadership_snapshot: {
+        Args: { p_user_id: string }
+        Returns: {
+          base_points: number
+          bonus_points: number
+          free_points: number
+          overcommitted: boolean
+          total_points: number
+          used_points: number
+        }[]
       }
       sync_team_contacts_for_member: {
         Args: { p_member_user_id: string }

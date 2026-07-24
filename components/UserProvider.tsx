@@ -186,12 +186,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     claimInFlightRef.current = (async () => {
       const guest = await getOrCreateLocalGuest();
-      if (guest.claimedUserId) return;
+      let claimedUserId = guest.claimedUserId;
 
-      const claim = await claimRegistrationAfterAuth(getOnboardingRegistrationLocale());
-      await markLocalGuestClaimed(claim.userId);
-      await claimReferralAfterAuth(guest.pendingReferral, guest.guestId);
-      await markPendingReferralClaimed();
+      if (!claimedUserId) {
+        const claim = await claimRegistrationAfterAuth(getOnboardingRegistrationLocale());
+        claimedUserId = claim.userId;
+        await markLocalGuestClaimed(claim.userId);
+      }
+
+      const pendingReferral = claimedUserId === currentUserIdRef.current
+        ? guest.pendingReferral
+        : undefined;
+
+      await claimReferralAfterAuth(pendingReferral, guest.guestId);
+      if (pendingReferral && !pendingReferral.claimedAt) {
+        await markPendingReferralClaimed();
+      }
     })().finally(() => {
       claimInFlightRef.current = null;
     });
@@ -240,9 +250,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
       setAuthResolved(true);
 
-      const guest = await getOrCreateLocalGuest();
-
-      if (session && !guest.claimedUserId) {
+      if (session) {
         await claimCurrentUserIfNeeded();
       }
 

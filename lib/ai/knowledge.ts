@@ -42,7 +42,7 @@ Open Abundance is a daily growth platform where users build internal capital (Co
 ### Levels
 - Levels 1-40+ based on Core balance.
 - Level 0 starts at \$0, Level 1 at \$2, up to Level 40 at \$1,000,000,000,000.
-- Higher levels unlock more challenges, bigger team capacity, and new opportunities.
+- Higher levels unlock more challenges, more Leadership, and new opportunities.
 
 ### Wishes
 - Personal goals with a target amount and category.
@@ -58,9 +58,11 @@ Open Abundance is a daily growth platform where users build internal capital (Co
 
 ### Teams & Referrals
 - Users invite others via referral links.
-- Each user has a leader (higher-level user).
+- Referrers at level 2+ receive their referrals first when they have enough Leadership.
+- Team members may be at any level; automatic matching prefers a leader one level above the member.
 - Leaders receive 10% of direct team members' daily Core growth.
-- Team capacity scales with leader level: leader.level * 10.
+- Base Leadership is leader.level * 10 plus future bonuses.
+- Each direct member uses Leadership equal to their level.
 
 ### Social Feed
 - Users share progress, wishes, and achievements.

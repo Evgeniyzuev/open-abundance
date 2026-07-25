@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper, Rocket, ShoppingBag, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper, Rocket, ShoppingBag, Smile, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
@@ -58,7 +58,7 @@ const mainTabs: MainTab[] = [
   { id: "goals", titleKey: "app.nav.goals", icon: Target },
   { id: "challenges", titleKey: "app.nav.challenges", icon: Trophy },
   { id: "wallet", titleKey: "app.nav.wallet", icon: Wallet },
-  { id: "people", titleKey: "app.nav.people", icon: Users }
+  { id: "people", titleKey: "app.nav.people", icon: Smile }
 ];
 
 const homeTabs: TopTab[] = [
@@ -87,7 +87,7 @@ const challengeTabs: TopTab[] = [
 
 const socialTabs: TopTab[] = [
   { id: "feed", titleKey: "social.feed.title", icon: Newspaper },
-  { id: "people", titleKey: "social.people.title", icon: Users },
+  { id: "people", titleKey: "social.people.title", icon: UserRound },
   { id: "blog", titleKey: "social.blog.title", icon: BookOpen },
   { id: "teams", titleKey: "social.teams.title", icon: Users },
   { id: "profile", titleKey: "profile.title", icon: UserRound }

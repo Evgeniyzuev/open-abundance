@@ -4,10 +4,12 @@ import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, 
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import FeedPostGallery from "@/components/FeedPostGallery";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
+import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
 import { COLOR_THEMES, UI_SCALES, type ColorTheme, type UiScale } from "@/lib/appearance";
@@ -128,132 +130,6 @@ type PublicProfilePayload = {
   publicWishes: PublicWish[];
   relation: { isSelf: boolean; isContact: boolean; isTeam: boolean; isFollower: boolean };
   visibleBlocks: Record<string, boolean>;
-  error?: string;
-};
-type PublicWish = {
-  id: string;
-  owner_user_id: string;
-  title: string;
-  description: string;
-  category: string | null;
-  image_url: string | null;
-  target_amount: number | null;
-  target_currency: string;
-  difficulty_level: number;
-  status: string;
-  visibility: string;
-  cloned_from_wish_id: string | null;
-  original_wish_id: string | null;
-  copied_count: number;
-  completed_at: string | null;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
-  viewer_has_copy: boolean;
-};
-type FeedStatBlock = {
-  id: string;
-  post_id: string;
-  snapshot_id: string;
-  block_key: string;
-  label: string;
-  value: unknown;
-  visibility: string;
-  sort_order: number;
-};
-type FeedExternalLink = {
-  id: string;
-  post_id: string;
-  provider: string;
-  external_url: string;
-  external_post_id: string | null;
-  author_handle: string | null;
-  title: string | null;
-  caption: string | null;
-  thumbnail_url: string | null;
-  embed_status: string;
-  relation: string;
-  created_at: string;
-  updated_at: string;
-};
-type FeedMedia = {
-  id: string;
-  post_id: string;
-  media_type: string;
-  media_url: string;
-  thumbnail_url: string | null;
-  alt_text: unknown;
-  source_url: string | null;
-  source_label: string | null;
-  sort_order: number;
-  metadata: unknown;
-  created_at: string;
-  updated_at: string;
-};
-type FeedSystemAccount = {
-  account_key: string;
-  avatar_url: string | null;
-  bio: unknown;
-  display_name: string;
-  is_active: boolean;
-};
-type FeedSystemStory = {
-  post_id: string;
-  system_account_key: string;
-  series_key: string;
-  series_order: number;
-  story_kind: string;
-  evidence_status: string;
-  next_story_key: string | null;
-  account: FeedSystemAccount | null;
-};
-type FeedProjectReview = {
-  post_id: string;
-  feedback_submission_id: string;
-  overall_rating: number;
-  mission_rating: number;
-  attitude: string;
-  most_useful_area: string;
-  challenge_reward_amount: number;
-  created_at: string;
-  updated_at: string;
-};
-type FeedReviewSummary = {
-  average: number;
-  count: number;
-  distribution: Record<string, number>;
-};
-type FeedPost = {
-  id: string;
-  author_user_id: string | null;
-  author_label: string | null;
-  authorName: string | null;
-  source_key: string | null;
-  snapshot_id: string | null;
-  post_type: string;
-  status: "draft" | "published" | "archived";
-  visibility: string;
-  body: string | null;
-  created_at: string;
-  updated_at: string;
-  published_at: string | null;
-  deleted_at: string | null;
-  author: TeamProfile | null;
-  statBlocks: FeedStatBlock[];
-  externalLinks: FeedExternalLink[];
-  media: FeedMedia[];
-  wish: PublicWish | null;
-  projectReview: FeedProjectReview | null;
-  systemStory: FeedSystemStory | null;
-};
-type FeedPayload = {
-  scope: "feed" | "blog" | "system";
-  postType?: "project_review" | null;
-  author: TeamProfile | null;
-  systemAccount: FeedSystemAccount | null;
-  posts: FeedPost[];
-  nextCursor?: string | null;
-  reviewSummary?: FeedReviewSummary | null;
   error?: string;
 };
 type FeedFilter = "all" | "reviews";
@@ -383,6 +259,7 @@ export default function SocialApp({
   const [feedSaving, setFeedSaving] = useState(false);
   const [dailyDraft, setDailyDraft] = useState<FeedPost | null>(null);
   const [externalLinkUrl, setExternalLinkUrl] = useState("");
+  const [linkComposerOpen, setLinkComposerOpen] = useState(false);
   const [selectedBlogAuthorId, setSelectedBlogAuthorId] = useState<string | null>(null);
   const [selectedSystemAccountKey, setSelectedSystemAccountKey] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
@@ -1219,6 +1096,7 @@ export default function SocialApp({
           currentUserId={user.id}
           dailyDraft={dailyDraft}
           externalLinkUrl={externalLinkUrl}
+          linkComposerOpen={linkComposerOpen}
           feedPayload={feedPayload}
           filter={feedFilter}
           loading={feedLoading}
@@ -1237,6 +1115,7 @@ export default function SocialApp({
             setFeedFilter(nextFilter);
           }}
           onLoadMore={() => { void loadFeed(true); }}
+          onLinkComposerToggle={() => setLinkComposerOpen((current) => !current)}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
           onOpenPost={setSelectedPost}
@@ -1765,6 +1644,7 @@ export default function SocialApp({
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
           onOpenSystemAccount={openSystemAccount}
+          onPublish={publishPost}
           onUpdateReview={updateProjectReview}
           onCopyWish={copyPublicWishToMine}
         />
@@ -2095,6 +1975,7 @@ function FeedView({
   currentUserId,
   dailyDraft,
   externalLinkUrl,
+  linkComposerOpen,
   feedPayload,
   filter,
   loading,
@@ -2109,6 +1990,7 @@ function FeedView({
   onExternalLinkUrlChange,
   onFilterChange,
   onLoadMore,
+  onLinkComposerToggle,
   onOpenAuthor,
   onOpenBlog,
   onOpenPost,
@@ -2121,6 +2003,7 @@ function FeedView({
   currentUserId: string;
   dailyDraft: FeedPost | null;
   externalLinkUrl: string;
+  linkComposerOpen: boolean;
   feedPayload: FeedPayload | null;
   filter: FeedFilter;
   loading: boolean;
@@ -2135,6 +2018,7 @@ function FeedView({
   onExternalLinkUrlChange: (url: string) => void;
   onFilterChange: (filter: FeedFilter) => void;
   onLoadMore: () => void;
+  onLinkComposerToggle: () => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenPost: (post: FeedPost) => void;
@@ -2178,9 +2062,11 @@ function FeedView({
           />
         ) : null}
         <ExternalLinkComposer
+          open={linkComposerOpen}
           saving={saving}
           t={t}
           url={externalLinkUrl}
+          onToggle={onLinkComposerToggle}
           onSubmit={onCreateExternalLink}
           onUrlChange={onExternalLinkUrlChange}
         />
@@ -2239,21 +2125,37 @@ function ReviewSummary({ summary, locale, t }: {
 }
 
 function ExternalLinkComposer({
+  open,
   saving,
   t,
   url,
+  onToggle,
   onSubmit,
   onUrlChange
 }: {
+  open: boolean;
   saving: boolean;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   url: string;
+  onToggle: () => void;
   onSubmit: () => void;
   onUrlChange: (url: string) => void;
 }) {
+  if (!open) {
+    return (
+      <button className="compact-composer-action" type="button" onClick={onToggle}>
+        <ExternalLink size={15} />
+        {t("social.feed.externalLink")}
+      </button>
+    );
+  }
+
   return (
     <form className="external-link-composer" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
-      <label htmlFor="external-link-url">{t("social.feed.externalLink")}</label>
+      <label htmlFor="external-link-url">
+        {t("social.feed.externalLink")}
+        <button className="text-button" type="button" onClick={onToggle}>{t("app.common.close")}</button>
+      </label>
       <div>
         <input
           id="external-link-url"
@@ -2408,25 +2310,7 @@ function DailyDraftEditor({
   );
 }
 
-function PostList({
-  copyingWishId,
-  currentUserId,
-  emptyText,
-  loading,
-  locale,
-  posts,
-  saving,
-  showBlogAction,
-  showSystemProfileAction = true,
-  t,
-  onCopyWish,
-  onOpenAuthor,
-  onOpenBlog,
-  onOpenPost,
-  onOpenSystemAccount,
-  onDeletePost,
-  onPublish
-}: {
+function PostList(props: {
   copyingWishId: string | null;
   currentUserId: string;
   emptyText: string;
@@ -2445,36 +2329,14 @@ function PostList({
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
+  const { emptyText, loading, onOpenPost, posts, t } = props;
   if (loading && !posts.length) return <p className="finance-error neutral">{t("app.common.loading")}</p>;
   if (!posts.length) return <p className="feed-empty">{emptyText}</p>;
 
-  return (
-    <div className="feed-post-list">
-      {posts.map((post) => (
-        <PostCard
-          copyingWishId={copyingWishId}
-          currentUserId={currentUserId}
-          key={post.id}
-          locale={locale}
-          post={post}
-          saving={Boolean(saving)}
-          showBlogAction={showBlogAction}
-          showSystemProfileAction={showSystemProfileAction}
-          t={t}
-          onCopyWish={onCopyWish}
-          onOpenAuthor={onOpenAuthor}
-          onOpenBlog={onOpenBlog}
-          onOpenPost={onOpenPost}
-          onOpenSystemAccount={onOpenSystemAccount}
-          onDeletePost={onDeletePost}
-          onPublish={onPublish}
-        />
-      ))}
-    </div>
-  );
+  return <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={posts} onOpen={onOpenPost} />;
 }
 
-function PostCard({
+export function PostCard({
   copyingWishId,
   currentUserId,
   locale,
@@ -2579,6 +2441,7 @@ function PostCard({
 function WishPostPreview({
   copyingWishId,
   currentUserId,
+  hideCopy = false,
   locale,
   post,
   t,
@@ -2586,6 +2449,7 @@ function WishPostPreview({
 }: {
   copyingWishId: string | null;
   currentUserId: string | null;
+  hideCopy?: boolean;
   locale: AppLocale;
   post: FeedPost;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -2594,7 +2458,7 @@ function WishPostPreview({
   const wish = post.wish;
   if (!wish) return null;
 
-  const canCopy = wish.owner_user_id !== currentUserId;
+  const canCopy = !hideCopy && wish.owner_user_id !== currentUserId;
   const isCopying = copyingWishId === wish.id;
 
   return (
@@ -2624,9 +2488,10 @@ function WishPostPreview({
   );
 }
 
-function PostDetailModal({
+export function PostDetailModal({
   copyingWishId,
   currentUserId,
+  readOnly = false,
   locale,
   post,
   t,
@@ -2636,10 +2501,12 @@ function PostDetailModal({
   onOpenAuthor,
   onOpenBlog,
   onOpenSystemAccount,
+  onPublish,
   onUpdateReview
 }: {
   copyingWishId: string | null;
   currentUserId: string | null;
+  readOnly?: boolean;
   locale: AppLocale;
   post: FeedPost;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -2649,9 +2516,10 @@ function PostDetailModal({
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenSystemAccount: (accountKey: string) => void;
+  onPublish: (post: FeedPost) => void;
   onUpdateReview: (post: FeedPost, changes: ReviewEditPayload) => Promise<void>;
 }) {
-  const canDelete = Boolean(post.author_user_id) && post.author_user_id === currentUserId;
+  const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewDraft, setReviewDraft] = useState<ReviewEditPayload>({
@@ -2739,6 +2607,7 @@ function PostDetailModal({
         <WishPostPreview
           copyingWishId={copyingWishId}
           currentUserId={currentUserId}
+          hideCopy={readOnly}
           locale={locale}
           post={post}
           t={t}
@@ -2762,6 +2631,11 @@ function PostDetailModal({
             <button className="secondary-button" type="button" onClick={() => setEditingReview(true)}>
               <Edit3 size={15} />
               {t("social.review.edit")}
+            </button>
+          ) : null}
+          {!readOnly && post.status === "draft" ? (
+            <button className="finance-small-icon-button primary" type="button" aria-label={t("social.feed.publish")} onClick={() => onPublish(post)}>
+              <Send size={15} />
             </button>
           ) : null}
           {canDelete ? (

@@ -2,10 +2,14 @@
 
 import { BookOpen, ExternalLink, UserRound } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import FeedPostGallery from "@/components/FeedPostGallery";
+import { PostDetailModal } from "@/components/SocialApp";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
+import type { FeedPayload, FeedPost } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 type PublicUserView = "profile" | "blog";
@@ -25,24 +29,12 @@ type PublicProfilePayload = {
   visibleBlocks: Record<string, boolean>;
   error?: string;
 };
-type FeedPost = {
-  id: string;
-  author_user_id: string;
-  body: string | null;
-  post_type: string;
-  status: string;
-  published_at: string | null;
-  created_at: string;
-};
-type FeedPayload = {
-  posts: FeedPost[];
-  error?: string;
-};
-
 export default function PublicUserPage({ userId, initialView }: { userId: string; initialView: PublicUserView }) {
-  const { user, loading, t } = useUserContext();
+  const { user, loading, locale, t } = useUserContext();
+  const router = useRouter();
   const [profilePayload, setProfilePayload] = useState<PublicProfilePayload | null>(null);
   const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
+  const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
   const [view, setView] = useState<PublicUserView>(initialView);
   const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -158,7 +150,25 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
               <PublicProfileView payload={profilePayload} t={t} />
             ) : null}
             {view === "blog" ? (
-              <PublicBlogView loading={pageLoading} payload={feedPayload} t={t} />
+              <PublicBlogView loading={pageLoading} payload={feedPayload} t={t} onOpenPost={setSelectedPost} />
+            ) : null}
+            {selectedPost ? (
+              <PostDetailModal
+                copyingWishId={null}
+                currentUserId={user.id}
+                locale={locale}
+                post={selectedPost}
+                readOnly
+                t={t}
+                onClose={() => setSelectedPost(null)}
+                onCopyWish={() => undefined}
+                onDeletePost={() => undefined}
+                onOpenAuthor={(authorUserId) => router.push(`/u/${authorUserId}`)}
+                onOpenBlog={(authorUserId) => router.push(`/u/${authorUserId}/blog`)}
+                onOpenSystemAccount={() => undefined}
+                onPublish={() => undefined}
+                onUpdateReview={async () => undefined}
+              />
             ) : null}
           </>
         ) : null}
@@ -214,26 +224,19 @@ function PublicProfileView({
 function PublicBlogView({
   loading,
   payload,
-  t
+  t,
+  onOpenPost
 }: {
   loading: boolean;
   payload: FeedPayload | null;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onOpenPost: (post: FeedPost) => void;
 }) {
   const posts = payload?.posts ?? [];
   if (loading && !posts.length) return <p className="finance-error neutral">{t("app.common.loading")}</p>;
   if (!posts.length) return <p className="feed-empty">{t("social.blog.empty")}</p>;
 
-  return (
-    <section className="feed-post-list">
-      {posts.map((post) => (
-        <article className="feed-post-card" key={post.id}>
-          <p className="feed-post-body">{post.body ?? t("social.post.detail")}</p>
-          <span className={`post-status ${post.status}`}>{t("social.post.published")}</span>
-        </article>
-      ))}
-    </section>
-  );
+  return <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={posts} onOpen={onOpenPost} />;
 }
 
 async function getAccessToken(): Promise<string> {

@@ -600,6 +600,7 @@ export type Database = {
           snapshot_id: string | null
           source_key: string | null
           status: string
+          system_verified: boolean
           updated_at: string
           visibility: string
         }
@@ -615,6 +616,7 @@ export type Database = {
           snapshot_id?: string | null
           source_key?: string | null
           status?: string
+          system_verified?: boolean
           updated_at?: string
           visibility?: string
         }
@@ -630,6 +632,7 @@ export type Database = {
           snapshot_id?: string | null
           source_key?: string | null
           status?: string
+          system_verified?: boolean
           updated_at?: string
           visibility?: string
         }
@@ -745,6 +748,128 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_deal_events: {
+        Row: {
+          actor_user_id: string
+          created_at: string
+          deal_id: string
+          event_type: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          actor_user_id: string
+          created_at?: string
+          deal_id: string
+          event_type: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          actor_user_id?: string
+          created_at?: string
+          deal_id?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_deal_events_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_deals: {
+        Row: {
+          artifact_id: string
+          buyer_accepted_at: string | null
+          buyer_accepted_terms_hash: string | null
+          buyer_user_id: string
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          currency_code: string
+          escrow_held_at: string | null
+          expires_at: string | null
+          id: string
+          listing_id: string
+          metadata: Json
+          price_amount: number
+          seller_accepted_at: string | null
+          seller_accepted_terms_hash: string | null
+          seller_user_id: string
+          status: string
+          terms_hash: string
+          terms_json: Json
+          updated_at: string
+        }
+        Insert: {
+          artifact_id: string
+          buyer_accepted_at?: string | null
+          buyer_accepted_terms_hash?: string | null
+          buyer_user_id: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency_code?: string
+          escrow_held_at?: string | null
+          expires_at?: string | null
+          id?: string
+          listing_id: string
+          metadata?: Json
+          price_amount: number
+          seller_accepted_at?: string | null
+          seller_accepted_terms_hash?: string | null
+          seller_user_id: string
+          status?: string
+          terms_hash: string
+          terms_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          artifact_id?: string
+          buyer_accepted_at?: string | null
+          buyer_accepted_terms_hash?: string | null
+          buyer_user_id?: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency_code?: string
+          escrow_held_at?: string | null
+          expires_at?: string | null
+          id?: string
+          listing_id?: string
+          metadata?: Json
+          price_amount?: number
+          seller_accepted_at?: string | null
+          seller_accepted_terms_hash?: string | null
+          seller_user_id?: string
+          status?: string
+          terms_hash?: string
+          terms_json?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_deals_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "user_artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_listings: {
         Row: {
           artifact_id: string
@@ -756,6 +881,10 @@ export type Database = {
           id: string
           metadata: Json
           price_amount: number
+          rating_count: number
+          rating_sum: number
+          review_count: number
+          sales_count: number
           seller_user_id: string
           sold_at: string | null
           status: string
@@ -774,6 +903,10 @@ export type Database = {
           id?: string
           metadata?: Json
           price_amount: number
+          rating_count?: number
+          rating_sum?: number
+          review_count?: number
+          sales_count?: number
           seller_user_id: string
           sold_at?: string | null
           status?: string
@@ -792,6 +925,10 @@ export type Database = {
           id?: string
           metadata?: Json
           price_amount?: number
+          rating_count?: number
+          rating_sum?: number
+          review_count?: number
+          sales_count?: number
           seller_user_id?: string
           sold_at?: string | null
           status?: string
@@ -2291,6 +2428,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_marketplace_deal: {
+        Args: { p_actor_user_id: string; p_deal_id: string }
+        Returns: Json
+      }
       assign_team_member: {
         Args: {
           p_allow_transition?: boolean
@@ -2309,6 +2450,10 @@ export type Database = {
       can_be_team_leader: {
         Args: { p_leader_user_id: string; p_member_user_id: string }
         Returns: boolean
+      }
+      cancel_marketplace_deal: {
+        Args: { p_actor_user_id: string; p_deal_id: string }
+        Returns: Json
       }
       claim_due_reminder_jobs: {
         Args: { p_limit?: number }
@@ -2350,6 +2495,10 @@ export type Database = {
           queue_reason: string
         }[]
       }
+      complete_marketplace_deal: {
+        Args: { p_actor_user_id: string; p_deal_id: string }
+        Returns: Json
+      }
       complete_reminder_job: {
         Args: { p_error?: string; p_job_id: string; p_success: boolean }
         Returns: undefined
@@ -2367,6 +2516,10 @@ export type Database = {
           rewarded_account: string
           rewarded_amount: number
         }[]
+      }
+      create_marketplace_deal: {
+        Args: { p_buyer_user_id: string; p_listing_id: string }
+        Returns: Json
       }
       create_verified_challenge_post: {
         Args: {

@@ -60,8 +60,9 @@ export type FeedMedia = {
   id: string;
   post_id: string;
   media_type: string;
-  media_url: string;
+  media_url: string | null;
   thumbnail_url: string | null;
+  storage_path?: string | null;
   alt_text: unknown;
   source_url: string | null;
   source_label: string | null;
@@ -90,6 +91,8 @@ export type FeedSystemStory = {
   account: FeedSystemAccount | null;
 };
 
+export type FeedAbundanceStory = FeedSystemStory;
+
 export type FeedProjectReview = {
   post_id: string;
   feedback_submission_id: string;
@@ -115,7 +118,7 @@ export type FeedPost = {
   authorName: string | null;
   source_key: string | null;
   snapshot_id: string | null;
-  post_type: string;
+  post_type: "daily_progress" | "level_up" | "manual" | "external_link" | "wish" | "wish_completed" | "reality_demo" | "abundance_story" | "challenge" | "project_review" | string;
   status: "draft" | "published" | "archived";
   visibility: string;
   body: string | null;
@@ -134,6 +137,7 @@ export type FeedPost = {
 
 export type FeedPayload = {
   scope: "feed" | "blog" | "system";
+  category?: "all" | "stories" | "system" | "reviews";
   postType?: "project_review" | null;
   author: FeedAuthor | null;
   systemAccount: FeedSystemAccount | null;

@@ -860,6 +860,15 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .stat-block-toggle strong, .post-stat-grid strong { overflow: hidden; font-size: 1.0625rem; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
 .stat-block-toggle small { display: inline-flex; align-items: center; gap: 4px; color: var(--blue); font-size: 0.75rem; font-weight: 850; }
 .stat-block-toggle:not(.active) small { color: var(--muted); }
+.system-event-cover-picker { display: grid; gap: 8px; }
+.system-event-cover-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 0.75rem; font-weight: 850; text-transform: uppercase; }
+.system-event-upload { position: relative; overflow: hidden; }
+.system-event-upload input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.system-event-cover-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.system-event-cover-options button { min-width: 0; display: grid; gap: 4px; overflow: hidden; border: 1px solid transparent; border-radius: 9px; padding: 3px; background: var(--surface-soft); color: var(--muted); font-size: 0.62rem; font-weight: 800; text-align: left; }
+.system-event-cover-options button.active { border-color: var(--accent-fill); color: var(--accent-fill); }
+.system-event-cover-options img { width: 100%; aspect-ratio: 4 / 5; display: block; object-fit: cover; border-radius: 6px; }
+.system-event-cover-options span { overflow: hidden; padding: 0 2px 2px; text-overflow: ellipsis; white-space: nowrap; }
 .primary-social-action { justify-self: stretch; background: var(--accent-fill); color: white; box-shadow: 0 10px 24px rgba(10,132,255,0.18); }
 .feed-post-list { min-width: 0; max-width: 100%; display: grid; gap: 8px; }
 .feed-post-gallery { min-width: 0; max-width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; }
@@ -868,6 +877,10 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .feed-post-tile img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
 .feed-post-tile-fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; background: linear-gradient(145deg, var(--accent-soft), var(--purple-soft)); color: var(--blue); font-size: clamp(1.4rem, 6vw, 2.6rem); font-weight: 950; letter-spacing: -0.04em; }
 .feed-post-tile-copy { position: absolute; left: 8px; right: 7px; bottom: 8px; z-index: 1; display: -webkit-box; overflow: hidden; color: var(--fixed-white); font-size: clamp(0.72rem, 2.2vw, 0.94rem); font-weight: 850; line-height: 1.12; text-shadow: 0 1px 8px rgba(0,0,0,0.58); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.feed-post-tile-author { position: absolute; top: 7px; left: 7px; right: 34px; z-index: 1; display: flex; align-items: center; min-width: 0; gap: 5px; color: var(--fixed-white); font-size: clamp(0.58rem, 1.8vw, 0.72rem); font-weight: 850; text-shadow: 0 1px 8px rgba(0,0,0,0.65); }
+.feed-post-tile-author > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-post-tile-avatar { width: 22px; height: 22px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,0.72); border-radius: 50%; background: rgba(0,0,0,0.26); color: var(--fixed-white); font-size: 0.65rem; font-weight: 900; }
+.feed-post-tile-avatar img { position: static; width: 100%; height: 100%; object-fit: cover; }
 .feed-post-tile-count { position: absolute; top: 7px; right: 7px; z-index: 1; min-width: 24px; min-height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 0 6px; background: rgba(0,0,0,0.42); color: var(--fixed-white); font-size: 0.6875rem; font-weight: 900; }
 .feed-post-tile:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .feed-empty { margin: 0; border-radius: 12px; padding: 18px 14px; background: var(--surface-glass); color: var(--muted); font-size: 0.875rem; text-align: center; }

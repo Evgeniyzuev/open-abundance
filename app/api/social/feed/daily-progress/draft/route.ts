@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
     const snapshot = await upsertSnapshot(user.id, row, context);
     const post = await getOrCreatePost(user.id, snapshot.id, row);
     const statBlocks = await syncStatBlocks(post, snapshot.id, row, context);
+    await syncDefaultCover(post, post.post_type);
 
     return NextResponse.json({ post: { ...post, statBlocks } }, { headers: NO_STORE_HEADERS });
 
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     async function getOrCreatePost(userId: string, snapshotId: string, row: DailyCoreAccrual): Promise<FeedPostRow> {
+      const eventType = row.core_after > row.core_before && context.levelAfter > context.levelBefore ? "level_up" : "daily_progress";
       const { data: existingPost, error: existingError } = await supabase
         .from("feed_posts")
         .select("*")
@@ -93,6 +95,16 @@ export async function POST(request: NextRequest) {
 
       if (existingError) throw existingError;
       if (existingPost) {
+        if (existingPost.post_type !== eventType) {
+          const { data: updatedTypePost, error: updateTypeError } = await supabase
+            .from("feed_posts")
+            .update({ post_type: eventType })
+            .eq("id", existingPost.id)
+            .select("*")
+            .single();
+          if (updateTypeError) throw updateTypeError;
+          return updatedTypePost;
+        }
         const nextBody = shouldRefreshDefaultBody(existingPost.body) ? buildDefaultBody(row) : existingPost.body;
         if (nextBody !== existingPost.body) {
           const { data: updatedPost, error: updatePostError } = await supabase
@@ -114,7 +126,7 @@ export async function POST(request: NextRequest) {
         .insert({
           author_user_id: userId,
           snapshot_id: snapshotId,
-          post_type: "daily_progress",
+          post_type: eventType,
           status: "draft",
           visibility: "public",
           body: buildDefaultBody(row)
@@ -158,6 +170,25 @@ export async function POST(request: NextRequest) {
 
       if (upsertBlocksError) throw upsertBlocksError;
       return data ?? [];
+    }
+
+    async function syncDefaultCover(post: FeedPostRow, postType: string): Promise<void> {
+      const { count, error: countError } = await supabase
+        .from("feed_post_media")
+        .select("id", { count: "exact", head: true })
+        .eq("post_id", post.id);
+      if (countError) throw countError;
+      if (count) return;
+      const template = postType === "level_up" ? "level-up" : "daily-progress";
+      const { error: mediaError } = await supabase.from("feed_post_media").insert({
+        post_id: post.id,
+        media_type: "image",
+        media_url: `/feed/system-events/${template}.png`,
+        alt_text: {},
+        sort_order: 0,
+        metadata: { origin: "system_template", templateKey: postType }
+      } satisfies TablesInsert<"feed_post_media">);
+      if (mediaError) throw mediaError;
     }
 
     async function loadDailyGrowthContext(userId: string, row: DailyCoreAccrual): Promise<DailyGrowthContext> {

@@ -132,7 +132,7 @@ type PublicProfilePayload = {
   visibleBlocks: Record<string, boolean>;
   error?: string;
 };
-type FeedFilter = "all" | "reviews";
+type FeedFilter = "all" | "stories" | "system" | "reviews";
 type ReviewEditPayload = {
   body: string;
   overallRating: number;
@@ -258,6 +258,7 @@ export default function SocialApp({
   const [systemLoading, setSystemLoading] = useState(false);
   const [feedSaving, setFeedSaving] = useState(false);
   const [dailyDraft, setDailyDraft] = useState<FeedPost | null>(null);
+  const [systemDrafts, setSystemDrafts] = useState<FeedPost[]>([]);
   const [externalLinkUrl, setExternalLinkUrl] = useState("");
   const [linkComposerOpen, setLinkComposerOpen] = useState(false);
   const [selectedBlogAuthorId, setSelectedBlogAuthorId] = useState<string | null>(null);
@@ -265,6 +266,7 @@ export default function SocialApp({
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
   const feedScrollPositionRef = useRef(0);
   const feedCursorRef = useRef<string | null>(null);
+  const dailyDraftEnsuredRef = useRef(false);
 
   useEffect(() => {
     setSocialError(null);
@@ -309,11 +311,13 @@ export default function SocialApp({
     setSystemLoading(false);
     setFeedSaving(false);
     setDailyDraft(null);
+    setSystemDrafts([]);
     setExternalLinkUrl("");
     setSelectedBlogAuthorId(null);
     setSelectedSystemAccountKey(null);
     setSelectedPost(null);
     feedCursorRef.current = null;
+    dailyDraftEnsuredRef.current = false;
   }, [user?.id]);
 
   const loadReferralLink = useCallback(async () => {
@@ -424,14 +428,52 @@ export default function SocialApp({
     setPeopleQuery(nextQuery);
   }, [loadPeople, peopleQuery, peopleSearchText]);
 
+  const loadSystemDrafts = useCallback(async () => {
+    if (!user) return;
+    const token = await getAccessToken();
+    const params = new URLSearchParams({ scope: "blog", drafts: "system", locale, limit: "20", ts: String(Date.now()) });
+    const response = await fetch(`/api/social/feed?${params.toString()}`, {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+    });
+    const payload = (await response.json()) as FeedPayload;
+    if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load system drafts.");
+    const drafts = payload.posts ?? [];
+    setSystemDrafts(drafts);
+    setDailyDraft((current) => current ?? drafts.find((post) => post.post_type === "daily_progress" || post.post_type === "level_up") ?? null);
+  }, [locale, user]);
+
+  const ensureDailyDraft = useCallback(async () => {
+    if (!user || dailyDraftEnsuredRef.current) return;
+    dailyDraftEnsuredRef.current = true;
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/social/feed/daily-progress/draft", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({})
+      });
+      const payload = (await response.json()) as { post?: FeedPost; error?: string };
+      if (response.ok && payload.post) setDailyDraft(payload.post);
+    } catch (draftError) {
+      dailyDraftEnsuredRef.current = false;
+      console.warn("Daily draft ensure failed", draftError);
+    }
+  }, [user]);
+
   const loadFeed = useCallback(async (append = false) => {
     if (!user) return;
+    if (!append) {
+      void ensureDailyDraft();
+      void loadSystemDrafts();
+    }
     if (append) setFeedLoadingMore(true);
     else setFeedLoading(true);
     try {
       const token = await getAccessToken();
       const params = new URLSearchParams({ scope: "feed", locale, limit: "20", ts: String(Date.now()) });
-      if (feedFilter === "reviews") params.set("postType", "project_review");
+      if (feedFilter !== "all") params.set("category", feedFilter);
       if (append && feedCursorRef.current) params.set("cursor", feedCursorRef.current);
       const response = await fetch(`/api/social/feed?${params.toString()}`, {
         cache: "no-store",
@@ -450,7 +492,7 @@ export default function SocialApp({
       if (append) setFeedLoadingMore(false);
       else setFeedLoading(false);
     }
-  }, [feedFilter, locale, user]);
+  }, [ensureDailyDraft, feedFilter, loadSystemDrafts, locale, user]);
 
   const loadBlog = useCallback(async () => {
     if (!user) return;
@@ -892,6 +934,57 @@ export default function SocialApp({
     }
   }
 
+  function updateLocalPostCover(postId: string, media: FeedMedia) {
+    const update = (item: FeedPost) => item.id === postId ? { ...item, media: [media, ...item.media.filter((current) => current.sort_order !== 0)] } : item;
+    setSystemDrafts((current) => current.map(update));
+    setDailyDraft((current) => current ? update(current) : current);
+    setFeedPayload((current) => current ? { ...current, posts: current.posts.map(update) } : current);
+    setBlogPayload((current) => current ? { ...current, posts: current.posts.map(update) } : current);
+    setSelectedPost((current) => current ? update(current) : current);
+  }
+
+  async function updatePostCover(post: FeedPost, templateKey: string) {
+    setFeedSaving(true);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/social/feed/posts/${post.id}/cover`, {
+        method: "PATCH",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ templateKey })
+      });
+      const payload = (await response.json()) as { media?: FeedMedia; error?: string };
+      if (!response.ok || payload.error || !payload.media) throw new Error(payload.error ?? "Failed to update cover.");
+      updateLocalPostCover(post.id, payload.media);
+    } catch (coverError) {
+      setSocialError(coverError instanceof Error ? coverError.message : "Failed to update cover.");
+    } finally {
+      setFeedSaving(false);
+    }
+  }
+
+  async function uploadPostCover(post: FeedPost, file: File) {
+    setFeedSaving(true);
+    try {
+      const token = await getAccessToken();
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch(`/api/social/feed/posts/${post.id}/cover`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form
+      });
+      const payload = (await response.json()) as { media?: FeedMedia; error?: string };
+      if (!response.ok || payload.error || !payload.media) throw new Error(payload.error ?? "Failed to upload cover.");
+      updateLocalPostCover(post.id, payload.media);
+    } catch (coverError) {
+      setSocialError(coverError instanceof Error ? coverError.message : "Failed to upload cover.");
+    } finally {
+      setFeedSaving(false);
+    }
+  }
+
   async function publishPost(post: FeedPost) {
     setFeedSaving(true);
     setSocialError(null);
@@ -989,6 +1082,12 @@ export default function SocialApp({
 
   function updateDailyDraftBody(body: string) {
     setDailyDraft((current) => current ? { ...current, body } : current);
+  }
+
+  function updateSystemDraftBody(postId: string, body: string) {
+    const update = (item: FeedPost) => item.id === postId ? { ...item, body } : item;
+    setSystemDrafts((current) => current.map(update));
+    setSelectedPost((current) => current ? update(current) : current);
   }
 
   function toggleDailyDraftBlock(blockKey: string) {
@@ -1095,6 +1194,7 @@ export default function SocialApp({
           copyingWishId={copyingWishId}
           currentUserId={user.id}
           dailyDraft={dailyDraft}
+          systemDrafts={systemDrafts}
           externalLinkUrl={externalLinkUrl}
           linkComposerOpen={linkComposerOpen}
           feedPayload={feedPayload}
@@ -1108,6 +1208,7 @@ export default function SocialApp({
           onCreateExternalLink={createExternalLinkPost}
           onCopyWish={copyPublicWishToMine}
           onDraftBodyChange={updateDailyDraftBody}
+          onDraftBodyChangeForPost={updateSystemDraftBody}
           onExternalLinkUrlChange={setExternalLinkUrl}
           onFilterChange={(nextFilter) => {
             feedCursorRef.current = null;
@@ -1122,6 +1223,8 @@ export default function SocialApp({
           onOpenSystemAccount={openSystemAccount}
           onDeletePost={deletePost}
           onPublish={publishPost}
+          onUpdateCover={updatePostCover}
+          onUploadCover={uploadPostCover}
           onToggleDraftBlock={toggleDailyDraftBlock}
         />
       ) : null}
@@ -1645,6 +1748,8 @@ export default function SocialApp({
           onOpenBlog={openAuthorBlog}
           onOpenSystemAccount={openSystemAccount}
           onPublish={publishPost}
+          onUpdateCover={updatePostCover}
+          onUploadCover={uploadPostCover}
           onUpdateReview={updateProjectReview}
           onCopyWish={copyPublicWishToMine}
         />
@@ -1974,6 +2079,7 @@ function FeedView({
   copyingWishId,
   currentUserId,
   dailyDraft,
+  systemDrafts,
   externalLinkUrl,
   linkComposerOpen,
   feedPayload,
@@ -1987,6 +2093,7 @@ function FeedView({
   onCreateExternalLink,
   onCopyWish,
   onDraftBodyChange,
+  onDraftBodyChangeForPost,
   onExternalLinkUrlChange,
   onFilterChange,
   onLoadMore,
@@ -1997,11 +2104,14 @@ function FeedView({
   onOpenSystemAccount,
   onDeletePost,
   onPublish,
+  onUpdateCover,
+  onUploadCover,
   onToggleDraftBlock
 }: {
   copyingWishId: string | null;
   currentUserId: string;
   dailyDraft: FeedPost | null;
+  systemDrafts: FeedPost[];
   externalLinkUrl: string;
   linkComposerOpen: boolean;
   feedPayload: FeedPayload | null;
@@ -2015,6 +2125,7 @@ function FeedView({
   onCreateExternalLink: () => void;
   onCopyWish: (wish: PublicWish) => void;
   onDraftBodyChange: (body: string) => void;
+  onDraftBodyChangeForPost: (postId: string, body: string) => void;
   onExternalLinkUrlChange: (url: string) => void;
   onFilterChange: (filter: FeedFilter) => void;
   onLoadMore: () => void;
@@ -2025,6 +2136,8 @@ function FeedView({
   onOpenSystemAccount: (accountKey: string) => void;
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
+  onUpdateCover: (post: FeedPost, templateKey: string) => void;
+  onUploadCover: (post: FeedPost, file: File) => void;
   onToggleDraftBlock: (blockKey: string) => void;
 }) {
   const posts = feedPayload?.posts ?? [];
@@ -2033,18 +2146,24 @@ function FeedView({
     <section className="feed-layout">
       <div className="feed-filter-row" role="group" aria-label={t("social.feed.title")}>
         <button className={filter === "all" ? "active" : ""} type="button" onClick={() => onFilterChange("all")}>
-          {t("social.review.filter.all")}
+          {t("social.feed.filter.all")}
+        </button>
+        <button className={filter === "stories" ? "active" : ""} type="button" onClick={() => onFilterChange("stories")}>
+          {t("social.feed.filter.stories")}
+        </button>
+        <button className={filter === "system" ? "active" : ""} type="button" onClick={() => onFilterChange("system")}>
+          {t("social.feed.filter.system")}
         </button>
         <button className={filter === "reviews" ? "active" : ""} type="button" onClick={() => onFilterChange("reviews")}>
-          {t("social.review.filter.reviews")}
+          {t("social.feed.filter.reviews")}
         </button>
       </div>
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
       ) : null}
-      {filter === "all" ? <section className="feed-composer">
+          {filter === "all" || filter === "system" ? <section className="feed-composer">
         <div className="section-heading-row">
-          <span>{t("social.feed.dailyDraft")}</span>
+          <span>{t("social.feed.systemDrafts")}</span>
           <button className="secondary-button" type="button" disabled={saving} onClick={onCreateDraft}>
             <Newspaper size={16} />
             {t("social.feed.createDraft")}
@@ -2059,8 +2178,23 @@ function FeedView({
             onBodyChange={onDraftBodyChange}
             onPublish={() => onPublish(dailyDraft)}
             onToggleBlock={onToggleDraftBlock}
+            onUpdateCover={onUpdateCover}
+            onUploadCover={onUploadCover}
           />
         ) : null}
+        {systemDrafts.filter((post) => post.id !== dailyDraft?.id).map((post) => (
+          <SystemDraftEditor
+            key={post.id}
+            locale={locale}
+            post={post}
+            saving={saving}
+            t={t}
+            onBodyChange={(body) => onDraftBodyChangeForPost(post.id, body)}
+            onPublish={() => onPublish(post)}
+            onUpdateCover={onUpdateCover}
+            onUploadCover={onUploadCover}
+          />
+        ))}
         <ExternalLinkComposer
           open={linkComposerOpen}
           saving={saving}
@@ -2263,7 +2397,9 @@ function DailyDraftEditor({
   t,
   onBodyChange,
   onPublish,
-  onToggleBlock
+  onToggleBlock,
+  onUpdateCover,
+  onUploadCover
 }: {
   locale: AppLocale;
   post: FeedPost;
@@ -2272,10 +2408,13 @@ function DailyDraftEditor({
   onBodyChange: (body: string) => void;
   onPublish: () => void;
   onToggleBlock: (blockKey: string) => void;
+  onUpdateCover: (post: FeedPost, templateKey: string) => void;
+  onUploadCover: (post: FeedPost, file: File) => void;
 }) {
   return (
     <div className="daily-draft-editor">
       <textarea value={post.body ?? ""} maxLength={700} onChange={(event) => onBodyChange(event.target.value)} />
+      <SystemEventCoverPicker post={post} saving={saving} t={t} onUpdateCover={onUpdateCover} onUploadCover={onUploadCover} />
       <div className="stat-block-picker-heading">
         <span>{t("social.post.visibilitySettings")}</span>
       </div>
@@ -2306,6 +2445,68 @@ function DailyDraftEditor({
         <Send size={16} />
         {t("social.feed.publish")}
       </button>
+    </div>
+  );
+}
+
+function SystemDraftEditor({ locale, post, saving, t, onBodyChange, onPublish, onUpdateCover, onUploadCover }: {
+  locale: AppLocale;
+  post: FeedPost;
+  saving: boolean;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onBodyChange: (body: string) => void;
+  onPublish: () => void;
+  onUpdateCover: (post: FeedPost, templateKey: string) => void;
+  onUploadCover: (post: FeedPost, file: File) => void;
+}) {
+  return (
+    <div className="daily-draft-editor system-event-draft-editor">
+      <textarea value={post.body ?? ""} maxLength={700} onChange={(event) => onBodyChange(event.target.value)} />
+      <SystemEventCoverPicker post={post} saving={saving} t={t} onUpdateCover={onUpdateCover} onUploadCover={onUploadCover} />
+      <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
+      <button className="secondary-button primary-social-action" type="button" disabled={saving || post.status === "published"} onClick={onPublish}>
+        <Send size={16} />
+        {t("social.feed.publish")}
+      </button>
+    </div>
+  );
+}
+
+function SystemEventCoverPicker({ post, saving, t, onUpdateCover, onUploadCover }: {
+  post: FeedPost;
+  saving: boolean;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onUpdateCover: (post: FeedPost, templateKey: string) => void;
+  onUploadCover: (post: FeedPost, file: File) => void;
+}) {
+  const options = [
+    ["daily_progress", "social.feed.cover.template.daily_progress", "/feed/system-events/daily-progress.png"],
+    ["level_up", "social.feed.cover.template.level_up", "/feed/system-events/level-up.png"],
+    ["wish_completed", "social.feed.cover.template.wish_completed", "/feed/system-events/wish-completed.png"],
+    ["challenge_completed", "social.feed.cover.template.challenge_completed", "/feed/system-events/challenge-completed.png"]
+  ] as const;
+  const currentUrl = post.media.find((media) => media.sort_order === 0)?.media_url;
+  return (
+    <div className="system-event-cover-picker">
+      <div className="system-event-cover-heading">
+        <span>{t("social.feed.cover")}</span>
+        <label className="secondary-button system-event-upload">
+          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) onUploadCover(post, file);
+            event.currentTarget.value = "";
+          }} />
+          {t("social.feed.cover.upload")}
+        </label>
+      </div>
+      <div className="system-event-cover-options">
+        {options.map(([key, labelKey, url]) => (
+          <button className={currentUrl === url ? "active" : ""} type="button" key={key} disabled={saving} aria-label={t(labelKey)} aria-pressed={currentUrl === url} onClick={() => onUpdateCover(post, key)}>
+            <img alt="" src={url} />
+            <span>{t(labelKey)}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2377,7 +2578,7 @@ export function PostCard({
         <div className="feed-author-block">
           <PostAuthor post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
-          {post.post_type === "system_story" ? (
+          {post.post_type === "abundance_story" ? (
             <span className="system-story-badge">
               {showSystemProfileAction || !post.systemStory
                 ? t("social.feed.systemStoryBadge")
@@ -2398,7 +2599,7 @@ export function PostCard({
         <p>{post.body ?? t("social.post.detail")}</p>
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
       </button>
-      <PostMedia media={post.media} locale={locale} onOpen={() => onOpenPost(post)} portrait={post.post_type === "system_story"} />
+      <PostMedia media={post.media} locale={locale} onOpen={() => onOpenPost(post)} portrait={post.post_type === "abundance_story"} />
       <WishPostPreview
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
@@ -2551,7 +2752,7 @@ export function PostDetailModal({
         <div className="post-detail-author-row">
           <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
-          {post.post_type === "system_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
+          {post.post_type === "abundance_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
           {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
         </div>
         {post.projectReview && !editingReview ? (
@@ -2602,7 +2803,7 @@ export function PostDetailModal({
         ) : <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>}
         {post.projectReview && !editingReview ? <small className="project-review-reward-note">{t("social.review.rewarded")}</small> : null}
         <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
-        <PostMedia media={post.media} locale={locale} portrait={post.post_type === "system_story"} showSource />
+        <PostMedia media={post.media} locale={locale} portrait={post.post_type === "abundance_story"} showSource />
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
         <WishPostPreview
           copyingWishId={copyingWishId}
@@ -2741,7 +2942,7 @@ function PostAuthor({
   onOpenAuthor: (userId: string) => void;
   onOpenSystemAccount: (accountKey: string) => void;
 }) {
-  const isSystemStory = post.post_type === "system_story";
+  const isSystemStory = post.post_type === "abundance_story";
   const content = (
     <>
       <span className="feed-author-avatar">

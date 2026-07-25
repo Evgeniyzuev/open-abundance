@@ -445,12 +445,13 @@ export type Database = {
           created_at: string
           id: string
           media_type: string
-          media_url: string
+          media_url: string | null
           metadata: Json
           post_id: string
           sort_order: number
           source_label: string | null
           source_url: string | null
+          storage_path: string | null
           thumbnail_url: string | null
           updated_at: string
         }
@@ -459,12 +460,13 @@ export type Database = {
           created_at?: string
           id?: string
           media_type?: string
-          media_url: string
+          media_url?: string | null
           metadata?: Json
           post_id: string
           sort_order?: number
           source_label?: string | null
           source_url?: string | null
+          storage_path?: string | null
           thumbnail_url?: string | null
           updated_at?: string
         }
@@ -479,6 +481,7 @@ export type Database = {
           sort_order?: number
           source_label?: string | null
           source_url?: string | null
+          storage_path?: string | null
           thumbnail_url?: string | null
           updated_at?: string
         }

@@ -150,22 +150,41 @@ export async function publishWishCompletionToFeed(
   if (existingError) throw existingError;
   if (existingPost) return { post: existingPost };
 
-  const now = new Date().toISOString();
   const { data: post, error: postError } = await supabase
     .from("feed_posts")
     .insert({
       author_user_id: userId,
       body,
-      post_type: "manual",
-      published_at: now,
+      post_type: "wish_completed",
+      published_at: null,
       source_key: sourceKey,
-      status: "published",
+      status: "draft",
       visibility: "public"
     } satisfies TablesInsert<"feed_posts">)
     .select("*")
     .single();
 
-  if (!postError) return { post };
+  if (!postError) {
+    const [{ error: entityError }, { error: mediaError }] = await Promise.all([
+      supabase.from("feed_post_entities").insert({
+        post_id: post.id,
+        entity_type: "wish",
+        entity_id: wish.id,
+        relation: "completion"
+      } satisfies TablesInsert<"feed_post_entities">),
+      supabase.from("feed_post_media").insert({
+        post_id: post.id,
+        media_type: "image",
+        media_url: "/feed/system-events/wish-completed.png",
+        alt_text: {},
+        sort_order: 0,
+        metadata: { origin: "system_template", templateKey: "wish_completed" }
+      } satisfies TablesInsert<"feed_post_media">)
+    ]);
+    if (entityError) throw entityError;
+    if (mediaError) throw mediaError;
+    return { post };
+  }
 
   const { data: racedPost, error: racedError } = await supabase
     .from("feed_posts")

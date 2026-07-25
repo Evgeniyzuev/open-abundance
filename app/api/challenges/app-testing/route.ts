@@ -161,6 +161,20 @@ export async function POST(request: NextRequest) {
         source: "server",
         userId: user.id
       });
+      if (result?.feed_post_id) {
+        await supabase.from("feed_posts").update({ status: "draft", published_at: null }).eq("id", result.feed_post_id).eq("author_user_id", user.id);
+        const { count } = await supabase.from("feed_post_media").select("id", { count: "exact", head: true }).eq("post_id", result.feed_post_id);
+        if (!count) {
+          await supabase.from("feed_post_media").insert({
+            post_id: result.feed_post_id,
+            media_type: "image",
+            media_url: "/feed/system-events/challenge-completed.png",
+            alt_text: {},
+            sort_order: 0,
+            metadata: { origin: "system_template", templateKey: "challenge_completed" }
+          });
+        }
+      }
       await recordProductEvent({
         entityId: result.feed_post_id ?? undefined,
         entityType: "feed_post",

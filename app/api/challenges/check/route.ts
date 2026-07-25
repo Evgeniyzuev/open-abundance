@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
   }
 
   const result = completion?.[0];
+  let feedPostId: string | null = null;
   if (result?.reward_claimed) {
     await recordProductEvent({
       entityId: challenge.id,
@@ -119,6 +120,27 @@ export async function POST(request: NextRequest) {
       });
       if (verifiedPostError) {
         console.error("Failed to create verified challenge post:", verifiedPostError.message);
+      }
+      const { data: snapshot } = await (supabase as any)
+        .from("challenge_completion_snapshots")
+        .select("feed_post_id")
+        .eq("user_id", user.id)
+        .eq("challenge_id", challenge.id)
+        .maybeSingle();
+      feedPostId = snapshot?.feed_post_id ?? null;
+      if (feedPostId) {
+        await supabase.from("feed_posts").update({ status: "draft", published_at: null }).eq("id", feedPostId).eq("author_user_id", user.id);
+        const { count } = await supabase.from("feed_post_media").select("id", { count: "exact", head: true }).eq("post_id", feedPostId);
+        if (!count) {
+          await supabase.from("feed_post_media").insert({
+            post_id: feedPostId,
+            media_type: "image",
+            media_url: "/feed/system-events/challenge-completed.png",
+            alt_text: {},
+            sort_order: 0,
+            metadata: { origin: "system_template", templateKey: "challenge_completed" }
+          });
+        }
       }
     } catch (postError) {
       console.error("Failed to create verified challenge post:", postError instanceof Error ? postError.message : "Unknown error");
@@ -149,6 +171,7 @@ export async function POST(request: NextRequest) {
     core: coreResult.data,
     wallet: walletResult.data,
     rewardClaimed: Boolean(result?.reward_claimed),
+    feedPostId,
     rewardAccount: result?.rewarded_account ?? "core",
     rewardAmount: Number(result?.rewarded_amount ?? rewardAmount)
   });

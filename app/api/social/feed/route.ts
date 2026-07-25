@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Database, Tables, TablesInsert } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
@@ -48,7 +48,9 @@ export async function GET(request: NextRequest) {
     const authorUserId = scope === "blog" ? requestedAuthorId ?? user.id : null;
     const systemAccountKey = scope === "system" ? normalizeSystemAccountKey(request.nextUrl.searchParams.get("systemAccountKey")) : null;
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
+    const category = normalizeFeedCategory(request.nextUrl.searchParams.get("category"));
     const postType = scope === "feed" && request.nextUrl.searchParams.get("postType") === "project_review" ? "project_review" : null;
+    const systemDraftsOnly = scope === "blog" && request.nextUrl.searchParams.get("drafts") === "system";
     const cursor = scope === "feed" ? normalizeCursor(request.nextUrl.searchParams.get("cursor")) : null;
 
     let systemAccount: FeedSystemAccountRow | null = null;
@@ -88,14 +90,22 @@ export async function GET(request: NextRequest) {
     if (scope === "feed") {
       query = query.eq("status", "published").eq("visibility", "public");
       if (postType) query = query.eq("post_type", postType);
+      if (category === "stories") query = query.in("post_type", ["manual", "external_link", "wish", "reality_demo", "abundance_story"]);
+      if (category === "system") query = query.in("post_type", ["daily_progress", "level_up", "wish_completed", "challenge"]);
+      if (category === "reviews") query = query.eq("post_type", "project_review");
       if (cursor) query = query.lt("created_at", cursor);
     } else if (scope === "system") {
       const systemPostIds = systemStoryMetadata.map((item) => item.post_id);
       query = query
         .in("id", systemPostIds.length ? systemPostIds : ["00000000-0000-0000-0000-000000000000"])
-        .eq("post_type", "system_story")
+        .eq("post_type", "abundance_story")
         .eq("status", "published")
         .eq("visibility", "public");
+    } else if (systemDraftsOnly && authorUserId === user.id) {
+      query = query
+        .eq("author_user_id", authorUserId)
+        .eq("status", "draft")
+        .in("post_type", ["daily_progress", "level_up", "wish_completed", "challenge"]);
     } else if (authorUserId === user.id) {
       query = query.eq("author_user_id", authorUserId);
     } else if (authorUserId) {
@@ -128,7 +138,7 @@ export async function GET(request: NextRequest) {
       loadMedia(supabase, postIds),
       loadSystemAccounts(supabase, systemAccountKeys),
       loadProjectReviewMetadata(supabase, postIds),
-      postType === "project_review" ? loadProjectReviewSummary(supabase) : Promise.resolve(null)
+      category === "reviews" || postType === "project_review" ? loadProjectReviewSummary(supabase) : Promise.resolve(null)
     ]);
     const systemAccountsByKey = new Map(systemAccounts.map((account) => [account.account_key, account]));
     const visiblePostRows = postRows.filter((post) => post.post_type !== "wish" || wishPosts.has(post.id));
@@ -138,6 +148,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         scope,
+        category,
         postType,
         author: authorProfile,
         systemAccount,
@@ -408,7 +419,21 @@ async function loadMedia(supabase: SupabaseClient<Database>, postIds: string[]):
     .order("sort_order", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as FeedMediaRow[];
+  const rows = (data ?? []) as FeedMediaRow[];
+  const storageRows = rows.filter((row) => row.storage_path);
+  if (!storageRows.length || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return rows;
+
+  const storageClient = createClient<Database>(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+  const signedEntries = await Promise.all(storageRows.map(async (row) => {
+    const result = await storageClient.storage.from("feed-media").createSignedUrl(row.storage_path!, 60 * 60);
+    return [row.storage_path!, result.data?.signedUrl ?? null] as const;
+  }));
+  const signedByPath = new Map(signedEntries);
+  return rows.map((row) => row.storage_path
+    ? { ...row, media_url: signedByPath.get(row.storage_path) ?? row.media_url }
+    : row);
 }
 
 async function loadSystemStoryMetadata(
@@ -676,6 +701,10 @@ function normalizeCursor(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+}
+
+function normalizeFeedCategory(value: unknown): "all" | "stories" | "system" | "reviews" {
+  return value === "stories" || value === "system" || value === "reviews" ? value : "all";
 }
 
 function isString(value: string | null): value is string {

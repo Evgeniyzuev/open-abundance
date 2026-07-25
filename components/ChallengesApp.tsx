@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, CheckCircle2, Clock3, Compass, HandHeart, PenLine, Rocket, Send, ShieldCheck, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
+import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
@@ -162,11 +163,12 @@ type ChallengesAppProps = {
   active: boolean;
   activeTab: ChallengeTab;
   focusNextChallengeNonce?: number;
+  onNavigateTesting: (target: AppTestingNavigationTarget) => void;
   refreshNonce: number;
   onRefresh: () => Promise<void>;
 };
 
-export default function ChallengesApp({ active, activeTab, focusNextChallengeNonce = 0, refreshNonce, onRefresh }: ChallengesAppProps) {
+export default function ChallengesApp({ active, activeTab, focusNextChallengeNonce = 0, onNavigateTesting, refreshNonce, onRefresh }: ChallengesAppProps) {
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
@@ -610,12 +612,18 @@ export default function ChallengesApp({ active, activeTab, focusNextChallengeNon
 
         {selectedChallenge ? (
           <ChallengeDetailModal
+            author={{
+              avatarUrl: profile?.avatar_url ?? null,
+              displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
+              level: userLevel
+            }}
             challenge={selectedChallenge}
             locale={locale}
             userLevel={userLevel}
             t={t}
             onAccept={() => acceptChallenge(selectedChallenge)}
             onGiveUp={() => giveUpChallenge(selectedChallenge)}
+            onNavigateTesting={onNavigateTesting}
             onClose={() => setSelectedChallenge(null)}
             onComplete={completeChallenge}
             onApplyServerData={applyServerData}
@@ -692,12 +700,18 @@ export default function ChallengesApp({ active, activeTab, focusNextChallengeNon
 
       {selectedChallenge ? (
         <ChallengeDetailModal
+          author={{
+            avatarUrl: profile?.avatar_url ?? null,
+            displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
+            level: userLevel
+          }}
           challenge={selectedChallenge}
           locale={locale}
           userLevel={userLevel}
           t={t}
           onAccept={() => acceptChallenge(selectedChallenge)}
           onGiveUp={() => giveUpChallenge(selectedChallenge)}
+          onNavigateTesting={onNavigateTesting}
           onClose={() => setSelectedChallenge(null)}
           onComplete={completeChallenge}
           onApplyServerData={applyServerData}
@@ -960,23 +974,27 @@ function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: 
 }
 
 function ChallengeDetailModal({
+  author,
   challenge,
   locale,
   userLevel,
   t,
   onAccept,
   onGiveUp,
+  onNavigateTesting,
   onClose,
   onComplete,
   onApplyServerData,
   onRefreshUserData
 }: {
+  author: { avatarUrl: string | null; displayName: string; level: number };
   challenge: Challenge;
   locale: AppLocale;
   userLevel: number;
   t: TFunction;
   onAccept: () => Promise<void>;
   onGiveUp: () => Promise<void>;
+  onNavigateTesting: (target: AppTestingNavigationTarget) => void;
   onClose: () => void;
   onComplete: (challenge: Challenge, reward: CompletionReward) => void;
   onApplyServerData: (data: { core?: CoreAccount | null; wallet?: WalletAccount | null }) => void;
@@ -986,6 +1004,7 @@ function ChallengeDetailModal({
   const accepted = isActiveChallenge(challenge);
   const locked = !accepted && challenge.difficulty_level > userLevel;
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
+  const needsAppTesting = challenge.verification_logic === "app_testing_feedback" && accepted && !completed && !locked;
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -1180,7 +1199,19 @@ function ChallengeDetailModal({
             />
           ) : null}
 
-          {!completed && !locked && accepted ? (
+          {needsAppTesting ? (
+            <AppTestingSurvey
+              author={author}
+              locale={locale}
+              t={t}
+              onApplyServerData={onApplyServerData}
+              onComplete={(reward) => onComplete(challenge, reward)}
+              onNavigate={onNavigateTesting}
+              onRefresh={onRefreshUserData}
+            />
+          ) : null}
+
+          {!completed && !locked && accepted && !needsAppTesting ? (
             <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
               {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
             </button>
@@ -1437,6 +1468,7 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
       return WalletCards;
     case "first_growth_post_published":
     case "app_testing_review":
+    case "app_testing_feedback":
       return PenLine;
     case "ai_message_sent":
       return Bot;

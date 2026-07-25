@@ -16,6 +16,10 @@ type FeedMediaRow = Tables<"feed_post_media">;
 type FeedTranslationRow = Tables<"feed_post_translations">;
 type FeedSystemAccountRow = Tables<"feed_system_accounts">;
 type FeedSystemStoryMetadataRow = Tables<"feed_system_story_metadata">;
+type FeedProjectReviewMetadataRow = Pick<
+  Tables<"feed_project_review_metadata">,
+  "post_id" | "overall_rating" | "mission_rating" | "attitude" | "most_useful_area" | "challenge_reward_amount" | "created_at" | "updated_at"
+>;
 type FeedWishRow = Tables<"wishes"> & { viewer_has_copy: boolean };
 type FeedProfile = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "level" | "created_at">;
 type ExternalProvider = "tiktok" | "instagram" | "telegram" | "youtube" | "x" | "website" | "unknown";
@@ -44,6 +48,8 @@ export async function GET(request: NextRequest) {
     const authorUserId = scope === "blog" ? requestedAuthorId ?? user.id : null;
     const systemAccountKey = scope === "system" ? normalizeSystemAccountKey(request.nextUrl.searchParams.get("systemAccountKey")) : null;
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
+    const postType = scope === "feed" && request.nextUrl.searchParams.get("postType") === "project_review" ? "project_review" : null;
+    const cursor = scope === "feed" ? normalizeCursor(request.nextUrl.searchParams.get("cursor")) : null;
 
     let systemAccount: FeedSystemAccountRow | null = null;
     let systemStoryMetadata: FeedSystemStoryMetadataRow[] = [];
@@ -77,10 +83,12 @@ export async function GET(request: NextRequest) {
       .select("id,author_user_id,author_label,source_key,snapshot_id,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .limit(scope === "feed" ? limit + 1 : limit);
 
     if (scope === "feed") {
       query = query.eq("status", "published").eq("visibility", "public");
+      if (postType) query = query.eq("post_type", postType);
+      if (cursor) query = query.lt("created_at", cursor);
     } else if (scope === "system") {
       const systemPostIds = systemStoryMetadata.map((item) => item.post_id);
       query = query
@@ -100,7 +108,8 @@ export async function GET(request: NextRequest) {
     const { data: posts, error: postsError } = await query;
     if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
-    const rawPostRows = (posts ?? []) as FeedPostRow[];
+    const hasMore = scope === "feed" && (posts?.length ?? 0) > limit;
+    const rawPostRows = ((posts ?? []) as FeedPostRow[]).slice(0, limit);
     if (scope !== "system") {
       systemStoryMetadata = await loadSystemStoryMetadata(supabase, rawPostRows.map((post) => post.id));
     }
@@ -110,14 +119,16 @@ export async function GET(request: NextRequest) {
       : rawPostRows;
     const postIds = postRows.map((post) => post.id);
     const systemAccountKeys = Array.from(new Set(systemStoryMetadata.map((item) => item.system_account_key)));
-    const [profiles, statBlocks, externalLinks, wishPosts, translations, media, systemAccounts] = await Promise.all([
+    const [profiles, statBlocks, externalLinks, wishPosts, translations, media, systemAccounts, reviewMetadata, reviewSummary] = await Promise.all([
       loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id).filter(isString)))),
       loadStatBlocks(supabase, postRows.map((post) => post.id), scope === "blog" && authorUserId === user.id),
       loadExternalLinks(supabase, postIds),
       loadWishPosts(supabase, postIds, user.id),
       loadTranslations(supabase, postIds, locale),
       loadMedia(supabase, postIds),
-      loadSystemAccounts(supabase, systemAccountKeys)
+      loadSystemAccounts(supabase, systemAccountKeys),
+      loadProjectReviewMetadata(supabase, postIds),
+      postType === "project_review" ? loadProjectReviewSummary(supabase) : Promise.resolve(null)
     ]);
     const systemAccountsByKey = new Map(systemAccounts.map((account) => [account.account_key, account]));
     const visiblePostRows = postRows.filter((post) => post.post_type !== "wish" || wishPosts.has(post.id));
@@ -127,8 +138,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         scope,
+        postType,
         author: authorProfile,
         systemAccount,
+        nextCursor: hasMore ? rawPostRows.at(-1)?.created_at ?? null : null,
+        reviewSummary,
         posts: visiblePostRows.map((post) => {
           const translation = translations.get(post.id) ?? null;
           const systemStory = systemStoryMetadataByPostId.get(post.id) ?? null;
@@ -141,6 +155,7 @@ export async function GET(request: NextRequest) {
             externalLinks: externalLinks.filter((link) => link.post_id === post.id),
             media: media.filter((item) => item.post_id === post.id),
             wish: wishPosts.get(post.id) ?? null,
+            projectReview: reviewMetadata.get(post.id) ?? null,
             systemStory: systemStory ? {
               ...systemStory,
               account: systemAccountsByKey.get(systemStory.system_account_key) ?? systemAccount
@@ -411,6 +426,38 @@ async function loadSystemStoryMetadata(
   return (data ?? []) as FeedSystemStoryMetadataRow[];
 }
 
+async function loadProjectReviewMetadata(
+  supabase: SupabaseClient<Database>,
+  postIds: string[]
+): Promise<Map<string, FeedProjectReviewMetadataRow>> {
+  if (!postIds.length) return new Map();
+
+  const { data, error } = await supabase
+    .from("feed_project_review_metadata")
+    .select("post_id,overall_rating,mission_rating,attitude,most_useful_area,challenge_reward_amount,created_at,updated_at")
+    .in("post_id", postIds);
+
+  if (error) throw error;
+  return new Map(((data ?? []) as FeedProjectReviewMetadataRow[]).map((item) => [item.post_id, item]));
+}
+
+async function loadProjectReviewSummary(supabase: SupabaseClient<Database>) {
+  const { data, error } = await supabase.rpc("get_project_review_summary");
+  if (error) throw error;
+  const summary = data?.[0];
+  return {
+    average: Number(summary?.average_rating ?? 0),
+    count: Number(summary?.review_count ?? 0),
+    distribution: {
+      1: Number(summary?.star_1_count ?? 0),
+      2: Number(summary?.star_2_count ?? 0),
+      3: Number(summary?.star_3_count ?? 0),
+      4: Number(summary?.star_4_count ?? 0),
+      5: Number(summary?.star_5_count ?? 0)
+    }
+  };
+}
+
 async function loadSystemAccounts(
   supabase: SupabaseClient<Database>,
   accountKeys: string[]
@@ -623,6 +670,12 @@ function normalizeSystemAccountKey(value: unknown): string {
 
 function normalizeLocale(value: unknown): "ru" | "en" {
   return value === "en" ? "en" : "ru";
+}
+
+function normalizeCursor(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
 }
 
 function isString(value: string | null): value is string {

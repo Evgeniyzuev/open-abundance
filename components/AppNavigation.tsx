@@ -5,6 +5,7 @@ import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
+import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import GrowthMapApp from "@/components/GrowthMapApp";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
@@ -171,6 +172,11 @@ export default function AppNavigation() {
 
     setNavHidden(true);
   }, []);
+
+  const navigateFromAppTesting = useCallback((target: AppTestingNavigationTarget) => {
+    applyNavigationState(parseNavigationView(target));
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  }, [applyNavigationState]);
 
   const requestServerRefresh = useCallback(async (reason: string) => {
     if (refreshInFlightRef.current) {
@@ -417,6 +423,7 @@ export default function AppNavigation() {
             active={showChallenges}
             activeTab={activeChallengeTab}
             focusNextChallengeNonce={challengeFocusNonce}
+            onNavigateTesting={navigateFromAppTesting}
             refreshNonce={refreshNonce}
             onRefresh={() => requestServerRefresh("challenges")}
           />

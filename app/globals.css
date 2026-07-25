@@ -1381,3 +1381,84 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
   opacity: 0.4;
   cursor: default;
 }
+
+.app-testing-survey {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.app-testing-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 14px;
+  padding: 11px 13px;
+  background: var(--accent-soft);
+  color: var(--accent-fill);
+  font-weight: 800;
+}
+
+.app-testing-intro small { color: var(--muted); font-weight: 700; }
+.app-testing-section { display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 18px; padding: 14px; background: var(--surface-soft); }
+.app-testing-section-heading { display: flex; align-items: flex-start; gap: 10px; }
+.app-testing-section-heading > span { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 auto; border-radius: 50%; background: var(--accent-fill); color: #fff; font-size: 0.78rem; font-weight: 900; }
+.app-testing-section-heading h4 { margin: 1px 0 3px; }
+.app-testing-section-heading p { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
+.app-testing-open-area { width: fit-content; border: 1px solid var(--accent-fill); border-radius: 11px; padding: 9px 12px; background: var(--surface); color: var(--accent-fill); font-weight: 850; cursor: pointer; }
+.app-testing-field { display: grid; gap: 6px; color: var(--text); font-size: 0.82rem; font-weight: 800; }
+.app-testing-field > small { color: var(--muted); font-weight: 650; }
+.app-testing-field select, .app-testing-field textarea, .project-review-editor select, .project-review-editor textarea { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 10px 11px; background: var(--surface); color: var(--text); font: inherit; }
+.app-testing-field textarea, .project-review-editor textarea { min-height: 94px; resize: vertical; line-height: 1.45; }
+.app-testing-choice-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.app-testing-choice-row button, .app-testing-platform-tabs button, .feed-filter-row button { border: 1px solid var(--line); border-radius: 999px; padding: 8px 10px; background: var(--surface); color: var(--muted); font-weight: 800; cursor: pointer; }
+.app-testing-choice-row button.active, .app-testing-platform-tabs button.active, .feed-filter-row button.active { border-color: var(--accent-fill); background: var(--accent-soft); color: var(--accent-fill); }
+.app-testing-outcome { display: grid; gap: 11px; }
+.app-testing-rating { display: grid; gap: 5px; margin: 0; border: 0; padding: 0; }
+.app-testing-rating legend { color: var(--text); font-size: 0.82rem; font-weight: 800; }
+.app-testing-rating > div { display: flex; gap: 2px; }
+.app-testing-rating button { border: 0; padding: 3px; background: transparent; color: var(--line); cursor: pointer; }
+.app-testing-rating button.active { color: #f1a900; }
+.app-testing-install-guide { display: grid; gap: 10px; }
+.app-testing-platform-tabs, .feed-filter-row { display: flex; gap: 7px; overflow-x: auto; }
+.install-visual-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.install-visual-step { position: relative; display: grid; place-items: center; gap: 8px; min-height: 122px; border: 1px solid var(--line); border-radius: 16px; padding: 17px 8px 10px; background: linear-gradient(160deg, var(--surface), var(--surface-muted)); color: var(--accent-fill); text-align: center; }
+.install-visual-step > span { position: absolute; top: 7px; left: 8px; display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; background: var(--accent-fill); color: #fff; font-size: 0.65rem; font-weight: 900; }
+.install-visual-step small { color: var(--text); font-size: 0.7rem; line-height: 1.3; font-weight: 750; }
+.app-testing-qr { display: flex; align-items: center; gap: 12px; border-radius: 14px; padding: 12px; background: #fff; color: #111; }
+.app-testing-qr p { margin: 0; font-size: 0.8rem; }
+.app-testing-preview { display: grid; gap: 9px; border: 1px solid rgba(0, 107, 199, 0.25); border-radius: 19px; padding: 15px; background: var(--surface); box-shadow: 0 10px 28px rgba(20, 25, 40, 0.08); }
+.app-testing-preview-author { display: flex; align-items: center; gap: 8px; }
+.app-testing-preview-author > span { display: grid; place-items: center; width: 32px; height: 32px; overflow: hidden; border-radius: 50%; background: var(--surface-muted); }
+.app-testing-preview-author img { width: 100%; height: 100%; object-fit: cover; }
+.app-testing-preview-author small { margin-left: auto; color: var(--muted); }
+.app-testing-preview blockquote { margin: 0; color: var(--text); line-height: 1.55; white-space: pre-wrap; }
+.app-testing-preview > small { color: var(--muted); }
+.app-testing-consent { display: flex; align-items: flex-start; gap: 9px; border-radius: 14px; padding: 12px; background: var(--surface-muted); color: var(--text); font-size: 0.82rem; line-height: 1.45; }
+.app-testing-consent input { margin-top: 3px; }
+.app-testing-complete { display: flex; align-items: flex-start; gap: 10px; border-radius: 15px; padding: 13px; background: var(--success-soft); color: var(--green); }
+.app-testing-complete p { margin: 3px 0 0; }
+
+.project-review-badge { display: inline-flex; width: fit-content; border-radius: 999px; padding: 4px 8px; background: #fff2c7; color: #7b5700; font-size: 0.68rem; font-weight: 900; }
+.project-review-stars { display: inline-flex; gap: 1px; color: #f1a900; }
+.project-review-rating, .project-review-detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 7px 11px; color: var(--muted); font-size: 0.78rem; font-weight: 750; }
+.project-review-reward-note { display: block; margin-top: 8px; color: var(--muted); }
+.review-summary { display: grid; grid-template-columns: minmax(120px, 0.65fr) minmax(180px, 1.35fr); gap: 18px; border: 1px solid var(--line); border-radius: 18px; padding: 15px; background: var(--surface); }
+.review-summary > div:first-child { display: grid; align-content: center; gap: 4px; }
+.review-summary > div:first-child > strong { font-size: 2rem; line-height: 1; }
+.review-summary small { color: var(--muted); }
+.review-distribution { display: grid; gap: 4px; }
+.review-distribution > div { display: grid; grid-template-columns: 15px 13px minmax(80px, 1fr) 24px; align-items: center; gap: 5px; color: #f1a900; font-size: 0.72rem; }
+.review-distribution progress { width: 100%; accent-color: #f1a900; }
+.feed-load-more { justify-self: center; }
+.project-review-editor { display: grid; gap: 10px; }
+.project-review-editor label { display: grid; gap: 5px; color: var(--text); font-size: 0.8rem; font-weight: 800; }
+.project-review-editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 520px) {
+  .install-visual-grid { grid-template-columns: 1fr; }
+  .install-visual-step { grid-template-columns: 36px 1fr; justify-items: start; min-height: 76px; padding: 13px 12px 13px 34px; text-align: left; }
+  .install-visual-step > span { top: 50%; transform: translateY(-50%); }
+  .review-summary { grid-template-columns: 1fr; }
+}

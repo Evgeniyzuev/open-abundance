@@ -866,6 +866,156 @@ export type Database = {
           },
         ]
       }
+      challenge_feedback_submissions: {
+        Row: {
+          answers: Json
+          attitude: string | null
+          challenge_id: string
+          context: Json
+          created_at: string
+          daily_use_intent: string | null
+          feed_post_id: string | null
+          id: string
+          install_outcome: string | null
+          main_concern: string | null
+          main_difficulty: string | null
+          mission_rating: number | null
+          most_useful_area: string | null
+          overall_rating: number | null
+          platform: string | null
+          private_comment: string | null
+          public_consent_at: string | null
+          public_consent_version: string | null
+          public_review: string | null
+          schema_version: number
+          status: string
+          strongest_area: string | null
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          attitude?: string | null
+          challenge_id: string
+          context?: Json
+          created_at?: string
+          daily_use_intent?: string | null
+          feed_post_id?: string | null
+          id?: string
+          install_outcome?: string | null
+          main_concern?: string | null
+          main_difficulty?: string | null
+          mission_rating?: number | null
+          most_useful_area?: string | null
+          overall_rating?: number | null
+          platform?: string | null
+          private_comment?: string | null
+          public_consent_at?: string | null
+          public_consent_version?: string | null
+          public_review?: string | null
+          schema_version?: number
+          status?: string
+          strongest_area?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          attitude?: string | null
+          challenge_id?: string
+          context?: Json
+          created_at?: string
+          daily_use_intent?: string | null
+          feed_post_id?: string | null
+          id?: string
+          install_outcome?: string | null
+          main_concern?: string | null
+          main_difficulty?: string | null
+          mission_rating?: number | null
+          most_useful_area?: string | null
+          overall_rating?: number | null
+          platform?: string | null
+          private_comment?: string | null
+          public_consent_at?: string | null
+          public_consent_version?: string | null
+          public_review?: string | null
+          schema_version?: number
+          status?: string
+          strongest_area?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_feedback_submissions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_feedback_submissions_feed_post_id_fkey"
+            columns: ["feed_post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_project_review_metadata: {
+        Row: {
+          attitude: string
+          challenge_reward_amount: number
+          created_at: string
+          feedback_submission_id: string
+          mission_rating: number
+          most_useful_area: string
+          overall_rating: number
+          post_id: string
+          updated_at: string
+        }
+        Insert: {
+          attitude: string
+          challenge_reward_amount?: number
+          created_at?: string
+          feedback_submission_id: string
+          mission_rating: number
+          most_useful_area: string
+          overall_rating: number
+          post_id: string
+          updated_at?: string
+        }
+        Update: {
+          attitude?: string
+          challenge_reward_amount?: number
+          created_at?: string
+          feedback_submission_id?: string
+          mission_rating?: number
+          most_useful_area?: string
+          overall_rating?: number
+          post_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_project_review_metadata_feedback_submission_id_fkey"
+            columns: ["feedback_submission_id"]
+            isOneToOne: true
+            referencedRelation: "challenge_feedback_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_project_review_metadata_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: true
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_events: {
         Row: {
           anonymous_id: string | null
@@ -2224,6 +2374,48 @@ export type Database = {
           p_verification_type: string
         }
         Returns: Json
+      }
+      get_project_review_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          average_rating: number
+          review_count: number
+          star_1_count: number
+          star_2_count: number
+          star_3_count: number
+          star_4_count: number
+          star_5_count: number
+        }[]
+      }
+      submit_app_testing_feedback: {
+        Args: {
+          p_answers: Json
+          p_attitude: string
+          p_challenge_id: string
+          p_consent_version: string
+          p_context: Json
+          p_daily_use_intent: string
+          p_install_outcome: string
+          p_main_concern: string
+          p_main_difficulty: string
+          p_mission_rating: number
+          p_most_useful_area: string
+          p_overall_rating: number
+          p_platform: string
+          p_private_comment: string
+          p_public_review: string
+          p_schema_version: number
+          p_strongest_area: string
+          p_user_id: string
+        }
+        Returns: {
+          challenge_status: string
+          core_balance: number
+          feed_post_id: string
+          reward_claimed: boolean
+          rewarded_amount: number
+          submission_id: string
+        }[]
       }
       find_team_leader: {
         Args: {

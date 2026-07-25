@@ -10,7 +10,11 @@ export const fetchCache = "force-no-store";
 
 type PostPatchBody = {
   action?: unknown;
+  attitude?: unknown;
   body?: unknown;
+  missionRating?: unknown;
+  mostUsefulArea?: unknown;
+  overallRating?: unknown;
   visibility?: unknown;
   statBlocks?: unknown;
 };
@@ -45,9 +49,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { postId
     const body = await readJsonBody(request);
     const action = normalizeAction(body.action);
     const nextStatus = getNextStatus(currentPost.status, action);
-    const nextBody = normalizeBody(body.body, currentPost.body);
+    const nextBody = normalizeBody(body.body, currentPost.body, currentPost.post_type === "project_review" ? 1500 : 700);
     const nextVisibility = normalizeProfileVisibility(body.visibility, normalizeProfileVisibility(currentPost.visibility));
     const now = new Date().toISOString();
+
+    if (currentPost.post_type === "project_review" && (!nextBody || nextBody.length < 100)) {
+      return NextResponse.json({ error: "A public review must contain 100 to 1500 characters." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
 
     const { data: updatedPost, error: updatePostError } = await supabase
       .from("feed_posts")
@@ -74,6 +82,35 @@ export async function PATCH(request: NextRequest, { params }: { params: { postId
     const statBlockError = statBlockResults.find((result) => result.error)?.error;
     if (statBlockError) return NextResponse.json({ error: statBlockError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
+    let projectReview = null;
+    if (currentPost.post_type === "project_review") {
+      const { data: currentReview, error: currentReviewError } = await supabase
+        .from("feed_project_review_metadata")
+        .select("*")
+        .eq("post_id", postId)
+        .maybeSingle();
+      if (currentReviewError) return NextResponse.json({ error: currentReviewError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      if (!currentReview) return NextResponse.json({ error: "Review metadata not found." }, { status: 404, headers: NO_STORE_HEADERS });
+
+      const overallRating = normalizeRating(body.overallRating, currentReview.overall_rating);
+      const missionRating = normalizeRating(body.missionRating, currentReview.mission_rating);
+      const attitude = normalizeReviewChoice(body.attitude, ["inspired", "interested_questions", "neutral", "skeptical", "not_aligned"], currentReview.attitude);
+      const mostUsefulArea = normalizeReviewChoice(body.mostUsefulArea, ["today", "goals", "ai", "wallet", "people", "challenges", "other"], currentReview.most_useful_area);
+      const { data: updatedReview, error: reviewUpdateError } = await supabase
+        .from("feed_project_review_metadata")
+        .update({
+          overall_rating: overallRating,
+          mission_rating: missionRating,
+          attitude,
+          most_useful_area: mostUsefulArea
+        })
+        .eq("post_id", postId)
+        .select("post_id,overall_rating,mission_rating,attitude,most_useful_area,challenge_reward_amount,created_at,updated_at")
+        .single();
+      if (reviewUpdateError) return NextResponse.json({ error: reviewUpdateError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      projectReview = updatedReview;
+    }
+
     const { data: statBlocks, error: statBlocksError } = await supabase
       .from("feed_post_stat_blocks")
       .select("*")
@@ -83,7 +120,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { postId
     if (statBlocksError) return NextResponse.json({ error: statBlocksError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
     return NextResponse.json(
-      { post: { ...updatedPost, statBlocks: filterStatBlocksForPost(updatedPost as FeedPostRow, statBlocks ?? []) } },
+      { post: { ...updatedPost, projectReview, statBlocks: filterStatBlocksForPost(updatedPost as FeedPostRow, statBlocks ?? []) } },
       { headers: NO_STORE_HEADERS }
     );
   } catch (routeError) {
@@ -156,10 +193,20 @@ function getNextStatus(currentStatus: FeedPostRow["status"], action: "publish" |
   return currentStatus;
 }
 
-function normalizeBody(value: unknown, fallback: string | null): string | null {
+function normalizeBody(value: unknown, fallback: string | null, maxLength: number): string | null {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
-  return trimmed ? trimmed.slice(0, 700) : null;
+  return trimmed ? trimmed.slice(0, maxLength) : null;
+}
+
+function normalizeRating(value: unknown, fallback: number): number {
+  if (value === undefined) return fallback;
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 1 && number <= 5 ? number : fallback;
+}
+
+function normalizeReviewChoice(value: unknown, allowed: string[], fallback: string): string {
+  return typeof value === "string" && allowed.includes(value) ? value : fallback;
 }
 
 function normalizeStatBlockUpdates(value: unknown): Array<{ blockKey: string; visibility: "public" | "private" }> {

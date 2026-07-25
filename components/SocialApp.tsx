@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Share2, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Share2, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -11,6 +11,7 @@ import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
 import { COLOR_THEMES, UI_SCALES, type ColorTheme, type UiScale } from "@/lib/appearance";
+import { APP_TESTING_ATTITUDES, APP_TESTING_USEFUL_AREAS } from "@/lib/appTestingFeedback";
 
 type SocialTab = "feed" | "people" | "blog" | "profile" | "teams";
 type SocialTabChange = (tab: SocialTab) => void;
@@ -206,6 +207,22 @@ type FeedSystemStory = {
   next_story_key: string | null;
   account: FeedSystemAccount | null;
 };
+type FeedProjectReview = {
+  post_id: string;
+  feedback_submission_id: string;
+  overall_rating: number;
+  mission_rating: number;
+  attitude: string;
+  most_useful_area: string;
+  challenge_reward_amount: number;
+  created_at: string;
+  updated_at: string;
+};
+type FeedReviewSummary = {
+  average: number;
+  count: number;
+  distribution: Record<string, number>;
+};
 type FeedPost = {
   id: string;
   author_user_id: string | null;
@@ -226,14 +243,26 @@ type FeedPost = {
   externalLinks: FeedExternalLink[];
   media: FeedMedia[];
   wish: PublicWish | null;
+  projectReview: FeedProjectReview | null;
   systemStory: FeedSystemStory | null;
 };
 type FeedPayload = {
   scope: "feed" | "blog" | "system";
+  postType?: "project_review" | null;
   author: TeamProfile | null;
   systemAccount: FeedSystemAccount | null;
   posts: FeedPost[];
+  nextCursor?: string | null;
+  reviewSummary?: FeedReviewSummary | null;
   error?: string;
+};
+type FeedFilter = "all" | "reviews";
+type ReviewEditPayload = {
+  body: string;
+  overallRating: number;
+  missionRating: number;
+  attitude: string;
+  mostUsefulArea: string;
 };
 type PeopleFilter = "nearby" | "team" | "referrals" | "same_level" | "active";
 type PeopleRow = {
@@ -345,6 +374,8 @@ export default function SocialApp({
   const [directLoading, setDirectLoading] = useState(false);
   const [directSending, setDirectSending] = useState(false);
   const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
+  const [feedLoadingMore, setFeedLoadingMore] = useState(false);
   const [blogPayload, setBlogPayload] = useState<FeedPayload | null>(null);
   const [systemPayload, setSystemPayload] = useState<FeedPayload | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
@@ -356,6 +387,7 @@ export default function SocialApp({
   const [selectedSystemAccountKey, setSelectedSystemAccountKey] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
   const feedScrollPositionRef = useRef(0);
+  const feedCursorRef = useRef<string | null>(null);
 
   useEffect(() => {
     setSocialError(null);
@@ -392,6 +424,8 @@ export default function SocialApp({
     setDirectLoading(false);
     setDirectSending(false);
     setFeedPayload(null);
+    setFeedFilter("all");
+    setFeedLoadingMore(false);
     setBlogPayload(null);
     setSystemPayload(null);
     setFeedLoading(false);
@@ -402,6 +436,7 @@ export default function SocialApp({
     setSelectedBlogAuthorId(null);
     setSelectedSystemAccountKey(null);
     setSelectedPost(null);
+    feedCursorRef.current = null;
   }, [user?.id]);
 
   const loadReferralLink = useCallback(async () => {
@@ -512,12 +547,15 @@ export default function SocialApp({
     setPeopleQuery(nextQuery);
   }, [loadPeople, peopleQuery, peopleSearchText]);
 
-  const loadFeed = useCallback(async () => {
+  const loadFeed = useCallback(async (append = false) => {
     if (!user) return;
-    setFeedLoading(true);
+    if (append) setFeedLoadingMore(true);
+    else setFeedLoading(true);
     try {
       const token = await getAccessToken();
-      const params = new URLSearchParams({ scope: "feed", locale, ts: String(Date.now()) });
+      const params = new URLSearchParams({ scope: "feed", locale, limit: "20", ts: String(Date.now()) });
+      if (feedFilter === "reviews") params.set("postType", "project_review");
+      if (append && feedCursorRef.current) params.set("cursor", feedCursorRef.current);
       const response = await fetch(`/api/social/feed?${params.toString()}`, {
         cache: "no-store",
         headers: {
@@ -527,11 +565,15 @@ export default function SocialApp({
       });
       const payload = (await response.json()) as FeedPayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load feed.");
-      setFeedPayload(payload);
+      feedCursorRef.current = payload.nextCursor ?? null;
+      setFeedPayload((current) => append && current
+        ? { ...payload, posts: [...current.posts, ...payload.posts] }
+        : payload);
     } finally {
-      setFeedLoading(false);
+      if (append) setFeedLoadingMore(false);
+      else setFeedLoading(false);
     }
-  }, [locale, user]);
+  }, [feedFilter, locale, user]);
 
   const loadBlog = useCallback(async () => {
     if (!user) return;
@@ -1009,6 +1051,40 @@ export default function SocialApp({
     }
   }
 
+  async function updateProjectReview(post: FeedPost, changes: ReviewEditPayload) {
+    setFeedSaving(true);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/social/feed/posts/${post.id}`, {
+        method: "PATCH",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(changes)
+      });
+      const payload = (await response.json()) as { post?: Partial<FeedPost>; error?: string };
+      if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to update review.");
+      const updatedPost: FeedPost = {
+        ...post,
+        ...payload.post,
+        projectReview: payload.post.projectReview ?? post.projectReview
+      };
+      setFeedPayload((current) => replaceFeedPost(current, updatedPost));
+      setBlogPayload((current) => replaceFeedPost(current, updatedPost));
+      setSelectedPost(updatedPost);
+      await loadFeed();
+    } catch (updateError) {
+      console.warn("Project review update failed", updateError);
+      setSocialError(updateError instanceof Error ? updateError.message : "Failed to update review.");
+      throw updateError;
+    } finally {
+      setFeedSaving(false);
+    }
+  }
+
   async function deletePost(post: FeedPost) {
     if (!window.confirm(t("social.post.deleteConfirm", { title: post.body ?? t("social.post.detail") }))) return;
 
@@ -1144,7 +1220,9 @@ export default function SocialApp({
           dailyDraft={dailyDraft}
           externalLinkUrl={externalLinkUrl}
           feedPayload={feedPayload}
+          filter={feedFilter}
           loading={feedLoading}
+          loadingMore={feedLoadingMore}
           saving={feedSaving}
           locale={locale}
           t={t}
@@ -1153,6 +1231,12 @@ export default function SocialApp({
           onCopyWish={copyPublicWishToMine}
           onDraftBodyChange={updateDailyDraftBody}
           onExternalLinkUrlChange={setExternalLinkUrl}
+          onFilterChange={(nextFilter) => {
+            feedCursorRef.current = null;
+            setFeedPayload(null);
+            setFeedFilter(nextFilter);
+          }}
+          onLoadMore={() => { void loadFeed(true); }}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
           onOpenPost={setSelectedPost}
@@ -1681,6 +1765,7 @@ export default function SocialApp({
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
           onOpenSystemAccount={openSystemAccount}
+          onUpdateReview={updateProjectReview}
           onCopyWish={copyPublicWishToMine}
         />
       ) : null}
@@ -2011,7 +2096,9 @@ function FeedView({
   dailyDraft,
   externalLinkUrl,
   feedPayload,
+  filter,
   loading,
+  loadingMore,
   saving,
   locale,
   t,
@@ -2020,6 +2107,8 @@ function FeedView({
   onCopyWish,
   onDraftBodyChange,
   onExternalLinkUrlChange,
+  onFilterChange,
+  onLoadMore,
   onOpenAuthor,
   onOpenBlog,
   onOpenPost,
@@ -2033,7 +2122,9 @@ function FeedView({
   dailyDraft: FeedPost | null;
   externalLinkUrl: string;
   feedPayload: FeedPayload | null;
+  filter: FeedFilter;
   loading: boolean;
+  loadingMore: boolean;
   saving: boolean;
   locale: AppLocale;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -2042,6 +2133,8 @@ function FeedView({
   onCopyWish: (wish: PublicWish) => void;
   onDraftBodyChange: (body: string) => void;
   onExternalLinkUrlChange: (url: string) => void;
+  onFilterChange: (filter: FeedFilter) => void;
+  onLoadMore: () => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenPost: (post: FeedPost) => void;
@@ -2054,7 +2147,18 @@ function FeedView({
 
   return (
     <section className="feed-layout">
-      <section className="feed-composer">
+      <div className="feed-filter-row" role="group" aria-label={t("social.feed.title")}>
+        <button className={filter === "all" ? "active" : ""} type="button" onClick={() => onFilterChange("all")}>
+          {t("social.review.filter.all")}
+        </button>
+        <button className={filter === "reviews" ? "active" : ""} type="button" onClick={() => onFilterChange("reviews")}>
+          {t("social.review.filter.reviews")}
+        </button>
+      </div>
+      {filter === "reviews" && feedPayload?.reviewSummary ? (
+        <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
+      ) : null}
+      {filter === "all" ? <section className="feed-composer">
         <div className="section-heading-row">
           <span>{t("social.feed.dailyDraft")}</span>
           <button className="secondary-button" type="button" disabled={saving} onClick={onCreateDraft}>
@@ -2080,7 +2184,7 @@ function FeedView({
           onSubmit={onCreateExternalLink}
           onUrlChange={onExternalLinkUrlChange}
         />
-      </section>
+      </section> : null}
       <PostList
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
@@ -2098,6 +2202,38 @@ function FeedView({
         onDeletePost={onDeletePost}
         onPublish={onPublish}
       />
+      {feedPayload?.nextCursor ? (
+        <button className="secondary-button feed-load-more" type="button" disabled={loadingMore} onClick={onLoadMore}>
+          {loadingMore ? t("app.common.loading") : t("social.review.loadMore")}
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function ReviewSummary({ summary, locale, t }: {
+  summary: FeedReviewSummary;
+  locale: AppLocale;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+}) {
+  return (
+    <section className="review-summary">
+      <div>
+        <span>{t("social.review.summary")}</span>
+        <strong>{summary.count ? summary.average.toLocaleString(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : "—"}</strong>
+        <ReviewStars value={Math.round(summary.average)} />
+        <small>{t("social.review.count", { count: summary.count })}</small>
+      </div>
+      <div className="review-distribution">
+        {[5, 4, 3, 2, 1].map((rating) => (
+          <div key={rating}>
+            <span>{rating}</span>
+            <Star size={12} fill="currentColor" />
+            <progress max={Math.max(summary.count, 1)} value={summary.distribution[String(rating)] ?? 0} />
+            <small>{summary.distribution[String(rating)] ?? 0}</small>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -2386,10 +2522,17 @@ function PostCard({
                 : t("social.systemProfile.chapterNumber", { number: post.systemStory.series_order })}
             </span>
           ) : null}
+          {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
         </div>
         <small>{formatPostDate(post, locale)}</small>
       </header>
       <button className="feed-post-body" type="button" onClick={() => onOpenPost(post)}>
+        {post.projectReview ? (
+          <div className="project-review-rating">
+            <ReviewStars value={post.projectReview.overall_rating} />
+            <span>{t("social.review.mission", { rating: post.projectReview.mission_rating })}</span>
+          </div>
+        ) : null}
         <p>{post.body ?? t("social.post.detail")}</p>
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
       </button>
@@ -2492,7 +2635,8 @@ function PostDetailModal({
   onDeletePost,
   onOpenAuthor,
   onOpenBlog,
-  onOpenSystemAccount
+  onOpenSystemAccount,
+  onUpdateReview
 }: {
   copyingWishId: string | null;
   currentUserId: string | null;
@@ -2505,8 +2649,30 @@ function PostDetailModal({
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenSystemAccount: (accountKey: string) => void;
+  onUpdateReview: (post: FeedPost, changes: ReviewEditPayload) => Promise<void>;
 }) {
   const canDelete = Boolean(post.author_user_id) && post.author_user_id === currentUserId;
+  const [editingReview, setEditingReview] = useState(false);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewDraft, setReviewDraft] = useState<ReviewEditPayload>({
+    body: post.body ?? "",
+    overallRating: post.projectReview?.overall_rating ?? 0,
+    missionRating: post.projectReview?.mission_rating ?? 0,
+    attitude: post.projectReview?.attitude ?? "",
+    mostUsefulArea: post.projectReview?.most_useful_area ?? ""
+  });
+
+  async function saveReview() {
+    setReviewSaving(true);
+    try {
+      await onUpdateReview(post, reviewDraft);
+      setEditingReview(false);
+    } catch {
+      // The parent surfaces the API error without closing the editor.
+    } finally {
+      setReviewSaving(false);
+    }
+  }
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -2518,8 +2684,55 @@ function PostDetailModal({
           <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
           {post.post_type === "system_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
+          {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
         </div>
-        <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>
+        {post.projectReview && !editingReview ? (
+          <div className="project-review-detail-meta">
+            <ReviewStars value={post.projectReview.overall_rating} />
+            <span>{t("social.review.mission", { rating: post.projectReview.mission_rating })}</span>
+            <span>{t(`appTesting.attitude.${post.projectReview.attitude}` as MessageKey)}</span>
+            <span>{t(`appTesting.area.${post.projectReview.most_useful_area}` as MessageKey)}</span>
+          </div>
+        ) : null}
+        {editingReview && post.projectReview ? (
+          <div className="project-review-editor">
+            <label>
+              <span>{t("appTesting.overallRating")}</span>
+              <select value={reviewDraft.overallRating} onChange={(event) => setReviewDraft((current) => ({ ...current, overallRating: Number(event.target.value) }))}>
+                {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
+              </select>
+            </label>
+            <label>
+              <span>{t("appTesting.missionRating")}</span>
+              <select value={reviewDraft.missionRating} onChange={(event) => setReviewDraft((current) => ({ ...current, missionRating: Number(event.target.value) }))}>
+                {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
+              </select>
+            </label>
+            <label>
+              <span>{t("appTesting.attitude")}</span>
+              <select value={reviewDraft.attitude} onChange={(event) => setReviewDraft((current) => ({ ...current, attitude: event.target.value }))}>
+                {APP_TESTING_ATTITUDES.map((attitude) => <option value={attitude} key={attitude}>{t(`appTesting.attitude.${attitude}` as MessageKey)}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>{t("appTesting.mostUseful")}</span>
+              <select value={reviewDraft.mostUsefulArea} onChange={(event) => setReviewDraft((current) => ({ ...current, mostUsefulArea: event.target.value }))}>
+                {APP_TESTING_USEFUL_AREAS.map((area) => <option value={area} key={area}>{t(`appTesting.area.${area}` as MessageKey)}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>{t("appTesting.publicReview")}</span>
+              <textarea maxLength={1500} value={reviewDraft.body} onChange={(event) => setReviewDraft((current) => ({ ...current, body: event.target.value }))} />
+            </label>
+            <div className="project-review-editor-actions">
+              <button className="secondary-button" type="button" onClick={() => setEditingReview(false)}>{t("social.review.cancel")}</button>
+              <button className="primary-button" type="button" disabled={reviewSaving || reviewDraft.body.trim().length < 100} onClick={() => { void saveReview(); }}>
+                {reviewSaving ? t("app.common.loading") : t("social.review.save")}
+              </button>
+            </div>
+          </div>
+        ) : <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>}
+        {post.projectReview && !editingReview ? <small className="project-review-reward-note">{t("social.review.rewarded")}</small> : null}
         <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
         <PostMedia media={post.media} locale={locale} portrait={post.post_type === "system_story"} showSource />
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
@@ -2543,6 +2756,12 @@ function PostDetailModal({
             <button className="system-story-profile-link" type="button" onClick={() => onOpenSystemAccount(post.systemStory!.system_account_key)}>
               <BookOpen size={14} />
               {t("social.systemProfile.allChapters")}
+            </button>
+          ) : null}
+          {canDelete && post.projectReview && !editingReview ? (
+            <button className="secondary-button" type="button" onClick={() => setEditingReview(true)}>
+              <Edit3 size={15} />
+              {t("social.review.edit")}
             </button>
           ) : null}
           {canDelete ? (
@@ -2581,6 +2800,16 @@ function StatBlockGrid({ blocks, locale, t }: { blocks: FeedStatBlock[]; locale:
         </span>
       ))}
     </div>
+  );
+}
+
+function ReviewStars({ value }: { value: number }) {
+  return (
+    <span className="project-review-stars" aria-label={`${value}/5`}>
+      {[1, 2, 3, 4, 5].map((rating) => (
+        <Star size={16} fill={rating <= value ? "currentColor" : "none"} key={rating} />
+      ))}
+    </span>
   );
 }
 
@@ -2914,6 +3143,14 @@ function updateFeedWishCopyState(payload: FeedPayload | null, wishId: string, co
   return {
     ...payload,
     posts: payload.posts.map((post) => updatePostWishCopyState(post, wishId, copiedIncrement))
+  };
+}
+
+function replaceFeedPost(payload: FeedPayload | null, updatedPost: FeedPost): FeedPayload | null {
+  if (!payload) return payload;
+  return {
+    ...payload,
+    posts: payload.posts.map((post) => post.id === updatedPost.id ? updatedPost : post)
   };
 }
 

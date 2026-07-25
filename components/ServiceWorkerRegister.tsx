@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { setDeferredPwaInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwaInstall";
 import { flushPendingReminders } from "@/lib/pushReminders";
 
 const APP_UPDATE_CHECK_INTERVAL_MS = 30 * 1000;
@@ -9,6 +10,14 @@ const SW_CONTROLLER_RELOAD_KEY = "open-abundance:sw-controller-reload";
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredPwaInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => setDeferredPwaInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
     if (!("serviceWorker" in navigator)) return;
 
     const isLocalDev = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
@@ -91,6 +100,8 @@ export default function ServiceWorkerRegister() {
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
       removeVisibilityListener?.();
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 

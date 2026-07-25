@@ -1273,6 +1273,10 @@ export default function SocialApp({
           blogPayload={blogPayload}
           copyingWishId={copyingWishId}
           currentUserId={user.id}
+          dailyDraft={dailyDraft}
+          systemDrafts={systemDrafts}
+          externalLinkUrl={externalLinkUrl}
+          linkComposerOpen={linkComposerOpen}
           loading={feedLoading}
           locale={locale}
           saving={feedSaving}
@@ -1285,6 +1289,15 @@ export default function SocialApp({
           onCopyWish={copyPublicWishToMine}
           onDeletePost={deletePost}
           onPublish={publishPost}
+          onCreateDraft={createDailyDraft}
+          onDraftBodyChange={updateDailyDraftBody}
+          onDraftBodyChangeForPost={updateSystemDraftBody}
+          onToggleDraftBlock={toggleDailyDraftBlock}
+          onUpdateCover={updatePostCover}
+          onUploadCover={uploadPostCover}
+          onExternalLinkUrlChange={setExternalLinkUrl}
+          onLinkComposerToggle={() => setLinkComposerOpen((current) => !current)}
+          onCreateExternalLink={createExternalLinkPost}
         />
       ) : null}
 
@@ -2161,50 +2174,6 @@ function FeedView({
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
       ) : null}
-          {filter === "all" || filter === "system" ? <section className="feed-composer">
-        <div className="section-heading-row">
-          <span>{t("social.feed.systemDrafts")}</span>
-          <button className="secondary-button" type="button" disabled={saving} onClick={onCreateDraft}>
-            <Newspaper size={16} />
-            {t("social.feed.createDraft")}
-          </button>
-        </div>
-        {dailyDraft ? (
-          <DailyDraftEditor
-            locale={locale}
-            post={dailyDraft}
-            saving={saving}
-            t={t}
-            onBodyChange={onDraftBodyChange}
-            onPublish={() => onPublish(dailyDraft)}
-            onToggleBlock={onToggleDraftBlock}
-            onUpdateCover={onUpdateCover}
-            onUploadCover={onUploadCover}
-          />
-        ) : null}
-        {systemDrafts.filter((post) => post.id !== dailyDraft?.id).map((post) => (
-          <SystemDraftEditor
-            key={post.id}
-            locale={locale}
-            post={post}
-            saving={saving}
-            t={t}
-            onBodyChange={(body) => onDraftBodyChangeForPost(post.id, body)}
-            onPublish={() => onPublish(post)}
-            onUpdateCover={onUpdateCover}
-            onUploadCover={onUploadCover}
-          />
-        ))}
-        <ExternalLinkComposer
-          open={linkComposerOpen}
-          saving={saving}
-          t={t}
-          url={externalLinkUrl}
-          onToggle={onLinkComposerToggle}
-          onSubmit={onCreateExternalLink}
-          onUrlChange={onExternalLinkUrlChange}
-        />
-      </section> : null}
       <PostList
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
@@ -2308,10 +2277,16 @@ function ExternalLinkComposer({
   );
 }
 
+type BlogSubTab = "posts" | "drafts";
+
 function BlogView({
   blogPayload,
   copyingWishId,
   currentUserId,
+  dailyDraft,
+  systemDrafts,
+  externalLinkUrl,
+  linkComposerOpen,
   loading,
   locale,
   saving,
@@ -2323,11 +2298,24 @@ function BlogView({
   onOpenPost,
   onOpenSystemAccount,
   onDeletePost,
-  onPublish
+  onPublish,
+  onCreateDraft,
+  onDraftBodyChange,
+  onDraftBodyChangeForPost,
+  onToggleDraftBlock,
+  onUpdateCover,
+  onUploadCover,
+  onExternalLinkUrlChange,
+  onLinkComposerToggle,
+  onCreateExternalLink
 }: {
   blogPayload: FeedPayload | null;
   copyingWishId: string | null;
   currentUserId: string;
+  dailyDraft: FeedPost | null;
+  systemDrafts: FeedPost[];
+  externalLinkUrl: string;
+  linkComposerOpen: boolean;
   loading: boolean;
   locale: AppLocale;
   saving: boolean;
@@ -2340,7 +2328,17 @@ function BlogView({
   onOpenSystemAccount: (accountKey: string) => void;
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
+  onCreateDraft: () => void;
+  onDraftBodyChange: (body: string) => void;
+  onDraftBodyChangeForPost: (postId: string, body: string) => void;
+  onToggleDraftBlock: (blockKey: string) => void;
+  onUpdateCover: (post: FeedPost, templateKey: string) => void;
+  onUploadCover: (post: FeedPost, file: File) => void;
+  onExternalLinkUrlChange: (url: string) => void;
+  onLinkComposerToggle: () => void;
+  onCreateExternalLink: () => void;
 }) {
+  const [blogSubTab, setBlogSubTab] = useState<BlogSubTab>("posts");
   const posts = blogPayload?.posts ?? [];
   const author = blogPayload?.author ?? posts[0]?.author ?? null;
   const title = selectedBlogAuthorId ? formatProfileName(author, selectedBlogAuthorId) : t("social.blog.mine");
@@ -2368,24 +2366,79 @@ function BlogView({
           </button>
         ) : null}
       </section>
-      <PostList
-        copyingWishId={copyingWishId}
-        currentUserId={currentUserId}
-        emptyText={t("social.blog.empty")}
-        loading={loading}
-        locale={locale}
-        posts={posts}
-        saving={saving}
-        showBlogAction={false}
-        t={t}
-        onCopyWish={onCopyWish}
-        onOpenAuthor={onOpenAuthor}
-        onOpenBlog={onOpenAuthor}
-        onOpenPost={onOpenPost}
-        onOpenSystemAccount={onOpenSystemAccount}
-        onDeletePost={onDeletePost}
-        onPublish={onPublish}
-      />
+      <div className="feed-filter-row" role="group" aria-label={t("social.blog.title")}>
+        <button className={blogSubTab === "posts" ? "active" : ""} type="button" onClick={() => setBlogSubTab("posts")}>
+          {t("social.blog.tab.posts")}
+        </button>
+        <button className={blogSubTab === "drafts" ? "active" : ""} type="button" onClick={() => setBlogSubTab("drafts")}>
+          {t("social.blog.tab.drafts")}
+        </button>
+      </div>
+      {blogSubTab === "posts" ? (
+        <PostList
+          copyingWishId={copyingWishId}
+          currentUserId={currentUserId}
+          emptyText={t("social.blog.empty")}
+          loading={loading}
+          locale={locale}
+          posts={posts}
+          saving={saving}
+          showBlogAction={false}
+          t={t}
+          onCopyWish={onCopyWish}
+          onOpenAuthor={onOpenAuthor}
+          onOpenBlog={onOpenAuthor}
+          onOpenPost={onOpenPost}
+          onOpenSystemAccount={onOpenSystemAccount}
+          onDeletePost={onDeletePost}
+          onPublish={onPublish}
+        />
+      ) : (
+        <section className="feed-composer">
+          <div className="section-heading-row">
+            <span>{t("social.feed.systemDrafts")}</span>
+            <button className="secondary-button" type="button" disabled={saving} onClick={onCreateDraft}>
+              <Newspaper size={16} />
+              {t("social.feed.createDraft")}
+            </button>
+          </div>
+          {dailyDraft ? (
+            <DailyDraftEditor
+              locale={locale}
+              post={dailyDraft}
+              saving={saving}
+              t={t}
+              onBodyChange={onDraftBodyChange}
+              onPublish={() => onPublish(dailyDraft)}
+              onToggleBlock={onToggleDraftBlock}
+              onUpdateCover={onUpdateCover}
+              onUploadCover={onUploadCover}
+            />
+          ) : null}
+          {systemDrafts.filter((post) => post.id !== dailyDraft?.id).map((post) => (
+            <SystemDraftEditor
+              key={post.id}
+              locale={locale}
+              post={post}
+              saving={saving}
+              t={t}
+              onBodyChange={(body) => onDraftBodyChangeForPost(post.id, body)}
+              onPublish={() => onPublish(post)}
+              onUpdateCover={onUpdateCover}
+              onUploadCover={onUploadCover}
+            />
+          ))}
+          <ExternalLinkComposer
+            open={linkComposerOpen}
+            saving={saving}
+            t={t}
+            url={externalLinkUrl}
+            onToggle={onLinkComposerToggle}
+            onSubmit={onCreateExternalLink}
+            onUrlChange={onExternalLinkUrlChange}
+          />
+        </section>
+      )}
     </section>
   );
 }

@@ -1,21 +1,54 @@
 # Reality Feed — системная серия Abundance
 
-Статус: тексты и server-backed content slice реализованы 2026-07-19; отдельный экран профиля системного аккаунта реализован 2026-07-20.
+Статус: полная реализация, включая четыре вкладки ленты, системные обложки и черновики — 2026-07-25.
 
-## Решение
+## Вкладки ленты
 
-В Reality Feed нужен второй тип контента рядом с `reality_demo` и будущими verified system facts — `system_story`.
+Лента разделена на четыре вкладки с фильтрацией на сервере до cursor-pagination:
 
-Это не рассказ от лица пользователя и не отзыв. Это последовательная серия от системного аккаунта `Abundance System`, которая объясняет:
+- **`all`** (Всё): объединение всех категорий — все публичные опубликованные посты.
+- **`stories`** (Сторис): посты людей — `manual`, `external_link`, `wish`, `reality_demo`, `abundance_story`.
+- **`system`** (Системные): системные события — `daily_progress`, `level_up`, `wish_completed`, `challenge`.
+- **`reviews`** (Отзывы): только `project_review`; сводный рейтинг показывается только здесь.
 
-- почему при высокой производительности люди все еще живут в ощущении нехватки;
-- как устроены ограничения доступа, собственности, распределения и координации;
-- почему автоматизация усиливает слабость модели, где большинство получает доступ к благам только через зарплату;
-- почему Abundance не продолжает устаревший спор «коммунизм или капитализм», а предлагает практическую модель для мира растущей автоматизации и потенциального post-scarcity;
-- почему концентрация власти создает риск злоупотребления;
-- чем Abundance отличается от социальной сети, маркетплейса или обычного AI-чата;
-- как Core, Trust, Influence, AI и smart contracts должны работать вместе;
-- как участник может перейти от понимания системы к собственному желанию и первому действию.
+Типизация: `FeedFilter = "all" | "stories" | "system" | "reviews"`.
+
+Допущения: `Сторис` — постоянные посты людей, не 24-часовой формат. Начальная вкладка — `Всё`.
+
+## Переименование: system_story → abundance_story
+
+- Тип `system_story` переименован в `abundance_story` в данных, общих типах, API и интерфейсе.
+- Аккаунт остаётся `Abundance System`, видимый бейдж — «История Abundance».
+- Старые записи миграция перевела на новый тип без потери порядка серий, изображений и ссылок между главами.
+- Псевдоним типа: `FeedAbundanceStory = FeedSystemStory`.
+
+## Системные черновики и обложки
+
+- **Ежедневный прогресс**: лениво создаётся или восстанавливается при открытии Feed только для последнего начисления; операция идемпотентна.
+- **Исполнение желания** (`wish_completed`): автоматически создаёт приватный для автора черновик при `wish.status = completed`, но не публикует без подтверждения.
+- **Челлендж** (`challenge`): после завершения челленджа создаётся черновик (`status = draft`, `published_at = null`) со стандартной обложкой.
+- После события доступен общий редактор: текст, публичность stat-блоков, обложка, публикация или удаление черновика.
+- Если повышение уровня произошло во время ежедневного начисления, создаётся один пост `level_up` с полными данными дневного прогресса, без второго дублирующего поста.
+
+### Обложки
+
+Четыре согласованные обложки `4:5` без текста, логотипов и водяных знаков в единой спокойной premium-стилистике Open Abundance:
+
+- `daily-progress.png` — ежедневный прогресс
+- `level-up.png` — новый уровень
+- `wish-completed.png` — исполненное желание
+- `challenge-completed.png` — выполненный челлендж
+
+Файлы сохранены локально в `public/feed/system-events/` как оптимизированные PNG.
+
+Пользователь может:
+- Выбрать любой из четырёх шаблонов (`PATCH /api/social/feed/posts/[postId]/cover` с `{ templateKey }`)
+- Загрузить собственное изображение JPEG/PNG/WebP до 8 МБ (`POST /api/social/feed/posts/[postId]/cover` с multipart-файлом)
+- Предпросмотр показывает фактический crop `4:5`; отдельный редактор кадрирования не добавляется
+
+Пользовательские изображения хранятся в приватном Supabase Storage bucket `feed-media`. Выдаются короткоживущие signed URL только автору или читателю публичного поста. В `feed_post_media` добавлено nullable `storage_path`; локальные шаблоны продолжают использовать `media_url`. При недоступном пользовательском файле карточка возвращается к стандартной обложке своего типа.
+
+Миграцией добавлены стандартные обложки старым `daily_progress`, `challenge` и `wish_completed`, у которых не было медиа.
 
 ## Системный аккаунт
 
@@ -26,8 +59,8 @@
 - аватар/знак Abundance System;
 - короткое описание: «Объясняем, зачем создан Abundance и как он устроен»;
 - закрепленная первая история `01 — Почему Abundance вообще нужен`;
-- все system stories в одном порядке, как последовательный Instagram-профиль/сериал;
-- на каждой карточке бейдж `Системная история` и номер главы;
+- все abundance stories в одном порядке, как последовательный Instagram-профиль/сериал;
+- на каждой карточке бейдж `История Abundance` и номер главы;
 - переход из карточки ленты открывает профиль системного аккаунта с этой историей и соседними главами;
 - переход из профиля возвращает в ленту с сохранением позиции;
 - системный аккаунт не притворяется пользователем, не получает пользовательский level и не участвует в people graph.
@@ -41,19 +74,63 @@
 - `evidence_status` — `editorial`, `source_required`, `verified_source`;
 - `next_story_key` — следующая глава серии.
 
-Контракт реализован через `feed_system_accounts` и `feed_system_story_metadata`; сами главы остаются обычными `feed_posts.post_type = system_story`.
+Контракт реализован через `feed_system_accounts` и `feed_system_story_metadata`; сами главы остаются обычными `feed_posts.post_type = abundance_story`.
 
-## Реализовано — 2026-07-19–20
+## Реализовано — 2026-07-25
+
+### 2026-07-19–20 — базовая реализация
 
 - Миграция `20260719123000_reality_feed_updated_demo_and_system_stories.sql` применена к Supabase.
 - Создан аккаунт `abundance_system` и серия `abundance_system_basics` с порядком глав `1–12` и переходами `next_story_key`.
 - Добавлены 12 RU/EN системных постов, 24 перевода и 12 уникальных Unsplash-изображений с локализованными alt-текстами.
-- 2026-07-24: после успешного теста первой главы все 35 изображений Reality Feed (`23 reality_demo + 12 system_story`) переведены на разные проверенные `i.pinimg.com` URL миграцией `20260724181000_pinterest_reality_feed_media.sql`; исходные Unsplash URL и attribution сохранены в `feed_post_media.metadata` для будущего переноса или отката.
-- В `SocialApp` добавлены системный аватар, отдельный бейдж `Системная история` и вертикальное отображение изображения 4:5.
+- 2026-07-24: все 35 изображений Reality Feed (`23 reality_demo + 12 abundance_story`) переведены на разные проверенные `i.pinimg.com` URL миграцией `20260724181000_pinterest_reality_feed_media.sql`; исходные Unsplash URL и attribution сохранены в `feed_post_media.metadata`.
+- В `SocialApp` добавлены системный аватар, отдельный бейдж `История Abundance` и вертикальное отображение изображения 4:5.
 - `evidence_status` сохраняет различие между editorial-позицией и тезисами, которым нужен отдельный source pack.
 - Имя и аватар системного автора открывают отдельный профиль; на системной карточке и в деталях есть явная ссылка `Все главы`.
 - Профиль читает активный системный аккаунт и опубликованные главы из feed API, показывает их в server-backed порядке и возвращает в прежнюю позицию ленты.
 - Мобильная ширина ленты ограничена viewport; длинные фрагменты текста безопасно переносятся и не создают горизонтальную прокрутку на узком экране.
+
+### 2026-07-25 — вкладки ленты, системные обложки, черновики
+
+**Миграция `20260725120000_feed_categories_and_system_covers.sql`**:
+- `system_story` → `abundance_story` (rename в данных)
+- `wish-completed:*` backfill из `manual` → `wish_completed`
+- Новый CHECK constraint: `daily_progress`, `level_up`, `manual`, `external_link`, `wish`, `wish_completed`, `reality_demo`, `abundance_story`, `challenge`, `project_review`
+- Индекс `feed_posts_type_status_created_idx`
+- `feed_post_media.storage_path` (nullable), `media_url` теперь nullable
+- Вставка стандартных обложек для старых системных постов без медиа
+- Бакет `feed-media` (private, 8MB, JPEG/PNG/WebP) + RLS политики (чтение по публичному статусу, запись/удаление только автором)
+
+**API**:
+- `GET /api/social/feed` — параметр `category=stories|system|reviews`, фильтрация на сервере
+- `scope=drafts` для загрузки системных черновиков
+- `PATCH /api/social/feed/posts/[postId]/cover` — смена шаблона обложки
+- `POST /api/social/feed/posts/[postId]/cover` — загрузка пользовательского файла
+- `POST /api/social/feed/daily-progress/draft` — идемпотентное создание/восстановление черновика
+- Signed URL для storage-файлов в `loadMedia()`
+
+**Типы (`lib/socialFeed.ts`)**:
+- `FeedFilter = "all" | "stories" | "system" | "reviews"`
+- `FeedPayload.category`
+- `FeedMedia.storage_path`
+- `FeedAbundanceStory = FeedSystemStory` (alias)
+- `FeedPost.post_type` включает все 10 типов
+
+**Серверная логика**:
+- `lib/serverWishFeed.ts`: `publishWishCompletionToFeed` создаёт `wish_completed` с `status = draft`, `published_at = null`, стандартной обложкой
+- `app/api/challenges/check/route.ts`: после завершения челленджа создаётся черновик через `create_verified_challenge_post` RPC, затем `status` переключается на `draft`, добавляется стандартная обложка
+
+**Компоненты**:
+- `SocialApp.tsx` — `feedFilter` state, `loadFeed()` с параметром `category`, четыре вкладки фильтрации
+- `FeedPostGallery.tsx` — `systemCoverForType()`, `getTileAuthor()` для системных постов
+- Редактор черновика: публикация, удаление, смена обложки, загрузка файла
+
+**Локализация (`lib/i18n.ts`)**:
+- `social.feed.filter.all/stories/system/reviews` — названия вкладок
+- `social.feed.systemStoryBadge` → «История Abundance»
+
+**Обложки** — 4 файла в `public/feed/system-events/`:
+- `daily-progress.png`, `level-up.png`, `wish-completed.png`, `challenge-completed.png`
 
 ## Правило доверия
 

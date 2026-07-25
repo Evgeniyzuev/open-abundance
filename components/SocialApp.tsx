@@ -2703,6 +2703,8 @@ export function PostDetailModal({
   onOpenBlog,
   onOpenSystemAccount,
   onPublish,
+  onUpdateCover,
+  onUploadCover,
   onUpdateReview
 }: {
   copyingWishId: string | null;
@@ -2718,6 +2720,8 @@ export function PostDetailModal({
   onOpenBlog: (userId: string) => void;
   onOpenSystemAccount: (accountKey: string) => void;
   onPublish: (post: FeedPost) => void;
+  onUpdateCover?: (post: FeedPost, templateKey: string) => void;
+  onUploadCover?: (post: FeedPost, file: File) => void;
   onUpdateReview: (post: FeedPost, changes: ReviewEditPayload) => Promise<void>;
 }) {
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
@@ -2985,7 +2989,7 @@ function PostMedia({ media, locale, onOpen, portrait = false, showSource = false
   return (
     <div className={`feed-post-media${images.length > 1 ? " multiple" : ""}${portrait ? " portrait" : ""}`}>
       {images.map((item) => {
-        const image = <img alt={localizedMediaAlt(item.alt_text, locale)} loading="lazy" src={item.media_url} />;
+        const image = <img alt={localizedMediaAlt(item.alt_text, locale)} loading="lazy" src={item.media_url ?? undefined} />;
         return onOpen ? (
           <button type="button" key={item.id} onClick={onOpen}>{image}</button>
         ) : (

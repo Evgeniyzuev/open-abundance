@@ -2485,7 +2485,7 @@ function SystemEventCoverPicker({ post, saving, t, onUpdateCover, onUploadCover 
     ["wish_completed", "social.feed.cover.template.wish_completed", "/feed/system-events/wish-completed.png"],
     ["challenge_completed", "social.feed.cover.template.challenge_completed", "/feed/system-events/challenge-completed.png"]
   ] as const;
-  const currentUrl = post.media.find((media) => media.sort_order === 0)?.media_url;
+  const currentUrl = (post.media ?? []).find((media) => media.sort_order === 0)?.media_url;
   return (
     <div className="system-event-cover-picker">
       <div className="system-event-cover-heading">

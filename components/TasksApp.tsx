@@ -79,9 +79,10 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
   const [form, setForm] = useState(emptyTaskForm);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [otherExpanded, setOtherExpanded] = useState(true);
-  const [suggestedExpanded, setSuggestedExpanded] = useState(true);
-  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [todayExpanded, setTodayExpanded] = useState(true);
+  const [otherExpanded, setOtherExpanded] = useState(false);
+  const [suggestedExpanded, setSuggestedExpanded] = useState(false);
+  const [archiveExpanded, setArchiveExpanded] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
   const [clock, setClock] = useState(() => Date.now());
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
@@ -139,7 +140,6 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
       remindAt: reminder
     });
     setSelectedTaskId(null);
-    setArchiveOpen(false);
     setModalOpen(true);
   }, [createRequest]);
 
@@ -179,7 +179,6 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
   function repeatTask(task: TaskItem) {
     setForm(buildFormFromTask(task, today));
     setSelectedTaskId(null);
-    setArchiveOpen(false);
     setModalOpen(true);
   }
 
@@ -303,20 +302,6 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
     await refreshTasks();
   }
 
-  if (archiveOpen) {
-    return (
-      <TaskArchiveScreen
-        completions={completions}
-        locale={locale}
-        tasks={archiveTasks}
-        today={today}
-        onBack={() => setArchiveOpen(false)}
-        onDeleteForever={removeTaskForever}
-        onRepeat={repeatTask}
-      />
-    );
-  }
-
   return (
     <section className="tasks-screen">
       <header className="tasks-header">
@@ -338,8 +323,45 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
         </section>
       ) : null}
 
-      <TaskSection title={t("tasks.today")} emptyText={t("tasks.todayEmpty")} tasks={todayTasks} completions={completions} today={today} onMarkToday={markToday} onOpen={setSelectedTaskId} onRepeat={repeatTask} />
+      {/* 1. Сегодня — всегда развёрнут */}
+      <section className="task-section">
+        <button className="task-section-toggle" type="button" onClick={() => setTodayExpanded((value) => !value)}>
+          <span>{t("tasks.today")}</span>
+          <strong>{todayTasks.length}</strong>
+        </button>
+        {todayExpanded ? (
+          todayTasks.length === 0 ? (
+            <div className="task-empty">{t("tasks.todayEmpty")}</div>
+          ) : (
+            <div className="task-panel-list">
+              {todayTasks.map((task) => (
+                <TaskPanel key={task.id} task={task} completions={completions} today={today} onMarkToday={() => markToday(task)} onOpen={() => setSelectedTaskId(task.id)} onRepeat={() => repeatTask(task)} />
+              ))}
+            </div>
+          )
+        ) : null}
+      </section>
 
+      {/* 2. Взятые — свёрнуто по умолчанию */}
+      <section className="task-section">
+        <button className="task-section-toggle" type="button" onClick={() => setOtherExpanded((value) => !value)}>
+          <span>{t("tasks.other")}</span>
+          <strong>{otherTasks.length}</strong>
+        </button>
+        {otherExpanded ? (
+          otherTasks.length === 0 ? (
+            <div className="task-empty">{t("tasks.otherEmpty")}</div>
+          ) : (
+            <div className="task-panel-list">
+              {otherTasks.map((task) => (
+                <TaskPanel key={task.id} task={task} completions={completions} today={today} onMarkToday={() => markToday(task)} onOpen={() => setSelectedTaskId(task.id)} onRepeat={() => repeatTask(task)} />
+              ))}
+            </div>
+          )
+        ) : null}
+      </section>
+
+      {/* 3. Предлагаемые — свёрнуто по умолчанию */}
       <section className="task-section">
         <button className="task-section-toggle" type="button" onClick={() => setSuggestedExpanded((value) => !value)}>
           <span>{t("tasks.suggested")}</span>
@@ -387,21 +409,31 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
         ) : null}
       </section>
 
+      {/* 4. Завершенные — свёрнуто по умолчанию, inline */}
       <section className="task-section">
-        <button className="task-section-toggle" type="button" onClick={() => setOtherExpanded((value) => !value)}>
-          <span>{t("tasks.other")}</span>
-          <strong>{otherTasks.length}</strong>
-        </button>
-        {otherExpanded ? (
-          <TaskList emptyText={t("tasks.otherEmpty")} tasks={otherTasks} completions={completions} today={today} onMarkToday={markToday} onOpen={setSelectedTaskId} onRepeat={repeatTask} />
-        ) : null}
-      </section>
-
-      <section className="task-section">
-        <button className="task-archive-link" type="button" onClick={() => setArchiveOpen(true)}>
+        <button className="task-section-toggle" type="button" onClick={() => setArchiveExpanded((value) => !value)}>
           <span>{t("tasks.archive")}</span>
           <strong>{archiveTasks.length}</strong>
         </button>
+        {archiveExpanded ? (
+          archiveTasks.length === 0 ? (
+            <div className="task-empty">{t("tasks.archiveEmpty")}</div>
+          ) : (
+            <div className="task-panel-list">
+              {archiveTasks.map((task) => (
+                <ArchiveTaskPanel
+                  key={task.id}
+                  task={task}
+                  completions={completions}
+                  locale={locale}
+                  today={today}
+                  onDeleteForever={() => removeTaskForever(task)}
+                  onRepeat={() => repeatTask(task)}
+                />
+              ))}
+            </div>
+          )
+        ) : null}
       </section>
 
       {modalOpen ? <TaskModal form={form} setForm={setForm} onClose={() => { setModalOpen(false); onCreateRequestHandled?.(); }} onSubmit={handleSubmit} /> : null}
@@ -424,79 +456,6 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
         />
       ) : null}
     </section>
-  );
-}
-
-type TaskSectionProps = {
-  title: string;
-  emptyText: string;
-  tasks: TaskItem[];
-  completions: TaskCompletion[];
-  today: string;
-  onMarkToday: (task: TaskItem) => void;
-  onOpen: (id: string) => void;
-  onRepeat: (task: TaskItem) => void;
-};
-
-type TaskArchiveScreenProps = {
-  tasks: TaskItem[];
-  completions: TaskCompletion[];
-  locale: AppLocale;
-  today: string;
-  onBack: () => void;
-  onDeleteForever: (task: TaskItem) => void;
-  onRepeat: (task: TaskItem) => void;
-};
-
-function TaskArchiveScreen({ tasks, completions, locale, today, onBack, onDeleteForever, onRepeat }: TaskArchiveScreenProps) {
-  const { t } = useUserContext();
-
-  return (
-    <section className="tasks-screen task-archive-screen">
-      <header className="task-archive-topbar">
-        <button className="back-button" type="button" onClick={onBack}>{"\u2039"}</button>
-        <h1>{t("tasks.archive")}</h1>
-      </header>
-
-      {tasks.length === 0 ? (
-        <div className="task-empty">{t("tasks.archiveEmpty")}</div>
-      ) : (
-        <div className="task-panel-list">
-          {tasks.map((task) => (
-            <ArchiveTaskPanel
-              completions={completions}
-              locale={locale}
-              key={task.id}
-              task={task}
-              today={today}
-              onDeleteForever={() => onDeleteForever(task)}
-              onRepeat={() => onRepeat(task)}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function TaskSection(props: TaskSectionProps) {
-  return (
-    <section className="task-section">
-      <h2>{props.title}</h2>
-      <TaskList {...props} />
-    </section>
-  );
-}
-
-function TaskList({ emptyText, tasks, completions, today, onMarkToday, onOpen, onRepeat }: Omit<TaskSectionProps, "title">) {
-  if (tasks.length === 0) return <div className="task-empty">{emptyText}</div>;
-
-  return (
-    <div className="task-panel-list">
-      {tasks.map((task) => (
-        <TaskPanel key={task.id} task={task} completions={completions} today={today} onMarkToday={() => onMarkToday(task)} onOpen={() => onOpen(task.id)} onRepeat={() => onRepeat(task)} />
-      ))}
-    </div>
   );
 }
 

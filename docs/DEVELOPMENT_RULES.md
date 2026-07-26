@@ -37,6 +37,14 @@ Preferred editing options:
 
 If mojibake appears in a diff, stop and fix it before continuing.
 
+## iOS Zoom And Input Font Size
+
+iOS Safari may auto-zoom the page when an `<input>`, `<textarea>`, or `<select>` has `font-size: 0.9375rem` or smaller. To prevent unwanted zoom on input focus:
+
+- keep form field font-size at `1rem` or larger;
+- if a design calls for visually smaller text, reduce size with layout, spacing, or component scaling instead of dropping below `1rem` on the input itself;
+- if pinch-zoom must remain enabled for accessibility, don’t rely on `user-scalable=no` to fix focus zoom — the `1rem` floor is the actual safeguard.
+
 ## Local-First IndexedDB
 
 Personal local data for notes, tasks, streaks, and guest identity shares one IndexedDB database:

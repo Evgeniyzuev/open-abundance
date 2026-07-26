@@ -110,7 +110,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { min-height: 100%; }
+html, body { min-height: 100%; overflow-x: hidden; }
 body {
   margin: 0;
   background: var(--bg);
@@ -1139,10 +1139,13 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .ai-chat-screen {
   display: flex;
   flex-direction: column;
-  width: min(100vw, 610px);
+  min-width: 0;
+  max-width: 100%;
+  width: min(100%, 610px);
   min-height: calc(100vh - 182px);
   margin: 0 auto;
   padding: 0 6px 80px;
+  overflow-x: hidden;
 }
 
 .ai-chat-empty {
@@ -1204,16 +1207,21 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 }
 
 .ai-chat-messages {
+  min-width: 0;
+  max-width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 12px 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .ai-msg-user,
 .ai-msg-assistant {
+  min-width: 0;
   display: flex;
   gap: 8px;
   max-width: 85%;
@@ -1245,6 +1253,7 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
   font-size: 0.875rem;
   line-height: 1.45;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
@@ -1366,6 +1375,9 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
   gap: 8px;
   padding: 10px 0;
   background: var(--bg);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .ai-clear-btn {

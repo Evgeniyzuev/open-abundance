@@ -153,17 +153,6 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
   );
   const archiveTasks = useMemo(() => tasks.filter((task) => task.completed || task.deleted), [tasks]);
   const dueReminderTasks = useMemo(() => tasks.filter((task) => !task.deleted && !task.completed && task.remindAt && new Date(task.remindAt).getTime() <= clock), [clock, tasks]);
-  const addedPracticeIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const task of tasks) {
-      for (const tpl of PRACTICE_TEMPLATES) {
-        if (task.title.startsWith(tpl.emoji)) {
-          ids.add(tpl.id);
-        }
-      }
-    }
-    return ids;
-  }, [tasks]);
 
   useEffect(() => {
     const taskId = new URLSearchParams(window.location.search).get("task");
@@ -372,7 +361,6 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
             {PRACTICE_TEMPLATES.map((tpl) => {
               const title = t(tpl.titleKey as MessageKey);
               const desc = t(tpl.descKey as MessageKey);
-              const alreadyAdded = addedPracticeIds.has(tpl.id);
               return (
                 <article className="task-panel suggested" key={tpl.id}>
                   <button className="task-panel-main" type="button">
@@ -388,18 +376,18 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
                     <button
                       className="task-done-button"
                       type="button"
-                      disabled={alreadyAdded}
-                      onClick={async () => {
-                        const task = buildPracticeTask(tpl);
-                        await saveTask({
-                          ...task,
+                      onClick={() => {
+                        const todayDate = todayKey();
+                        setForm({
+                          ...emptyTaskForm,
                           title: `${tpl.emoji} ${title}`,
-                          description: desc
+                          description: desc,
+                          startDate: todayDate
                         });
-                        await refreshTasks();
+                        setModalOpen(true);
                       }}
                     >
-                      {alreadyAdded ? "\u2713" : t("tasks.suggestedAdd")}
+                      {t("tasks.suggestedAdd")}
                     </button>
                   </div>
                 </article>

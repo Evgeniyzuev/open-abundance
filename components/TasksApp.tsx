@@ -19,6 +19,7 @@ import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { scheduleActionReminder } from "@/lib/pushReminders";
 import LocalDataNotice from "@/components/LocalDataNotice";
+import { PRACTICE_TEMPLATES, buildPracticeTask } from "@/lib/practiceTemplates";
 
 type ScheduleType = "once" | "daily" | "weekdays";
 type LocalDataStatus = "loading" | "slow" | "ready" | "error";
@@ -79,6 +80,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [otherExpanded, setOtherExpanded] = useState(true);
+  const [suggestedExpanded, setSuggestedExpanded] = useState(true);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
   const [clock, setClock] = useState(() => Date.now());
@@ -151,6 +153,17 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
   );
   const archiveTasks = useMemo(() => tasks.filter((task) => task.completed || task.deleted), [tasks]);
   const dueReminderTasks = useMemo(() => tasks.filter((task) => !task.deleted && !task.completed && task.remindAt && new Date(task.remindAt).getTime() <= clock), [clock, tasks]);
+  const addedPracticeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const task of tasks) {
+      for (const tpl of PRACTICE_TEMPLATES) {
+        if (task.title.startsWith(tpl.emoji)) {
+          ids.add(tpl.id);
+        }
+      }
+    }
+    return ids;
+  }, [tasks]);
 
   useEffect(() => {
     const taskId = new URLSearchParams(window.location.search).get("task");
@@ -326,6 +339,53 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
       ) : null}
 
       <TaskSection title={t("tasks.today")} emptyText={t("tasks.todayEmpty")} tasks={todayTasks} completions={completions} today={today} onMarkToday={markToday} onOpen={setSelectedTaskId} onRepeat={repeatTask} />
+
+      <section className="task-section">
+        <button className="task-section-toggle" type="button" onClick={() => setSuggestedExpanded((value) => !value)}>
+          <span>{t("tasks.suggested")}</span>
+          <strong>{PRACTICE_TEMPLATES.length}</strong>
+        </button>
+        {suggestedExpanded ? (
+          <div className="task-panel-list">
+            {PRACTICE_TEMPLATES.map((tpl) => {
+              const title = t(tpl.titleKey as MessageKey);
+              const desc = t(tpl.descKey as MessageKey);
+              const alreadyAdded = addedPracticeIds.has(tpl.id);
+              return (
+                <article className="task-panel suggested" key={tpl.id}>
+                  <button className="task-panel-main" type="button">
+                    <span className="task-thumb"><span className="suggested-emoji">{tpl.emoji}</span></span>
+                    <span className="task-panel-body">
+                      <span className="task-panel-title">
+                        {tpl.emoji} {title}
+                      </span>
+                      <small>{desc}</small>
+                    </span>
+                  </button>
+                  <div className="task-panel-actions">
+                    <button
+                      className="task-done-button"
+                      type="button"
+                      disabled={alreadyAdded}
+                      onClick={async () => {
+                        const task = buildPracticeTask(tpl);
+                        await saveTask({
+                          ...task,
+                          title: `${tpl.emoji} ${title}`,
+                          description: desc
+                        });
+                        await refreshTasks();
+                      }}
+                    >
+                      {alreadyAdded ? "\u2713" : t("tasks.suggestedAdd")}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
 
       <section className="task-section">
         <button className="task-section-toggle" type="button" onClick={() => setOtherExpanded((value) => !value)}>

@@ -60,12 +60,12 @@
 
 ## Следующие шаги
 
-1. [ ] **Verified Challenge Done (завершение Reality Feed)**
+1. [x] **Verified Challenge Done (завершение Reality Feed)**
    - Server-backed read model для challenge completion snapshot.
    - Один verified пост на один completion, без reward/ledger.
    - CTA в challenge/Today.
 
-2. [ ] **Marketplace Phase 3-4: Deals + Atomic Completion**
+2. [x] **Marketplace Phase 3-4: Deals + Atomic Completion**
    - `marketplace_deals`, `marketplace_deal_events`, создание сделки, Wallet reserve/escrow.
    - Атомарное завершение: transfer Wallet + item ownership, refund/cancel/expire.
    - Связанные документы: `docs/MARKETPLACE_ESCROW_PLAN.md`, `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.

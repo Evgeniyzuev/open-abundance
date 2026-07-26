@@ -93,6 +93,105 @@ export type Database = {
           },
         ]
       }
+      challenge_feedback_submissions: {
+        Row: {
+          answers: Json
+          attitude: string | null
+          challenge_id: string
+          context: Json
+          created_at: string
+          daily_use_intent: string | null
+          feed_post_id: string | null
+          id: string
+          install_outcome: string | null
+          main_concern: string | null
+          main_difficulty: string | null
+          mission_rating: number | null
+          most_useful_area: string | null
+          overall_rating: number | null
+          platform: string | null
+          private_comment: string | null
+          public_consent_at: string | null
+          public_consent_version: string | null
+          public_review: string | null
+          schema_version: number
+          status: string
+          strongest_area: string | null
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          attitude?: string | null
+          challenge_id: string
+          context?: Json
+          created_at?: string
+          daily_use_intent?: string | null
+          feed_post_id?: string | null
+          id?: string
+          install_outcome?: string | null
+          main_concern?: string | null
+          main_difficulty?: string | null
+          mission_rating?: number | null
+          most_useful_area?: string | null
+          overall_rating?: number | null
+          platform?: string | null
+          private_comment?: string | null
+          public_consent_at?: string | null
+          public_consent_version?: string | null
+          public_review?: string | null
+          schema_version?: number
+          status?: string
+          strongest_area?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          attitude?: string | null
+          challenge_id?: string
+          context?: Json
+          created_at?: string
+          daily_use_intent?: string | null
+          feed_post_id?: string | null
+          id?: string
+          install_outcome?: string | null
+          main_concern?: string | null
+          main_difficulty?: string | null
+          mission_rating?: number | null
+          most_useful_area?: string | null
+          overall_rating?: number | null
+          platform?: string | null
+          private_comment?: string | null
+          public_consent_at?: string | null
+          public_consent_version?: string | null
+          public_review?: string | null
+          schema_version?: number
+          status?: string
+          strongest_area?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_feedback_submissions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_feedback_submissions_feed_post_id_fkey"
+            columns: ["feed_post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenges: {
         Row: {
           action_view: string | null
@@ -600,6 +699,7 @@ export type Database = {
           snapshot_id: string | null
           source_key: string | null
           status: string
+          system_verified: boolean
           updated_at: string
           visibility: string
         }
@@ -615,6 +715,7 @@ export type Database = {
           snapshot_id?: string | null
           source_key?: string | null
           status?: string
+          system_verified?: boolean
           updated_at?: string
           visibility?: string
         }
@@ -630,6 +731,7 @@ export type Database = {
           snapshot_id?: string | null
           source_key?: string | null
           status?: string
+          system_verified?: boolean
           updated_at?: string
           visibility?: string
         }
@@ -639,6 +741,57 @@ export type Database = {
             columns: ["snapshot_id"]
             isOneToOne: false
             referencedRelation: "progress_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_project_review_metadata: {
+        Row: {
+          attitude: string
+          challenge_reward_amount: number
+          created_at: string
+          feedback_submission_id: string
+          mission_rating: number
+          most_useful_area: string
+          overall_rating: number
+          post_id: string
+          updated_at: string
+        }
+        Insert: {
+          attitude: string
+          challenge_reward_amount?: number
+          created_at?: string
+          feedback_submission_id: string
+          mission_rating: number
+          most_useful_area: string
+          overall_rating: number
+          post_id: string
+          updated_at?: string
+        }
+        Update: {
+          attitude?: string
+          challenge_reward_amount?: number
+          created_at?: string
+          feedback_submission_id?: string
+          mission_rating?: number
+          most_useful_area?: string
+          overall_rating?: number
+          post_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_project_review_metadata_feedback_submission_id_fkey"
+            columns: ["feedback_submission_id"]
+            isOneToOne: true
+            referencedRelation: "challenge_feedback_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_project_review_metadata_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: true
+            referencedRelation: "feed_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -745,6 +898,128 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_deal_events: {
+        Row: {
+          actor_user_id: string
+          created_at: string
+          deal_id: string
+          event_type: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          actor_user_id: string
+          created_at?: string
+          deal_id: string
+          event_type: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          actor_user_id?: string
+          created_at?: string
+          deal_id?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_deal_events_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_deals: {
+        Row: {
+          artifact_id: string
+          buyer_accepted_at: string | null
+          buyer_accepted_terms_hash: string | null
+          buyer_user_id: string
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          currency_code: string
+          escrow_held_at: string | null
+          expires_at: string | null
+          id: string
+          listing_id: string
+          metadata: Json
+          price_amount: number
+          seller_accepted_at: string | null
+          seller_accepted_terms_hash: string | null
+          seller_user_id: string
+          status: string
+          terms_hash: string
+          terms_json: Json
+          updated_at: string
+        }
+        Insert: {
+          artifact_id: string
+          buyer_accepted_at?: string | null
+          buyer_accepted_terms_hash?: string | null
+          buyer_user_id: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency_code?: string
+          escrow_held_at?: string | null
+          expires_at?: string | null
+          id?: string
+          listing_id: string
+          metadata?: Json
+          price_amount: number
+          seller_accepted_at?: string | null
+          seller_accepted_terms_hash?: string | null
+          seller_user_id: string
+          status?: string
+          terms_hash: string
+          terms_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          artifact_id?: string
+          buyer_accepted_at?: string | null
+          buyer_accepted_terms_hash?: string | null
+          buyer_user_id?: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency_code?: string
+          escrow_held_at?: string | null
+          expires_at?: string | null
+          id?: string
+          listing_id?: string
+          metadata?: Json
+          price_amount?: number
+          seller_accepted_at?: string | null
+          seller_accepted_terms_hash?: string | null
+          seller_user_id?: string
+          status?: string
+          terms_hash?: string
+          terms_json?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_deals_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "user_artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_listings: {
         Row: {
           artifact_id: string
@@ -756,6 +1031,10 @@ export type Database = {
           id: string
           metadata: Json
           price_amount: number
+          rating_count: number
+          rating_sum: number
+          review_count: number
+          sales_count: number
           seller_user_id: string
           sold_at: string | null
           status: string
@@ -774,6 +1053,10 @@ export type Database = {
           id?: string
           metadata?: Json
           price_amount: number
+          rating_count?: number
+          rating_sum?: number
+          review_count?: number
+          sales_count?: number
           seller_user_id: string
           sold_at?: string | null
           status?: string
@@ -792,6 +1075,10 @@ export type Database = {
           id?: string
           metadata?: Json
           price_amount?: number
+          rating_count?: number
+          rating_sum?: number
+          review_count?: number
+          sales_count?: number
           seller_user_id?: string
           sold_at?: string | null
           status?: string
@@ -865,156 +1152,6 @@ export type Database = {
             columns: ["trust_event_id"]
             isOneToOne: false
             referencedRelation: "trust_events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      challenge_feedback_submissions: {
-        Row: {
-          answers: Json
-          attitude: string | null
-          challenge_id: string
-          context: Json
-          created_at: string
-          daily_use_intent: string | null
-          feed_post_id: string | null
-          id: string
-          install_outcome: string | null
-          main_concern: string | null
-          main_difficulty: string | null
-          mission_rating: number | null
-          most_useful_area: string | null
-          overall_rating: number | null
-          platform: string | null
-          private_comment: string | null
-          public_consent_at: string | null
-          public_consent_version: string | null
-          public_review: string | null
-          schema_version: number
-          status: string
-          strongest_area: string | null
-          submitted_at: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          answers?: Json
-          attitude?: string | null
-          challenge_id: string
-          context?: Json
-          created_at?: string
-          daily_use_intent?: string | null
-          feed_post_id?: string | null
-          id?: string
-          install_outcome?: string | null
-          main_concern?: string | null
-          main_difficulty?: string | null
-          mission_rating?: number | null
-          most_useful_area?: string | null
-          overall_rating?: number | null
-          platform?: string | null
-          private_comment?: string | null
-          public_consent_at?: string | null
-          public_consent_version?: string | null
-          public_review?: string | null
-          schema_version?: number
-          status?: string
-          strongest_area?: string | null
-          submitted_at?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          answers?: Json
-          attitude?: string | null
-          challenge_id?: string
-          context?: Json
-          created_at?: string
-          daily_use_intent?: string | null
-          feed_post_id?: string | null
-          id?: string
-          install_outcome?: string | null
-          main_concern?: string | null
-          main_difficulty?: string | null
-          mission_rating?: number | null
-          most_useful_area?: string | null
-          overall_rating?: number | null
-          platform?: string | null
-          private_comment?: string | null
-          public_consent_at?: string | null
-          public_consent_version?: string | null
-          public_review?: string | null
-          schema_version?: number
-          status?: string
-          strongest_area?: string | null
-          submitted_at?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "challenge_feedback_submissions_challenge_id_fkey"
-            columns: ["challenge_id"]
-            isOneToOne: false
-            referencedRelation: "challenges"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "challenge_feedback_submissions_feed_post_id_fkey"
-            columns: ["feed_post_id"]
-            isOneToOne: false
-            referencedRelation: "feed_posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      feed_project_review_metadata: {
-        Row: {
-          attitude: string
-          challenge_reward_amount: number
-          created_at: string
-          feedback_submission_id: string
-          mission_rating: number
-          most_useful_area: string
-          overall_rating: number
-          post_id: string
-          updated_at: string
-        }
-        Insert: {
-          attitude: string
-          challenge_reward_amount?: number
-          created_at?: string
-          feedback_submission_id: string
-          mission_rating: number
-          most_useful_area: string
-          overall_rating: number
-          post_id: string
-          updated_at?: string
-        }
-        Update: {
-          attitude?: string
-          challenge_reward_amount?: number
-          created_at?: string
-          feedback_submission_id?: string
-          mission_rating?: number
-          most_useful_area?: string
-          overall_rating?: number
-          post_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "feed_project_review_metadata_feedback_submission_id_fkey"
-            columns: ["feedback_submission_id"]
-            isOneToOne: true
-            referencedRelation: "challenge_feedback_submissions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "feed_project_review_metadata_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: true
-            referencedRelation: "feed_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -2291,6 +2428,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_marketplace_deal: {
+        Args: { p_actor_user_id: string; p_deal_id: string }
+        Returns: Json
+      }
       assign_team_member: {
         Args: {
           p_allow_transition?: boolean
@@ -2309,6 +2450,10 @@ export type Database = {
       can_be_team_leader: {
         Args: { p_leader_user_id: string; p_member_user_id: string }
         Returns: boolean
+      }
+      cancel_marketplace_deal: {
+        Args: { p_actor_user_id: string; p_deal_id: string }
+        Returns: Json
       }
       claim_due_reminder_jobs: {
         Args: { p_limit?: number }
@@ -2350,6 +2495,10 @@ export type Database = {
           queue_reason: string
         }[]
       }
+      complete_marketplace_deal: {
+        Args: { p_actor_user_id: string; p_deal_id: string }
+        Returns: Json
+      }
       complete_reminder_job: {
         Args: { p_error?: string; p_job_id: string; p_success: boolean }
         Returns: undefined
@@ -2368,6 +2517,10 @@ export type Database = {
           rewarded_amount: number
         }[]
       }
+      create_marketplace_deal: {
+        Args: { p_buyer_user_id: string; p_listing_id: string }
+        Returns: Json
+      }
       create_verified_challenge_post: {
         Args: {
           p_challenge_category: string
@@ -2377,48 +2530,6 @@ export type Database = {
           p_verification_type: string
         }
         Returns: Json
-      }
-      get_project_review_summary: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          average_rating: number
-          review_count: number
-          star_1_count: number
-          star_2_count: number
-          star_3_count: number
-          star_4_count: number
-          star_5_count: number
-        }[]
-      }
-      submit_app_testing_feedback: {
-        Args: {
-          p_answers: Json
-          p_attitude: string
-          p_challenge_id: string
-          p_consent_version: string
-          p_context: Json
-          p_daily_use_intent: string
-          p_install_outcome: string
-          p_main_concern: string
-          p_main_difficulty: string
-          p_mission_rating: number
-          p_most_useful_area: string
-          p_overall_rating: number
-          p_platform: string
-          p_private_comment: string
-          p_public_review: string
-          p_schema_version: number
-          p_strongest_area: string
-          p_user_id: string
-        }
-        Returns: {
-          challenge_status: string
-          core_balance: number
-          feed_post_id: string
-          reward_claimed: boolean
-          rewarded_amount: number
-          submission_id: string
-        }[]
       }
       find_team_leader: {
         Args: {
@@ -2430,6 +2541,18 @@ export type Database = {
         Returns: {
           assignment_source: string
           leader_user_id: string
+        }[]
+      }
+      get_project_review_summary: {
+        Args: never
+        Returns: {
+          average_rating: number
+          review_count: number
+          star_1_count: number
+          star_2_count: number
+          star_3_count: number
+          star_4_count: number
+          star_5_count: number
         }[]
       }
       invoke_reflection_reminder_dispatch: { Args: never; Returns: undefined }
@@ -2485,6 +2608,36 @@ export type Database = {
           p_settlement_kind?: string
         }
         Returns: undefined
+      }
+      submit_app_testing_feedback: {
+        Args: {
+          p_answers: Json
+          p_attitude: string
+          p_challenge_id: string
+          p_consent_version: string
+          p_context: Json
+          p_daily_use_intent: string
+          p_install_outcome: string
+          p_main_concern: string
+          p_main_difficulty: string
+          p_mission_rating: number
+          p_most_useful_area: string
+          p_overall_rating: number
+          p_platform: string
+          p_private_comment: string
+          p_public_review: string
+          p_schema_version: number
+          p_strongest_area: string
+          p_user_id: string
+        }
+        Returns: {
+          challenge_status: string
+          core_balance: number
+          feed_post_id: string
+          reward_claimed: boolean
+          rewarded_amount: number
+          submission_id: string
+        }[]
       }
       sync_team_contacts_for_member: {
         Args: { p_member_user_id: string }

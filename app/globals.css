@@ -1137,15 +1137,12 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 
 /* AI Chat */
 .ai-chat-screen {
+  width: min(100vw, 610px);
+  margin: 0 auto;
+  padding: 0 6px 20px;
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  max-width: 100%;
-  width: min(100%, 610px);
-  min-height: calc(100vh - 182px);
-  margin: 0 auto;
-  padding: 0 6px 80px;
-  overflow-x: hidden;
+  gap: 12px;
 }
 
 .ai-chat-empty {
@@ -1207,16 +1204,9 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 }
 
 .ai-chat-messages {
-  min-width: 0;
-  max-width: 100%;
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  width: 100%;
 }
 
 .ai-msg-user,
@@ -1368,16 +1358,11 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 }
 
 .ai-chat-input-bar {
-  position: sticky;
-  bottom: 0;
   display: flex;
   align-items: flex-end;
   gap: 8px;
   padding: 10px 0;
   background: var(--bg);
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 
 .ai-clear-btn {

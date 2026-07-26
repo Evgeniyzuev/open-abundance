@@ -28,9 +28,6 @@ export default function AiChatApp({ active }: AiChatAppProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    if (active && !isLoading) textareaRef.current?.focus();
-  }, [active, isLoading]);
 
   const recordAiChallengeProgress = useCallback(async () => {
     try {

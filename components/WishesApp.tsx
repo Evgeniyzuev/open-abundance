@@ -5,6 +5,7 @@ import { Archive, Check, Pencil, Plus, Send, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
+import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { AppLocale } from "@/lib/i18n";
 
 type Wish = Tables<"wishes">;
@@ -627,7 +628,7 @@ function WishFormModal({
               <input value={form.category} placeholder={t("wishes.categoryPlaceholder")} onChange={(event) => updateField("category", event.target.value)} />
             </label>
             <label className="finance-field">
-              <span>{t("wishes.imageUrlLabel")}</span>
+              <span>{t("wishes.imageUrlLabel")} <MediaUrlHelp t={t} /></span>
               <input value={form.imageUrl} placeholder={t("wishes.imageUrlPlaceholder")} onChange={(event) => updateField("imageUrl", event.target.value)} />
             </label>
           </div>

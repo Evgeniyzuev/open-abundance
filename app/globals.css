@@ -665,9 +665,19 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .avatar-picker { display: grid; justify-items: center; gap: 8px; padding: 4px 0 8px; text-align: center; }
 .avatar-picker-preview { width: 96px; height: 96px; }
 .avatar-picker-actions { display: flex; align-items: center; gap: 10px; }
-.avatar-picker-actions label { cursor: pointer; }
+.avatar-url-field { width: min(100%, 360px); text-align: left; }
+.avatar-url-field > span, .media-url-input-row > span, .note-body-field > span { display: inline-flex; align-items: center; gap: 5px; }
 .avatar-picker > small { color: var(--muted); font-size: 0.75rem; }
-.visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; clip-path: inset(50%) !important; }
+.media-url-help { position: relative; display: inline-flex; vertical-align: middle; }
+.media-url-help-trigger { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--blue); font-size: 0.75rem; font-weight: 950; line-height: 1; }
+.media-url-help-trigger[aria-expanded="true"] { border-color: var(--accent-fill); background: var(--accent-soft); }
+.media-url-help-popover { position: absolute; z-index: 20; top: calc(100% + 7px); left: 0; width: min(300px, calc(100vw - 48px)); display: grid; gap: 7px; border: 1px solid var(--line); border-radius: 12px; padding: 11px; background: var(--surface); box-shadow: var(--shadow-soft); color: var(--text); font-size: 0.75rem; font-weight: 500; line-height: 1.35; text-transform: none; }
+.media-url-help-popover strong { font-size: 0.8125rem; }
+.media-url-help-popover p { margin: 0; color: var(--muted); }
+.media-url-help-popover ol { display: grid; gap: 4px; margin: 0; padding-left: 18px; color: var(--muted); }
+.media-url-help-popover .text-button { justify-self: start; min-height: 28px; padding: 0; font-size: 0.75rem; }
+.media-url-input-row, .note-body-field { display: grid; gap: 5px; }
+.note-body-field { width: 100%; }
 .appearance-dialog-body { margin-top: 2px; }
 .activity-modal { gap: 12px; }
 .activity-confirmation-link { min-height: 44px; display: flex; align-items: center; gap: 8px; border-radius: 11px; padding: 0 11px; background: var(--accent-soft); color: var(--blue); font-size: 0.8125rem; font-weight: 850; text-align: left; }

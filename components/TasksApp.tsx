@@ -19,6 +19,7 @@ import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { scheduleActionReminder } from "@/lib/pushReminders";
 import LocalDataNotice from "@/components/LocalDataNotice";
+import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { PRACTICE_TEMPLATES, buildPracticeTask } from "@/lib/practiceTemplates";
 
 type ScheduleType = "once" | "daily" | "weekdays";
@@ -599,7 +600,10 @@ function TaskModal({ form, setForm, onClose, onSubmit }: TaskModalProps) {
         </div>
 
         {form.imageMode === "url" ? (
-          <input aria-label={t("tasks.imageUrlLabel")} placeholder={t("tasks.imageUrlPlaceholder")} value={form.imageUrl} onChange={(event) => setForm((current) => ({ ...current, imageUrl: event.target.value }))} />
+          <label className="media-url-input-row">
+            <span>{t("tasks.imageUrlLabel")} <MediaUrlHelp t={t} /></span>
+            <input aria-label={t("tasks.imageUrlLabel")} placeholder={t("tasks.imageUrlPlaceholder")} value={form.imageUrl} onChange={(event) => setForm((current) => ({ ...current, imageUrl: event.target.value }))} />
+          </label>
         ) : null}
         {form.thumbnailDataUrl ? <img className="task-image-preview" alt="" src={form.thumbnailDataUrl} /> : null}
 

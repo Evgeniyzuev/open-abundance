@@ -19,6 +19,7 @@ import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import ReflectionProcessor from "@/components/ReflectionProcessor";
 import LocalDataNotice from "@/components/LocalDataNotice";
+import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { trackProductEvent } from "@/lib/productAnalytics";
 
@@ -549,7 +550,10 @@ function NoteModal({ mode, form, locale, lists, onAddReminder, onClose, onRemove
           <button className="text-button primary" type="submit">{t("app.common.done")}</button>
         </div>
         <input aria-label={t("notes.titleLabel")} autoFocus placeholder={t("notes.titlePlaceholder")} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
-        <textarea aria-label={t("notes.bodyLabel")} placeholder={t("notes.bodyPlaceholder")} value={form.body} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} />
+        <label className="note-body-field">
+          <span>{t("notes.bodyLabel")} <MediaUrlHelp t={t} /></span>
+          <textarea aria-label={t("notes.bodyLabel")} placeholder={t("notes.bodyPlaceholder")} value={form.body} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} />
+        </label>
         <select value={form.listId} onChange={(event) => setForm((current) => ({ ...current, listId: event.target.value }))}>
           <option value="">-- {t("notes.noList")}</option>
           {lists.map((list) => <option key={list.id} value={list.id}>{list.icon} {list.title}</option>)}

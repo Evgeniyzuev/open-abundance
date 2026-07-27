@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, Bell, BookOpen, Camera, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Settings, Share2, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Settings, Share2, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import FeedPostGallery from "@/components/FeedPostGallery";
+import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -188,7 +189,7 @@ type ProfileEditorState = {
   linkUrl: string;
   linkVisibility: ProfileVisibility;
   visibilitySettings: ProfileVisibilitySettings;
-  avatarFile: File | null;
+  avatarUrl: string;
   avatarRemoved: boolean;
 };
 
@@ -658,18 +659,18 @@ export default function SocialApp({
       const payload = (await response.json()) as SocialProfilePayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to save profile.");
       let updatedProfile = payload.profile;
-      if (profileEditor.avatarFile) {
+      const nextAvatarUrl = profileEditor.avatarUrl.trim();
+      const currentAvatarUrl = profile?.avatar_url ?? "";
+      if (nextAvatarUrl && nextAvatarUrl !== currentAvatarUrl) {
         setAvatarUploading(true);
-        const form = new FormData();
-        form.append("file", profileEditor.avatarFile);
         const avatarResponse = await fetch("/api/social/profile/avatar", {
           method: "POST",
           cache: "no-store",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ avatarUrl: nextAvatarUrl })
         });
         const avatarPayload = (await avatarResponse.json()) as { profile?: UserProfile; error?: string };
-        if (!avatarResponse.ok || avatarPayload.error || !avatarPayload.profile) throw new Error(avatarPayload.error ?? "Failed to upload avatar.");
+        if (!avatarResponse.ok || avatarPayload.error || !avatarPayload.profile) throw new Error(avatarPayload.error ?? "Failed to save avatar.");
         updatedProfile = avatarPayload.profile;
       } else if (profileEditor.avatarRemoved && profile?.avatar_url) {
         setAvatarUploading(true);
@@ -1783,11 +1784,11 @@ function ProfileEditorDialog({
         <form className="profile-editor" onSubmit={(event) => { event.preventDefault(); onSave(); }}>
           <AvatarPicker
             currentUrl={profile?.avatar_url ?? null}
-            file={editor.avatarFile}
+            value={editor.avatarUrl}
             removed={editor.avatarRemoved}
             t={t}
-            onSelect={(file) => onChange((current) => ({ ...current, avatarFile: file, avatarRemoved: false }))}
-            onRemove={() => onChange((current) => ({ ...current, avatarFile: null, avatarRemoved: true }))}
+            onChange={(avatarUrl) => onChange((current) => ({ ...current, avatarUrl, avatarRemoved: false }))}
+            onRemove={() => onChange((current) => ({ ...current, avatarUrl: "", avatarRemoved: true }))}
           />
           <label className="finance-field"><span>{t("profile.public.displayName")}</span><input required minLength={1} maxLength={80} value={editor.displayName} onChange={(event) => onChange((current) => ({ ...current, displayName: event.target.value }))} /></label>
           {profile?.username ? <p className="profile-readonly-hint">@{profile.username}</p> : null}
@@ -1808,25 +1809,18 @@ function ProfileEditorDialog({
   );
 }
 
-function AvatarPicker({ currentUrl, file, removed, t, onSelect, onRemove }: { currentUrl: string | null; file: File | null; removed: boolean; t: (key: MessageKey, values?: Record<string, string | number>) => string; onSelect: (file: File) => void; onRemove: () => void }) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentUrl);
-  useEffect(() => {
-    if (!file) {
-      setPreviewUrl(removed ? null : currentUrl);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [currentUrl, file, removed]);
+function AvatarPicker({ currentUrl, value, removed, t, onChange, onRemove }: { currentUrl: string | null; value: string; removed: boolean; t: (key: MessageKey, values?: Record<string, string | number>) => string; onChange: (value: string) => void; onRemove: () => void }) {
+  const previewUrl = removed ? null : value.trim() || currentUrl;
 
   return (
     <div className="avatar-picker">
       <div className="profile-avatar avatar-picker-preview">{previewUrl ? <img alt="" src={previewUrl} /> : <UserRound size={34} />}</div>
+      <label className="finance-field avatar-url-field">
+        <span>{t("profile.avatar.change")} <MediaUrlHelp t={t} /></span>
+        <input type="url" inputMode="url" maxLength={2048} placeholder={t("profile.avatar.placeholder")} value={value} onChange={(event) => onChange(event.target.value)} />
+      </label>
       <div className="avatar-picker-actions">
-        <label className="secondary-button" htmlFor="profile-avatar-input"><Camera size={16} />{t("profile.avatar.change")}</label>
-        <input id="profile-avatar-input" className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const nextFile = event.target.files?.[0]; if (nextFile) onSelect(nextFile); event.currentTarget.value = ""; }} />
-        {(previewUrl || file) ? <button className="text-button" type="button" onClick={onRemove}>{t("profile.avatar.remove")}</button> : null}
+        {previewUrl ? <button className="text-button" type="button" onClick={onRemove}>{t("profile.avatar.remove")}</button> : null}
       </div>
       <small>{t("profile.avatar.hint")}</small>
     </div>
@@ -2300,6 +2294,7 @@ function ExternalLinkComposer({
     <form className="external-link-composer" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
       <label htmlFor="external-link-url">
         {t("social.feed.externalLink")}
+        <MediaUrlHelp t={t} />
         <button className="text-button" type="button" onClick={onToggle}>{t("app.common.close")}</button>
       </label>
       <div>
@@ -3311,7 +3306,7 @@ function createProfileEditorState(payload: SocialProfilePayload | null, fallback
     linkUrl: firstLink?.url ?? "",
     linkVisibility: (firstLink?.visibility as ProfileVisibility | undefined) ?? "public",
     visibilitySettings: payload?.visibilitySettings ?? { ...DEFAULT_PROFILE_VISIBILITY_SETTINGS },
-    avatarFile: null,
+    avatarUrl: payload?.profile?.avatar_url ?? fallbackProfile?.avatar_url ?? "",
     avatarRemoved: false
   };
 }

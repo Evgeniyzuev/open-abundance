@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
 import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
+import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
 import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -1466,7 +1467,7 @@ function SellItemModal({
                 />
               </label>
               <label className="finance-field">
-                <span>{t("market.image")}</span>
+                <span>{t("market.image")} <MediaUrlHelp t={t} /></span>
                 <input
                   value={imageUrl}
                   onChange={(event) => setImageUrl(event.target.value)}

@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Languages, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Share2, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, Camera, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Settings, Share2, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import FeedPostGallery from "@/components/FeedPostGallery";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
-import { useUserContext } from "@/components/UserProvider";
+import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
 import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
@@ -110,10 +110,9 @@ type TrustConfirmationsPayload = {
   error?: string;
 };
 type SocialProfilePayload = {
-  profile: { bio: string | null } | null;
+  profile: UserProfile | null;
   visibilitySettings: ProfileVisibilitySettings;
   links: ProfileLinkRow[];
-  contacts: ContactRow[];
   error?: string;
 };
 type PublicProfilePayload = {
@@ -183,12 +182,18 @@ type DirectConversationPayload = {
   error?: string;
 };
 type ProfileEditorState = {
+  displayName: string;
   bio: string;
   linkLabel: string;
   linkUrl: string;
   linkVisibility: ProfileVisibility;
   visibilitySettings: ProfileVisibilitySettings;
+  avatarFile: File | null;
+  avatarRemoved: boolean;
 };
+
+type ProfileAction = "edit" | "settings" | "activity" | null;
+type PeopleSection = "discover" | "contacts" | "confirmations";
 
 export default function SocialApp({
   active,
@@ -213,7 +218,8 @@ export default function SocialApp({
     setLocale,
     setUiScale,
     setColorTheme,
-    t
+    t,
+    applyServerData
   } = useUserContext();
   const [referralLink, setReferralLink] = useState<ReferralLink | null>(null);
   const [teamContext, setTeamContext] = useState<TeamContext | null>(null);
@@ -224,13 +230,13 @@ export default function SocialApp({
   const [teamRewards, setTeamRewards] = useState<TeamRewardDay[] | null>(null);
   const [teamRewardsLoading, setTeamRewardsLoading] = useState(false);
   const [teamRewardsError, setTeamRewardsError] = useState<string | null>(null);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<PayoutNotification[] | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [socialProfile, setSocialProfile] = useState<SocialProfilePayload | null>(null);
-  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
+  const [profileAction, setProfileAction] = useState<ProfileAction>(null);
   const [profileEditor, setProfileEditor] = useState<ProfileEditorState>(() => createProfileEditorState(null));
   const [profileSaving, setProfileSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [trustConfirmations, setTrustConfirmations] = useState<TrustConfirmationRow[] | null>(null);
   const [trustProfiles, setTrustProfiles] = useState<Record<string, TeamProfile>>({});
   const [trustSavingId, setTrustSavingId] = useState<string | null>(null);
@@ -244,6 +250,8 @@ export default function SocialApp({
   const [peopleSearchText, setPeopleSearchText] = useState("");
   const [peopleQuery, setPeopleQuery] = useState("");
   const [peopleFilter, setPeopleFilter] = useState<PeopleFilter>("nearby");
+  const [peopleSection, setPeopleSection] = useState<PeopleSection>("discover");
+  const [contacts, setContacts] = useState<ContactRow[] | null>(null);
   const [directPayload, setDirectPayload] = useState<DirectConversationPayload | null>(null);
   const [directTargetUserId, setDirectTargetUserId] = useState<string | null>(null);
   const [directMessageBody, setDirectMessageBody] = useState("");
@@ -278,12 +286,12 @@ export default function SocialApp({
     setTeamRewardsLoading(false);
     setTeamRewardsError(null);
     setNotifications(null);
-    setNotificationsOpen(false);
     setNotificationsLoading(false);
     setSocialProfile(null);
-    setProfileEditorOpen(false);
+    setProfileAction(null);
     setProfileEditor(createProfileEditorState(null));
     setProfileSaving(false);
+    setAvatarUploading(false);
     setTrustConfirmations(null);
     setTrustProfiles({});
     setTrustSavingId(null);
@@ -297,6 +305,8 @@ export default function SocialApp({
     setPeopleSearchText("");
     setPeopleQuery("");
     setPeopleFilter("nearby");
+    setPeopleSection("discover");
+    setContacts(null);
     setDirectPayload(null);
     setDirectTargetUserId(null);
     setDirectMessageBody("");
@@ -363,8 +373,20 @@ export default function SocialApp({
     const payload = (await response.json()) as SocialProfilePayload;
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load social profile.");
     setSocialProfile(payload);
-    setProfileEditor((current) => profileEditorOpen ? current : createProfileEditorState(payload));
-  }, [profileEditorOpen, user]);
+    setProfileEditor((current) => profileAction === "edit" ? current : createProfileEditorState(payload, profile));
+  }, [profile, profileAction, user]);
+
+  const loadContacts = useCallback(async () => {
+    if (!user) return;
+    const token = await getAccessToken();
+    const response = await fetch(`/api/social/contacts?ts=${Date.now()}`, {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+    });
+    const payload = (await response.json()) as { contacts?: ContactRow[]; error?: string };
+    if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load contacts.");
+    setContacts(payload.contacts ?? []);
+  }, [user]);
 
   const loadTrustConfirmations = useCallback(async () => {
     if (!user) return;
@@ -427,6 +449,10 @@ export default function SocialApp({
     }
     setPeopleQuery(nextQuery);
   }, [loadPeople, peopleQuery, peopleSearchText]);
+
+  const loadPeopleHub = useCallback(async () => {
+    await Promise.all([loadPeople(), loadContacts(), loadOptionalTrustConfirmations()]);
+  }, [loadContacts, loadOptionalTrustConfirmations, loadPeople]);
 
   const loadSystemDrafts = useCallback(async () => {
     if (!user) return;
@@ -551,7 +577,6 @@ export default function SocialApp({
       setTeamRewards(null);
       setTeamRewardsOpen(false);
       setNotifications(null);
-      setNotificationsOpen(false);
       return;
     }
 
@@ -561,7 +586,7 @@ export default function SocialApp({
 
     const load = activeTab === "feed"
       ? selectedSystemAccountKey ? loadSystemProfile : loadFeed
-      : activeTab === "people" ? loadPeople
+      : activeTab === "people" ? loadPeopleHub
       : activeTab === "blog" ? loadBlog
       : activeTab === "teams" ? loadTeamContext
       : loadProfileTab;
@@ -570,11 +595,11 @@ export default function SocialApp({
       console.warn("Social data load failed", loadError);
       setSocialError(loadError instanceof Error ? loadError.message : "Failed to load social data.");
     });
-  }, [active, activeTab, loadBlog, loadFeed, loadPeople, loadProfileTab, loadSystemProfile, loadTeamContext, refreshNonce, selectedSystemAccountKey, user]);
+  }, [active, activeTab, loadBlog, loadFeed, loadPeopleHub, loadProfileTab, loadSystemProfile, loadTeamContext, refreshNonce, selectedSystemAccountKey, user]);
 
   const displayName = profile?.display_name ?? user?.email ?? t("profile.guest");
   const handle = profile?.username ? `@${profile.username}` : user?.email ?? t("profile.localMode");
-  const nextLocale: AppLocale = locale === "ru" ? "en" : "ru";
+  const pendingIncomingConfirmations = trustConfirmations?.filter((item) => item.counterparty_user_id === user?.id && item.status === "pending").length ?? 0;
   const combinedError = error ?? socialError;
 
   async function copyReferralLink() {
@@ -597,9 +622,11 @@ export default function SocialApp({
     await copyReferralLink();
   }
 
-  function openProfileEditor() {
-    setProfileEditor(createProfileEditorState(socialProfile));
-    setProfileEditorOpen(true);
+  function toggleProfileAction(action: Exclude<ProfileAction, null>) {
+    if (action === "edit") {
+      if (profileAction !== "edit") setProfileEditor(createProfileEditorState(socialProfile, profile));
+    }
+    setProfileAction((current) => current === action ? null : action);
   }
 
   async function saveProfileEditor() {
@@ -622,6 +649,7 @@ export default function SocialApp({
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
+          displayName: profileEditor.displayName,
           bio: profileEditor.bio,
           visibilitySettings: profileEditor.visibilitySettings,
           links
@@ -629,12 +657,40 @@ export default function SocialApp({
       });
       const payload = (await response.json()) as SocialProfilePayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to save profile.");
-      await loadSocialProfile();
-      setProfileEditorOpen(false);
+      let updatedProfile = payload.profile;
+      if (profileEditor.avatarFile) {
+        setAvatarUploading(true);
+        const form = new FormData();
+        form.append("file", profileEditor.avatarFile);
+        const avatarResponse = await fetch("/api/social/profile/avatar", {
+          method: "POST",
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form
+        });
+        const avatarPayload = (await avatarResponse.json()) as { profile?: UserProfile; error?: string };
+        if (!avatarResponse.ok || avatarPayload.error || !avatarPayload.profile) throw new Error(avatarPayload.error ?? "Failed to upload avatar.");
+        updatedProfile = avatarPayload.profile;
+      } else if (profileEditor.avatarRemoved && profile?.avatar_url) {
+        setAvatarUploading(true);
+        const avatarResponse = await fetch("/api/social/profile/avatar", {
+          method: "DELETE",
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const avatarPayload = (await avatarResponse.json()) as { profile?: UserProfile; error?: string };
+        if (!avatarResponse.ok || avatarPayload.error || !avatarPayload.profile) throw new Error(avatarPayload.error ?? "Failed to remove avatar.");
+        updatedProfile = avatarPayload.profile;
+      }
+      setSocialProfile({ ...payload, profile: updatedProfile });
+      applyServerData({ profile: updatedProfile });
+      setProfileEditor(createProfileEditorState({ ...payload, profile: updatedProfile }, updatedProfile));
+      setProfileAction(null);
     } catch (saveError) {
       console.warn("Social profile save failed", saveError);
       setSocialError(saveError instanceof Error ? saveError.message : "Failed to save profile.");
     } finally {
+      setAvatarUploading(false);
       setProfileSaving(false);
     }
   }
@@ -724,7 +780,7 @@ export default function SocialApp({
       });
       const payload = (await response.json()) as { contacts?: ContactRow[]; error?: string };
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to add contact.");
-      setSocialProfile((current) => current ? { ...current, contacts: payload.contacts ?? current.contacts } : current);
+      setContacts(payload.contacts ?? []);
       setPeoplePayload((current) => current ? {
         ...current,
         people: current.people.map((item) => item.profile.user_id === contactUserId
@@ -817,7 +873,7 @@ export default function SocialApp({
       });
       const payload = (await response.json()) as { contacts?: ContactRow[]; error?: string };
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to remove contact.");
-      setSocialProfile((current) => current ? { ...current, contacts: payload.contacts ?? [] } : current);
+      setContacts(payload.contacts ?? []);
     } catch (contactError) {
       console.warn("Contact remove failed", contactError);
       setSocialError(contactError instanceof Error ? contactError.message : "Failed to remove contact.");
@@ -1140,8 +1196,8 @@ export default function SocialApp({
 
   async function openPayoutNotifications() {
     if (!user) return;
-    const nextOpen = !notificationsOpen;
-    setNotificationsOpen(nextOpen);
+    const nextOpen = profileAction !== "activity";
+    setProfileAction(nextOpen ? "activity" : null);
     if (!nextOpen) return;
 
     setNotificationsLoading(true);
@@ -1242,19 +1298,35 @@ export default function SocialApp({
       {activeTab === "people" && user ? (
         <PeopleView
           contactSavingId={contactSavingId}
+          contacts={contacts}
+          confirmations={trustConfirmations}
           currentUserId={user.id}
           filter={peopleFilter}
           loading={peopleLoading}
+          locale={locale}
+          pendingConfirmations={pendingIncomingConfirmations}
           payload={peoplePayload}
+          profiles={trustProfiles}
           query={peopleSearchText}
+          referralReady={Boolean(referralLink)}
+          section={peopleSection}
+          savingId={trustSavingId}
+          trustCreatingForId={trustCreatingForId}
           t={t}
           onAddContact={(userId) => { void addManualContact(userId); }}
+          onConfirm={(confirmationId) => { void respondToTrustConfirmation(confirmationId, "confirm"); }}
+          onDecline={(confirmationId) => { void respondToTrustConfirmation(confirmationId, "decline"); }}
           onFilterChange={setPeopleFilter}
           onMessage={(row) => { void openDirectMessage(row.profile.user_id); }}
+          onMessageContact={(userId) => { void openDirectMessage(userId); }}
           onOpenBlog={openAuthorBlog}
           onOpenProfile={openPublicProfile}
           onQueryChange={setPeopleSearchText}
           onRefresh={submitPeopleSearch}
+          onRequestConfirmation={(contact) => { void requestContactConfirmation(contact); }}
+          onRemoveContact={(userId) => { void removeManualContact(userId); }}
+          onSectionChange={setPeopleSection}
+          onInvite={() => setReferralQrOpen(true)}
         />
       ) : null}
 
@@ -1419,254 +1491,85 @@ export default function SocialApp({
       ) : null}
 
       {activeTab === "profile" && user ? (
-        <section className="profile-panel">
-          <div className="profile-avatar">
-            {profile?.avatar_url ? <img alt="" src={profile.avatar_url} /> : <UserRound size={34} />}
+        <section className="profile-panel owner-profile-panel">
+          <div className="owner-profile-header">
+            <div className="profile-avatar">
+              {profile?.avatar_url ? <img alt="" src={profile.avatar_url} /> : <UserRound size={34} />}
+            </div>
+            <div className="owner-profile-copy">
+              <strong>
+                <UserNameWithLevel
+                  label={t("profile.levelBadge", { level: core?.level ?? profile?.level ?? 0 })}
+                  level={core?.level ?? profile?.level ?? 0}
+                >
+                  {displayName}
+                </UserNameWithLevel>
+              </strong>
+              {profile?.username ? <p>{handle}</p> : null}
+            </div>
           </div>
-          <strong>
-            <UserNameWithLevel
-              label={t("profile.levelBadge", { level: core?.level ?? profile?.level ?? 0 })}
-              level={core?.level ?? profile?.level ?? 0}
-            >
-              {displayName}
-            </UserNameWithLevel>
-          </strong>
-          <p>{handle}</p>
-          <div className="profile-facts">
-            <span>{t("profile.created", { date: profile ? formatDate(profile.created_at, locale) : "..." })}</span>
-            <span>{locale.toUpperCase()}</span>
-          </div>
-          <button className="secondary-button" type="button" aria-label={t("profile.language.toggle")} onClick={() => setLocale(nextLocale)}>
-            <Languages size={16} />
-            {t(nextLocale === "ru" ? "profile.language.ru" : "profile.language.en")}
-          </button>
-          <section className="profile-appearance" aria-label={t("profile.appearance.title")}>
-            <div className="section-heading-row">
-              <span>{t("profile.appearance.title")}</span>
-            </div>
-            <div className="appearance-setting-row">
-              <span>{t("profile.appearance.scale")}</span>
-              <div className="appearance-options" role="group" aria-label={t("profile.appearance.scale")}>
-                {UI_SCALES.map((scale) => (
-                  <button
-                    className={uiScale === scale ? "active" : ""}
-                    type="button"
-                    aria-pressed={uiScale === scale}
-                    key={scale}
-                    onClick={() => setUiScale(scale as UiScale)}
-                  >
-                    {scale}%
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="appearance-setting-row">
-              <span>{t("profile.appearance.theme")}</span>
-              <div className="appearance-options" role="group" aria-label={t("profile.appearance.theme")}>
-                {COLOR_THEMES.map((theme) => (
-                  <button
-                    className={colorTheme === theme ? "active" : ""}
-                    type="button"
-                    aria-pressed={colorTheme === theme}
-                    key={theme}
-                    onClick={() => setColorTheme(theme as ColorTheme)}
-                  >
-                    {t(`profile.appearance.theme.${theme}` as MessageKey)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-          <section className="public-profile-box">
-            <div className="section-heading-row">
-              <span>{t("profile.public.title")}</span>
-              <button className="finance-small-icon-button" type="button" aria-label={t("profile.public.edit")} onClick={openProfileEditor}>
-                <Edit3 size={16} />
-              </button>
-            </div>
-            {profileEditorOpen ? (
-              <div className="profile-editor">
-                <label className="finance-field">
-                  <span>{t("profile.public.bio")}</span>
-                  <textarea value={profileEditor.bio} maxLength={700} onChange={(event) => setProfileEditor((current) => ({ ...current, bio: event.target.value }))} />
-                </label>
-                <div className="term-row">
-                  <label className="finance-field">
-                    <span>{t("profile.public.linkLabel")}</span>
-                    <input value={profileEditor.linkLabel} maxLength={40} onChange={(event) => setProfileEditor((current) => ({ ...current, linkLabel: event.target.value }))} />
-                  </label>
-                  <label className="finance-field">
-                    <span>{t("profile.public.linkUrl")}</span>
-                    <input value={profileEditor.linkUrl} maxLength={500} inputMode="url" onChange={(event) => setProfileEditor((current) => ({ ...current, linkUrl: event.target.value }))} />
-                  </label>
-                </div>
-                <label className="finance-field">
-                  <span>{t("profile.public.linkVisibility")}</span>
-                  <select value={profileEditor.linkVisibility} onChange={(event) => setProfileEditor((current) => ({ ...current, linkVisibility: event.target.value as ProfileVisibility }))}>
-                    {PROFILE_VISIBILITY_LEVELS.map((visibility) => (
-                      <option value={visibility} key={visibility}>{t(visibilityLabelKey(visibility))}</option>
-                    ))}
-                  </select>
-                </label>
-                <div className="visibility-grid">
-                  {PROFILE_VISIBILITY_KEYS.map((key) => (
-                    <label className="finance-field" key={key}>
-                      <span>{t(profileVisibilityKeyLabel(key))}</span>
-                      <select
-                        value={profileEditor.visibilitySettings[key]}
-                        onChange={(event) => setProfileEditor((current) => ({
-                          ...current,
-                          visibilitySettings: {
-                            ...current.visibilitySettings,
-                            [key]: event.target.value as ProfileVisibility
-                          }
-                        }))}
-                      >
-                        {PROFILE_VISIBILITY_LEVELS.map((visibility) => (
-                          <option value={visibility} key={visibility}>{t(visibilityLabelKey(visibility))}</option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
-                <div className="referral-actions">
-                  <button className="secondary-button" type="button" disabled={profileSaving} onClick={saveProfileEditor}>
-                    <Save size={16} />
-                    {t("app.common.done")}
-                  </button>
-                  <button className="secondary-button" type="button" disabled={profileSaving} onClick={() => setProfileEditorOpen(false)}>
-                    <X size={16} />
-                    {t("app.common.cancel")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {socialProfile?.profile?.bio ? <p>{socialProfile.profile.bio}</p> : <p>{t("profile.public.emptyBio")}</p>}
-                {socialProfile?.links.length ? (
-                  <div className="profile-links">
-                    {socialProfile.links.map((item) => (
-                      <a href={item.url} target="_blank" rel="noreferrer" key={item.id}>
-                        <ExternalLink size={15} />
-                        {item.label ?? readableHost(item.url)}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </>
-            )}
-          </section>
-          <section className="public-profile-box">
-            <div className="section-heading-row">
-              <span>{t("profile.contacts.title")}</span>
-              <strong>{socialProfile?.contacts.length ?? 0}</strong>
-            </div>
-            {socialProfile?.contacts.length ? (
-              <div className="contact-list">
-                {socialProfile.contacts.map((contact) => {
-                  const contactTrustState = getContactTrustState(contact.contact_user_id, trustConfirmations, user.id);
-                  return (
-                    <article className="contact-row" key={`${contact.contact_user_id}-${contact.source}`}>
-                      <button type="button" onClick={() => { void openPublicProfile(contact.contact_user_id); }}>
-                        <UserNameWithLevel
-                          label={t("profile.levelBadge", { level: contact.profile?.level ?? 0 })}
-                          level={contact.profile?.level}
-                        >
-                          {formatProfileName(contact.profile, contact.contact_user_id)}
-                        </UserNameWithLevel>
-                        <small>{t(contactSourceLabelKey(contact.source))}</small>
-                      </button>
-                      <div className="contact-actions">
-                        <button
-                          className="finance-small-icon-button primary"
-                          type="button"
-                          disabled={Boolean(contactTrustState) || trustCreatingForId === contact.contact_user_id}
-                          aria-label={t("profile.trust.requestContact")}
-                          onClick={() => { void requestContactConfirmation(contact); }}
-                        >
-                          <Send size={15} />
-                        </button>
-                        {contact.source === "manual" && !contact.is_required ? (
-                          <button className="finance-small-icon-button" type="button" disabled={contactSavingId === contact.contact_user_id} aria-label={t("profile.contacts.remove")} onClick={() => { void removeManualContact(contact.contact_user_id); }}>
-                            <Trash2 size={15} />
-                          </button>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : (
-              <p>{t("profile.contacts.empty")}</p>
-            )}
-          </section>
-          <TrustConfirmationsPanel
-            confirmations={trustConfirmations}
-            currentUserId={user.id}
-            locale={locale}
-            profiles={trustProfiles}
-            savingId={trustSavingId}
-            t={t}
-            onConfirm={(confirmationId) => { void respondToTrustConfirmation(confirmationId, "confirm"); }}
-            onDecline={(confirmationId) => { void respondToTrustConfirmation(confirmationId, "decline"); }}
-            onOpenProfile={openPublicProfile}
-          />
-          <div className="profile-notifications">
-            <button className="finance-icon-button" type="button" aria-label={locale === "ru" ? "Уведомления" : "Notifications"} onClick={openPayoutNotifications}>
-              <Bell size={18} />
+          <div className="profile-action-row" aria-label={t("profile.actions.title")}>
+            <button className="profile-action-button" type="button" aria-label={t("profile.public.edit")} aria-expanded={profileAction === "edit"} onClick={() => toggleProfileAction("edit")}>
+              <Edit3 size={18} />
+              <span>{t("profile.actions.edit")}</span>
             </button>
-            {notificationsOpen ? (
-              <div className="notification-panel">
-                {notificationsLoading ? <p>{t("app.common.loading")}</p> : null}
-                {!notificationsLoading && notifications?.length ? notifications.map((item) => (
-                  <article className="notification-row" key={item.id}>
-                    <strong>{item.title}</strong>
-                    <p>{item.body}</p>
-                  </article>
-                )) : null}
-                {!notificationsLoading && notifications && notifications.length === 0 ? (
-                  <p>{locale === "ru" ? "Новых поступлений нет." : "No new payouts."}</p>
-                ) : null}
+            <button className="profile-action-button" type="button" aria-label={t("profile.actions.settings")} aria-expanded={profileAction === "settings"} onClick={() => toggleProfileAction("settings")}>
+              <Settings size={18} />
+              <span>{t("profile.actions.settings")}</span>
+            </button>
+            <button className="profile-action-button" type="button" aria-label={t("profile.actions.activity")} aria-expanded={profileAction === "activity"} onClick={openPayoutNotifications}>
+              <span className="profile-action-icon-with-badge"><Bell size={18} />{pendingIncomingConfirmations > 0 ? <i>{pendingIncomingConfirmations}</i> : null}</span>
+              <span>{t("profile.actions.activity")}</span>
+            </button>
+          </div>
+          <section className="public-profile-box owner-profile-summary">
+            <div className="section-heading-row"><span>{t("profile.public.title")}</span></div>
+            {socialProfile?.profile?.bio ? <p>{socialProfile.profile.bio}</p> : <p>{t("profile.public.emptyBio")}</p>}
+            {socialProfile?.links.length ? (
+              <div className="profile-links">
+                {socialProfile.links.map((item) => <a href={item.url} target="_blank" rel="noreferrer" key={item.id}><ExternalLink size={15} />{item.label ?? readableHost(item.url)}</a>)}
               </div>
             ) : null}
-          </div>
-          <div className="referral-box">
-            <span><Link size={15} />{t("profile.referral.title")}</span>
-            <p>{referralLink?.url ?? t("app.common.loading")}</p>
-            <div className="referral-actions">
-              <button
-                className="secondary-button referral-icon-button"
-                type="button"
-                disabled={!referralLink}
-                aria-label={t("profile.referral.showQr")}
-                title={t("profile.referral.showQr")}
-                onClick={() => setReferralQrOpen(true)}
-              >
-                <QrCode size={19} />
-              </button>
-              <button
-                className="secondary-button referral-icon-button"
-                type="button"
-                disabled={!referralLink}
-                aria-label={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
-                title={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
-                onClick={copyReferralLink}
-              >
-                {copied ? <Check size={19} /> : <Copy size={19} />}
-              </button>
-              <button
-                className="secondary-button referral-icon-button"
-                type="button"
-                disabled={!referralLink}
-                aria-label={t("profile.referral.share")}
-                title={t("profile.referral.share")}
-                onClick={shareReferralLink}
-              >
-                <Share2 size={19} />
-              </button>
-            </div>
+          </section>
+          <div className="referral-box referral-box-compact">
+            <div><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
+            <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
           </div>
         </section>
+      ) : null}
+
+      {profileAction === "edit" && user ? (
+        <ProfileEditorDialog
+          editor={profileEditor}
+          profile={profile}
+          saving={profileSaving || avatarUploading}
+          t={t}
+          onChange={setProfileEditor}
+          onSave={() => { void saveProfileEditor(); }}
+          onClose={() => setProfileAction(null)}
+        />
+      ) : null}
+      {profileAction === "settings" ? (
+        <AppearanceDialog
+          colorTheme={colorTheme}
+          locale={locale}
+          t={t}
+          uiScale={uiScale}
+          onClose={() => setProfileAction(null)}
+          onLocale={(value) => { void setLocale(value); }}
+          onScale={(value) => setUiScale(value)}
+          onTheme={(value) => setColorTheme(value)}
+        />
+      ) : null}
+      {profileAction === "activity" ? (
+        <ActivityDialog
+          notifications={notifications}
+          notificationsLoading={notificationsLoading}
+          pendingConfirmations={pendingIncomingConfirmations}
+          t={t}
+          onClose={() => setProfileAction(null)}
+          onOpenConfirmations={() => { setProfileAction(null); setPeopleSection("confirmations"); onTabChange("people"); }}
+        />
       ) : null}
 
       {combinedError ? <p className="finance-error">{combinedError}</p> : null}
@@ -1855,117 +1758,257 @@ function DirectMessageModal({
   );
 }
 
+function ProfileEditorDialog({
+  editor,
+  profile,
+  saving,
+  t,
+  onChange,
+  onSave,
+  onClose
+}: {
+  editor: ProfileEditorState;
+  profile: UserProfile | null;
+  saving: boolean;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onChange: Dispatch<SetStateAction<ProfileEditorState>>;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet profile-action-modal profile-editor-modal" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
+        <div className="modal-header"><span>{t("profile.actions.edit")}</span><h2 id="profile-editor-title">{t("profile.public.title")}</h2></div>
+        <form className="profile-editor" onSubmit={(event) => { event.preventDefault(); onSave(); }}>
+          <AvatarPicker
+            currentUrl={profile?.avatar_url ?? null}
+            file={editor.avatarFile}
+            removed={editor.avatarRemoved}
+            t={t}
+            onSelect={(file) => onChange((current) => ({ ...current, avatarFile: file, avatarRemoved: false }))}
+            onRemove={() => onChange((current) => ({ ...current, avatarFile: null, avatarRemoved: true }))}
+          />
+          <label className="finance-field"><span>{t("profile.public.displayName")}</span><input required minLength={1} maxLength={80} value={editor.displayName} onChange={(event) => onChange((current) => ({ ...current, displayName: event.target.value }))} /></label>
+          {profile?.username ? <p className="profile-readonly-hint">@{profile.username}</p> : null}
+          <label className="finance-field"><span>{t("profile.public.bio")}</span><textarea maxLength={700} value={editor.bio} onChange={(event) => onChange((current) => ({ ...current, bio: event.target.value }))} /></label>
+          <div className="term-row">
+            <label className="finance-field"><span>{t("profile.public.linkLabel")}</span><input maxLength={40} value={editor.linkLabel} onChange={(event) => onChange((current) => ({ ...current, linkLabel: event.target.value }))} /></label>
+            <label className="finance-field"><span>{t("profile.public.linkUrl")}</span><input maxLength={500} inputMode="url" value={editor.linkUrl} onChange={(event) => onChange((current) => ({ ...current, linkUrl: event.target.value }))} /></label>
+          </div>
+          <label className="finance-field"><span>{t("profile.public.linkVisibility")}</span><select value={editor.linkVisibility} onChange={(event) => onChange((current) => ({ ...current, linkVisibility: event.target.value as ProfileVisibility }))}>{PROFILE_VISIBILITY_LEVELS.map((visibility) => <option value={visibility} key={visibility}>{t(visibilityLabelKey(visibility))}</option>)}</select></label>
+          <details className="profile-visibility-details">
+            <summary>{t("profile.public.visibilitySettings")}</summary>
+            <div className="visibility-grid">{PROFILE_VISIBILITY_KEYS.map((key) => <label className="finance-field" key={key}><span>{t(profileVisibilityKeyLabel(key))}</span><select value={editor.visibilitySettings[key]} onChange={(event) => onChange((current) => ({ ...current, visibilitySettings: { ...current.visibilitySettings, [key]: event.target.value as ProfileVisibility } }))}>{PROFILE_VISIBILITY_LEVELS.map((visibility) => <option value={visibility} key={visibility}>{t(visibilityLabelKey(visibility))}</option>)}</select></label>)}</div>
+          </details>
+          <div className="modal-action-row"><button className="secondary-button" type="submit" disabled={saving}><Save size={16} />{saving ? t("app.common.loading") : t("app.common.save")}</button><button className="secondary-button" type="button" disabled={saving} onClick={onClose}><X size={16} />{t("app.common.cancel")}</button></div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function AvatarPicker({ currentUrl, file, removed, t, onSelect, onRemove }: { currentUrl: string | null; file: File | null; removed: boolean; t: (key: MessageKey, values?: Record<string, string | number>) => string; onSelect: (file: File) => void; onRemove: () => void }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(currentUrl);
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(removed ? null : currentUrl);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [currentUrl, file, removed]);
+
+  return (
+    <div className="avatar-picker">
+      <div className="profile-avatar avatar-picker-preview">{previewUrl ? <img alt="" src={previewUrl} /> : <UserRound size={34} />}</div>
+      <div className="avatar-picker-actions">
+        <label className="secondary-button" htmlFor="profile-avatar-input"><Camera size={16} />{t("profile.avatar.change")}</label>
+        <input id="profile-avatar-input" className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const nextFile = event.target.files?.[0]; if (nextFile) onSelect(nextFile); event.currentTarget.value = ""; }} />
+        {(previewUrl || file) ? <button className="text-button" type="button" onClick={onRemove}>{t("profile.avatar.remove")}</button> : null}
+      </div>
+      <small>{t("profile.avatar.hint")}</small>
+    </div>
+  );
+}
+
+function AppearanceDialog({ colorTheme, locale, t, uiScale, onClose, onLocale, onScale, onTheme }: { colorTheme: ColorTheme; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; uiScale: UiScale; onClose: () => void; onLocale: (locale: AppLocale) => void; onScale: (scale: UiScale) => void; onTheme: (theme: ColorTheme) => void }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet profile-action-modal" role="dialog" aria-modal="true" aria-labelledby="appearance-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
+        <div className="modal-header"><span>{t("profile.actions.settings")}</span><h2 id="appearance-title">{t("profile.appearance.title")}</h2></div>
+        <div className="profile-appearance appearance-dialog-body">
+          <div className="appearance-setting-row"><span>{t("profile.language")}</span><div className="appearance-options" role="group" aria-label={t("profile.language")}>{(["ru", "en"] as AppLocale[]).map((item) => <button className={locale === item ? "active" : ""} type="button" aria-pressed={locale === item} key={item} onClick={() => onLocale(item)}>{item === "ru" ? t("profile.language.ru") : t("profile.language.en")}</button>)}</div></div>
+          <div className="appearance-setting-row"><span>{t("profile.appearance.scale")}</span><div className="appearance-options" role="group" aria-label={t("profile.appearance.scale")}>{UI_SCALES.map((scale) => <button className={uiScale === scale ? "active" : ""} type="button" aria-pressed={uiScale === scale} key={scale} onClick={() => onScale(scale)}>{scale}%</button>)}</div></div>
+          <div className="appearance-setting-row"><span>{t("profile.appearance.theme")}</span><div className="appearance-options" role="group" aria-label={t("profile.appearance.theme")}>{COLOR_THEMES.map((theme) => <button className={colorTheme === theme ? "active" : ""} type="button" aria-pressed={colorTheme === theme} key={theme} onClick={() => onTheme(theme)}>{t(`profile.appearance.theme.${theme}` as MessageKey)}</button>)}</div></div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ActivityDialog({ notifications, notificationsLoading, pendingConfirmations, t, onClose, onOpenConfirmations }: { notifications: PayoutNotification[] | null; notificationsLoading: boolean; pendingConfirmations: number; t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void; onOpenConfirmations: () => void }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet profile-action-modal activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
+        <div className="modal-header"><span>{t("profile.actions.activity")}</span><h2 id="activity-title">{t("profile.activity.title")}</h2></div>
+        {pendingConfirmations ? <button className="activity-confirmation-link" type="button" onClick={onOpenConfirmations}><Bell size={16} /><span>{t("profile.activity.pendingConfirmations", { count: pendingConfirmations })}</span><ChevronDown size={16} /></button> : null}
+        {notificationsLoading ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
+        {!notificationsLoading && notifications?.length ? <div className="notification-list">{notifications.map((item) => <article className="notification-row" key={item.id}><strong>{item.title}</strong><p>{item.body}</p></article>)}</div> : null}
+        {!notificationsLoading && !pendingConfirmations && notifications && notifications.length === 0 ? <p className="feed-empty">{t("profile.activity.empty")}</p> : null}
+      </section>
+    </div>
+  );
+}
+
 function PeopleView({
   contactSavingId,
+  contacts,
+  confirmations,
   currentUserId,
   filter,
   loading,
+  locale,
+  pendingConfirmations,
   payload,
+  profiles,
   query,
+  referralReady,
+  section,
+  savingId,
+  trustCreatingForId,
   t,
   onAddContact,
+  onConfirm,
+  onDecline,
   onFilterChange,
   onMessage,
+  onMessageContact,
   onOpenBlog,
   onOpenProfile,
   onQueryChange,
-  onRefresh
+  onRefresh,
+  onRequestConfirmation,
+  onRemoveContact,
+  onSectionChange,
+  onInvite
 }: {
   contactSavingId: string | null;
+  contacts: ContactRow[] | null;
+  confirmations: TrustConfirmationRow[] | null;
   currentUserId: string;
   filter: PeopleFilter;
   loading: boolean;
+  locale: AppLocale;
+  pendingConfirmations: number;
   payload: PeoplePayload | null;
+  profiles: Record<string, TeamProfile>;
   query: string;
+  referralReady: boolean;
+  section: PeopleSection;
+  savingId: string | null;
+  trustCreatingForId: string | null;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onAddContact: (userId: string) => void;
+  onConfirm: (confirmationId: string) => void;
+  onDecline: (confirmationId: string) => void;
   onFilterChange: (filter: PeopleFilter) => void;
   onMessage: (row: PeopleRow) => void;
+  onMessageContact: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenProfile: (userId: string) => void;
   onQueryChange: (query: string) => void;
   onRefresh: () => void;
+  onRequestConfirmation: (contact: ContactRow) => void;
+  onRemoveContact: (userId: string) => void;
+  onSectionChange: (section: PeopleSection) => void;
+  onInvite: () => void;
 }) {
   const people = payload?.people ?? [];
   const filters: PeopleFilter[] = ["nearby", "team", "referrals", "same_level", "active"];
+  const contactRows = contacts ?? [];
 
   return (
     <section className="people-layout">
-      <form className="people-search" onSubmit={(event) => { event.preventDefault(); onRefresh(); }}>
-        <Search size={17} />
-        <input
-          maxLength={80}
-          placeholder={t("social.people.searchPlaceholder")}
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-        />
-        <button className="finance-small-icon-button primary" type="submit" aria-label={t("social.people.search")}>
-          <Search size={15} />
-        </button>
-      </form>
-      <div className="people-filter-row" aria-label={t("social.people.filters")}>
-        {filters.map((item) => (
-          <button
-            className={item === filter ? "active" : ""}
-            type="button"
-            key={item}
-            onClick={() => onFilterChange(item)}
-          >
-            {t(peopleFilterLabelKey(item))}
+      <div className="people-heading-row">
+        <div><strong>{t("social.people.title")}</strong><small>{t("social.people.subtitle")}</small></div>
+        <button className="secondary-button people-invite-button" type="button" disabled={!referralReady} onClick={onInvite}><Share2 size={16} />{t("profile.referral.invite")}</button>
+      </div>
+      <div className="people-section-tabs" role="tablist" aria-label={t("social.people.sections")}>
+        {(["discover", "contacts", "confirmations"] as PeopleSection[]).map((item) => (
+          <button className={section === item ? "active" : ""} type="button" role="tab" aria-selected={section === item} key={item} onClick={() => onSectionChange(item)}>
+            {t(peopleSectionLabelKey(item))}{item === "contacts" ? ` · ${contactRows.length}` : item === "confirmations" && pendingConfirmations ? ` · ${pendingConfirmations}` : ""}
           </button>
         ))}
       </div>
-      {loading && !people.length ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
-      {!loading && !people.length ? <p className="feed-empty">{t("social.people.empty")}</p> : null}
-      {people.length ? (
-        <div className="people-list">
-          {people.map((row) => {
-            const name = formatProfileName(row.profile, row.profile.user_id);
-            const canAddContact = row.profile.user_id !== currentUserId && !row.relation.isContact;
-            return (
-              <article className="people-row" key={row.profile.user_id}>
-                <button className="people-row-main" type="button" onClick={() => { void onOpenProfile(row.profile.user_id); }}>
-                  <span className="people-avatar">
-                    {row.profile.avatar_url ? <img alt="" src={row.profile.avatar_url} /> : <UserRound size={20} />}
-                  </span>
-                  <span className="people-row-copy">
-                    <span className="people-row-title">
-                      <strong>
-                        <UserNameWithLevel
-                          label={t("profile.levelBadge", { level: row.profile.level })}
-                          level={row.profile.level}
-                        >
-                          {name}
-                        </UserNameWithLevel>
-                      </strong>
-                    </span>
-                    <small>{row.profile.username ? `@${row.profile.username}` : row.headline ?? t("social.people.noHeadline")}</small>
-                    {row.headline && row.profile.username ? <p>{row.headline}</p> : null}
-                    <span className="people-stat-row">
-                      <span>{t("social.people.trustStat", { count: row.publicStats.trust.confirmed })}</span>
-                      <span>{t("social.people.teamStat", { strength: row.publicStats.team.strength, members: row.publicStats.team.members })}</span>
-                      <span>{t(peopleInfluenceLabelKey(row.publicStats.influence.label))}</span>
-                    </span>
-                  </span>
-                </button>
-                <div className="people-actions">
-                  <button className="finance-small-icon-button" type="button" aria-label={t("social.feed.openBlog")} onClick={() => onOpenBlog(row.profile.user_id)}>
-                    <BookOpen size={15} />
-                  </button>
-                  <button className="finance-small-icon-button" type="button" aria-label={t("social.people.message")} onClick={() => onMessage(row)}>
-                    <MessageCircle size={15} />
-                  </button>
-                  {canAddContact ? (
-                    <button className="finance-small-icon-button primary" type="button" disabled={contactSavingId === row.profile.user_id} aria-label={t("social.people.addContact")} onClick={() => onAddContact(row.profile.user_id)}>
-                      <UserPlus size={15} />
+      {section === "discover" ? (
+        <>
+          <form className="people-search" onSubmit={(event) => { event.preventDefault(); onRefresh(); }}>
+            <Search size={17} />
+            <input maxLength={80} placeholder={t("social.people.searchPlaceholder")} value={query} onChange={(event) => onQueryChange(event.target.value)} />
+            <button className="finance-small-icon-button primary" type="submit" aria-label={t("social.people.search")}><Search size={15} /></button>
+          </form>
+          <label className="people-filter-select">
+            <span>{t("social.people.filters")}</span>
+            <select value={filter} onChange={(event) => onFilterChange(event.target.value as PeopleFilter)}>
+              {filters.map((item) => <option value={item} key={item}>{t(peopleFilterLabelKey(item))}</option>)}
+            </select>
+          </label>
+          {loading && !people.length ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
+          {!loading && !people.length ? <p className="feed-empty">{t("social.people.empty")}</p> : null}
+          {people.length ? (
+            <div className="people-list">
+              {people.map((row) => {
+                const name = formatProfileName(row.profile, row.profile.user_id);
+                const canAddContact = row.profile.user_id !== currentUserId && !row.relation.isContact;
+                return (
+                  <article className="people-row" key={row.profile.user_id}>
+                    <button className="people-row-main" type="button" onClick={() => { void onOpenProfile(row.profile.user_id); }}>
+                      <span className="people-avatar">{row.profile.avatar_url ? <img alt="" src={row.profile.avatar_url} /> : <UserRound size={20} />}</span>
+                      <span className="people-row-copy">
+                        <span className="people-row-title"><strong><UserNameWithLevel label={t("profile.levelBadge", { level: row.profile.level })} level={row.profile.level}>{name}</UserNameWithLevel></strong></span>
+                        <small>{row.profile.username ? `@${row.profile.username}` : row.headline ?? t("social.people.noHeadline")}</small>
+                        {row.headline && row.profile.username ? <p>{row.headline}</p> : null}
+                        <span className="people-stat-row"><span>{t("social.people.trustStat", { count: row.publicStats.trust.confirmed })}</span><span>{t("social.people.teamStat", { strength: row.publicStats.team.strength, members: row.publicStats.team.members })}</span><span>{t(peopleInfluenceLabelKey(row.publicStats.influence.label))}</span></span>
+                      </span>
                     </button>
-                  ) : null}
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                    <div className="people-actions">
+                      <button className="finance-small-icon-button" type="button" aria-label={t("social.feed.openBlog")} onClick={() => onOpenBlog(row.profile.user_id)}><BookOpen size={15} /></button>
+                      <button className="finance-small-icon-button" type="button" aria-label={t("social.people.message")} onClick={() => onMessage(row)}><MessageCircle size={15} /></button>
+                      {canAddContact ? <button className="finance-small-icon-button primary" type="button" disabled={contactSavingId === row.profile.user_id} aria-label={t("social.people.addContact")} onClick={() => onAddContact(row.profile.user_id)}><UserPlus size={15} /></button> : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
+        </>
       ) : null}
+      {section === "contacts" ? (
+        <section className="people-subpanel">
+          {!contacts ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
+          {contacts && !contactRows.length ? <p className="feed-empty">{t("profile.contacts.empty")}</p> : null}
+          {contactRows.length ? <div className="contact-list">{contactRows.map((contact) => {
+            const trustState = getContactTrustState(contact.contact_user_id, confirmations, currentUserId);
+            return <article className="contact-row" key={`${contact.contact_user_id}-${contact.source}`}>
+              <button type="button" onClick={() => { void onOpenProfile(contact.contact_user_id); }}>
+                <span className="contact-row-avatar">{contact.profile?.avatar_url ? <img alt="" src={contact.profile.avatar_url} /> : <UserRound size={17} />}</span>
+                <span><UserNameWithLevel label={t("profile.levelBadge", { level: contact.profile?.level ?? 0 })} level={contact.profile?.level}>{formatProfileName(contact.profile, contact.contact_user_id)}</UserNameWithLevel></span>
+                <small>{t(contactSourceLabelKey(contact.source))}</small>
+              </button>
+              <div className="contact-actions">
+                <button className="finance-small-icon-button" type="button" aria-label={t("social.people.message")} onClick={() => onMessageContact(contact.contact_user_id)}><MessageCircle size={15} /></button>
+                <button className="finance-small-icon-button primary" type="button" disabled={Boolean(trustState) || trustCreatingForId === contact.contact_user_id} aria-label={t("profile.trust.requestContact")} onClick={() => onRequestConfirmation(contact)}><Send size={15} /></button>
+                {contact.source === "manual" && !contact.is_required ? <button className="finance-small-icon-button" type="button" disabled={contactSavingId === contact.contact_user_id} aria-label={t("profile.contacts.remove")} onClick={() => onRemoveContact(contact.contact_user_id)}><Trash2 size={15} /></button> : null}
+              </div>
+            </article>;
+          })}</div> : null}
+        </section>
+      ) : null}
+      {section === "confirmations" ? <TrustConfirmationsPanel confirmations={confirmations} currentUserId={currentUserId} locale={locale} profiles={profiles} savingId={savingId} t={t} onConfirm={onConfirm} onDecline={onDecline} onOpenProfile={onOpenProfile} /> : null}
     </section>
   );
 }
@@ -3259,14 +3302,17 @@ function localizedSystemBio(value: unknown, locale: AppLocale): string {
   return "";
 }
 
-function createProfileEditorState(payload: SocialProfilePayload | null): ProfileEditorState {
+function createProfileEditorState(payload: SocialProfilePayload | null, fallbackProfile: UserProfile | null = null): ProfileEditorState {
   const firstLink = payload?.links[0];
   return {
+    displayName: payload?.profile?.display_name ?? fallbackProfile?.display_name ?? "",
     bio: payload?.profile?.bio ?? "",
     linkLabel: firstLink?.label ?? "",
     linkUrl: firstLink?.url ?? "",
     linkVisibility: (firstLink?.visibility as ProfileVisibility | undefined) ?? "public",
-    visibilitySettings: payload?.visibilitySettings ?? { ...DEFAULT_PROFILE_VISIBILITY_SETTINGS }
+    visibilitySettings: payload?.visibilitySettings ?? { ...DEFAULT_PROFILE_VISIBILITY_SETTINGS },
+    avatarFile: null,
+    avatarRemoved: false
   };
 }
 
@@ -3318,6 +3364,12 @@ function peopleFilterLabelKey(filter: PeopleFilter): MessageKey {
   if (filter === "same_level") return "social.people.filter.sameLevel";
   if (filter === "active") return "social.people.filter.active";
   return "social.people.filter.nearby";
+}
+
+function peopleSectionLabelKey(section: PeopleSection): MessageKey {
+  if (section === "contacts") return "social.people.section.contacts";
+  if (section === "confirmations") return "social.people.section.confirmations";
+  return "social.people.section.discover";
 }
 
 function peopleInfluenceLabelKey(label: PeopleRow["publicStats"]["influence"]["label"]): MessageKey {

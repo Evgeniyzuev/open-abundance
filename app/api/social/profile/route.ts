@@ -15,6 +15,7 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 type ProfileBody = {
+  displayName?: unknown;
   bio?: unknown;
   visibilitySettings?: unknown;
   links?: unknown;
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     }
 
-    const [profileResult, settingsResult, linksResult, contacts] = await Promise.all([
+    const [profileResult, settingsResult, linksResult] = await Promise.all([
       supabase.from("user_profiles").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("user_profile_visibility_settings").select("*").eq("user_id", user.id).maybeSingle(),
       supabase
@@ -35,8 +36,7 @@ export async function GET(request: NextRequest) {
         .select("*")
         .eq("user_id", user.id)
         .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true }),
-      loadContacts(supabase, user.id)
+        .order("created_at", { ascending: true })
     ]);
 
     if (profileResult.error) return NextResponse.json({ error: profileResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
@@ -47,8 +47,7 @@ export async function GET(request: NextRequest) {
       {
         profile: profileResult.data,
         visibilitySettings: normalizeProfileVisibilitySettings(settingsResult.data?.settings),
-        links: linksResult.data ?? [],
-        contacts
+        links: linksResult.data ?? []
       },
       { headers: NO_STORE_HEADERS }
     );
@@ -68,6 +67,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await readJsonBody(request);
+    const displayName = normalizeDisplayName(body.displayName);
     const bio = normalizeBio(body.bio);
     const visibilitySettings = normalizeProfileVisibilitySettings(body.visibilitySettings);
     const links = normalizeLinks(body.links, user.id);
@@ -76,7 +76,7 @@ export async function PUT(request: NextRequest) {
     const [profileResult, settingsResult] = await Promise.all([
       supabase
         .from("user_profiles")
-        .update({ bio, updated_at: now })
+        .update({ display_name: displayName, bio, updated_at: now })
         .eq("user_id", user.id)
         .select("*")
         .single(),
@@ -129,32 +129,6 @@ async function insertLinks(supabase: SupabaseClient<Database>, links: Array<Tabl
   return data ?? [];
 }
 
-async function loadContacts(supabase: SupabaseClient<Database>, userId: string) {
-  const { data: contactRows, error: contactsError } = await supabase
-    .from("user_contacts")
-    .select("*")
-    .eq("owner_user_id", userId)
-    .eq("status", "active")
-    .order("updated_at", { ascending: false });
-
-  if (contactsError) throw contactsError;
-
-  const contactIds = Array.from(new Set((contactRows ?? []).map((item) => item.contact_user_id)));
-  const { data: profiles, error: profilesError } = contactIds.length
-    ? await supabase
-        .from("user_profiles")
-        .select("user_id,username,display_name,avatar_url,level,created_at")
-        .in("user_id", contactIds)
-    : { data: [], error: null };
-
-  if (profilesError) throw profilesError;
-
-  return (contactRows ?? []).map((contact) => ({
-    ...contact,
-    profile: profiles.find((profile) => profile.user_id === contact.contact_user_id) ?? null
-  }));
-}
-
 async function readJsonBody(request: NextRequest): Promise<ProfileBody> {
   try {
     const body = await request.json();
@@ -168,6 +142,12 @@ function normalizeBio(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, 700) : null;
+}
+
+function normalizeDisplayName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, 80) : null;
 }
 
 function normalizeLinks(value: unknown, userId: string): Array<TablesInsert<"user_profile_links">> {

@@ -248,6 +248,7 @@ Wallet пользователя уменьшается
 - `docs/BLOGGER_OUTREACH_PLAN.md` — предложение для блогеров и монетизация привода аудитории.
 - `docs/MUTUAL_CREDIT_MARKET_PLAN.md` — mutual credit, внутренние продажи, продвижение по тратам.
 - `docs/LEADER_GROWTH_PROGRAM.md` — программа роста лидеров, обучение, сертификация.
+- `docs/ADHD_FRIENDLY_INTERFACE_PRINCIPLES.md` — универсальные принципы интерфейса и AI-коммуникации для снижения нагрузки на внимание и рабочую память.
 
 ## 14. Правило ведения memory
 

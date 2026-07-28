@@ -5,12 +5,16 @@ import type { Database } from "@/lib/database.types";
 type ProgressRequest = {
   proofKey?: string;
   score?: number;
+  minutesPerDay?: number;
+  hourlyValueUsd?: number;
   verificationLogic?: string;
 };
 
 const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
   calculate_time_to_goal: ["calculated", "compound_quiz_passed"],
-  ai_message_sent: ["ai_message_sent"]
+  ai_message_sent: ["ai_message_sent"],
+  attention_value_audit: ["attention_audit_completed"],
+  core_law_understood: ["core_law_understood"]
 };
 
 export async function POST(request: NextRequest) {
@@ -35,6 +39,16 @@ export async function POST(request: NextRequest) {
 
   if (!allowedProofKeys?.includes(proofKey)) {
     return NextResponse.json({ error: "Unsupported challenge proof." }, { status: 400 });
+  }
+
+  const minutesPerDay = normalizeBoundedNumber(body.minutesPerDay, 15, 720);
+  const hourlyValueUsd = normalizeBoundedNumber(body.hourlyValueUsd, 1, 1000);
+  if (body.verificationLogic === "attention_value_audit" && (minutesPerDay === null || hourlyValueUsd === null)) {
+    return NextResponse.json({ error: "Choose valid attention values before saving the scenario." }, { status: 400 });
+  }
+
+  if (body.verificationLogic === "core_law_understood" && normalizeScore(body.score) < 3) {
+    return NextResponse.json({ error: "Pass all Core law questions before saving the result." }, { status: 400 });
   }
 
   const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
@@ -81,6 +95,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
 
+  if (["attention_value_audit", "core_law_understood"].includes(body.verificationLogic) && !["accepted", "completed"].includes(existing?.status ?? "")) {
+    return NextResponse.json({ error: "Accept the challenge before recording its proof." }, { status: 409 });
+  }
+
   if (existing?.status === "completed") {
     return NextResponse.json({ recorded: true, status: "completed" });
   }
@@ -89,7 +107,11 @@ export async function POST(request: NextRequest) {
     ...(isRecord(existing?.verification_data) ? existing.verification_data : {}),
     [proofKey]: true,
     [`${proofKey}_at`]: new Date().toISOString(),
-    ...(proofKey === "compound_quiz_passed" ? { compound_quiz_score: normalizeScore(body.score) } : {})
+    ...(proofKey === "compound_quiz_passed" ? { compound_quiz_score: normalizeScore(body.score) } : {}),
+    ...(body.verificationLogic === "core_law_understood" ? { core_law_score: normalizeScore(body.score) } : {}),
+    ...(body.verificationLogic === "attention_value_audit"
+      ? { attention_minutes_per_day: minutesPerDay, attention_hourly_value_usd: hourlyValueUsd }
+      : {})
   };
   const nextStatus = existing?.status && existing.status !== "declined" ? existing.status : "accepted";
 
@@ -117,4 +139,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeScore(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(5, Math.round(value))) : 0;
+}
+
+function normalizeBoundedNumber(value: unknown, min: number, max: number): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  if (value < min || value > max) return null;
+  return Math.round(value * 100) / 100;
 }

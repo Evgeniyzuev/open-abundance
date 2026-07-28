@@ -102,6 +102,7 @@
 - [ ] Wishes: личные желания CRUD, рекомендации, копирование рекомендации и публичные желания.
 - [ ] Пирамида глубины желаний: продуктовая модель и рекомендуемый UX зафиксированы в `docs/WISH_PROGRESS_PYRAMID.md`; следующий шаг — прототип блока `Goals -> Wishes -> Моя пирамида желаний` без миграции данных.
 - [ ] Wallet/Core: балансы, история, уровни, ежедневное начисление, reinvest split и Wallet -> Core через atomic ledger RPC.
+- [x] **Core redemption safeguard (технический контур):** obligations на UTC-период, 24-часовой breach detector, DB-trigger неприкосновенности Core, idempotent redemption request/status и service-role worker RPC; rollout/юридический допуск остаются отдельным gate. План: `docs/CORE_REDEMPTION_SAFEGUARD_PLAN.md`.
 - [ ] Финансовый калькулятор: future amount, time to goal, daily income и сравнение сценариев.
 - [ ] Today technical MVP: сохраненный growth plan, дневная цель, checklist, progress, streak, встроенное состояние Home и карточка в Challenges.
 - [ ] Starter Challenges: accept/check/reward, автопроверки и quiz сложного процента.
@@ -147,6 +148,7 @@
 
 - Массовый внешний вывод Wallet заблокирован до определения юридической модели, AML/KYC-процесса, платежного канала, резервов и операционной поддержки.
 - Публичные обещания фиксированного или гарантированного дохода заблокированы до доказуемого покрытия обязательств и юридической проверки формулировок.
+- Пользовательский текст о redemption Core заблокирован до feature flag, достаточного покрытия Core-redemption liability, KYC/AML, cooling period и допуска worker.
 - Масштабирование за пределы закрытой когорты заблокировано до появления аналитики, положительного D1/D3/D7 и сверки Wallet-обязательств с фондом.
 
 ## Отложено

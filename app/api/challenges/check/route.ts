@@ -60,6 +60,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
   }
 
+  if (challenge.verification_logic !== "signup") {
+    const { data: userChallenge, error: userChallengeError } = await supabase
+      .from("user_challenges")
+      .select("status")
+      .eq("user_id", user.id)
+      .eq("challenge_id", challenge.id)
+      .maybeSingle();
+
+    if (userChallengeError) {
+      return NextResponse.json({ error: userChallengeError.message }, { status: 500 });
+    }
+
+    if (!userChallenge || !["accepted", "completed"].includes(userChallenge.status)) {
+      return NextResponse.json({ status: "available", completed: false, message: "Accept the challenge before checking it." }, { status: 409 });
+    }
+  }
+
   const verification = await verifyChallenge(supabase, user.id, challenge);
   if (!verification.ok) {
     await supabase.from("user_challenges").upsert(
@@ -220,6 +237,20 @@ async function verifyChallenge(
     if (calculatorProgress.proved && quizProgress.proved) {
       return { ok: true };
     }
+  }
+
+  if (challenge.verification_logic === "attention_value_audit") {
+    const progress = await getChallengeProgressProof(supabase, userId, challenge, "attention_audit_completed");
+    if (progress.error) return { ok: false, reason: "Could not check the attention estimate. Try again." };
+    if (progress.proved) return { ok: true };
+    return { ok: false, reason: "Complete and save the attention estimate first." };
+  }
+
+  if (challenge.verification_logic === "core_law_understood") {
+    const progress = await getChallengeProgressProof(supabase, userId, challenge, "core_law_understood");
+    if (progress.error) return { ok: false, reason: "Could not check the Core law test. Try again." };
+    if (progress.proved) return { ok: true };
+    return { ok: false, reason: "Pass the Core law test first." };
   }
 
   if (challenge.verification_logic === "ai_message_sent") {

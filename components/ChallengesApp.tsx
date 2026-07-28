@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, CheckCircle2, Clock3, Compass, HandHeart, PenLine, Rocket, Send, ShieldCheck, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
+import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
+import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
@@ -162,13 +164,17 @@ const COMPOUND_QUIZ_QUESTIONS: ChallengeQuizQuestion[] = [
 type ChallengesAppProps = {
   active: boolean;
   activeTab: ChallengeTab;
+  challengesUnread?: boolean;
   focusNextChallengeNonce?: number;
+  onChallengesViewed?: () => void;
+  onTodayViewed?: () => void;
   onNavigateTesting: (target: AppTestingNavigationTarget) => void;
   refreshNonce: number;
+  todayUnread?: boolean;
   onRefresh: () => Promise<void>;
 };
 
-export default function ChallengesApp({ active, activeTab, focusNextChallengeNonce = 0, onNavigateTesting, refreshNonce, onRefresh }: ChallengesAppProps) {
+export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, onChallengesViewed, onTodayViewed, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
@@ -194,10 +200,6 @@ export default function ChallengesApp({ active, activeTab, focusNextChallengeNon
   const lastVisibleRefreshAtRef = useRef(0);
   const userLevel = core?.level ?? profile?.level ?? DEFAULT_USER_LEVEL;
   const hasChallenges = availableChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
-  const pathChallenges = [...availableChallenges, ...acceptedChallenges, ...completedChallenges]
-    .filter((challenge) => challenge.track_key === "first_core_path")
-    .sort((left, right) => (left.track_step ?? 0) - (right.track_step ?? 0));
-  const availableCatalogChallenges = availableChallenges.filter((challenge) => challenge.track_key !== "first_core_path");
   const hasProjects = projects.length > 0;
 
   const loadToday = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
@@ -389,6 +391,14 @@ export default function ChallengesApp({ active, activeTab, focusNextChallengeNon
       mounted = false;
     };
   }, [active, activeTab, loadChallenges, loadProjects, loadToday, refreshNonce, user?.id]);
+
+  useEffect(() => {
+    if (active && activeTab === "challenges" && status === "ready") onChallengesViewed?.();
+  }, [active, activeTab, onChallengesViewed, status]);
+
+  useEffect(() => {
+    if (active && activeTab === "challenges" && today) onTodayViewed?.();
+  }, [active, activeTab, onTodayViewed, today]);
 
   useEffect(() => {
     if (!active || !focusNextChallengeNonce || handledFocusNextChallengeRef.current === focusNextChallengeNonce) return;
@@ -639,7 +649,10 @@ export default function ChallengesApp({ active, activeTab, focusNextChallengeNon
   return (
     <section className="challenges-screen">
       <header className="challenges-header">
-        <h1>{activeTab === "challenges" ? t("challenges.title") : t("projects.title")}</h1>
+        <h1 className={activeTab === "challenges" ? "section-title-with-dot" : undefined}>
+          {activeTab === "challenges" ? t("challenges.title") : t("projects.title")}
+          {activeTab === "challenges" && challengesUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+        </h1>
         {(activeTab === "challenges" ? isRefreshing : isProjectsRefreshing) ? <small>{t("wishes.refreshing")}</small> : null}
       </header>
 
@@ -654,22 +667,13 @@ export default function ChallengesApp({ active, activeTab, focusNextChallengeNon
               message={todayMessage}
               payload={today}
               checking={todayChecking}
+              todayUnread={todayUnread}
               t={t}
               onCheck={checkToday}
             />
           ) : null}
 
-          {pathChallenges.length > 0 ? (
-            <ChallengePathSection
-              challenges={pathChallenges}
-              locale={locale}
-              userLevel={userLevel}
-              t={t}
-              onOpen={(challenge) => setSelectedChallenge(challenge)}
-            />
-          ) : null}
-
-          <ChallengeSection challenges={availableCatalogChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+          <ChallengeSection challenges={availableChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} unread={challengesUnread} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
 
           <section className="challenge-section">
             <button className="challenge-archive-link" type="button" onClick={() => {
@@ -739,6 +743,7 @@ function ChallengeArchiveScreen({
   challenges,
   locale,
   title,
+  unread,
   userLevel,
   t,
   onBack,
@@ -747,6 +752,7 @@ function ChallengeArchiveScreen({
   challenges: Challenge[];
   locale: AppLocale;
   title: string;
+  unread?: boolean;
   userLevel: number;
   t: TFunction;
   onBack: () => void;
@@ -777,6 +783,7 @@ function ChallengeSection({
   emptyMessage,
   locale,
   title,
+  unread,
   userLevel,
   t,
   onOpen
@@ -785,13 +792,17 @@ function ChallengeSection({
   emptyMessage: string;
   locale: AppLocale;
   title: string;
+  unread?: boolean;
   userLevel: number;
   t: TFunction;
   onOpen: (challenge: Challenge) => void;
 }) {
   return (
     <section className="challenge-section">
-      <h2>{title}</h2>
+      <h2 className="section-title-with-dot">
+        {title}
+        {unread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+      </h2>
       {challenges.length === 0 ? (
         <div className="task-empty">{emptyMessage}</div>
       ) : (
@@ -801,33 +812,6 @@ function ChallengeSection({
           ))}
         </div>
       )}
-    </section>
-  );
-}
-
-function ChallengePathSection({ challenges, locale, userLevel, t, onOpen }: {
-  challenges: Challenge[];
-  locale: AppLocale;
-  userLevel: number;
-  t: TFunction;
-  onOpen: (challenge: Challenge) => void;
-}) {
-  const completed = challenges.filter(isCompletedChallenge).length;
-
-  return (
-    <section className="challenge-section challenge-path-section">
-      <div className="challenge-path-heading">
-        <span>
-          <h2>{t("challenges.path.title")}</h2>
-          <small>{t("challenges.path.subtitle")}</small>
-        </span>
-        <strong>{t("challenges.path.progress", { completed, total: challenges.length })}</strong>
-      </div>
-      <div className="challenge-list">
-        {challenges.map((challenge) => (
-          <ChallengeRow challenge={challenge} key={challenge.id} locale={locale} userLevel={userLevel} t={t} onOpen={() => onOpen(challenge)} />
-        ))}
-      </div>
     </section>
   );
 }
@@ -853,6 +837,7 @@ function TodayChallengeCard({
   locale,
   message,
   payload,
+  todayUnread,
   t,
   onCheck
 }: {
@@ -860,6 +845,7 @@ function TodayChallengeCard({
   locale: AppLocale;
   message: string | null;
   payload: TodayPayload;
+  todayUnread: boolean;
   t: TFunction;
   onCheck: () => void;
 }) {
@@ -870,7 +856,10 @@ function TodayChallengeCard({
 
   return (
     <section className="challenge-section today-challenge-section">
-      <h2>{t("today.title")}</h2>
+      <h2 className="section-title-with-dot">
+        {t("today.title")}
+        {todayUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+      </h2>
       <div className={complete ? "today-challenge-card completed" : "today-challenge-card"}>
         <div className="today-challenge-head">
           <span>
@@ -1004,20 +993,38 @@ function ChallengeDetailModal({
   const accepted = isActiveChallenge(challenge);
   const locked = !accepted && challenge.difficulty_level > userLevel;
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
+  const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
+  const needsCoreLawChallenge = challenge.verification_logic === "core_law_understood" && accepted && !completed && !locked;
   const needsAppTesting = challenge.verification_logic === "app_testing_feedback" && accepted && !completed && !locked;
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
   const [compoundQuizPassed, setCompoundQuizPassed] = useState(false);
+  const [attentionProofRecorded, setAttentionProofRecorded] = useState(false);
+  const [coreLawPassed, setCoreLawPassed] = useState(false);
 
   useEffect(() => {
     setCompoundQuizPassed(false);
+    setAttentionProofRecorded(false);
+    setCoreLawPassed(false);
   }, [challenge.id]);
 
   async function handleCheck() {
     if (needsCompoundQuiz && !compoundQuizPassed) {
       setCheckMessage(t("challenges.quiz.required"));
+      setCheckStatus("idle");
+      return;
+    }
+
+    if (needsAttentionChallenge && !attentionProofRecorded) {
+      setCheckMessage(t("challenges.attention.required"));
+      setCheckStatus("idle");
+      return;
+    }
+
+    if (needsCoreLawChallenge && !coreLawPassed) {
+      setCheckMessage(t("challenges.coreQuiz.required"));
       setCheckStatus("idle");
       return;
     }
@@ -1126,6 +1133,35 @@ function ChallengeDetailModal({
     }
   }
 
+  async function recordAttentionProof(minutesPerDay: number, hourlyValueUsd: number) {
+    const token = await getAccessToken();
+    const response = await fetch("/api/challenges/progress", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        verificationLogic: "attention_value_audit",
+        proofKey: "attention_audit_completed",
+        minutesPerDay,
+        hourlyValueUsd
+      })
+    });
+    const payload = (await response.json()) as { error?: string };
+    if (!response.ok || payload.error) throw new Error(payload.error ?? t("challenges.attention.saveFailed"));
+  }
+
+  async function recordCoreLawProof(score: number) {
+    const token = await getAccessToken();
+    const response = await fetch("/api/challenges/progress", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ verificationLogic: "core_law_understood", proofKey: "core_law_understood", score })
+    });
+    const payload = (await response.json()) as { error?: string };
+    if (!response.ok || payload.error) throw new Error(payload.error ?? t("challenges.coreQuiz.recordFailed"));
+  }
+
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal-sheet challenge-modal">
@@ -1196,6 +1232,24 @@ function ChallengeDetailModal({
               onError={setCheckMessage}
               onPass={recordCompoundQuizPass}
               onPassedChange={setCompoundQuizPassed}
+            />
+          ) : null}
+
+          {needsAttentionChallenge ? (
+            <AttentionValueChallenge
+              locale={locale}
+              onPassedChange={setAttentionProofRecorded}
+              onProof={recordAttentionProof}
+              t={t}
+            />
+          ) : null}
+
+          {needsCoreLawChallenge ? (
+            <CoreLawGrowthChallenge
+              locale={locale}
+              onPassedChange={setCoreLawPassed}
+              onProof={recordCoreLawProof}
+              t={t}
             />
           ) : null}
 
@@ -1484,7 +1538,6 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
 }
 
 function getChallengeTone(challenge: Challenge): "blue" | "green" | "gold" | "violet" | "rose" {
-  if (challenge.track_key === "first_core_path") return "blue";
   if (challenge.category === "finance") return "green";
   if (challenge.category === "social" || challenge.category === "trust") return "violet";
   if (challenge.category === "quality_assurance") return "rose";
@@ -1526,11 +1579,6 @@ function sortChallenges(challenges: Challenge[]): Challenge[] {
 }
 
 function compareRecommendedChallenges(left: Challenge, right: Challenge): number {
-  if (left.track_key === "first_core_path" && right.track_key !== "first_core_path") return -1;
-  if (left.track_key !== "first_core_path" && right.track_key === "first_core_path") return 1;
-  if (left.track_key === "first_core_path" && right.track_key === "first_core_path") {
-    return (left.track_step ?? Number.MAX_SAFE_INTEGER) - (right.track_step ?? Number.MAX_SAFE_INTEGER);
-  }
   const sortOrder = left.sort_order - right.sort_order;
   if (sortOrder !== 0) return sortOrder;
   return left.difficulty_level - right.difficulty_level;

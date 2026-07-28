@@ -16,6 +16,7 @@ import NotesApp from "@/components/NotesApp";
 import { useUserContext } from "@/components/UserProvider";
 import WalletApp from "@/components/WalletApp";
 import WishesApp from "@/components/WishesApp";
+import { markChallengesViewed, markTodayViewed, readDailyUnreadState } from "@/lib/dailyUnread";
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
@@ -105,7 +106,7 @@ const DEFAULT_NAVIGATION_STATE: NavigationState = {
 };
 
 export default function AppNavigation() {
-  const { refreshUserData, t } = useUserContext();
+  const { refreshUserData, t, user } = useUserContext();
   const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTabId>(DEFAULT_NAVIGATION_STATE.homeTab);
   const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
@@ -120,6 +121,7 @@ export default function AppNavigation() {
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
   const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
   const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
+  const [, setDailyUnreadVersion] = useState(0);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
     map: false,
@@ -136,6 +138,24 @@ export default function AppNavigation() {
   const navigationHydratedRef = useRef(false);
   const suppressHistoryPushRef = useRef(false);
   const navigationStateRef = useRef<NavigationState>(DEFAULT_NAVIGATION_STATE);
+
+  const dailyUnread = user
+    ? readDailyUnreadState(user.id)
+    : { dateKey: "guest", challengesViewed: true, todayViewed: true };
+  const challengesUnread = Boolean(user) && !dailyUnread.challengesViewed;
+  const todayUnread = Boolean(user) && !dailyUnread.todayViewed;
+
+  const markChallengesSeen = useCallback(() => {
+    if (!user) return;
+    markChallengesViewed(user.id);
+    setDailyUnreadVersion((value) => value + 1);
+  }, [user]);
+
+  const markTodaySeen = useCallback(() => {
+    if (!user) return;
+    markTodayViewed(user.id);
+    setDailyUnreadVersion((value) => value + 1);
+  }, [user]);
 
   const navigationState = {
     mainTab: activeMainTab,
@@ -337,6 +357,15 @@ export default function AppNavigation() {
   const activeTopTab = getActiveTopTab(activeMainTab, activeHomeTab, activeGoalTab, activeChallengeTab, activeWalletTab, activeSocialTab);
 
   useEffect(() => {
+    const intervalId = window.setInterval(() => setDailyUnreadVersion((value) => value + 1), 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (showHome && activeHomeTab === "home") markTodaySeen();
+  }, [activeHomeTab, markTodaySeen, showHome]);
+
+  useEffect(() => {
     if (!showWishes && !showMap && !showChallenges && !showWallet && !showPeople) return;
 
     setVisitedServerViews((current) => ({
@@ -392,7 +421,7 @@ export default function AppNavigation() {
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
         {pullDistance >= PULL_THRESHOLD_PX ? t("app.pull.release") : t("app.pull.drag")}
       </div>
-      <TopTabBar activeMainTab={activeMainTab} activeTab={activeTopTab} hidden={navHidden} tabs={topTabs} t={t} onTabChange={handleTopTabChange} />
+      <TopTabBar activeMainTab={activeMainTab} activeTab={activeTopTab} hidden={navHidden} tabs={topTabs} t={t} unreadChallenges={challengesUnread} unreadToday={todayUnread} onTabChange={handleTopTabChange} />
       <section className="app-content">
         <div className="app-view" hidden={!showHome}>
           <HomeTodayApp
@@ -401,6 +430,7 @@ export default function AppNavigation() {
             onOpenNextChallenge={openNextChallenge}
             onOpenReflectionInbox={openReflectionInbox}
             onOpenToday={openToday}
+            todayUnread={todayUnread}
             refreshNonce={refreshNonce}
           />
         </div>
@@ -423,6 +453,10 @@ export default function AppNavigation() {
             active={showChallenges}
             activeTab={activeChallengeTab}
             focusNextChallengeNonce={challengeFocusNonce}
+            challengesUnread={challengesUnread}
+            onChallengesViewed={markChallengesSeen}
+            onTodayViewed={markTodaySeen}
+            todayUnread={todayUnread}
             onNavigateTesting={navigateFromAppTesting}
             refreshNonce={refreshNonce}
             onRefresh={() => requestServerRefresh("challenges")}
@@ -442,7 +476,7 @@ export default function AppNavigation() {
         </KeepAliveView>
         {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
-      <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} onTabChange={setActiveMainTab} />
+      <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} unreadChallenges={challengesUnread} unreadToday={todayUnread} onTabChange={setActiveMainTab} />
     </>
   );
 }
@@ -453,10 +487,12 @@ type TopTabBarProps = {
   hidden: boolean;
   tabs: TopTab[];
   t: TFunction;
+  unreadChallenges: boolean;
+  unreadToday: boolean;
   onTabChange: (tab: string) => void;
 };
 
-function TopTabBar({ activeMainTab, activeTab, hidden, tabs, t, onTabChange }: TopTabBarProps) {
+function TopTabBar({ activeMainTab, activeTab, hidden, tabs, t, unreadChallenges, unreadToday, onTabChange }: TopTabBarProps) {
   return (
     <nav className={`glass-tabbar top-tabbar ${hidden ? "nav-hidden" : ""}`} aria-label={t("app.nav.top")}>
       {tabs.length > 0 ? (
@@ -466,6 +502,8 @@ function TopTabBar({ activeMainTab, activeTab, hidden, tabs, t, onTabChange }: T
             icon={tab.icon}
             key={tab.id}
             title={t(tab.titleKey)}
+            unread={(activeMainTab === "challenges" && tab.id === "challenges" && unreadChallenges) || (activeMainTab === "home" && tab.id === "home" && unreadToday)}
+            unreadLabel={t("app.nav.newActivity")}
             onClick={() => onTabChange(tab.id)}
           />
         ))
@@ -480,19 +518,24 @@ type TabButtonProps = {
   active: boolean;
   icon: LucideIcon;
   title: string;
+  unread?: boolean;
+  unreadLabel?: string;
   onClick: () => void;
 };
 
-function TabButton({ active, icon: Icon, title, onClick }: TabButtonProps) {
+function TabButton({ active, icon: Icon, title, unread = false, unreadLabel, onClick }: TabButtonProps) {
   return (
     <button
       className={active ? "tab-button active" : "tab-button"}
       type="button"
-      aria-label={title}
+      aria-label={unread && unreadLabel ? `${title}. ${unreadLabel}` : title}
       aria-current={active ? "page" : undefined}
       onClick={onClick}
     >
-      <Icon size={28} strokeWidth={active ? 2.5 : 2} />
+      <span className="tab-button-icon">
+        <Icon size={28} strokeWidth={active ? 2.5 : 2} />
+        {unread ? <i aria-hidden="true" className="tab-unread-dot" /> : null}
+      </span>
     </button>
   );
 }
@@ -501,10 +544,12 @@ type BottomTabBarProps = {
   activeTab: MainTabId;
   hidden: boolean;
   t: TFunction;
+  unreadChallenges: boolean;
+  unreadToday: boolean;
   onTabChange: (tab: MainTabId) => void;
 };
 
-function BottomTabBar({ activeTab, hidden, t, onTabChange }: BottomTabBarProps) {
+function BottomTabBar({ activeTab, hidden, t, unreadChallenges, unreadToday, onTabChange }: BottomTabBarProps) {
   return (
     <nav className={`glass-tabbar bottom-tabbar ${hidden ? "nav-hidden" : ""}`} aria-label={t("app.nav.bottom")}>
       {mainTabs.map((tab) => (
@@ -513,6 +558,8 @@ function BottomTabBar({ activeTab, hidden, t, onTabChange }: BottomTabBarProps) 
           icon={tab.icon}
           key={tab.id}
           title={t(tab.titleKey)}
+          unread={(tab.id === "challenges" && unreadChallenges) || (tab.id === "home" && unreadToday)}
+          unreadLabel={t("app.nav.newActivity")}
           onClick={() => onTabChange(tab.id)}
         />
       ))}

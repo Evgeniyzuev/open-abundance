@@ -455,7 +455,7 @@ test("local-first shell does not wait for a signed-in user context refresh", asy
   }
 });
 
-test("authenticated user sees the ordered first Core path without the registration challenge", async ({ page }) => {
+test("authenticated user sees former Core path cards in the standard available list", async ({ page }) => {
   await prepareAuthenticatedApp(page);
   const pathTitles = [
     "Choose Your Main Wish",
@@ -493,7 +493,8 @@ test("authenticated user sees the ordered first Core path without the registrati
   });
   await page.goto("/?view=challenges");
 
-  await expect(page.getByRole("heading", { name: "First Core Path" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "First Core Path" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Available" })).toBeVisible();
   await expect(page.getByText("Save Your Progress", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Choose Your Main Wish", { exact: true })).toBeVisible();
   await expect(page.getByText("Build Your Growth Plan", { exact: true })).toBeVisible();

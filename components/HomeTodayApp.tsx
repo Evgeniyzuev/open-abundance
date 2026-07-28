@@ -60,6 +60,7 @@ type HomeTodayAppProps = {
   onOpenNextChallenge: () => void;
   onOpenReflectionInbox: () => void;
   onOpenToday: () => void;
+  todayUnread: boolean;
 };
 
 export default function HomeTodayApp({
@@ -68,7 +69,8 @@ export default function HomeTodayApp({
   onOpenCalculator,
   onOpenNextChallenge,
   onOpenReflectionInbox,
-  onOpenToday
+  onOpenToday,
+  todayUnread
 }: HomeTodayAppProps) {
   const { locale, loading, profile, t, user } = useUserContext();
   const [today, setToday] = useState<TodayPayload | null>(null);
@@ -237,7 +239,10 @@ export default function HomeTodayApp({
       <section className="home-card home-today-card">
         <div className="home-card-heading">
           <span>
-            <span className="home-card-label">{t("today.title")}</span>
+            <span className="home-card-label home-card-label-with-dot">
+              {t("today.title")}
+              {todayUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+            </span>
             <strong>{todayComplete ? t("today.completedMessage") : t("today.subtitle")}</strong>
           </span>
           {user ? <b>{formatMoney(todayProgress, locale)} / {formatMoney(todayTarget, locale)}</b> : <b>—</b>}

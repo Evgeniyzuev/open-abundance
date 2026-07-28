@@ -15,7 +15,9 @@ export type ChallengeQuizQuestion = {
 };
 
 type ChallengeQuizProps = {
+  descriptionKey?: MessageKey;
   passScore: number;
+  passRuleKey?: MessageKey;
   questions: ChallengeQuizQuestion[];
   t: TFunction;
   onError?: (message: string) => void;
@@ -23,7 +25,7 @@ type ChallengeQuizProps = {
   onPassedChange?: (passed: boolean) => void;
 };
 
-export default function ChallengeQuiz({ passScore, questions, t, onError, onPass, onPassedChange }: ChallengeQuizProps) {
+export default function ChallengeQuiz({ descriptionKey = "challenges.quiz.description", passScore, passRuleKey = "challenges.quiz.passRule", questions, t, onError, onPass, onPassedChange }: ChallengeQuizProps) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [passed, setPassed] = useState(false);
@@ -106,9 +108,9 @@ export default function ChallengeQuiz({ passScore, questions, t, onError, onPass
     <section className="challenge-quiz">
       <div className="challenge-quiz-head">
         <span>{t("challenges.quiz.title")}</span>
-        <strong>{submitted ? `${score}/${questions.length}` : t("challenges.quiz.passRule")}</strong>
+        <strong>{submitted ? `${score}/${questions.length}` : t(passRuleKey)}</strong>
       </div>
-      <p>{t("challenges.quiz.description")}</p>
+      <p>{t(descriptionKey)}</p>
 
       {submitted ? (
         <div className={passed ? "challenge-quiz-result passed" : "challenge-quiz-result"}>

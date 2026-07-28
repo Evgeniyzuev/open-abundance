@@ -131,6 +131,38 @@ git restore tsconfig.tsbuildinfo
 
 Do not delete `tsconfig.tsbuildinfo`; it is a tracked TypeScript build-info file in this repo. Only revert incidental verification changes to it.
 
+## Supabase Remote Migrations
+
+This repository is linked to Supabase project `bsikxrsguwketlloflgi`. Before a remote migration, confirm that all three project identities agree:
+
+- `project_id` in `supabase/config.toml`;
+- `supabase/.temp/project-ref`;
+- the project ref in `SUPABASE_URL` and the Postgres username/host.
+
+Use the linked Supabase CLI workflow as the canonical migration path. Do not treat `db push --dry-run` alone as proof that database credentials work: some CLI versions can list local pending migrations without completing a remote PostgreSQL login.
+
+The required credentials are:
+
+- `SUPABASE_ACCESS_TOKEN`: a current Supabase personal access token accepted by `GET https://api.supabase.com/v1/projects/bsikxrsguwketlloflgi`;
+- `SUPABASE_DB_PASSWORD`: the current database password from the project database settings.
+
+Do not rely on the legacy local key name `SUPABAsE_Access_Token`, and do not print either credential. With fresh credentials loaded into the process environment, re-link before pushing:
+
+```powershell
+pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi --password $env:SUPABASE_DB_PASSWORD
+pnpm dlx supabase db push --linked --dry-run
+pnpm dlx supabase db push --linked
+```
+
+Pin the Supabase CLI version in `devDependencies` before relying on it in CI; avoid an unpinned `pnpm dlx` upgrade for production migrations. A successful push must print the applied migration and finish normally.
+
+After the push, verify both:
+
+1. `pnpm dlx supabase migration list --linked` shows the local timestamp in remote history.
+2. A read-only project REST request to one of the newly created tables succeeds with HTTP `200`. Use the server-side service-role key only from the local environment and never include it in command output, logs, documentation, or client code.
+
+The project Data REST API is suitable for schema availability checks but not for applying DDL. The official Management API SQL endpoint requires a current personal access token with `database:write`; do not use it as an ad-hoc migration fallback because bypassing CLI migration history can cause later `db push` drift.
+
 ## E2E Tests That Must Stay Fast
 
 Playwright smoke tests and their managed test server must produce a final result in less than 30 seconds. This is a hard verification budget, not a timeout to increase. If the runner has no final result within 30 seconds, terminate it once, clean up only the processes created by that run, report the infrastructure failure, and do not run Playwright again in the same session.

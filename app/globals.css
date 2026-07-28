@@ -815,6 +815,14 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .topup-balance-card .core-color { color: var(--green); }
 .topup-modal-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .topup-error { color: var(--danger); font-size: 0.8125rem; text-align: center; }
+.ton-deposit-body { display: grid; gap: 12px; }
+.ton-deposit-qr { display: grid; justify-items: center; border-radius: 16px; padding: 12px; background: var(--surface-soft); }
+.ton-deposit-field { display: grid; gap: 5px; min-width: 0; }
+.ton-deposit-field > span, .ton-deposit-status > span { color: var(--muted); font-size: 0.6875rem; font-weight: 850; text-transform: uppercase; }
+.ton-deposit-field code { overflow-wrap: anywhere; border-radius: 10px; padding: 9px 10px; background: var(--surface-soft); color: var(--text); font-size: 0.75rem; line-height: 1.25; }
+.ton-deposit-field .text-button { justify-self: start; }
+.ton-deposit-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-radius: 10px; padding: 10px; background: var(--accent-soft); color: var(--blue); }
+.ton-deposit-status strong { font-size: 0.8125rem; }
 .transfer-modal-body { display: grid; gap: 14px; }
 .transfer-contact-block { display: grid; gap: 8px; }
 .transfer-field-label { color: var(--muted); font-size: 0.75rem; font-weight: 850; text-transform: uppercase; }

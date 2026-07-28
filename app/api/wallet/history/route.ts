@@ -5,11 +5,13 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout";
+  kind: "daily_core_payout" | "crypto_deposit";
   amount: number;
-  daily_rate: number;
-  gross_amount: number;
-  reinvest_percent: number;
+  daily_rate?: number;
+  gross_amount?: number;
+  reinvest_percent?: number;
+  network?: string;
+  transaction_hash?: string;
   created_at: string;
 };
 
@@ -20,6 +22,13 @@ type DailyCoreAccrualRow = {
   reinvest_percent: number;
   wallet_amount: number;
   created_at: string;
+};
+
+type CryptoDepositLedgerRow = {
+  id: string;
+  amount: number;
+  created_at: string;
+  metadata: Record<string, unknown>;
 };
 
 export const dynamic = "force-dynamic";
@@ -45,7 +54,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: historyError.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
-    const rows: WalletHistoryRow[] = ((data ?? []) as DailyCoreAccrualRow[]).map((row) => ({
+    const { data: cryptoLedger, error: cryptoError } = await supabase
+      .from("wallet_ledger")
+      .select("id,amount,created_at,metadata")
+      .eq("user_id", user.id)
+      .eq("operation_type", "crypto_deposit")
+      .eq("direction", "credit")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (cryptoError) {
+      return NextResponse.json({ error: cryptoError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+
+    const dailyRows: WalletHistoryRow[] = ((data ?? []) as DailyCoreAccrualRow[]).map((row) => ({
       id: `daily-core:${row.accrual_date}`,
       operation_date: row.accrual_date,
       kind: "daily_core_payout",
@@ -55,6 +77,20 @@ export async function GET(request: NextRequest) {
       reinvest_percent: Number(row.reinvest_percent),
       created_at: row.created_at
     }));
+
+    const cryptoRows: WalletHistoryRow[] = ((cryptoLedger ?? []) as CryptoDepositLedgerRow[]).map((row) => ({
+      id: row.id,
+      operation_date: row.created_at,
+      kind: "crypto_deposit",
+      amount: Number(row.amount),
+      network: typeof row.metadata?.network === "string" ? row.metadata.network : "TON",
+      transaction_hash: typeof row.metadata?.transaction_hash === "string" ? row.metadata.transaction_hash : undefined,
+      created_at: row.created_at
+    }));
+
+    const rows = [...dailyRows, ...cryptoRows]
+      .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+      .slice(0, limit);
 
     return NextResponse.json(
       { rows },

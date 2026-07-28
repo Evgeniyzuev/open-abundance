@@ -2258,6 +2258,249 @@ export type Database = {
           },
         ]
       }
+      ton_chain_cursors: {
+        Row: {
+          deposit_address: string
+          last_logical_time: string
+          last_transaction_hash: string | null
+          network: string
+          updated_at: string
+        }
+        Insert: {
+          deposit_address: string
+          last_logical_time?: string
+          last_transaction_hash?: string | null
+          network: string
+          updated_at?: string
+        }
+        Update: {
+          deposit_address?: string
+          last_logical_time?: string
+          last_transaction_hash?: string | null
+          network?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ton_chain_events: {
+        Row: {
+          amount_nano: string
+          asset_code: string
+          comment: string | null
+          created_at: string
+          finalized_at: string | null
+          id: string
+          invoice_code: string | null
+          logical_time: string
+          message_index: number
+          network: string
+          rate_provider: string | null
+          rate_source_timestamp: string | null
+          raw_transaction: Json
+          receiver_address: string
+          sender_address: string | null
+          settled_at: string | null
+          settled_usd_amount: string | null
+          settlement_ledger_id: string | null
+          settlement_user_id: string | null
+          status: string
+          ton_usd_rate: string | null
+          transaction_hash: string
+          updated_at: string
+        }
+        Insert: {
+          amount_nano: string
+          asset_code?: string
+          comment?: string | null
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          invoice_code?: string | null
+          logical_time: string
+          message_index?: number
+          network: string
+          rate_provider?: string | null
+          rate_source_timestamp?: string | null
+          raw_transaction?: Json
+          receiver_address: string
+          sender_address?: string | null
+          settled_at?: string | null
+          settled_usd_amount?: string | null
+          settlement_ledger_id?: string | null
+          settlement_user_id?: string | null
+          status?: string
+          ton_usd_rate?: string | null
+          transaction_hash: string
+          updated_at?: string
+        }
+        Update: {
+          amount_nano?: string
+          asset_code?: string
+          comment?: string | null
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          invoice_code?: string | null
+          logical_time?: string
+          message_index?: number
+          network?: string
+          rate_provider?: string | null
+          rate_source_timestamp?: string | null
+          raw_transaction?: Json
+          receiver_address?: string
+          sender_address?: string | null
+          settled_at?: string | null
+          settled_usd_amount?: string | null
+          settlement_ledger_id?: string | null
+          settlement_user_id?: string | null
+          status?: string
+          ton_usd_rate?: string | null
+          transaction_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ton_deposit_config: {
+        Row: {
+          asset_code: string
+          created_at: string
+          deposit_address: string
+          enabled: boolean
+          id: string
+          network: string
+          toncenter_api_url: string
+          updated_at: string
+        }
+        Insert: {
+          asset_code?: string
+          created_at?: string
+          deposit_address: string
+          enabled?: boolean
+          id?: string
+          network: string
+          toncenter_api_url: string
+          updated_at?: string
+        }
+        Update: {
+          asset_code?: string
+          created_at?: string
+          deposit_address?: string
+          enabled?: boolean
+          id?: string
+          network?: string
+          toncenter_api_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ton_deposit_invoices: {
+        Row: {
+          asset_code: string
+          created_at: string
+          deposit_address: string
+          expected_amount_nano: string | null
+          expires_at: string
+          id: string
+          invoice_code: string
+          network: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_code?: string
+          created_at?: string
+          deposit_address: string
+          expected_amount_nano?: string | null
+          expires_at: string
+          id?: string
+          invoice_code: string
+          network: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_code?: string
+          created_at?: string
+          deposit_address?: string
+          expected_amount_nano?: string | null
+          expires_at?: string
+          id?: string
+          invoice_code?: string
+          network?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ton_price_quotes: {
+        Row: {
+          asset_code: string
+          captured_at: string
+          id: string
+          network: string
+          provider: string
+          source_timestamp: string | null
+          usd_rate: string
+        }
+        Insert: {
+          asset_code?: string
+          captured_at?: string
+          id?: string
+          network: string
+          provider: string
+          source_timestamp?: string | null
+          usd_rate: string
+        }
+        Update: {
+          asset_code?: string
+          captured_at?: string
+          id?: string
+          network?: string
+          provider?: string
+          source_timestamp?: string | null
+          usd_rate?: string
+        }
+        Relationships: []
+      }
+      ton_user_wallets: {
+        Row: {
+          asset_code: string
+          first_seen_at: string
+          id: string
+          metadata: Json
+          network: string
+          normalized_address: string
+          user_id: string
+          verification_status: string
+          verified_at: string | null
+        }
+        Insert: {
+          asset_code?: string
+          first_seen_at?: string
+          id?: string
+          metadata?: Json
+          network: string
+          normalized_address: string
+          user_id: string
+          verification_status?: string
+          verified_at?: string | null
+        }
+        Update: {
+          asset_code?: string
+          first_seen_at?: string
+          id?: string
+          metadata?: Json
+          network?: string
+          normalized_address?: string
+          user_id?: string
+          verification_status?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       wallet_accounts: {
         Row: {
           balance: number
@@ -2602,6 +2845,16 @@ export type Database = {
       run_daily_team_bonus: {
         Args: { p_bonus_date?: string }
         Returns: undefined
+      }
+      settle_ton_deposit: {
+        Args: { p_chain_event_id: string }
+        Returns: {
+          credited_user_id: string | null
+          event_status: string
+          ledger_id: string | null
+          usd_amount: number
+          wallet_balance: number | null
+        }[]
       }
       settle_team_bonus_for_member: {
         Args: {

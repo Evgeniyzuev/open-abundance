@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
@@ -32,12 +33,26 @@ type CoreAccrualRow = {
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout";
+  kind: "daily_core_payout" | "crypto_deposit";
   amount: number;
-  daily_rate: number;
-  gross_amount: number;
-  reinvest_percent: number;
+  daily_rate?: number;
+  gross_amount?: number;
+  reinvest_percent?: number;
+  network?: string;
+  transaction_hash?: string;
   created_at: string;
+};
+type TonDepositInvoice = {
+  id: string;
+  invoice_code: string;
+  comment: string;
+  deposit_address: string;
+  expected_amount_nano: string | null;
+  network: string;
+  asset_code: string;
+  status: string;
+  expires_at: string;
+  transferLink: string;
 };
 type ChallengeProgressResponse = {
   error?: string;
@@ -186,6 +201,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [targetDailyIncome, setTargetDailyIncome] = useState("10");
   const [targetCalculationTouched, setTargetCalculationTouched] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [marketListings, setMarketListings] = useState<MarketplaceListing[] | null>(null);
   const [marketListingLimit, setMarketListingLimit] = useState(1);
@@ -546,13 +562,13 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                   </div>
                   <span className="wallet-action-label">{t("wallet.topup.title")}</span>
                 </button>
-                <button className="wallet-action-button" type="button" aria-label="Deposit">
+                <button className="wallet-action-button" type="button" onClick={() => setDepositOpen(true)} aria-label={t("wallet.deposit.title")}>
                   <div className="wallet-action-icon-wrap">
                     <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 5v14M5 12l7 7 7-7" />
                     </svg>
                   </div>
-                  <span className="wallet-action-label">Deposit</span>
+                  <span className="wallet-action-label">{t("wallet.deposit.title")}</span>
                 </button>
                 <button className="wallet-action-button" type="button" aria-label="Withdraw">
                   <div className="wallet-action-icon-wrap">
@@ -596,13 +612,17 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 <article className="payout-row" key={row.id}>
                   <div>
                     <strong>{formatDay(row.operation_date, locale)}</strong>
-                    <span>{t("wallet.history.dailyCorePayout")}</span>
+                    <span>{row.kind === "crypto_deposit" ? t("wallet.history.cryptoDeposit") : t("wallet.history.dailyCorePayout")}</span>
                   </div>
                   <div>
                     <strong>+{formatAdaptiveMoney(row.amount, locale)}</strong>
                     <span>{t("wallet.wallet")}</span>
                   </div>
-                  <p>{`${t("wallet.dailyRate")} ${formatPercent(row.daily_rate * 100, locale)} · ${t("wallet.reinvest")} ${formatPercentCompact(row.reinvest_percent, locale)}`}</p>
+                  <p>
+                    {row.kind === "crypto_deposit"
+                      ? `${row.network ?? "TON"}${row.transaction_hash ? ` · ${shortHash(row.transaction_hash)}` : ""}`
+                      : `${t("wallet.dailyRate")} ${formatPercent((row.daily_rate ?? 0) * 100, locale)} · ${t("wallet.reinvest")} ${formatPercentCompact(row.reinvest_percent ?? 0, locale)}`}
+                  </p>
                 </article>
               ))}
             </div>
@@ -736,6 +756,15 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           t={t}
           onClose={() => setTopupOpen(false)}
           onSuccess={handleTopupSuccess}
+        />
+      ) : null}
+
+      {depositOpen ? (
+        <TonDepositModal
+          locale={locale}
+          t={t}
+          onClose={() => setDepositOpen(false)}
+          onRefresh={onRefresh}
         />
       ) : null}
 
@@ -1523,6 +1552,140 @@ function SellItemModal({
   );
 }
 
+function TonDepositModal({
+  locale,
+  t,
+  onClose,
+  onRefresh
+}: {
+  locale: AppLocale;
+  t: TFunction;
+  onClose: () => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [invoice, setInvoice] = useState<TonDepositInvoice | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function createInvoice() {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = await getAccessToken();
+        const response = await fetch("/api/wallet/deposits/ton", {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({})
+        });
+        const payload = (await response.json()) as { invoice?: TonDepositInvoice; error?: string };
+        if (!response.ok || payload.error || !payload.invoice) throw new Error(payload.error ?? t("wallet.deposit.error.create"));
+        if (mounted) setInvoice(payload.invoice);
+      } catch (createError) {
+        if (mounted) setError(createError instanceof Error ? createError.message : t("wallet.deposit.error.create"));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    void createInvoice();
+    return () => {
+      mounted = false;
+    };
+  }, [t]);
+
+  useEffect(() => {
+    if (!invoice || isTonDepositTerminal(invoice.status)) return;
+
+    const depositId = invoice.id;
+    let mounted = true;
+    async function refreshInvoice() {
+      try {
+        const token = await getAccessToken();
+        const response = await fetch(`/api/wallet/deposits/ton/${depositId}?ts=${Date.now()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+        });
+        const payload = (await response.json()) as { invoice?: TonDepositInvoice; error?: string };
+        if (!response.ok || payload.error || !payload.invoice || !mounted) return;
+        setInvoice(payload.invoice);
+        if (isTonDepositTerminal(payload.invoice.status)) void onRefresh();
+      } catch {
+        // The modal keeps the last known state and retries on the next interval.
+      }
+    }
+
+    const interval = window.setInterval(() => { void refreshInvoice(); }, 10_000);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, [invoice, onRefresh]);
+
+  async function copyValue(value: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      window.setTimeout(() => setCopied((current) => current === key ? null : current), 1600);
+    } catch {
+      setError(t("wallet.deposit.error.copy"));
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.deposit.title")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+          <h2>{t("wallet.deposit.title")}</h2>
+          <span />
+        </div>
+
+        {loading ? <p className="transfer-muted">{t("app.common.loading")}</p> : null}
+        {error ? <p className="topup-error">{error}</p> : null}
+        {invoice ? (
+          <div className="ton-deposit-body">
+            <div className="ton-deposit-qr">
+              <QRCodeSVG value={invoice.transferLink} size={184} includeMargin />
+            </div>
+            <p className="transfer-summary">{t("wallet.deposit.instructions")}</p>
+            <div className="ton-deposit-field">
+              <span>{t("wallet.deposit.network")}</span>
+              <strong>{invoice.asset_code} · {invoice.network}</strong>
+            </div>
+            <div className="ton-deposit-field">
+              <span>{t("wallet.deposit.address")}</span>
+              <code>{invoice.deposit_address}</code>
+              <button className="text-button" type="button" onClick={() => void copyValue(invoice.deposit_address, "address")}>
+                {copied === "address" ? t("wallet.deposit.copied") : t("wallet.deposit.copy")}
+              </button>
+            </div>
+            <div className="ton-deposit-field">
+              <span>{t("wallet.deposit.comment")}</span>
+              <code>{invoice.comment}</code>
+              <button className="text-button" type="button" onClick={() => void copyValue(invoice.comment, "comment")}>
+                {copied === "comment" ? t("wallet.deposit.copied") : t("wallet.deposit.copy")}
+              </button>
+            </div>
+            <div className="ton-deposit-status">
+              <span>{t("wallet.deposit.statusLabel")}</span>
+              <strong>{t(tonDepositStatusKey(invoice.status))}</strong>
+            </div>
+            <small className="transfer-muted">{t("wallet.deposit.expires", { date: formatDate(invoice.expires_at, locale) })}</small>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
 function WalletTransferModal({
   locale,
   t,
@@ -2054,6 +2217,23 @@ function artifactInitial(listing: MarketplaceListing): string {
 
 function shortId(value: string): string {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
+}
+
+function shortHash(value: string): string {
+  return `${value.slice(0, 8)}...${value.slice(-6)}`;
+}
+
+function isTonDepositTerminal(status: string): boolean {
+  return ["credited", "credited_late", "credited_amount_mismatch", "unmatched"].includes(status);
+}
+
+function tonDepositStatusKey(status: string): MessageKey {
+  if (status === "detected") return "wallet.deposit.status.detected";
+  if (status === "finalizing") return "wallet.deposit.status.finalizing";
+  if (status === "credited" || status === "credited_late" || status === "credited_amount_mismatch") return "wallet.deposit.status.credited";
+  if (status === "unmatched") return "wallet.deposit.status.unmatched";
+  if (status === "awaiting_rate") return "wallet.deposit.status.awaitingRate";
+  return "wallet.deposit.status.waiting";
 }
 
 function parseNumber(value: string): number {

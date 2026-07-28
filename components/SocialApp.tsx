@@ -24,6 +24,7 @@ type TeamProfile = {
   username: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  avatar_position?: string;
   level: number;
   created_at: string;
 };
@@ -122,6 +123,7 @@ type PublicProfilePayload = {
     username: string | null;
     display_name: string | null;
     avatar_url: string | null;
+    avatar_position?: string;
     level: number;
     bio: string | null;
     created_at: string;
@@ -190,6 +192,7 @@ type ProfileEditorState = {
   linkVisibility: ProfileVisibility;
   visibilitySettings: ProfileVisibilitySettings;
   avatarUrl: string;
+  avatarPosition: string;
   avatarRemoved: boolean;
 };
 
@@ -661,13 +664,15 @@ export default function SocialApp({
       let updatedProfile = payload.profile;
       const nextAvatarUrl = profileEditor.avatarUrl.trim();
       const currentAvatarUrl = profile?.avatar_url ?? "";
-      if (nextAvatarUrl && nextAvatarUrl !== currentAvatarUrl) {
+      const nextAvatarPosition = profileEditor.avatarPosition;
+      const currentAvatarPosition = profile?.avatar_position ?? "50% 50%";
+      if (nextAvatarUrl && (nextAvatarUrl !== currentAvatarUrl || nextAvatarPosition !== currentAvatarPosition)) {
         setAvatarUploading(true);
         const avatarResponse = await fetch("/api/social/profile/avatar", {
           method: "POST",
           cache: "no-store",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ avatarUrl: nextAvatarUrl })
+          body: JSON.stringify({ avatarUrl: nextAvatarUrl, avatarPosition: nextAvatarPosition })
         });
         const avatarPayload = (await avatarResponse.json()) as { profile?: UserProfile; error?: string };
         if (!avatarResponse.ok || avatarPayload.error || !avatarPayload.profile) throw new Error(avatarPayload.error ?? "Failed to save avatar.");
@@ -1387,6 +1392,9 @@ export default function SocialApp({
                 <span>{t("profile.teams.leader")}</span>
                 {teamContext?.leader.type === "user" && teamContext.membership?.leader_user_id ? (
                   <button className="inline-profile-button" type="button" onClick={() => { void openPublicProfile(teamContext.membership?.leader_user_id ?? ""); }}>
+                    <span className="team-member-avatar">
+                      {teamContext.leader.profile?.avatar_url ? <img alt="" src={normalizeAvatarPreviewUrl(teamContext.leader.profile.avatar_url) ?? undefined} style={{ objectPosition: teamContext.leader.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={16} />}
+                    </span>
                     <UserNameWithLevel
                       label={t("profile.levelBadge", { level: teamContext.leader.profile?.level ?? 0 })}
                       level={teamContext.leader.profile?.level}
@@ -1434,6 +1442,9 @@ export default function SocialApp({
                   <div className="compact-profile-list">
                     {teamContext.directMembers.map((member) => (
                       <button className="compact-profile-button" type="button" key={member.userId} onClick={() => { void openPublicProfile(member.userId); }}>
+                        <span className="team-member-avatar">
+                          {member.profile?.avatar_url ? <img alt="" src={normalizeAvatarPreviewUrl(member.profile.avatar_url) ?? undefined} style={{ objectPosition: member.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={14} />}
+                        </span>
                         <UserNameWithLevel
                           label={t("profile.levelBadge", { level: member.profile?.level ?? 0 })}
                           level={member.profile?.level}
@@ -1495,7 +1506,7 @@ export default function SocialApp({
         <section className="profile-panel owner-profile-panel">
           <div className="owner-profile-header">
             <div className="profile-avatar">
-              {profile?.avatar_url ? <img alt="" src={profile.avatar_url} /> : <UserRound size={34} />}
+              {profile?.avatar_url ? <img alt="" src={profile.avatar_url} style={{ objectPosition: profile.avatar_position }} /> : <UserRound size={34} />}
             </div>
             <div className="owner-profile-copy">
               <strong>
@@ -1596,7 +1607,7 @@ export default function SocialApp({
               <X size={18} />
             </button>
             <div className="profile-avatar">
-              {publicProfile.profile.avatar_url ? <img alt="" src={publicProfile.profile.avatar_url} /> : <UserRound size={34} />}
+              {publicProfile.profile.avatar_url ? <img alt="" src={publicProfile.profile.avatar_url} style={{ objectPosition: publicProfile.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={34} />}
             </div>
             <strong>
               <UserNameWithLevel
@@ -1724,7 +1735,7 @@ function DirectMessageModal({
         <header className="direct-message-header">
           <button className="feed-author" type="button" disabled={!targetProfile} onClick={() => targetProfile ? onOpenProfile(targetProfile.user_id) : undefined}>
             <span className="feed-author-avatar">
-              {targetProfile?.avatar_url ? <img alt="" src={targetProfile.avatar_url} /> : <UserRound size={18} />}
+              {targetProfile?.avatar_url ? <img alt="" src={targetProfile.avatar_url} style={{ objectPosition: targetProfile.avatar_position ?? "50% 50%" }} /> : <UserRound size={18} />}
             </span>
             <UserNameWithLevel
               label={targetProfile ? t("profile.levelBadge", { level: targetProfile.level }) : undefined}
@@ -1785,9 +1796,11 @@ function ProfileEditorDialog({
           <AvatarPicker
             currentUrl={profile?.avatar_url ?? null}
             value={editor.avatarUrl}
+            position={editor.avatarPosition}
             removed={editor.avatarRemoved}
             t={t}
             onChange={(avatarUrl) => onChange((current) => ({ ...current, avatarUrl, avatarRemoved: false }))}
+            onPositionChange={(avatarPosition) => onChange((current) => ({ ...current, avatarPosition }))}
             onRemove={() => onChange((current) => ({ ...current, avatarUrl: "", avatarRemoved: true }))}
           />
           <label className="finance-field"><span>{t("profile.public.displayName")}</span><input required minLength={1} maxLength={80} value={editor.displayName} onChange={(event) => onChange((current) => ({ ...current, displayName: event.target.value }))} /></label>
@@ -1809,12 +1822,13 @@ function ProfileEditorDialog({
   );
 }
 
-function AvatarPicker({ currentUrl, value, removed, t, onChange, onRemove }: { currentUrl: string | null; value: string; removed: boolean; t: (key: MessageKey, values?: Record<string, string | number>) => string; onChange: (value: string) => void; onRemove: () => void }) {
-  const previewUrl = removed ? null : value.trim() || currentUrl;
+function AvatarPicker({ currentUrl, value, position, removed, t, onChange, onPositionChange, onRemove }: { currentUrl: string | null; value: string; position: string; removed: boolean; t: (key: MessageKey, values?: Record<string, string | number>) => string; onChange: (value: string) => void; onPositionChange: (value: string) => void; onRemove: () => void }) {
+  const previewUrl = removed ? null : normalizeAvatarPreviewUrl(value.trim() || currentUrl);
+  const [positionX, positionY] = parseAvatarPosition(position);
 
   return (
     <div className="avatar-picker">
-      <div className="profile-avatar avatar-picker-preview">{previewUrl ? <img alt="" src={previewUrl} /> : <UserRound size={34} />}</div>
+      <div className="profile-avatar avatar-picker-preview">{previewUrl ? <img alt="" src={previewUrl} style={{ objectPosition: position }} /> : <UserRound size={34} />}</div>
       <label className="finance-field avatar-url-field">
         <span>{t("profile.avatar.change")} <MediaUrlHelp t={t} /></span>
         <input type="url" inputMode="url" maxLength={2048} placeholder={t("profile.avatar.placeholder")} value={value} onChange={(event) => onChange(event.target.value)} />
@@ -1822,9 +1836,35 @@ function AvatarPicker({ currentUrl, value, removed, t, onChange, onRemove }: { c
       <div className="avatar-picker-actions">
         {previewUrl ? <button className="text-button" type="button" onClick={onRemove}>{t("profile.avatar.remove")}</button> : null}
       </div>
+      {previewUrl ? (
+        <div className="avatar-crop-controls">
+          <strong>{t("profile.avatar.crop")}</strong>
+          <label><span>{t("profile.avatar.cropHorizontal")}</span><input type="range" min="0" max="100" value={positionX} onChange={(event) => onPositionChange(`${event.target.value}% ${positionY}%`)} /></label>
+          <label><span>{t("profile.avatar.cropVertical")}</span><input type="range" min="0" max="100" value={positionY} onChange={(event) => onPositionChange(`${positionX}% ${event.target.value}%`)} /></label>
+        </div>
+      ) : null}
       <small>{t("profile.avatar.hint")}</small>
     </div>
   );
+}
+
+function normalizeAvatarPreviewUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.hostname.toLowerCase() !== "drive.google.com" && url.hostname.toLowerCase() !== "drive.usercontent.google.com") return value;
+    const fileId = url.pathname.match(/\/file\/d\/([^/]+)/i)?.[1] ?? url.searchParams.get("id");
+    const resourceKey = url.searchParams.get("resourcekey");
+    return fileId ? `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}${resourceKey ? `&resourcekey=${encodeURIComponent(resourceKey)}` : ""}` : value;
+  } catch {
+    return value;
+  }
+}
+
+function parseAvatarPosition(value: string): [number, number] {
+  const match = value.match(/^(\d{1,3})%\s+(\d{1,3})%$/);
+  if (!match) return [50, 50];
+  return [Math.min(Math.max(Number(match[1]), 0), 100), Math.min(Math.max(Number(match[2]), 0), 100)];
 }
 
 function AppearanceDialog({ colorTheme, locale, t, uiScale, onClose, onLocale, onScale, onTheme }: { colorTheme: ColorTheme; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; uiScale: UiScale; onClose: () => void; onLocale: (locale: AppLocale) => void; onScale: (scale: UiScale) => void; onTheme: (theme: ColorTheme) => void }) {
@@ -1961,7 +2001,7 @@ function PeopleView({
                 return (
                   <article className="people-row" key={row.profile.user_id}>
                     <button className="people-row-main" type="button" onClick={() => { void onOpenProfile(row.profile.user_id); }}>
-                      <span className="people-avatar">{row.profile.avatar_url ? <img alt="" src={row.profile.avatar_url} /> : <UserRound size={20} />}</span>
+                      <span className="people-avatar">{row.profile.avatar_url ? <img alt="" src={row.profile.avatar_url} style={{ objectPosition: row.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={20} />}</span>
                       <span className="people-row-copy">
                         <span className="people-row-title"><strong><UserNameWithLevel label={t("profile.levelBadge", { level: row.profile.level })} level={row.profile.level}>{name}</UserNameWithLevel></strong></span>
                         <small>{row.profile.username ? `@${row.profile.username}` : row.headline ?? t("social.people.noHeadline")}</small>
@@ -1989,7 +2029,7 @@ function PeopleView({
             const trustState = getContactTrustState(contact.contact_user_id, confirmations, currentUserId);
             return <article className="contact-row" key={`${contact.contact_user_id}-${contact.source}`}>
               <button type="button" onClick={() => { void onOpenProfile(contact.contact_user_id); }}>
-                <span className="contact-row-avatar">{contact.profile?.avatar_url ? <img alt="" src={contact.profile.avatar_url} /> : <UserRound size={17} />}</span>
+                <span className="contact-row-avatar">{contact.profile?.avatar_url ? <img alt="" src={contact.profile.avatar_url} style={{ objectPosition: contact.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={17} />}</span>
                 <span><UserNameWithLevel label={t("profile.levelBadge", { level: contact.profile?.level ?? 0 })} level={contact.profile?.level}>{formatProfileName(contact.profile, contact.contact_user_id)}</UserNameWithLevel></span>
                 <small>{t(contactSourceLabelKey(contact.source))}</small>
               </button>
@@ -3041,7 +3081,7 @@ function PostAuthor({
   const content = (
     <>
       <span className="feed-author-avatar">
-        {isSystemStory ? <img alt="" src={post.systemStory?.account?.avatar_url ?? "/icons/icon2.svg"} /> : post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} /> : <UserRound size={18} />}
+        {isSystemStory ? <img alt="" src={post.systemStory?.account?.avatar_url ?? "/icons/icon2.svg"} /> : post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} style={{ objectPosition: post.author.avatar_position ?? "50% 50%" }} /> : <UserRound size={18} />}
       </span>
       {isSystemStory ? (
         <span>{post.systemStory?.account?.display_name ?? post.authorName ?? "Open Abundance"}</span>
@@ -3307,6 +3347,7 @@ function createProfileEditorState(payload: SocialProfilePayload | null, fallback
     linkVisibility: (firstLink?.visibility as ProfileVisibility | undefined) ?? "public",
     visibilitySettings: payload?.visibilitySettings ?? { ...DEFAULT_PROFILE_VISIBILITY_SETTINGS },
     avatarUrl: payload?.profile?.avatar_url ?? fallbackProfile?.avatar_url ?? "",
+    avatarPosition: payload?.profile?.avatar_position ?? fallbackProfile?.avatar_position ?? "50% 50%",
     avatarRemoved: false
   };
 }

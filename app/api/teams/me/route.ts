@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 async function loadProfile(supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"], userId: string) {
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id,username,display_name,avatar_url,level,created_at")
+    .select("user_id,username,display_name,avatar_url,avatar_position,level,created_at")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -119,7 +119,7 @@ async function loadProfile(supabase: Awaited<ReturnType<typeof getAuthenticatedU
 async function loadProfiles(supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"], userIds: string[]) {
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id,username,display_name,avatar_url,level,created_at")
+    .select("user_id,username,display_name,avatar_url,avatar_position,level,created_at")
     .in("user_id", userIds);
 
   if (error) throw error;

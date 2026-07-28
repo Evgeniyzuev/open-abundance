@@ -30,7 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
     const [profileResult, settingsResult, relation, linksResult] = await Promise.all([
       supabase
         .from("user_profiles")
-        .select("user_id,username,display_name,avatar_url,level,bio,created_at")
+        .select("user_id,username,display_name,avatar_url,avatar_position,level,bio,created_at")
         .eq("user_id", targetUserId)
         .maybeSingle(),
       supabase

@@ -14,7 +14,7 @@ type DirectMessage = Tables<"direct_messages">;
 type MessageBody = {
   body?: unknown;
 };
-type ProfileRow = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "level" | "created_at">;
+type ProfileRow = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "avatar_position" | "level" | "created_at">;
 
 export async function GET(request: NextRequest, { params }: { params: { targetUserId: string } }) {
   try {
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest, { params }: { params: { targetU
 async function loadProfile(supabase: DirectSupabase, userId: string): Promise<ProfileRow | null> {
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id,username,display_name,avatar_url,level,created_at")
+    .select("user_id,username,display_name,avatar_url,avatar_position,level,created_at")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .maybeSingle();

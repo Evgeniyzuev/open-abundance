@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-type UserProfile = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "level" | "bio" | "created_at">;
+type UserProfile = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "avatar_position" | "level" | "bio" | "created_at">;
 type PeopleFilter = "nearby" | "team" | "referrals" | "same_level" | "active" | "search";
 type TrustSummary = {
   confirmed: number;
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("user_profiles")
-      .select("user_id,username,display_name,avatar_url,level,bio,created_at")
+      .select("user_id,username,display_name,avatar_url,avatar_position,level,bio,created_at")
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(search ? Math.max(limit * 3, 60) : Math.max(limit * 2, 40));

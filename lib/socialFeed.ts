@@ -3,6 +3,7 @@ export type FeedAuthor = {
   username: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  avatar_position?: string;
   level: number;
   created_at: string;
 };

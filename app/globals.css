@@ -689,6 +689,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .avatar-url-field { width: min(100%, 360px); text-align: left; }
 .avatar-url-field > span, .media-url-input-row > span, .note-body-field > span { display: inline-flex; align-items: center; gap: 5px; }
 .avatar-picker > small { color: var(--muted); font-size: 0.75rem; }
+.avatar-crop-controls { width: min(100%, 360px); display: grid; gap: 7px; border-top: 1px solid var(--line-subtle); padding-top: 8px; text-align: left; }
+.avatar-crop-controls strong { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; }
+.avatar-crop-controls label { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; }
+.avatar-crop-controls label span { color: var(--muted); font-size: 0.75rem; font-weight: 750; }
+.avatar-crop-controls input { width: 100%; accent-color: var(--blue); }
 .media-url-help { position: relative; display: inline-flex; vertical-align: middle; }
 .media-url-help-trigger { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--blue); font-size: 0.75rem; font-weight: 950; line-height: 1; }
 .media-url-help-trigger[aria-expanded="true"] { border-color: var(--accent-fill); background: var(--accent-soft); }
@@ -724,6 +729,10 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .referral-box > span, .team-summary > span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.75rem; font-weight: 850; text-transform: uppercase; }
 .referral-box p, .team-summary p { max-width: 100%; overflow-wrap: anywhere; }
 .referral-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.inline-profile-button, .compact-profile-button { display: inline-flex; align-items: center; gap: 6px; }
+.team-member-avatar { width: 26px; height: 26px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 999px; background: var(--surface); color: var(--blue); }
+.team-member-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.inline-profile-button .team-member-avatar { width: 34px; height: 34px; }
 .referral-icon-button { width: 42px; padding: 0; }
 .referral-qr-modal { position: relative; justify-items: center; padding-top: 44px; text-align: center; }
 .referral-qr-modal > strong { font-size: 1.0625rem; }

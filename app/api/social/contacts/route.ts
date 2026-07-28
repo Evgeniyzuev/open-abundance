@@ -126,7 +126,7 @@ async function loadContacts(supabase: SupabaseClient<Database>, userId: string) 
   const { data: profiles, error: profilesError } = contactIds.length
     ? await supabase
         .from("user_profiles")
-        .select("user_id,username,display_name,avatar_url,level,created_at")
+      .select("user_id,username,display_name,avatar_url,avatar_position,level,created_at")
         .in("user_id", contactIds)
     : { data: [], error: null };
 

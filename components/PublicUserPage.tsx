@@ -19,6 +19,7 @@ type PublicProfilePayload = {
     username: string | null;
     display_name: string | null;
     avatar_url: string | null;
+    avatar_position?: string;
     level: number;
     bio: string | null;
     created_at: string;
@@ -119,7 +120,7 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
           <>
             <header className="public-user-header">
               <div className="profile-avatar">
-                {profile?.avatar_url ? <img alt="" src={profile.avatar_url} /> : <UserRound size={34} />}
+                {profile?.avatar_url ? <img alt="" src={profile.avatar_url} style={{ objectPosition: profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={34} />}
               </div>
               <strong>
                 <UserNameWithLevel

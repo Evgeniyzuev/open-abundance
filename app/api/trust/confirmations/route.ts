@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const { data: profiles, error: profilesError } = profileIds.length
       ? await supabase
           .from("user_profiles")
-          .select("user_id,username,display_name,avatar_url,level,created_at")
+        .select("user_id,username,display_name,avatar_url,avatar_position,level,created_at")
           .in("user_id", profileIds)
       : { data: [], error: null };
 

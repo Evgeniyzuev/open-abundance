@@ -30,7 +30,7 @@ function FeedPostTile({ fallbackTitle, post, onOpen }: { fallbackTitle: string; 
       {author ? (
         <span className="feed-post-tile-author">
           <span className="feed-post-tile-avatar">
-            {author.avatarUrl ? <img alt="" loading="lazy" src={author.avatarUrl} /> : author.name.slice(0, 1).toUpperCase()}
+            {author.avatarUrl ? <img alt="" loading="lazy" src={author.avatarUrl} style={{ objectPosition: author.avatarPosition }} /> : author.name.slice(0, 1).toUpperCase()}
           </span>
           <span>{author.name}</span>
         </span>
@@ -69,7 +69,7 @@ function systemCoverForType(postType: string): string | null {
   return null;
 }
 
-function getTileAuthor(post: FeedPost): { name: string; avatarUrl: string | null } | null {
+function getTileAuthor(post: FeedPost): { name: string; avatarUrl: string | null; avatarPosition?: string } | null {
   if (post.post_type === "abundance_story" && post.systemStory) {
     return {
       name: post.systemStory.account?.display_name ?? post.authorName ?? "Open Abundance",
@@ -78,5 +78,5 @@ function getTileAuthor(post: FeedPost): { name: string; avatarUrl: string | null
   }
   if (!["daily_progress", "level_up", "wish_completed", "challenge"].includes(post.post_type)) return null;
   const name = post.author?.display_name ?? post.author?.username ?? post.authorName;
-  return name ? { name, avatarUrl: post.author?.avatar_url ?? null } : null;
+  return name ? { name, avatarUrl: post.author?.avatar_url ?? null, avatarPosition: post.author?.avatar_position } : null;
 }

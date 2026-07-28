@@ -21,7 +21,7 @@ type FeedProjectReviewMetadataRow = Pick<
   "post_id" | "overall_rating" | "mission_rating" | "attitude" | "most_useful_area" | "challenge_reward_amount" | "created_at" | "updated_at"
 >;
 type FeedWishRow = Tables<"wishes"> & { viewer_has_copy: boolean };
-type FeedProfile = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "level" | "created_at">;
+type FeedProfile = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "avatar_position" | "level" | "created_at">;
 type ExternalProvider = "tiktok" | "instagram" | "telegram" | "youtube" | "x" | "website" | "unknown";
 type CreateExternalLinkBody = {
   url?: unknown;
@@ -350,7 +350,7 @@ async function loadProfiles(supabase: SupabaseClient<Database>, userIds: string[
   if (!userIds.length) return [];
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id,username,display_name,avatar_url,level,created_at")
+    .select("user_id,username,display_name,avatar_url,avatar_position,level,created_at")
     .in("user_id", userIds);
 
   if (error) throw error;

@@ -2098,6 +2098,7 @@ export type Database = {
       user_profiles: {
         Row: {
           avatar_url: string | null
+          avatar_position: string
           bio: string | null
           created_at: string
           default_locale: string
@@ -2115,6 +2116,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          avatar_position?: string
           bio?: string | null
           created_at?: string
           default_locale?: string
@@ -2132,6 +2134,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          avatar_position?: string
           bio?: string | null
           created_at?: string
           default_locale?: string

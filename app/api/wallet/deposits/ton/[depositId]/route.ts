@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import { buildTonTransferLink } from "@/lib/tonDeposits";
+import { buildTonTransferLink, postgresNumericToString } from "@/lib/tonDeposits";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -42,16 +42,33 @@ export async function GET(request: NextRequest, { params }: { params: { depositI
 
     if (eventsError) return jsonResponse({ error: eventsError.message }, { status: 500 });
 
+    const expectedAmountNano = postgresNumericToString(invoice.expected_amount_nano);
+    const presentedEvents = (events ?? []).map(presentEvent);
+
     return jsonResponse({
       invoice: {
         ...invoice,
+        expected_amount_nano: expectedAmountNano,
         comment: invoice.invoice_code,
-        transferLink: buildTonTransferLink(invoice.deposit_address, invoice.invoice_code, invoice.expected_amount_nano ? String(invoice.expected_amount_nano) : null)
+        transferLink: buildTonTransferLink(invoice.deposit_address, invoice.invoice_code, expectedAmountNano)
       },
-      event: events?.[0] ?? null,
-      events: events ?? []
+      event: presentedEvents[0] ?? null,
+      events: presentedEvents
     });
   } catch (routeError) {
     return jsonResponse({ error: routeError instanceof Error ? routeError.message : "Failed to load TON deposit." }, { status: 500 });
   }
+}
+
+function presentEvent<T extends {
+  amount_nano: unknown;
+  settled_usd_amount: unknown;
+  ton_usd_rate: unknown;
+}>(event: T) {
+  return {
+    ...event,
+    amount_nano: postgresNumericToString(event.amount_nano) ?? "0",
+    settled_usd_amount: postgresNumericToString(event.settled_usd_amount),
+    ton_usd_rate: postgresNumericToString(event.ton_usd_rate)
+  };
 }

@@ -357,6 +357,15 @@ export function parsePositiveNanoTon(value: unknown): string | null {
   return normalized;
 }
 
+export function postgresNumericToString(value: unknown): string | null {
+  const normalized = typeof value === "string"
+    ? value.trim()
+    : typeof value === "number" && Number.isFinite(value)
+      ? String(value)
+      : "";
+  return /^-?\d+(?:\.\d+)?$/.test(normalized) ? normalized : null;
+}
+
 export function extractTonTextComment(message: unknown): string | null {
   if (!message || typeof message !== "object") return null;
   const record = message as Record<string, unknown>;

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import { buildTonTransferLink, loadTonDepositConfig, parsePositiveNanoTon } from "@/lib/tonDeposits";
+import {
+  buildTonTransferLink,
+  loadTonDepositConfig,
+  parsePositiveNanoTon,
+  postgresNumericToString
+} from "@/lib/tonDeposits";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -123,7 +128,7 @@ export async function GET(request: NextRequest) {
 
       return jsonResponse({
         invoice: invoice ? presentInvoice(invoice) : null,
-        event
+        event: event ? presentEvent(event) : null
       });
     }
     return jsonResponse({ invoices: invoices ?? [] });
@@ -135,16 +140,31 @@ export async function GET(request: NextRequest) {
 function presentInvoice<T extends {
   invoice_code: string;
   deposit_address: string;
-  expected_amount_nano: string | null;
+  expected_amount_nano: unknown;
 }>(invoice: T) {
+  const expectedAmountNano = postgresNumericToString(invoice.expected_amount_nano);
   return {
     ...invoice,
+    expected_amount_nano: expectedAmountNano,
     comment: invoice.invoice_code,
     transferLink: buildTonTransferLink(
       invoice.deposit_address,
       invoice.invoice_code,
-      invoice.expected_amount_nano
+      expectedAmountNano
     )
+  };
+}
+
+function presentEvent<T extends {
+  amount_nano: unknown;
+  settled_usd_amount: unknown;
+  ton_usd_rate: unknown;
+}>(event: T) {
+  return {
+    ...event,
+    amount_nano: postgresNumericToString(event.amount_nano) ?? "0",
+    settled_usd_amount: postgresNumericToString(event.settled_usd_amount),
+    ton_usd_rate: postgresNumericToString(event.ton_usd_rate)
   };
 }
 

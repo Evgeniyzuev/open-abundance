@@ -17,8 +17,19 @@ export type TonPriceSnapshot = {
 const DEFAULT_TESTNET_TONCENTER_URL = "https://testnet.toncenter.com/api/v2";
 const DEFAULT_MAINNET_TONCENTER_URL = "https://toncenter.com/api/v2";
 const DEFAULT_DIA_TON_PRICE_URL = "https://api.diadata.org/v1/assetQuotation/Ton/0x0000000000000000000000000000000000000000";
+const DEFAULT_DIA_USDT_PRICE_URL = "https://api.diadata.org/v1/assetQuotation/ethereum/0xdac17f958d2ee523a2206206994597c13d831ec7";
 const DEFAULT_DIA_MAX_AGE_SECONDS = 300;
 const DIA_REQUEST_TIMEOUT_MS = 5_000;
+const DIA_TON_IDENTITY = {
+  symbol: "TON",
+  blockchain: "ton",
+  address: "0x0000000000000000000000000000000000000000"
+} as const;
+const DIA_USDT_IDENTITY = {
+  symbol: "USDT",
+  blockchain: "ethereum",
+  address: "0xdac17f958d2ee523a2206206994597c13d831ec7"
+} as const;
 
 type DiaAssetQuotation = {
   Symbol?: unknown;
@@ -79,8 +90,19 @@ export async function resolveTonPriceSnapshot(network: TonNetwork): Promise<TonP
   }
 
   const endpoint = process.env.DIA_TON_PRICE_URL?.trim() || DEFAULT_DIA_TON_PRICE_URL;
-  const maxAgeSeconds = clampDiaMaxAgeSeconds(process.env.DIA_TON_PRICE_MAX_AGE_SECONDS);
+  return resolveDiaPriceSnapshot(endpoint, DIA_TON_IDENTITY);
+}
 
+export async function resolveUsdtPriceSnapshot(): Promise<TonPriceSnapshot | null> {
+  const endpoint = process.env.DIA_USDT_PRICE_URL?.trim() || DEFAULT_DIA_USDT_PRICE_URL;
+  return resolveDiaPriceSnapshot(endpoint, DIA_USDT_IDENTITY);
+}
+
+async function resolveDiaPriceSnapshot(
+  endpoint: string,
+  identity: { symbol: string; blockchain: string; address: string }
+): Promise<TonPriceSnapshot | null> {
+  const maxAgeSeconds = clampDiaMaxAgeSeconds(process.env.DIA_TON_PRICE_MAX_AGE_SECONDS);
   try {
     const response = await fetch(endpoint, {
       cache: "no-store",
@@ -99,9 +121,9 @@ export async function resolveTonPriceSnapshot(network: TonNetwork): Promise<TonP
     if (
       !rate
       || !sourceTimestamp
-      || symbol !== "TON"
-      || blockchain !== "ton"
-      || address !== "0x0000000000000000000000000000000000000000"
+      || symbol !== identity.symbol
+      || blockchain !== identity.blockchain
+      || address !== identity.address
     ) {
       return null;
     }
@@ -171,7 +193,7 @@ export function normalizeTonCenterUrl(value: string): string {
 
 export function parsePositiveNanoTon(value: unknown): string | null {
   const normalized = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
-  if (!/^\d+$/.test(normalized) || normalized === "0") return null;
+  if (!/^\d{1,39}$/.test(normalized) || normalized === "0") return null;
   return normalized;
 }
 

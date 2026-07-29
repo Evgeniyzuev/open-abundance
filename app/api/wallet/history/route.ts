@@ -11,7 +11,13 @@ type WalletHistoryRow = {
   gross_amount?: number;
   reinvest_percent?: number;
   network?: string;
-  transaction_hash?: string;
+  assetCode?: string;
+  assetAmount?: string;
+  amountUsd?: string;
+  usdRate?: string;
+  rateProvider?: string;
+  transactionHash?: string;
+  invoiceStatus?: string;
   created_at: string;
 };
 
@@ -83,8 +89,17 @@ export async function GET(request: NextRequest) {
       operation_date: row.created_at,
       kind: "crypto_deposit",
       amount: Number(row.amount),
-      network: typeof row.metadata?.network === "string" ? row.metadata.network : "TON",
-      transaction_hash: typeof row.metadata?.transaction_hash === "string" ? row.metadata.transaction_hash : undefined,
+      amountUsd: fixedDecimal(
+        metadataDecimal(row.metadata, "credited_usd_amount") ?? String(row.amount),
+        6
+      ),
+      network: metadataString(row.metadata, "network") ?? "mainnet",
+      assetCode: metadataString(row.metadata, "asset_code") ?? "TON",
+      assetAmount: baseUnitsToDecimal(metadataDecimal(row.metadata, "amount_nano"), 9),
+      usdRate: metadataDecimal(row.metadata, "ton_usd_rate") ?? undefined,
+      rateProvider: metadataString(row.metadata, "rate_provider") ?? undefined,
+      transactionHash: metadataString(row.metadata, "transaction_hash") ?? undefined,
+      invoiceStatus: metadataString(row.metadata, "invoice_status") ?? undefined,
       created_at: row.created_at
     }));
 
@@ -102,6 +117,31 @@ export async function GET(request: NextRequest) {
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
+}
+
+function metadataString(metadata: Record<string, unknown>, key: string): string | null {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function metadataDecimal(metadata: Record<string, unknown>, key: string): string | null {
+  const value = metadata?.[key];
+  const normalized = typeof value === "number" || typeof value === "string" ? String(value).trim() : "";
+  return /^\d+(?:\.\d+)?$/.test(normalized) ? normalized : null;
+}
+
+function baseUnitsToDecimal(value: string | null, decimals: number): string | undefined {
+  if (!value || !/^\d+$/.test(value)) return undefined;
+  const padded = value.padStart(decimals + 1, "0");
+  const whole = padded.slice(0, -decimals);
+  const fraction = padded.slice(-decimals).replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+function fixedDecimal(value: string, decimals: number): string {
+  const normalized = /^\d+(?:\.\d+)?$/.test(value) ? value : "0";
+  const [whole, fraction = ""] = normalized.split(".");
+  return `${whole}.${fraction.slice(0, decimals).padEnd(decimals, "0")}`;
 }
 
 function clampLimit(value: string | null): number {

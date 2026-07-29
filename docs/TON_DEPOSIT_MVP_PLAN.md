@@ -9,7 +9,9 @@
 - Wallet UI показывает QR, адрес, обязательный comment и polling статуса; TON deposits попадают в Wallet history.
 - Mainnet TON/USD quote подключён через официальный DIA Asset Quotation API. Scanner принимает только положительный TON quote с корректным asset identity и source timestamp не старше 300 секунд; stale/unavailable quote оставляет event в `awaiting_rate`, который автоматически повторно обрабатывается следующим scan.
 - Migration `20260728130000_ton_deposit_mvp.sql` применена к remote Supabase. Remote migration history содержит `20260728130000`, а `ton_deposit_config`, `ton_chain_events` и `ton_price_quotes` подтверждены read-only REST-запросами с HTTP `200`. Рабочий способ push — linked CLI с явным `--password` из `POSTGRES_PASSWORD`; он зафиксирован в `docs/DEVELOPMENT_RULES.md`.
-- Первый mainnet deposit обработан ручным scanner run: `0.1 TON` зачислены один раз как `$0.15`, invoice получил `credited`, chain event связан с Wallet ledger. Migration `20260728210000_ton_deposit_scanner_cron.sql` локально готова, но ещё не применена к remote: она создаёт короткий Cron job только при появлении invoice, делает до 10 проверок поиска перевода с интервалом 10 секунд, останавливается после зачисления или переводит invoice в `expired`, а application URL/scanner secret хранит в Supabase Vault без секрета в Git.
+- Первый mainnet deposit обработан ручным scanner run: `0.1 TON` зачислены один раз как `$0.15`, invoice получил `credited`, chain event связан с Wallet ledger. Migration `20260728210000_ton_deposit_scanner_cron.sql` доступна в remote schema: REST подтверждает таблицу scan windows и RPC управления scanner. Она создаёт короткий Cron job только при появлении invoice, делает до 10 проверок поиска перевода с интервалом 10 секунд, останавливается после зачисления или переводит invoice в `expired`, а application URL/scanner secret хранит в Supabase Vault без секрета в Git.
+- Deposit UI сначала читает активный invoice без создания нового, показывает DIA TON/USDT quotes, эквивалент Wallet и необязательную TON-сумму; invoice создаётся только после явного подтверждения, а resume и замена суммы являются отдельными действиями. Wallet history показывает фактические TON, USD, settlement rate, provider и tx hash.
+- Migration `20260729130000_ton_deposit_usd_precision.sql` локально готова, но ещё не применена к remote: atomic invoice RPC отсутствует в REST schema после неуспешного CLI-подключения. TON settlement и `settled_usd_amount` переходят с 2 на 6 USD-знаков, при этом `wallet_accounts` и `wallet_ledger` сохраняют существующую точность `numeric(30,12)`. Создание, повторное использование и явная замена active invoice сериализуются одной DB-функцией, поэтому параллельные обычные POST не создают несколько invoice.
 - Recovery invoice, `ton_proof`, withdrawals и mainnet signing остаются следующими этапами.
 
 Для первой проверки в окружении задаются:
@@ -21,14 +23,15 @@ TONCENTER_API_URL=https://toncenter.com/api/v2
 TONCENTER_API_KEY=<optional TON Center key>
 TON_SCANNER_SECRET=<generated 32-byte server secret>
 DIA_TON_PRICE_URL=<optional override; default is the official Ton assetQuotation endpoint>
+DIA_USDT_PRICE_URL=<optional override; default is the DIA Ethereum USDT assetQuotation endpoint>
 DIA_TON_PRICE_MAX_AGE_SECONDS=300
 ```
 
-Scanner вызывается только server-to-server запросом с заголовком `x-ton-scanner-secret`. Новый `waiting` invoice запускает для общей очереди короткий burst-job: первый job делает scan сразу и затем каждые 10 секунд, а invoice, добавленный в уже работающую очередь, попадает в следующий тик не позднее чем через 10 секунд. Каждый invoice получает не более 10 попыток поиска перевода. Повторное открытие того же действующего invoice обновляет его expiry и сбрасывает его окно; когда активных окон не остается, общий job сам удаляется. Если перевод уже обнаружен, но DIA rate временно недоступен, invoice не отклоняется: job продолжает settlement до безопасного зачисления. Постоянного глобального polling job нет. Application URL и scanner secret хранятся зашифрованными в Supabase Vault и настраиваются service-role RPC `configure_ton_deposit_scanner`; секрет не попадает в migration history или Git.
+Scanner вызывается только server-to-server запросом с заголовком `x-ton-scanner-secret`. Новый `waiting` invoice запускает для общей очереди короткий burst-job: первый job делает scan сразу и затем каждые 10 секунд, а invoice, добавленный в уже работающую очередь, попадает в следующий тик не позднее чем через 10 секунд. Каждый invoice получает не более 10 попыток поиска перевода. Повторное открытие Deposit только читает действующий invoice и ничего не продлевает; expiry и окно из 10 проверок сбрасываются только явным действием `Продолжить проверку`. Когда активных окон не остается, общий job сам удаляется. Если перевод уже обнаружен, но DIA rate временно недоступен, invoice не отклоняется: job продолжает settlement до безопасного зачисления. Постоянного глобального polling job нет. Application URL и scanner secret хранятся зашифрованными в Supabase Vault и настраиваются service-role RPC `configure_ton_deposit_scanner`; секрет не попадает в migration history или Git.
 
 ## Решения
 
-- Пилот работает только для закрытого allowlist пользователей. Юридические, KYC/AML и Travel Rule интеграции не входят в технический scope пилота и не являются gate для разработки.
+- Пилот работает только для закрытого allowlist пользователей.
 - Первый актив — нативный Toncoin (`TON`) в сети TON. USDT jetton добавляется вторым этапом после проверки native deposit pipeline.
 - Fireblocks и другой внешний custody provider в MVP не используются.
 - Abundance читает блокчейн через server-side TON chain adapter. Первая реализация использует TON Center mainnet API; интерфейс должен позволять без изменения бизнес-логики переключиться на собственный TON Center/liteserver.
@@ -86,14 +89,14 @@ Finalized transfer нельзя отклонить стандартным wallet
 ## Поток пополнения
 
 1. Пользователь нажимает `Deposit`, выбирает `Toncoin · TON` и при необходимости вводит ожидаемую сумму.
-2. `POST /api/wallet/deposits/ton` возвращает уже действующий `waiting` invoice пользователя и обновляет его окно проверки либо, если такого нет, создает новый криптографически случайный invoice ID. Один invoice предназначен для одного перевода; после `credited` или `expired` создается новый. API возвращает:
+2. При открытии Deposit `GET /api/wallet/deposits/ton?active=true` только читает действующий `waiting` invoice. Если его нет, пользователь выбирает TON, при необходимости вводит сумму и явно вызывает `POST /api/wallet/deposits/ton`. Повторный POST возвращает неизменённый active invoice; изменение суммы требует `replaceActive=true`, а `POST /api/wallet/deposits/ton/[depositId]/resume` явно продлевает окно проверки. Один invoice предназначен для одного перевода; после `credited` или `expired` создается новый. API возвращает:
    - deposit address;
    - обязательный comment/invoice ID;
    - QR/deep link;
    - ожидаемую сумму;
    - срок invoice;
    - текущий status.
-3. Создание первого `waiting` invoice запускает защищённый scanner сразу и затем каждые 10 секунд. Новый invoice в уже работающей очереди проверяется на следующем тике. Для каждого invoice выполняется максимум 10 попыток; повторный запрос действующего invoice продлевает и перезапускает его окно, а без найденного перевода invoice становится `expired`.
+3. Создание первого `waiting` invoice запускает защищённый scanner сразу и затем каждые 10 секунд. Новый invoice в уже работающей очереди проверяется на следующем тике. Для каждого invoice выполняется максимум 10 попыток; только `POST /api/wallet/deposits/ton/[depositId]/resume` продлевает и перезапускает его окно, а без найденного перевода invoice становится `expired`.
 4. Для каждого входящего native transfer scanner обязан:
    - дождаться masterchain finality;
    - проверить destination deposit wallet и положительный amount в nanoTON (`10^-9 TON`);
@@ -105,7 +108,7 @@ Finalized transfer нельзя отклонить стандартным wallet
    - блокирует chain event, invoice и `wallet_accounts`;
    - повторно проверяет, что event finalized и еще не settled;
    - конвертирует nanoTON в TON и рассчитывает USD через сохраненный rate;
-   - округляет результат до точности Wallet в 2 знака и увеличивает Wallet на рассчитанную USD-сумму;
+   - округляет рассчитанную USD-сумму до 6 знаков и увеличивает Wallet с внутренней точностью `numeric(30,12)`;
    - создает `wallet_ledger.operation_type = 'crypto_deposit'`;
    - сохраняет `settled_usd_amount`, курс, provider, timestamp курса и USD-аудит в chain event/ledger metadata;
    - переводит invoice и event в `credited`.
@@ -132,9 +135,11 @@ API первого среза:
 - `POST /api/wallet/deposits/ton`;
 - `GET /api/wallet/deposits/ton`;
 - `GET /api/wallet/deposits/ton/[depositId]`;
+- `POST /api/wallet/deposits/ton/[depositId]/resume`;
+- `GET /api/wallet/deposits/quotes`;
 - scanner endpoint is internal and secret-protected.
 
-Все ответы используют `NO_STORE_HEADERS`, а суммы передаются строками. `WalletApp` получает локализованное Deposit modal с address, обязательным comment, QR, copy actions и статусами `waiting`, `detected`, `finalizing`, `credited`, `unmatched`, `expired`.
+Все ответы используют `NO_STORE_HEADERS`, а blockchain amounts и quotes передаются строками. `WalletApp` получает локализованное Deposit modal с TON/USDT quotes, optional TON amount, address, обязательным comment, QR, copy/resume/replace actions и статусами `waiting`, `detected`, `finalizing`, `credited`, `unmatched`, `expired`. USDT quote информационный; jetton deposit остаётся следующим этапом.
 
 ## Стратегия комиссий
 
@@ -206,5 +211,4 @@ API первого среза:
 - mainnet hot-wallet signing;
 - другие сети и активы;
 - Fireblocks/MPC;
-- юридические, KYC/AML и Travel Rule процессы;
 - публичный запуск за пределами закрытого allowlist.

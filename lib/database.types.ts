@@ -2817,6 +2817,32 @@ export type Database = {
         Args: { p_buyer_user_id: string; p_listing_id: string }
         Returns: Json
       }
+      create_or_reuse_ton_deposit_invoice: {
+        Args: {
+          p_asset_code: string
+          p_deposit_address: string
+          p_expected_amount_nano: string | null
+          p_expires_at: string
+          p_invoice_code: string
+          p_network: string
+          p_replace_active?: boolean
+          p_user_id: string
+        }
+        Returns: {
+          asset_code: string
+          created_at: string
+          deposit_address: string
+          expected_amount_nano: string | null
+          expires_at: string
+          id: string
+          invoice_code: string
+          network: string
+          reused: boolean
+          status: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       create_verified_challenge_post: {
         Args: {
           p_challenge_category: string

@@ -11,6 +11,9 @@ type CreateDepositBody = {
   expectedAmountNano?: unknown;
 };
 
+const TON_INVOICE_WINDOW_SECONDS = 110;
+const TON_INVOICE_SELECT = "id,user_id,network,asset_code,invoice_code,deposit_address,expected_amount_nano,status,expires_at,created_at,updated_at";
+
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return NextResponse.json(body, {
     ...init,
@@ -38,8 +41,76 @@ export async function POST(request: NextRequest) {
       return jsonResponse({ error: "Expected TON amount must be a positive integer in nanoTON." }, { status: 400 });
     }
 
-    const expiryMinutes = clampExpiryMinutes(process.env.TON_DEPOSIT_INVOICE_MINUTES);
-    const expiresAt = new Date(Date.now() + expiryMinutes * 60_000).toISOString();
+    const nowIso = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + TON_INVOICE_WINDOW_SECONDS * 1000).toISOString();
+
+    const { error: expireError } = await supabase
+      .from("ton_deposit_invoices")
+      .update({ status: "expired" })
+      .eq("user_id", user.id)
+      .eq("network", config.network)
+      .eq("asset_code", config.asset_code)
+      .eq("status", "waiting")
+      .lte("expires_at", nowIso);
+
+    if (expireError) return jsonResponse({ error: expireError.message }, { status: 500 });
+
+    async function reuseWaitingInvoice(invoiceId: string) {
+      const { error: updateError } = await supabase
+        .from("ton_deposit_invoices")
+        .update({
+          expected_amount_nano: expectedAmountNano,
+          expires_at: expiresAt
+        })
+        .eq("id", invoiceId)
+        .eq("status", "waiting");
+
+      if (updateError) return jsonResponse({ error: updateError.message }, { status: 500 });
+
+      const { error: restartError } = await supabase.rpc("start_ton_invoice_scan", {
+        p_invoice_id: invoiceId,
+        p_reset: true
+      });
+
+      if (restartError) return jsonResponse({ error: restartError.message }, { status: 500 });
+
+      const { data: refreshedInvoice, error: refreshError } = await supabase
+        .from("ton_deposit_invoices")
+        .select(TON_INVOICE_SELECT)
+        .eq("id", invoiceId)
+        .single();
+
+      if (refreshError || !refreshedInvoice) {
+        return jsonResponse({ error: refreshError?.message ?? "Failed to refresh TON deposit invoice." }, { status: 500 });
+      }
+
+      return jsonResponse({
+        invoice: {
+          ...refreshedInvoice,
+          comment: refreshedInvoice.invoice_code,
+          transferLink: buildTonTransferLink(refreshedInvoice.deposit_address, refreshedInvoice.invoice_code, expectedAmountNano)
+        }
+      });
+    }
+
+    const { data: activeInvoice, error: activeInvoiceError } = await supabase
+      .from("ton_deposit_invoices")
+      .select(TON_INVOICE_SELECT)
+      .eq("user_id", user.id)
+      .eq("network", config.network)
+      .eq("asset_code", config.asset_code)
+      .eq("status", "waiting")
+      .gt("expires_at", nowIso)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeInvoiceError) return jsonResponse({ error: activeInvoiceError.message }, { status: 500 });
+
+    if (activeInvoice) {
+      return reuseWaitingInvoice(activeInvoice.id);
+    }
+
     const invoiceCode = `oa_ton_${crypto.randomUUID()}`;
 
     const { data: invoice, error: insertError } = await supabase
@@ -53,8 +124,26 @@ export async function POST(request: NextRequest) {
         expected_amount_nano: expectedAmountNano,
         expires_at: expiresAt
       })
-      .select("id,user_id,network,asset_code,invoice_code,deposit_address,expected_amount_nano,status,expires_at,created_at,updated_at")
+      .select(TON_INVOICE_SELECT)
       .single();
+
+    if (insertError?.code === "23505") {
+      const { data: concurrentInvoice, error: concurrentError } = await supabase
+        .from("ton_deposit_invoices")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("network", config.network)
+        .eq("asset_code", config.asset_code)
+        .eq("status", "waiting")
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+
+      if (concurrentError || !concurrentInvoice) {
+        return jsonResponse({ error: concurrentError?.message ?? insertError.message }, { status: 500 });
+      }
+
+      return reuseWaitingInvoice(concurrentInvoice.id);
+    }
 
     if (insertError || !invoice) return jsonResponse({ error: insertError?.message ?? "Failed to create TON deposit invoice." }, { status: 500 });
 
@@ -78,7 +167,7 @@ export async function GET(request: NextRequest) {
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
     const { data: invoices, error: invoicesError } = await supabase
       .from("ton_deposit_invoices")
-      .select("id,user_id,network,asset_code,invoice_code,deposit_address,expected_amount_nano,status,expires_at,created_at,updated_at")
+      .select(TON_INVOICE_SELECT)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -88,12 +177,6 @@ export async function GET(request: NextRequest) {
   } catch (routeError) {
     return jsonResponse({ error: routeError instanceof Error ? routeError.message : "Failed to load TON deposits." }, { status: 500 });
   }
-}
-
-function clampExpiryMinutes(value: string | undefined): number {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 60;
-  return Math.max(5, Math.min(24 * 60, Math.floor(parsed)));
 }
 
 function clampLimit(value: string | null): number {

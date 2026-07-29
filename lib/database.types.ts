@@ -2435,6 +2435,56 @@ export type Database = {
         }
         Relationships: []
       }
+      ton_invoice_scan_windows: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          invoice_id: string
+          last_attempt_at: string | null
+          last_request_id: number | null
+          max_attempts: number
+          refreshed_at: string
+          started_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          invoice_id: string
+          last_attempt_at?: string | null
+          last_request_id?: number | null
+          max_attempts?: number
+          refreshed_at?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          invoice_id?: string
+          last_attempt_at?: string | null
+          last_request_id?: number | null
+          max_attempts?: number
+          refreshed_at?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ton_invoice_scan_windows_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "ton_deposit_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ton_price_quotes: {
         Row: {
           asset_code: string
@@ -2846,6 +2896,21 @@ export type Database = {
         Args: { p_bonus_date?: string }
         Returns: undefined
       }
+      configure_ton_deposit_scanner: {
+        Args: {
+          p_project_url: string
+          p_scanner_secret: string
+        }
+        Returns: undefined
+      }
+      dispatch_ton_deposit_scan: {
+        Args: Record<PropertyKey, never>
+        Returns: number | null
+      }
+      run_ton_deposit_scan_window: {
+        Args: Record<PropertyKey, never>
+        Returns: number | null
+      }
       settle_ton_deposit: {
         Args: { p_chain_event_id: string }
         Returns: {
@@ -2855,6 +2920,24 @@ export type Database = {
           usd_amount: number
           wallet_balance: number | null
         }[]
+      }
+      ton_deposit_scanner_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active: boolean
+          active_windows: number
+          job_id: number | null
+          project_url_configured: boolean
+          scanner_secret_configured: boolean
+          schedule: string | null
+        }[]
+      }
+      start_ton_invoice_scan: {
+        Args: {
+          p_invoice_id: string
+          p_reset?: boolean
+        }
+        Returns: undefined
       }
       settle_team_bonus_for_member: {
         Args: {

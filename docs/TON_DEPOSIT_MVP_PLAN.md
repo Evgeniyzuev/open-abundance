@@ -8,7 +8,8 @@
 - Реализованы `POST/GET /api/wallet/deposits/ton`, `GET /api/wallet/deposits/ton/[depositId]` и защищённый scanner endpoint `GET/POST /api/internal/ton/deposits/scan`.
 - Wallet UI показывает QR, адрес, обязательный comment и polling статуса; TON deposits попадают в Wallet history.
 - Mainnet TON/USD quote подключён через официальный DIA Asset Quotation API. Scanner принимает только положительный TON quote с корректным asset identity и source timestamp не старше 300 секунд; stale/unavailable quote оставляет event в `awaiting_rate`, который автоматически повторно обрабатывается следующим scan.
-- Migration `20260728130000_ton_deposit_mvp.sql` готова локально, но на remote Supabase ещё не применена: текущие Management API token и database password в локальном окружении не проходят аутентификацию. После обновления credentials используется linked CLI workflow из `docs/DEVELOPMENT_RULES.md`, затем migration history и новые таблицы проверяются через REST.
+- Migration `20260728130000_ton_deposit_mvp.sql` применена к remote Supabase. Remote migration history содержит `20260728130000`, а `ton_deposit_config`, `ton_chain_events` и `ton_price_quotes` подтверждены read-only REST-запросами с HTTP `200`. Рабочий способ push — linked CLI с явным `--password` из `POSTGRES_PASSWORD`; он зафиксирован в `docs/DEVELOPMENT_RULES.md`.
+- Первый mainnet deposit обработан ручным scanner run: `0.1 TON` зачислены один раз как `$0.15`, invoice получил `credited`, chain event связан с Wallet ledger. Migration `20260728210000_ton_deposit_scanner_cron.sql` локально готова, но ещё не применена к remote: она создаёт короткий Cron job только при появлении invoice, делает до 10 проверок поиска перевода с интервалом 10 секунд, останавливается после зачисления или переводит invoice в `expired`, а application URL/scanner secret хранит в Supabase Vault без секрета в Git.
 - Recovery invoice, `ton_proof`, withdrawals и mainnet signing остаются следующими этапами.
 
 Для первой проверки в окружении задаются:
@@ -23,7 +24,7 @@ DIA_TON_PRICE_URL=<optional override; default is the official Ton assetQuotation
 DIA_TON_PRICE_MAX_AGE_SECONDS=300
 ```
 
-Scanner вызывается только server-to-server запросом с заголовком `x-ton-scanner-secret`. Scheduler может запускать endpoint каждые 10 секунд, но endpoint сначала проверяет очередь активных invoices и не обращается к TON Center, если очередь пуста. Для строгой экономии HTTP-вызовов Supabase Cron может оборачивать `net.http_post` в `exists`-проверку по `ton_deposit_invoices`. Ручная проверка выполняется тем же endpoint после отправки mainnet Toncoin.
+Scanner вызывается только server-to-server запросом с заголовком `x-ton-scanner-secret`. Новый `waiting` invoice запускает для общей очереди короткий burst-job: первый job делает scan сразу и затем каждые 10 секунд, а invoice, добавленный в уже работающую очередь, попадает в следующий тик не позднее чем через 10 секунд. Каждый invoice получает не более 10 попыток поиска перевода. Повторное открытие того же действующего invoice обновляет его expiry и сбрасывает его окно; когда активных окон не остается, общий job сам удаляется. Если перевод уже обнаружен, но DIA rate временно недоступен, invoice не отклоняется: job продолжает settlement до безопасного зачисления. Постоянного глобального polling job нет. Application URL и scanner secret хранятся зашифрованными в Supabase Vault и настраиваются service-role RPC `configure_ton_deposit_scanner`; секрет не попадает в migration history или Git.
 
 ## Решения
 
@@ -85,14 +86,14 @@ Finalized transfer нельзя отклонить стандартным wallet
 ## Поток пополнения
 
 1. Пользователь нажимает `Deposit`, выбирает `Toncoin · TON` и при необходимости вводит ожидаемую сумму.
-2. `POST /api/wallet/deposits/ton` создает криптографически случайный invoice ID и возвращает:
+2. `POST /api/wallet/deposits/ton` возвращает уже действующий `waiting` invoice пользователя и обновляет его окно проверки либо, если такого нет, создает новый криптографически случайный invoice ID. Один invoice предназначен для одного перевода; после `credited` или `expired` создается новый. API возвращает:
    - deposit address;
    - обязательный comment/invoice ID;
    - QR/deep link;
    - ожидаемую сумму;
    - срок invoice;
    - текущий status.
-3. Scheduler запускает защищённый scanner endpoint каждые 10 секунд; endpoint сначала проверяет очередь активных invoices и только при наличии work читает новые транзакции deposit wallet после сохраненного `(lt, hash)`.
+3. Создание первого `waiting` invoice запускает защищённый scanner сразу и затем каждые 10 секунд. Новый invoice в уже работающей очереди проверяется на следующем тике. Для каждого invoice выполняется максимум 10 попыток; повторный запрос действующего invoice продлевает и перезапускает его окно, а без найденного перевода invoice становится `expired`.
 4. Для каждого входящего native transfer scanner обязан:
    - дождаться masterchain finality;
    - проверить destination deposit wallet и положительный amount в nanoTON (`10^-9 TON`);
@@ -117,6 +118,7 @@ Finalized transfer нельзя отклонить стандартным wallet
 
 - `ton_deposit_config` — network, deposit address, price source, enabled;
 - `ton_deposit_invoices` — user, invoice ID, expected amount, address, status, expiry;
+- `ton_invoice_scan_windows` — число попыток и состояние короткого Cron window для invoice;
 - `ton_deposit_recovery_claims` (следующий этап) — user, unmatched event, recovery nonce, expected source, status и expiry;
 - `ton_user_wallets` — user, normalized address, observed/verified status и verification metadata;
 - `ton_price_quotes` — TON/USD rate, provider, source timestamp и capture time;
@@ -132,7 +134,7 @@ API первого среза:
 - `GET /api/wallet/deposits/ton/[depositId]`;
 - scanner endpoint is internal and secret-protected.
 
-Все ответы используют `NO_STORE_HEADERS`, а суммы передаются строками. `WalletApp` получает локализованное Deposit modal с address, обязательным comment, QR, copy actions и статусами `waiting`, `detected`, `finalizing`, `credited`, `unmatched`.
+Все ответы используют `NO_STORE_HEADERS`, а суммы передаются строками. `WalletApp` получает локализованное Deposit modal с address, обязательным comment, QR, copy actions и статусами `waiting`, `detected`, `finalizing`, `credited`, `unmatched`, `expired`.
 
 ## Стратегия комиссий
 

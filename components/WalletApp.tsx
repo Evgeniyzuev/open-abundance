@@ -2224,7 +2224,7 @@ function shortHash(value: string): string {
 }
 
 function isTonDepositTerminal(status: string): boolean {
-  return ["credited", "credited_late", "credited_amount_mismatch", "unmatched"].includes(status);
+  return ["credited", "credited_late", "credited_amount_mismatch", "unmatched", "expired"].includes(status);
 }
 
 function tonDepositStatusKey(status: string): MessageKey {
@@ -2233,6 +2233,7 @@ function tonDepositStatusKey(status: string): MessageKey {
   if (status === "credited" || status === "credited_late" || status === "credited_amount_mismatch") return "wallet.deposit.status.credited";
   if (status === "unmatched") return "wallet.deposit.status.unmatched";
   if (status === "awaiting_rate") return "wallet.deposit.status.awaitingRate";
+  if (status === "expired") return "wallet.deposit.status.expired";
   return "wallet.deposit.status.waiting";
 }
 

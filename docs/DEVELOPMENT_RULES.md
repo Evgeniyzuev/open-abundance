@@ -139,26 +139,38 @@ This repository is linked to Supabase project `bsikxrsguwketlloflgi`. Before a r
 - `supabase/.temp/project-ref`;
 - the project ref in `SUPABASE_URL` and the Postgres username/host.
 
-Use the linked Supabase CLI workflow as the canonical migration path. Do not treat `db push --dry-run` alone as proof that database credentials work: some CLI versions can list local pending migrations without completing a remote PostgreSQL login.
+Use the linked Supabase CLI workflow as the canonical migration path. For this project, the verified connection method is `--linked --password` with `POSTGRES_PASSWORD` read from `.env`. Do not construct a `--db-url` from `POSTGRES_URL*`: that route produced connection errors in this workspace even though the linked password route worked with the same `.env`.
 
-The required credentials are:
-
-- `SUPABASE_ACCESS_TOKEN`: a current Supabase personal access token accepted by `GET https://api.supabase.com/v1/projects/bsikxrsguwketlloflgi`;
-- `SUPABASE_DB_PASSWORD`: the current database password from the project database settings.
-
-Do not rely on the legacy local key name `SUPABAsE_Access_Token`, and do not print either credential. With fresh credentials loaded into the process environment, re-link before pushing:
+Use the globally installed `supabase` CLI directly:
 
 ```powershell
-pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi --password $env:SUPABASE_DB_PASSWORD
-pnpm dlx supabase db push --linked --dry-run
-pnpm dlx supabase db push --linked
+$path = Join-Path (Get-Location) '.env'
+$values = @{}
+foreach ($line in Get-Content -LiteralPath $path) {
+  if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$') {
+    $values[$matches[1]] = $matches[2].Trim().Trim('"').Trim("'")
+  }
+}
+$pw = [string]$values['POSTGRES_PASSWORD']
+if ([string]::IsNullOrWhiteSpace($pw)) {
+  throw 'POSTGRES_PASSWORD is missing in .env'
+}
+
+& supabase db push --linked --password $pw
+$exitCode = $LASTEXITCODE
+Remove-Variable pw -ErrorAction SilentlyContinue
+exit $exitCode
 ```
 
-Pin the Supabase CLI version in `devDependencies` before relying on it in CI; avoid an unpinned `pnpm dlx` upgrade for production migrations. A successful push must print the applied migration and finish normally.
+Do not use `pnpm dlx supabase` as the apply fallback on this Windows workspace. It can read the linked project and report `Remote database is up to date`, but pending migration apply has repeatedly failed in its Bun/TypeScript wrapper with `LegacyDbPushApplyError` or a hanging `supabase-go` child process. If the global CLI is unavailable, perform the linked push from the configured device where the global binary works, or install a supported CLI before continuing.
+
+Do not print the password. A personal `SUPABASE_ACCESS_TOKEN` is not required for `db push` when the project is already linked; it is required only for initial link/re-link or Management API operations. If `supabase/.temp/project-ref` is missing or points elsewhere, re-link project `bsikxrsguwketlloflgi` before pushing.
+
+Do not treat `db push --dry-run` alone as proof that database credentials work: some CLI versions can list local pending migrations without completing a remote PostgreSQL login. A successful push must print the applied migration or `Remote database is up to date` and finish normally.
 
 After the push, verify both:
 
-1. `pnpm dlx supabase migration list --linked` shows the local timestamp in remote history.
+1. `supabase migration list --linked --password $pw` (or the `pnpm dlx` equivalent) shows the local timestamp in remote history.
 2. A read-only project REST request to one of the newly created tables succeeds with HTTP `200`. Use the server-side service-role key only from the local environment and never include it in command output, logs, documentation, or client code.
 
 The project Data REST API is suitable for schema availability checks but not for applying DDL. The official Management API SQL endpoint requires a current personal access token with `database:write`; do not use it as an ad-hoc migration fallback because bypassing CLI migration history can cause later `db push` drift.

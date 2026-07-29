@@ -12,8 +12,20 @@ type CreateDepositBody = {
   replaceActive?: unknown;
 };
 
-const TON_INVOICE_WINDOW_SECONDS = 110;
 const TON_INVOICE_SELECT = "id,user_id,network,asset_code,invoice_code,deposit_address,expected_amount_nano,status,expires_at,created_at,updated_at";
+const TON_VISIBLE_STATUSES = [
+  "ready",
+  "detected",
+  "finalizing",
+  "confirmed_pending_credit",
+  "awaiting_rate",
+  "credited",
+  "credited_late",
+  "credited_amount_mismatch",
+  "rejected",
+  "cancelled",
+  "expired"
+];
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return NextResponse.json(body, {
@@ -43,7 +55,7 @@ export async function POST(request: NextRequest) {
       return jsonResponse({ error: "Expected TON amount must be a positive integer in nanoTON." }, { status: 400 });
     }
 
-    const expiresAt = new Date(Date.now() + TON_INVOICE_WINDOW_SECONDS * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString();
     const invoiceCode = `oa_ton_${crypto.randomUUID()}`;
 
     const { data: invoiceRows, error: createError } = await supabase.rpc(
@@ -90,15 +102,28 @@ export async function GET(request: NextRequest) {
 
     if (activeOnly) {
       query = query
-        .eq("status", "waiting")
-        .gt("expires_at", new Date().toISOString());
+        .in("status", TON_VISIBLE_STATUSES);
     }
 
     const { data: invoices, error: invoicesError } = await query;
     if (invoicesError) return jsonResponse({ error: invoicesError.message }, { status: 500 });
     if (activeOnly) {
+      const invoice = invoices?.[0] ?? null;
+      const { data: event, error: eventError } = invoice
+        ? await supabase
+            .from("ton_chain_events")
+            .select("transaction_hash,amount_nano,status,rejection_reason,settled_usd_amount,settled_at,ton_usd_rate,rate_provider,finalized_at")
+            .eq("invoice_code", invoice.invoice_code)
+            .order("settled_at", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null, error: null };
+      if (eventError) return jsonResponse({ error: eventError.message }, { status: 500 });
+
       return jsonResponse({
-        invoice: invoices?.[0] ? presentInvoice(invoices[0]) : null
+        invoice: invoice ? presentInvoice(invoice) : null,
+        event
       });
     }
     return jsonResponse({ invoices: invoices ?? [] });

@@ -61,6 +61,16 @@ type TonDepositInvoice = {
   expires_at: string;
   transferLink: string;
 };
+type TonDepositEvent = {
+  transaction_hash: string;
+  amount_nano: string;
+  status: string;
+  rejection_reason: string | null;
+  settled_usd_amount: string | null;
+  ton_usd_rate: string | null;
+  rate_provider: string | null;
+  finalized_at: string | null;
+};
 type DepositQuote = {
   assetCode: "TON" | "USDT";
   network: string;
@@ -1584,13 +1594,13 @@ function TonDepositModal({
   onRefresh: () => Promise<void>;
 }) {
   const [invoice, setInvoice] = useState<TonDepositInvoice | null>(null);
+  const [chainEvent, setChainEvent] = useState<TonDepositEvent | null>(null);
   const [quotes, setQuotes] = useState<DepositQuote[]>([]);
   const [amount, setAmount] = useState("");
   const [replaceActive, setReplaceActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [quoteLoading, setQuoteLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [resuming, setResuming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const tonQuote = quotes.find((quote) => quote.assetCode === "TON") ?? null;
@@ -1600,6 +1610,14 @@ function TonDepositModal({
   const amountValid = !normalizedAmount || Boolean(expectedAmountNano);
   const invoiceId = invoice?.id;
   const invoiceStatus = invoice?.status;
+
+  const applyDepositPayload = useCallback((payload: {
+    invoice?: TonDepositInvoice | null;
+    event?: TonDepositEvent | null;
+  }) => {
+    setInvoice(payload.invoice ?? null);
+    setChainEvent(payload.event ?? null);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -1616,9 +1634,13 @@ function TonDepositModal({
             "Cache-Control": "no-cache"
           }
         });
-        const payload = (await response.json()) as { invoice?: TonDepositInvoice; error?: string };
+        const payload = (await response.json()) as {
+          invoice?: TonDepositInvoice | null;
+          event?: TonDepositEvent | null;
+          error?: string;
+        };
         if (!response.ok || payload.error) throw new Error(payload.error ?? t("wallet.deposit.error.load"));
-        if (mounted) setInvoice(payload.invoice ?? null);
+        if (mounted) applyDepositPayload(payload);
       } catch (loadError) {
         if (mounted) setError(loadError instanceof Error ? loadError.message : t("wallet.deposit.error.load"));
       } finally {
@@ -1630,7 +1652,7 @@ function TonDepositModal({
     return () => {
       mounted = false;
     };
-  }, [t]);
+  }, [applyDepositPayload, t]);
 
   useEffect(() => {
     let mounted = true;
@@ -1664,7 +1686,11 @@ function TonDepositModal({
   }, [t]);
 
   useEffect(() => {
-    if (!invoiceId || !invoiceStatus || isTonDepositTerminal(invoiceStatus)) return;
+    if (
+      !invoiceId
+      || !invoiceStatus
+      || !["ready", "detected", "finalizing", "confirmed_pending_credit", "awaiting_rate"].includes(invoiceStatus)
+    ) return;
 
     let mounted = true;
     async function refreshInvoice() {
@@ -1674,21 +1700,25 @@ function TonDepositModal({
           cache: "no-store",
           headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
         });
-        const payload = (await response.json()) as { invoice?: TonDepositInvoice; error?: string };
+        const payload = (await response.json()) as {
+          invoice?: TonDepositInvoice;
+          event?: TonDepositEvent | null;
+          error?: string;
+        };
         if (!response.ok || payload.error || !payload.invoice || !mounted) return;
-        setInvoice(payload.invoice);
+        applyDepositPayload(payload);
         if (isTonDepositTerminal(payload.invoice.status)) void onRefresh();
       } catch {
         // The modal keeps the last known state and retries on the next interval.
       }
     }
 
-    const interval = window.setInterval(() => { void refreshInvoice(); }, 10_000);
+    const interval = window.setInterval(() => { void refreshInvoice(); }, 15_000);
     return () => {
       mounted = false;
       window.clearInterval(interval);
     };
-  }, [invoiceId, invoiceStatus, onRefresh]);
+  }, [applyDepositPayload, invoiceId, invoiceStatus, onRefresh]);
 
   async function createInvoice() {
     if (!amountValid) {
@@ -1712,11 +1742,15 @@ function TonDepositModal({
           replaceActive
         })
       });
-      const payload = (await response.json()) as { invoice?: TonDepositInvoice; error?: string };
+      const payload = (await response.json()) as {
+        invoice?: TonDepositInvoice;
+        event?: TonDepositEvent | null;
+        error?: string;
+      };
       if (!response.ok || payload.error || !payload.invoice) {
         throw new Error(payload.error ?? t("wallet.deposit.error.create"));
       }
-      setInvoice(payload.invoice);
+      applyDepositPayload(payload);
       setReplaceActive(false);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : t("wallet.deposit.error.create"));
@@ -1725,40 +1759,19 @@ function TonDepositModal({
     }
   }
 
-  async function resumeInvoice() {
-    if (!invoice) return;
-    setResuming(true);
-    setError(null);
-    try {
-      const token = await getAccessToken();
-      const response = await fetch(`/api/wallet/deposits/ton/${invoice.id}/resume`, {
-        method: "POST",
-        cache: "no-store",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const payload = (await response.json()) as { invoice?: TonDepositInvoice; error?: string };
-      if (!response.ok || payload.error || !payload.invoice) {
-        throw new Error(payload.error ?? t("wallet.deposit.error.resume"));
-      }
-      setInvoice(payload.invoice);
-    } catch (resumeError) {
-      setError(resumeError instanceof Error ? resumeError.message : t("wallet.deposit.error.resume"));
-    } finally {
-      setResuming(false);
-    }
-  }
-
   function replaceInvoice() {
     setAmount(nanoToTonAmount(invoice?.expected_amount_nano) ?? "");
     setReplaceActive(true);
     setInvoice(null);
+    setChainEvent(null);
     setError(null);
   }
 
   function prepareNewInvoice() {
     setAmount("");
-    setReplaceActive(false);
+    setReplaceActive(Boolean(invoice && isTonDepositReusable(invoice.status)));
     setInvoice(null);
+    setChainEvent(null);
     setError(null);
   }
 
@@ -1884,25 +1897,70 @@ function TonDepositModal({
               <span>{t("wallet.deposit.statusLabel")}</span>
               <strong>{t(tonDepositStatusKey(invoice.status))}</strong>
             </div>
-            <small className="transfer-muted">{t("wallet.deposit.expires", { date: formatDate(invoice.expires_at, locale) })}</small>
-            {invoice.status === "waiting" ? (
-              <div className="topup-modal-actions">
-                <button className="text-button" type="button" disabled={resuming} onClick={replaceInvoice}>
-                  {t("wallet.deposit.replace")}
-                </button>
-                <button className="challenge-primary-action" type="button" disabled={resuming} onClick={() => void resumeInvoice()}>
-                  {resuming ? t("app.common.loading") : t("wallet.deposit.resume")}
-                </button>
-              </div>
-            ) : null}
-            {isTonDepositTerminal(invoice.status) ? (
+
+            <p className="transfer-muted">{t("wallet.deposit.averageCreditTime")}</p>
+
+            <TonDepositResult chainEvent={chainEvent} invoice={invoice} locale={locale} t={t} />
+
+            {["credited", "credited_late", "credited_amount_mismatch", "rejected", "cancelled", "expired"].includes(invoice.status) ? (
               <button className="challenge-primary-action" type="button" onClick={prepareNewInvoice}>
                 {t("wallet.deposit.newInvoice")}
+              </button>
+            ) : null}
+
+            {invoice.status === "ready" ? (
+              <button className="text-button" type="button" onClick={replaceInvoice}>
+                {t("wallet.deposit.replace")}
               </button>
             ) : null}
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
+
+function TonDepositResult({
+  chainEvent,
+  invoice,
+  locale,
+  t
+}: {
+  chainEvent: TonDepositEvent | null;
+  invoice: TonDepositInvoice;
+  locale: AppLocale;
+  t: TFunction;
+}) {
+  let title = t(tonDepositStatusKey(invoice.status));
+  let description = "";
+
+  if (["credited", "credited_late", "credited_amount_mismatch"].includes(invoice.status)) {
+    const creditedAmount = chainEvent?.settled_usd_amount
+      ? formatFixedUsd(chainEvent.settled_usd_amount, locale)
+      : null;
+    title = creditedAmount
+      ? t("wallet.deposit.result.creditedAmount", { amount: creditedAmount })
+      : t("wallet.deposit.result.credited");
+    if (chainEvent) {
+      const details = [`${nanoToTonAmount(chainEvent.amount_nano) ?? "0"} TON`];
+      if (chainEvent.ton_usd_rate) {
+        details.push(`× ${formatQuoteRate(Number(chainEvent.ton_usd_rate), locale)} USD`);
+      }
+      if (chainEvent.transaction_hash) details.push(shortHash(chainEvent.transaction_hash));
+      description = details.join(" · ");
+    }
+  } else if (invoice.status === "rejected") {
+    description = chainEvent?.rejection_reason === "bounced"
+      ? t("wallet.deposit.result.rejectedBounced")
+      : t("wallet.deposit.result.rejectedAborted");
+  } else {
+    return null;
+  }
+
+  return (
+    <div className={`ton-deposit-check-result status-${invoice.status}`}>
+      <strong>{title}</strong>
+      {description ? <p>{description}</p> : null}
     </div>
   );
 }
@@ -2527,13 +2585,27 @@ function formatCryptoDepositDetails(row: WalletHistoryRow, locale: AppLocale): s
 }
 
 function isTonDepositTerminal(status: string): boolean {
-  return ["credited", "credited_late", "credited_amount_mismatch", "unmatched", "expired"].includes(status);
+  return ["credited", "credited_late", "credited_amount_mismatch", "rejected", "cancelled"].includes(status);
+}
+
+function isTonDepositReusable(status: string): boolean {
+  return [
+    "ready",
+    "detected",
+    "finalizing",
+    "confirmed_pending_credit",
+    "awaiting_rate"
+  ].includes(status);
 }
 
 function tonDepositStatusKey(status: string): MessageKey {
+  if (status === "ready") return "wallet.deposit.status.ready";
   if (status === "detected") return "wallet.deposit.status.detected";
   if (status === "finalizing") return "wallet.deposit.status.finalizing";
+  if (status === "confirmed_pending_credit") return "wallet.deposit.status.confirmedPending";
   if (status === "credited" || status === "credited_late" || status === "credited_amount_mismatch") return "wallet.deposit.status.credited";
+  if (status === "rejected") return "wallet.deposit.status.rejected";
+  if (status === "cancelled") return "wallet.deposit.status.cancelled";
   if (status === "unmatched") return "wallet.deposit.status.unmatched";
   if (status === "awaiting_rate") return "wallet.deposit.status.awaitingRate";
   if (status === "expired") return "wallet.deposit.status.expired";

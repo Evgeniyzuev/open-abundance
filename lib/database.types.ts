@@ -2297,6 +2297,7 @@ export type Database = {
           rate_provider: string | null
           rate_source_timestamp: string | null
           raw_transaction: Json
+          rejection_reason: string | null
           receiver_address: string
           sender_address: string | null
           settled_at: string | null
@@ -2322,6 +2323,7 @@ export type Database = {
           rate_provider?: string | null
           rate_source_timestamp?: string | null
           raw_transaction?: Json
+          rejection_reason?: string | null
           receiver_address: string
           sender_address?: string | null
           settled_at?: string | null
@@ -2347,6 +2349,7 @@ export type Database = {
           rate_provider?: string | null
           rate_source_timestamp?: string | null
           raw_transaction?: Json
+          rejection_reason?: string | null
           receiver_address?: string
           sender_address?: string | null
           settled_at?: string | null
@@ -2435,51 +2438,85 @@ export type Database = {
         }
         Relationships: []
       }
-      ton_invoice_scan_windows: {
+      ton_chain_scan_leases: {
+        Row: {
+          deposit_address: string
+          lease_until: string
+          network: string
+          run_id: string
+          updated_at: string
+        }
+        Insert: {
+          deposit_address: string
+          lease_until: string
+          network: string
+          run_id: string
+          updated_at?: string
+        }
+        Update: {
+          deposit_address?: string
+          lease_until?: string
+          network?: string
+          run_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ton_deposit_settlement_retries: {
         Row: {
           attempt_count: number
+          chain_event_id: string
           completed_at: string | null
           created_at: string
-          invoice_id: string
-          last_attempt_at: string | null
-          last_request_id: number | null
+          error_code: string | null
+          error_message: string | null
+          invoice_id: string | null
+          locked_at: string | null
           max_attempts: number
-          refreshed_at: string
-          started_at: string
+          next_attempt_at: string
           status: string
           updated_at: string
         }
         Insert: {
           attempt_count?: number
+          chain_event_id: string
           completed_at?: string | null
           created_at?: string
-          invoice_id: string
-          last_attempt_at?: string | null
-          last_request_id?: number | null
+          error_code?: string | null
+          error_message?: string | null
+          invoice_id?: string | null
+          locked_at?: string | null
           max_attempts?: number
-          refreshed_at?: string
-          started_at?: string
+          next_attempt_at?: string
           status?: string
           updated_at?: string
         }
         Update: {
           attempt_count?: number
+          chain_event_id?: string
           completed_at?: string | null
           created_at?: string
-          invoice_id?: string
-          last_attempt_at?: string | null
-          last_request_id?: number | null
+          error_code?: string | null
+          error_message?: string | null
+          invoice_id?: string | null
+          locked_at?: string | null
           max_attempts?: number
-          refreshed_at?: string
-          started_at?: string
+          next_attempt_at?: string
           status?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "ton_invoice_scan_windows_invoice_id_fkey"
-            columns: ["invoice_id"]
+            foreignKeyName: "ton_deposit_settlement_retries_chain_event_id_fkey"
+            columns: ["chain_event_id"]
             isOneToOne: true
+            referencedRelation: "ton_chain_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ton_deposit_settlement_retries_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "ton_deposit_invoices"
             referencedColumns: ["id"]
           },
@@ -2743,6 +2780,33 @@ export type Database = {
         }[]
       }
       calculate_core_level: { Args: { core_balance: number }; Returns: number }
+      claim_ton_chain_scan: {
+        Args: { p_deposit_address: string; p_network: string }
+        Returns: string | null
+      }
+      claim_ton_deposit_settlement_retries: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempt_count: number
+          chain_event_id: string
+        }[]
+      }
+      complete_ton_deposit_settlement_retry: {
+        Args: { p_chain_event_id: string }
+        Returns: undefined
+      }
+      enqueue_ton_deposit_settlement_retry: {
+        Args: { p_chain_event_id: string }
+        Returns: undefined
+      }
+      fail_ton_deposit_settlement_retry: {
+        Args: {
+          p_chain_event_id: string
+          p_error_code: string
+          p_error_message: string
+        }
+        Returns: undefined
+      }
       can_be_team_leader: {
         Args: { p_leader_user_id: string; p_member_user_id: string }
         Returns: boolean
@@ -2879,6 +2943,10 @@ export type Database = {
       }
       invoke_reflection_reminder_dispatch: { Args: never; Returns: undefined }
       invoke_reminder_dispatch: { Args: never; Returns: undefined }
+      mark_ton_deposit_rejected: {
+        Args: { p_chain_event_id: string; p_reason: string }
+        Returns: undefined
+      }
       preview_team_distribution: {
         Args: { p_limit?: number }
         Returns: {
@@ -2933,9 +3001,21 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number | null
       }
-      run_ton_deposit_scan_window: {
+      dispatch_ton_deposit_settlement: {
         Args: Record<PropertyKey, never>
         Returns: number | null
+      }
+      release_ton_chain_scan: {
+        Args: { p_run_id: string }
+        Returns: undefined
+      }
+      run_ton_deposit_pipeline: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      schedule_ton_deposit_pipeline: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       settle_ton_deposit: {
         Args: { p_chain_event_id: string }
@@ -2951,19 +3031,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           active: boolean
-          active_windows: number
+          active_scanner_leases: number
           job_id: number | null
+          pending_settlements: number
           project_url_configured: boolean
           scanner_secret_configured: boolean
           schedule: string | null
         }[]
-      }
-      start_ton_invoice_scan: {
-        Args: {
-          p_invoice_id: string
-          p_reset?: boolean
-        }
-        Returns: undefined
       }
       settle_team_bonus_for_member: {
         Args: {

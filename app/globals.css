@@ -835,6 +835,13 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .ton-deposit-field .text-button { justify-self: start; }
 .ton-deposit-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-radius: 10px; padding: 10px; background: var(--accent-soft); color: var(--blue); }
 .ton-deposit-status strong { font-size: 0.8125rem; }
+.ton-deposit-check-result { display: grid; gap: 5px; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: var(--surface-soft); }
+.ton-deposit-check-result strong { font-size: 0.875rem; }
+.ton-deposit-check-result p, .ton-deposit-check-result small { margin: 0; color: var(--muted); font-size: 0.75rem; line-height: 1.35; }
+.ton-deposit-check-result.status-credited,
+.ton-deposit-check-result.status-credited_late,
+.ton-deposit-check-result.status-credited_amount_mismatch { border-color: color-mix(in srgb, var(--green) 35%, var(--line)); }
+.ton-deposit-check-result.status-rejected { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
 .transfer-modal-body { display: grid; gap: 14px; }
 .transfer-contact-block { display: grid; gap: 8px; }
 .transfer-field-label { color: var(--muted); font-size: 0.75rem; font-weight: 850; text-transform: uppercase; }

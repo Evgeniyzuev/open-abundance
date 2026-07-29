@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
-import { loadTonDepositConfig, resolveTonPriceSnapshot } from "@/lib/tonDeposits";
+import { loadTonDepositConfig, resolveTonPriceResolution } from "@/lib/tonDeposits";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,16 +34,32 @@ export async function POST(request: NextRequest) {
     const claimed = claimedRows ?? [];
     if (!claimed.length) return jsonResponse({ skipped: true, reason: "no_due_settlements" });
 
-    const price = await resolveTonPriceSnapshot(config.network);
+    const priceResolution = await resolveTonPriceResolution(config.network);
+    const price = priceResolution.snapshot;
     if (!price) {
+      const errorCode = priceResolution.failureReason === "provider_deviation"
+        ? "price_provider_deviation"
+        : "price_unavailable";
+      const errorMessage = priceResolution.failureReason === "provider_deviation"
+        ? "DIA and CoinGecko TON/USD quotes differ beyond the configured threshold."
+        : "DIA and CoinGecko TON/USD quotes are unavailable or stale.";
       for (const retry of claimed) {
+        await supabase
+          .from("ton_chain_events")
+          .update({ rate_metadata: priceResolution.diagnostics })
+          .eq("id", retry.chain_event_id);
         await supabase.rpc("fail_ton_deposit_settlement_retry", {
           p_chain_event_id: retry.chain_event_id,
-          p_error_code: "price_unavailable",
-          p_error_message: "DIA TON/USD quote is unavailable or stale."
+          p_error_code: errorCode,
+          p_error_message: errorMessage
         });
       }
-      return jsonResponse({ processed: claimed.length, settled: 0, retrying: claimed.length });
+      return jsonResponse({
+        processed: claimed.length,
+        settled: 0,
+        retrying: claimed.length,
+        reason: errorCode
+      });
     }
 
     const { error: quoteError } = await supabase.from("ton_price_quotes").insert({
@@ -65,7 +81,8 @@ export async function POST(request: NextRequest) {
             status: "finalized",
             ton_usd_rate: price.rate,
             rate_provider: price.provider,
-            rate_source_timestamp: price.sourceTimestamp
+            rate_source_timestamp: price.sourceTimestamp,
+            rate_metadata: price.metadata
           })
           .eq("id", retry.chain_event_id)
           .in("status", ["awaiting_rate", "finalized"])

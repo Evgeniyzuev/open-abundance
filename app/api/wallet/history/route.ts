@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     const cryptoRows: WalletHistoryRow[] = ((cryptoLedger ?? []) as CryptoDepositLedgerRow[]).map((row) => ({
       id: row.id,
-      operation_date: row.created_at,
+      operation_date: dateOnly(row.created_at),
       kind: "crypto_deposit",
       amount: Number(row.amount),
       amountUsd: fixedDecimal(
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     }));
 
     const rows = [...dailyRows, ...cryptoRows]
-      .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+      .sort((left, right) => safeTimestamp(right.created_at) - safeTimestamp(left.created_at))
       .slice(0, limit);
 
     return NextResponse.json(
@@ -142,6 +142,16 @@ function fixedDecimal(value: string, decimals: number): string {
   const normalized = /^\d+(?:\.\d+)?$/.test(value) ? value : "0";
   const [whole, fraction = ""] = normalized.split(".");
   return `${whole}.${fraction.slice(0, decimals).padEnd(decimals, "0")}`;
+}
+
+function dateOnly(value: string): string {
+  const timestamp = safeTimestamp(value);
+  return timestamp > 0 ? new Date(timestamp).toISOString().slice(0, 10) : value;
+}
+
+function safeTimestamp(value: string): number {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function clampLimit(value: string | null): number {

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/database.types";
+import type { Database, Json } from "@/lib/database.types";
 
 export type TonNetwork = "testnet" | "mainnet";
 export type TonDepositConfig = {
@@ -12,14 +12,22 @@ export type TonPriceSnapshot = {
   rate: string;
   provider: string;
   sourceTimestamp: string | null;
+  metadata: Json;
+};
+export type TonPriceResolution = {
+  snapshot: TonPriceSnapshot | null;
+  failureReason: "providers_unavailable" | "provider_deviation" | null;
+  diagnostics: Json;
 };
 
 const DEFAULT_TESTNET_TONCENTER_URL = "https://testnet.toncenter.com/api/v2";
 const DEFAULT_MAINNET_TONCENTER_URL = "https://toncenter.com/api/v2";
 const DEFAULT_DIA_TON_PRICE_URL = "https://api.diadata.org/v1/assetQuotation/Ton/0x0000000000000000000000000000000000000000";
-const DEFAULT_DIA_USDT_PRICE_URL = "https://api.diadata.org/v1/assetQuotation/ethereum/0xdac17f958d2ee523a2206206994597c13d831ec7";
+const DEFAULT_DIA_USDT_PRICE_URL = "https://api.diadata.org/v1/assetQuotation/Ethereum/0xdac17f958d2ee523a2206206994597c13d831ec7";
+const DEFAULT_COINGECKO_TON_PRICE_URL = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd&include_last_updated_at=true";
 const DEFAULT_DIA_MAX_AGE_SECONDS = 300;
-const DIA_REQUEST_TIMEOUT_MS = 5_000;
+const PRICE_REQUEST_TIMEOUT_MS = 5_000;
+const DEFAULT_MAX_PROVIDER_DEVIATION_PERCENT = 2;
 const DIA_TON_IDENTITY = {
   symbol: "TON",
   blockchain: "ton",
@@ -38,6 +46,12 @@ type DiaAssetQuotation = {
   Price?: unknown;
   Time?: unknown;
   Source?: unknown;
+};
+type CoinGeckoSimplePrice = {
+  "the-open-network"?: {
+    usd?: unknown;
+    last_updated_at?: unknown;
+  };
 };
 
 export async function loadTonDepositConfig(supabase: SupabaseClient<Database>): Promise<TonDepositConfig | null> {
@@ -79,23 +93,112 @@ export function resolveTonNetwork(): TonNetwork {
 }
 
 export async function resolveTonPriceSnapshot(network: TonNetwork): Promise<TonPriceSnapshot | null> {
+  return (await resolveTonPriceResolution(network)).snapshot;
+}
+
+export async function resolveTonPriceResolution(network: TonNetwork): Promise<TonPriceResolution> {
   if (network === "testnet") {
     const configuredRate = (process.env.TON_TESTNET_USD_RATE?.trim() || "1").trim();
-    if (!isPositiveDecimal(configuredRate)) return null;
+    if (!isPositiveDecimal(configuredRate)) {
+      return {
+        snapshot: null,
+        failureReason: "providers_unavailable",
+        diagnostics: { selectedProvider: null, testRateValid: false }
+      };
+    }
+    const sourceTimestamp = new Date().toISOString();
     return {
-      rate: configuredRate,
-      provider: "test_fixture",
-      sourceTimestamp: new Date().toISOString()
+      snapshot: {
+        rate: configuredRate,
+        provider: "test_fixture",
+        sourceTimestamp,
+        metadata: {
+          selectedProvider: "test_fixture",
+          primaryRate: configuredRate,
+          primaryTimestamp: sourceTimestamp
+        }
+      },
+      failureReason: null,
+      diagnostics: { selectedProvider: "test_fixture" }
     };
   }
 
-  const endpoint = process.env.DIA_TON_PRICE_URL?.trim() || DEFAULT_DIA_TON_PRICE_URL;
-  return resolveDiaPriceSnapshot(endpoint, DIA_TON_IDENTITY);
+  const diaEndpoint = process.env.DIA_TON_PRICE_URL?.trim() || DEFAULT_DIA_TON_PRICE_URL;
+  const [diaQuote, coinGeckoQuote] = await Promise.all([
+    resolveDiaPriceSnapshot(diaEndpoint, DIA_TON_IDENTITY),
+    resolveCoinGeckoTonPriceSnapshot()
+  ]);
+
+  if (!diaQuote && !coinGeckoQuote) {
+    return {
+      snapshot: null,
+      failureReason: "providers_unavailable",
+      diagnostics: {
+        selectedProvider: null,
+        primaryProvider: "dia_asset_quotation",
+        primaryAvailable: false,
+        secondaryProvider: "coingecko_simple_price",
+        secondaryAvailable: false
+      }
+    };
+  }
+
+  const deviationPercent = diaQuote && coinGeckoQuote
+    ? calculateDeviationPercent(diaQuote.rate, coinGeckoQuote.rate)
+    : null;
+  const maxDeviationPercent = clampProviderDeviationPercent(process.env.TON_PRICE_MAX_DEVIATION_PERCENT);
+
+  if (deviationPercent !== null && deviationPercent > maxDeviationPercent) {
+    return {
+      snapshot: null,
+      failureReason: "provider_deviation",
+      diagnostics: {
+        selectedProvider: null,
+        primaryProvider: "dia_asset_quotation",
+        primaryRate: diaQuote?.rate ?? null,
+        primaryTimestamp: diaQuote?.sourceTimestamp ?? null,
+        secondaryProvider: "coingecko_simple_price",
+        secondaryRate: coinGeckoQuote?.rate ?? null,
+        secondaryTimestamp: coinGeckoQuote?.sourceTimestamp ?? null,
+        deviationPercent,
+        maxDeviationPercent
+      }
+    };
+  }
+
+  const selected = diaQuote ?? coinGeckoQuote;
+  if (!selected) {
+    return { snapshot: null, failureReason: "providers_unavailable", diagnostics: {} };
+  }
+
+  const diagnostics = {
+    selectedProvider: selected.provider,
+    fallbackReason: diaQuote ? null : "dia_unavailable",
+    primaryProvider: "dia_asset_quotation",
+    primaryRate: diaQuote?.rate ?? null,
+    primaryTimestamp: diaQuote?.sourceTimestamp ?? null,
+    secondaryProvider: "coingecko_simple_price",
+    secondaryRate: coinGeckoQuote?.rate ?? null,
+    secondaryTimestamp: coinGeckoQuote?.sourceTimestamp ?? null,
+    deviationPercent,
+    maxDeviationPercent
+  };
+  return {
+    snapshot: {
+      ...selected,
+      metadata: diagnostics
+    },
+    failureReason: null,
+    diagnostics
+  };
 }
 
 export async function resolveUsdtPriceSnapshot(): Promise<TonPriceSnapshot | null> {
-  const endpoint = process.env.DIA_USDT_PRICE_URL?.trim() || DEFAULT_DIA_USDT_PRICE_URL;
-  return resolveDiaPriceSnapshot(endpoint, DIA_USDT_IDENTITY);
+  const configuredEndpoint = process.env.DIA_USDT_PRICE_URL?.trim();
+  if (!configuredEndpoint) return resolveDiaPriceSnapshot(DEFAULT_DIA_USDT_PRICE_URL, DIA_USDT_IDENTITY);
+
+  const configuredQuote = await resolveDiaPriceSnapshot(configuredEndpoint, DIA_USDT_IDENTITY);
+  return configuredQuote ?? resolveDiaPriceSnapshot(DEFAULT_DIA_USDT_PRICE_URL, DIA_USDT_IDENTITY);
 }
 
 async function resolveDiaPriceSnapshot(
@@ -107,7 +210,7 @@ async function resolveDiaPriceSnapshot(
     const response = await fetch(endpoint, {
       cache: "no-store",
       headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(DIA_REQUEST_TIMEOUT_MS)
+      signal: AbortSignal.timeout(PRICE_REQUEST_TIMEOUT_MS)
     });
     if (!response.ok) return null;
 
@@ -131,7 +234,44 @@ async function resolveDiaPriceSnapshot(
     return {
       rate,
       provider: "dia_asset_quotation",
-      sourceTimestamp
+      sourceTimestamp,
+      metadata: {}
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveCoinGeckoTonPriceSnapshot(): Promise<TonPriceSnapshot | null> {
+  const endpoint = process.env.COINGECKO_TON_PRICE_URL?.trim() || DEFAULT_COINGECKO_TON_PRICE_URL;
+  const apiKey = process.env.COINGECKO_API_KEY?.trim();
+  const headers: HeadersInit = { Accept: "application/json" };
+  if (apiKey) {
+    headers[endpoint.includes("pro-api.coingecko.com") ? "x-cg-pro-api-key" : "x-cg-demo-api-key"] = apiKey;
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      cache: "no-store",
+      headers,
+      signal: AbortSignal.timeout(PRICE_REQUEST_TIMEOUT_MS)
+    });
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as CoinGeckoSimplePrice;
+    const quote = payload["the-open-network"];
+    const rate = normalizePositiveRate(quote?.usd);
+    const sourceTimestamp = normalizeFreshUnixTimestamp(
+      quote?.last_updated_at,
+      clampDiaMaxAgeSeconds(process.env.DIA_TON_PRICE_MAX_AGE_SECONDS)
+    );
+    if (!rate || !sourceTimestamp) return null;
+
+    return {
+      rate,
+      provider: "coingecko_simple_price",
+      sourceTimestamp,
+      metadata: {}
     };
   } catch {
     return null;
@@ -158,10 +298,30 @@ function normalizeFreshTimestamp(value: unknown, maxAgeSeconds: number): string 
   return timestamp.toISOString();
 }
 
+function normalizeFreshUnixTimestamp(value: unknown, maxAgeSeconds: number): string | null {
+  const seconds = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return normalizeFreshTimestamp(new Date(seconds * 1_000).toISOString(), maxAgeSeconds);
+}
+
 function clampDiaMaxAgeSeconds(value: string | undefined): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return DEFAULT_DIA_MAX_AGE_SECONDS;
   return Math.max(120, Math.min(3_600, Math.floor(parsed)));
+}
+
+function clampProviderDeviationPercent(value: string | undefined): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_MAX_PROVIDER_DEVIATION_PERCENT;
+  return Math.max(0.1, Math.min(10, parsed));
+}
+
+function calculateDeviationPercent(leftRate: string, rightRate: string): number | null {
+  const left = Number(leftRate);
+  const right = Number(rightRate);
+  const midpoint = (left + right) / 2;
+  if (!Number.isFinite(left) || !Number.isFinite(right) || midpoint <= 0) return null;
+  return Math.abs(left - right) / midpoint * 100;
 }
 
 export function normalizeTonAddress(value: unknown): string | null {

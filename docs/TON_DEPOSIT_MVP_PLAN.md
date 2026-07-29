@@ -48,8 +48,11 @@ Scanner:
 
 ## Курс и зачисление
 
-- Mainnet TON/USD берётся из DIA Asset Quotation API.
-- Принимается только положительная свежая котировка с проверенной identity native TON.
+- Mainnet TON/USD запрашивается параллельно из DIA Asset Quotation API и CoinGecko `the-open-network`.
+- Принимаются только положительные котировки не старше 5 минут с проверенной identity native TON.
+- DIA остаётся primary. Если DIA недоступен, валидный CoinGecko quote используется как fallback.
+- Если обе котировки доступны, но расходятся больше чем на 2%, автоматическое зачисление приостанавливается и settlement retry получает `price_provider_deviation`.
+- Выбранный provider, обе цены, timestamps, отклонение и причина fallback сохраняются в `ton_chain_events.rate_metadata` и Wallet ledger metadata.
 - Hardcoded fallback курса для mainnet запрещён.
 - При недоступном или stale DIA очередь повторяет запрос с backoff: 15 секунд, 30 секунд, 1 минута, 2 минуты, затем 5 минут.
 - После 12 неудачных попыток запись переходит в `manual_review`; chain event и деньги не удаляются.
@@ -71,6 +74,9 @@ TON_SCANNER_SECRET=<generated server secret, at least 32 characters>
 DIA_TON_PRICE_URL=<optional override>
 DIA_USDT_PRICE_URL=<optional override>
 DIA_TON_PRICE_MAX_AGE_SECONDS=300
+COINGECKO_TON_PRICE_URL=<optional override>
+COINGECKO_API_KEY=<optional but recommended for production>
+TON_PRICE_MAX_DEVIATION_PERCENT=2
 ```
 
 Supabase Vault содержит:
@@ -94,9 +100,13 @@ RPC `configure_ton_deposit_scanner(project_url, secret)` обновляет об
 ## Миграции
 
 - `20260728130000_ton_deposit_mvp.sql` применена к remote Supabase.
-- `20260729130000_ton_deposit_usd_precision.sql` поднимает точность settlement до 6 USD-знаков.
-- `20260729190000_ton_invoice_persistent_scan_runs.sql` несмотря на историческое имя теперь заменяет per-invoice scan windows постоянным cursor-driven pipeline.
-- Последние две миграции требуется применять только штатным linked Supabase CLI способом из `docs/DEVELOPMENT_RULES.md`.
+- `20260729130000_ton_deposit_usd_precision.sql` применена и поднимает точность settlement до 6 USD-знаков.
+- `20260729190000_ton_invoice_persistent_scan_runs.sql` применена и, несмотря на историческое имя, заменяет per-invoice scan windows постоянным cursor-driven pipeline.
+- `20260729220000_fix_ton_invoice_expiry_ambiguity.sql` исправляет неоднозначную ссылку `expires_at` при явной замене active invoice.
+- `20260729223000_ton_price_provider_fallback_audit.sql` добавляет audit metadata для DIA/CoinGecko failover и сохраняет его в Wallet ledger.
+- Новые миграции применяются только штатным linked Supabase CLI способом из `docs/DEVELOPMENT_RULES.md`.
+
+Исправление UI от 2026-07-29 также нормализует timestamp криптодепозита до календарной даты в Wallet history и не допускает падения `Intl.DateTimeFormat` на повреждённом значении. DIA USDT endpoint использует регистрозависимый идентификатор `Ethereum` и при ошибочном custom URL повторяет запрос к официальному default endpoint.
 
 ## Acceptance criteria
 
@@ -108,6 +118,7 @@ RPC `configure_ton_deposit_scanner(project_url, secret)` обновляет об
 - два разных перевода с одним comment сохраняются и зачисляются отдельно;
 - bounced/aborted перевод не изменяет Wallet;
 - недоступный DIA не теряет chain event и не продолжает blockchain polling ради курса;
+- недоступный DIA использует свежий CoinGecko quote, а расхождение провайдеров больше 2% блокирует settlement;
 - неизвестный comment сохраняется как `unmatched` и не изменяет Wallet;
 - сумма хранится в nanoTON и точно конвертируется в TON/USD;
 - Wallet history показывает фактическую сумму, курс и tx hash;

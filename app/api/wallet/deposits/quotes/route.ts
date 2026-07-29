@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const network = resolveTonNetwork();
     const [config, tonQuote, usdtQuote] = await Promise.all([
-      loadTonDepositConfig(supabase),
+      loadTonDepositConfig(supabase).catch(() => null),
       resolveTonPriceSnapshot(network),
       resolveUsdtPriceSnapshot()
     ]);

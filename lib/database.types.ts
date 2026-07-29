@@ -2294,6 +2294,7 @@ export type Database = {
           logical_time: string
           message_index: number
           network: string
+          rate_metadata: Json
           rate_provider: string | null
           rate_source_timestamp: string | null
           raw_transaction: Json
@@ -2320,6 +2321,7 @@ export type Database = {
           logical_time: string
           message_index?: number
           network: string
+          rate_metadata?: Json
           rate_provider?: string | null
           rate_source_timestamp?: string | null
           raw_transaction?: Json
@@ -2346,6 +2348,7 @@ export type Database = {
           logical_time?: string
           message_index?: number
           network?: string
+          rate_metadata?: Json
           rate_provider?: string | null
           rate_source_timestamp?: string | null
           raw_transaction?: Json

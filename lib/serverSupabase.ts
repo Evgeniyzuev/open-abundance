@@ -2,6 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 import type { Database } from "@/lib/database.types";
 
+const noStoreFetch: typeof fetch = (input, init) => fetch(input, {
+  ...init,
+  cache: "no-store"
+});
+
 export function createServiceSupabaseClient() {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -14,6 +19,9 @@ export function createServiceSupabaseClient() {
     auth: {
       persistSession: false,
       autoRefreshToken: false
+    },
+    global: {
+      fetch: noStoreFetch
     }
   });
 }

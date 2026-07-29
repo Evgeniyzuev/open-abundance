@@ -97,6 +97,8 @@ RPC `configure_ton_deposit_scanner(project_url, secret)` обновляет об
 
 TON invoice API нормализует значения PostgREST `numeric` (`expected_amount_nano`, `amount_nano`, settlement amount и rate) в строки до формирования JSON. Клиентский форматтер также проверяет runtime-тип, поэтому числовой chain event не может обрушить Deposit modal.
 
+Wallet history и общий server-side Supabase client используют принудительный `no-store`, чтобы новое ledger-зачисление не скрывалось устаревшим внутренним PostgREST GET.
+
 Пользовательских `/check`, `/cancel`, `/resume`, scan runs и countdown больше нет.
 
 ## Миграции

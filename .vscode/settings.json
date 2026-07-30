@@ -1,3 +1,5 @@
 {
-    "workbench.browser.openLocalhostLinks": false
+    "workbench.browser.openLocalhostLinks": false,
+    "deno.enablePaths": ["./supabase/functions"],
+    "deno.config": "./supabase/functions/send-reflection-reminders/deno.json"
 }

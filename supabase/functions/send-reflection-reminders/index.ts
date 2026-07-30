@@ -1,4 +1,7 @@
+/// <reference types="npm:@types/node@20.14.10" />
+
 import { createClient } from "npm:@supabase/supabase-js@2";
+// @deno-types="npm:@types/web-push@3.6.4"
 import webpush from "npm:web-push@3.6.7";
 
 type ReminderJob = {
@@ -17,6 +20,8 @@ type PushSubscriptionRow = {
   auth: string;
   owner_key: string;
 };
+
+type SupabaseAdminClient = ReturnType<typeof createClient<any>>;
 
 Deno.serve(async (request) => {
   const cronSecret = Deno.env.get("REMINDER_CRON_SECRET");
@@ -91,7 +96,7 @@ function buildPayload(job: ReminderJob) {
   };
 }
 
-async function isTodayComplete(supabase: ReturnType<typeof createClient>, ownerKey: string, timezone: string): Promise<boolean> {
+async function isTodayComplete(supabase: SupabaseAdminClient, ownerKey: string, timezone: string): Promise<boolean> {
   if (!ownerKey.startsWith("user:")) return false;
   const userId = ownerKey.slice("user:".length);
   const localDate = getLocalDate(new Date(), timezone);
@@ -115,6 +120,6 @@ function getLocalDate(date: Date, timezone: string): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-async function finishJob(supabase: ReturnType<typeof createClient>, jobId: string, success: boolean, error: string | null) {
+async function finishJob(supabase: SupabaseAdminClient, jobId: string, success: boolean, error: string | null) {
   await supabase.rpc("complete_reminder_job", { p_job_id: jobId, p_success: success, p_error: error });
 }

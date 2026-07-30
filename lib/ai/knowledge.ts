@@ -26,7 +26,7 @@ Open Abundance is a daily growth platform where users build internal capital (Co
 ### Core (\u042f\u0434\u0440\u043e)
 - Non-decreasing capital stored in internal \$.
 - Generates passive daily income at 0.0633% per day (~26% APR, ~x2 in 3 years, ~x10 in 10 years).
-- Core never decreases through user actions, only grows through interest and top-ups.
+- Core is strictly non-decreasing: no user action, breach, error, quality gate or redemption can reduce it; it only grows through valid system accruals and top-ups.
 - Determines the user's level.
 
 ### Wallet

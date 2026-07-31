@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, Newspaper, Rocket, ShoppingBag, Smile, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Smile, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
@@ -114,6 +114,8 @@ export default function AppNavigation() {
   const [activeSocialTab, setActiveSocialTab] = useState<SocialTabId>(DEFAULT_NAVIGATION_STATE.socialTab);
   const [activeChallengeTab, setActiveChallengeTab] = useState<ChallengeTab>("challenges");
   const [navHidden, setNavHidden] = useState(false);
+  const [topNavExpanded, setTopNavExpanded] = useState(true);
+  const [bottomNavExpanded, setBottomNavExpanded] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -183,15 +185,21 @@ export default function AppNavigation() {
   const updateNavFromScrollIntent = useCallback((delta: number) => {
     if (window.scrollY <= 0) {
       setNavHidden(false);
+      setTopNavExpanded(true);
+      setBottomNavExpanded(true);
       return;
     }
     if (Math.abs(delta) <= NAV_HIDE_DELTA_PX) return;
     if (delta < 0) {
       setNavHidden(false);
+      setTopNavExpanded(true);
+      setBottomNavExpanded(true);
       return;
     }
 
     setNavHidden(true);
+    setTopNavExpanded(false);
+    setBottomNavExpanded(false);
   }, []);
 
   const navigateFromAppTesting = useCallback((target: AppTestingNavigationTarget) => {
@@ -259,6 +267,8 @@ export default function AppNavigation() {
       const currentScrollY = Math.max(0, window.scrollY);
       if (currentScrollY === 0) {
         setNavHidden(false);
+        setTopNavExpanded(true);
+        setBottomNavExpanded(true);
         lastScrollY = 0;
         return;
       }
@@ -285,6 +295,8 @@ export default function AppNavigation() {
 
   useEffect(() => {
     setNavHidden(false);
+    setTopNavExpanded(true);
+    setBottomNavExpanded(true);
   }, [activeMainTab, activeHomeTab, activeGoalTab, activeWalletTab, activeSocialTab]);
 
   useEffect(() => {
@@ -427,7 +439,17 @@ export default function AppNavigation() {
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
         {pullDistance >= PULL_THRESHOLD_PX ? t("app.pull.release") : t("app.pull.drag")}
       </div>
-      <TopTabBar activeMainTab={activeMainTab} activeTab={activeTopTab} hidden={navHidden} tabs={topTabs} t={t} unreadChallenges={challengesUnread} unreadToday={todayUnread} onTabChange={handleTopTabChange} />
+      <TopTabBar
+        activeMainTab={activeMainTab}
+        activeTab={activeTopTab}
+        collapsed={navHidden && !topNavExpanded}
+        tabs={topTabs}
+        t={t}
+        unreadChallenges={challengesUnread}
+        unreadToday={todayUnread}
+        onExpand={() => setTopNavExpanded(true)}
+        onTabChange={handleTopTabChange}
+      />
       <section className="app-content">
         <div className="app-view" hidden={!showHome}>
           <HomeTodayApp
@@ -484,7 +506,15 @@ export default function AppNavigation() {
         </KeepAliveView>
         {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
-      <BottomTabBar activeTab={activeMainTab} hidden={navHidden} t={t} unreadChallenges={challengesUnread} unreadToday={todayUnread} onTabChange={setActiveMainTab} />
+      <BottomTabBar
+        activeTab={activeMainTab}
+        collapsed={navHidden && !bottomNavExpanded}
+        t={t}
+        unreadChallenges={challengesUnread}
+        unreadToday={todayUnread}
+        onExpand={() => setBottomNavExpanded(true)}
+        onTabChange={setActiveMainTab}
+      />
     </>
   );
 }
@@ -492,18 +522,32 @@ export default function AppNavigation() {
 type TopTabBarProps = {
   activeMainTab: MainTabId;
   activeTab?: string;
-  hidden: boolean;
+  collapsed: boolean;
   tabs: TopTab[];
   t: TFunction;
   unreadChallenges: boolean;
   unreadToday: boolean;
+  onExpand: () => void;
   onTabChange: (tab: string) => void;
 };
 
-function TopTabBar({ activeMainTab, activeTab, hidden, tabs, t, unreadChallenges, unreadToday, onTabChange }: TopTabBarProps) {
+function TopTabBar({ activeMainTab, activeTab, collapsed, tabs, t, unreadChallenges, unreadToday, onExpand, onTabChange }: TopTabBarProps) {
+  const unread = Boolean(
+    (activeMainTab === "challenges" && tabs.some((tab) => tab.id === "challenges") && unreadChallenges) ||
+      (activeMainTab === "home" && tabs.some((tab) => tab.id === "home") && unreadToday)
+  );
+
   return (
-    <nav className={`glass-tabbar top-tabbar ${hidden ? "nav-hidden" : ""}`} aria-label={t("app.nav.top")}>
-      {tabs.length > 0 ? (
+    <nav className={`glass-tabbar top-tabbar ${collapsed ? "nav-collapsed" : ""}`} aria-label={t("app.nav.top")}>
+      {collapsed ? (
+        <CollapsedNavButton
+          icon={MoreHorizontal}
+          unread={unread}
+          unreadLabel={t("app.nav.newActivity")}
+          label={t("app.nav.expandTop")}
+          onClick={onExpand}
+        />
+      ) : tabs.length > 0 ? (
         tabs.map((tab) => (
           <TabButton
             active={tab.id === activeTab}
@@ -550,28 +594,67 @@ function TabButton({ active, icon: Icon, title, unread = false, unreadLabel, onC
 
 type BottomTabBarProps = {
   activeTab: MainTabId;
-  hidden: boolean;
+  collapsed: boolean;
   t: TFunction;
   unreadChallenges: boolean;
   unreadToday: boolean;
+  onExpand: () => void;
   onTabChange: (tab: MainTabId) => void;
 };
 
-function BottomTabBar({ activeTab, hidden, t, unreadChallenges, unreadToday, onTabChange }: BottomTabBarProps) {
+function BottomTabBar({ activeTab, collapsed, t, unreadChallenges, unreadToday, onExpand, onTabChange }: BottomTabBarProps) {
+  const activeItem = mainTabs.find((tab) => tab.id === activeTab) ?? mainTabs[0];
+  const unread = (activeTab === "challenges" && unreadChallenges) || (activeTab === "home" && unreadToday);
+
   return (
-    <nav className={`glass-tabbar bottom-tabbar ${hidden ? "nav-hidden" : ""}`} aria-label={t("app.nav.bottom")}>
-      {mainTabs.map((tab) => (
-        <TabButton
-          active={tab.id === activeTab}
-          icon={tab.icon}
-          key={tab.id}
-          title={t(tab.titleKey)}
-          unread={(tab.id === "challenges" && unreadChallenges) || (tab.id === "home" && unreadToday)}
+    <nav className={`glass-tabbar bottom-tabbar ${collapsed ? "nav-collapsed" : ""}`} aria-label={t("app.nav.bottom")}>
+      {collapsed ? (
+        <CollapsedNavButton
+          icon={activeItem.icon}
+          unread={unread}
           unreadLabel={t("app.nav.newActivity")}
-          onClick={() => onTabChange(tab.id)}
+          label={t("app.nav.expandBottom")}
+          onClick={onExpand}
         />
-      ))}
+      ) : (
+        mainTabs.map((tab) => (
+          <TabButton
+            active={tab.id === activeTab}
+            icon={tab.icon}
+            key={tab.id}
+            title={t(tab.titleKey)}
+            unread={(tab.id === "challenges" && unreadChallenges) || (tab.id === "home" && unreadToday)}
+            unreadLabel={t("app.nav.newActivity")}
+            onClick={() => onTabChange(tab.id)}
+          />
+        ))
+      )}
     </nav>
+  );
+}
+
+type CollapsedNavButtonProps = {
+  icon: LucideIcon;
+  label: string;
+  unread: boolean;
+  unreadLabel: string;
+  onClick: () => void;
+};
+
+function CollapsedNavButton({ icon: Icon, label, unread, unreadLabel, onClick }: CollapsedNavButtonProps) {
+  return (
+    <button
+      className="nav-collapse-button"
+      type="button"
+      aria-label={unread ? `${label}. ${unreadLabel}` : label}
+      aria-expanded={false}
+      onClick={onClick}
+    >
+      <span className="nav-collapse-icon">
+        <Icon size={28} strokeWidth={2.4} />
+        {unread ? <i aria-hidden="true" className="tab-unread-dot" /> : null}
+      </span>
+    </button>
   );
 }
 

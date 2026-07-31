@@ -2,14 +2,16 @@
 
 ## Статус
 
-Архитектурное решение, принятое 2026-07-22. Реализация общего context broker, разрешений и долговременной AI-памяти ещё не начата.
+Архитектурное решение, принятое 2026-07-22. Первый фундамент реализован 2026-07-31: все текущие model-backed AI-функции используют одну версионированную базу знаний, capability-инструкции и общий provider gateway. Context Broker, пользовательские разрешения и долговременная AI-память ещё не реализованы.
 
-Сейчас AI-функции изолированы:
+Текущее состояние:
 
-- `/api/ai/chat` получает историю текущего чата и статическую базу знаний `lib/ai/knowledge.ts`;
+- `lib/ai/knowledge.ts` содержит серверную базу знаний, версию правил и capability-инструкции `chat.general`/`reflection.process`; клиентский welcome/suggestions вынесен в `lib/ai/clientContent.ts`;
+- `lib/ai/providerGateway.ts` является единственной точкой Gemini/Groq fallback, streaming и JSON generation; системная инструкция всегда передаётся отдельно от пользовательских данных;
+- `/api/ai/chat` получает историю текущего чата и общий системный контекст;
 - чат не получает `profile`, `core`, `wallet`, желания, задачи или заметки пользователя;
 - история чата хранится только в состоянии `AiChatApp` и исчезает после перезагрузки;
-- `/api/ai/reflections/step` получает только явно выбранную запись, guided-выборы и ответы текущего разбора;
+- `/api/ai/reflections/step` использует тот же базовый контекст, но получает только явно выбранную запись, guided-выборы и ответы текущего разбора; приватная запись остаётся user input, а не частью system prompt;
 - `Home` получает `profile/core/wallet` через `/api/user/context`, но эти данные не передаются AI.
 
 До появления consent-контракта нельзя незаметно объединять эти потоки или передавать внешнему провайдеру дополнительные личные данные.
@@ -164,6 +166,8 @@ type AiContextEnvelope = {
 
 Единая точка для Gemini/Groq fallback, таймаутов, JSON validation, streaming, safety и метаданных использования. Функциональные endpoints остаются отдельными, но вызывают общий gateway.
 
+Реализованный первый slice находится в `lib/ai/providerGateway.ts`: fallback, streaming, JSON generation и no-store headers общие для chat и Reflection. Таймауты, usage metadata и общий safety pipeline остаются следующими этапами.
+
 ### `Context Broker`
 
 Серверный сборщик, который:
@@ -296,10 +300,10 @@ Notes, Checks и Reflection Inbox остаются в `open-abundance-offline`. 
 
 ## Этапы внедрения
 
-1. **Общий фундамент:** вынести provider fallback, базовые правила и типы capability в AI Gateway/Registry без подключения новых пользовательских данных.
+1. **Общий фундамент — реализован 2026-07-31:** provider fallback, базовые правила, версия базы знаний и типы текущих capability вынесены в общий gateway/builder без подключения новых пользовательских данных; архитектурный контракт проверяется `pnpm test:ai`.
 2. **Consent UI:** scopes, режимы разрешения и предварительный просмотр `ИИ получит`.
 3. **Context Broker:** подключить публичный профиль, выбранное желание и агрегированную Home-сводку.
-4. **Function migration:** перевести chat, Home helper и reflection endpoint на единый envelope, сохранив строгий allowlist Reflection.
+4. **Function migration — частично:** chat и reflection endpoint используют общий system prompt и gateway; единый envelope и отдельный Home helper появятся вместе с Context Broker. Строгая изоляция Reflection сохранена.
 5. **Подтверждаемая память:** candidates, экран управления и использование только `memory.confirmed`.
 6. **Расширение scopes:** private wishes/tasks и финансовая сводка; transaction history, direct messages и reflection history остаются последними и требуют отдельного решения.
 

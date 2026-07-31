@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, Sparkles, Trash2 } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
-import { SUGGESTED_PROMPTS, WELCOME_MESSAGES } from "@/lib/ai/knowledge";
+import { SUGGESTED_PROMPTS, WELCOME_MESSAGES } from "@/lib/ai/clientContent";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 type ChatMessage = {

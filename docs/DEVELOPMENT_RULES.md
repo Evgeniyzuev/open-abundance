@@ -139,6 +139,8 @@ This repository is linked to Supabase project `bsikxrsguwketlloflgi`. Before a r
 - `supabase/.temp/project-ref`;
 - the project ref in `SUPABASE_URL` and the Postgres username/host.
 
+The operator runbook with the verified PowerShell command is [`docs/DATABASE.md`](./DATABASE.md#remote-migration-push-verified-windows-workflow). Keep the command there and this rule in sync when the connection workflow changes.
+
 Use the linked Supabase CLI workflow as the canonical migration path. For this project, the verified connection method is `--linked --password` with `POSTGRES_PASSWORD` read from `.env`. Do not construct a `--db-url` from `POSTGRES_URL*`: that route produced connection errors in this workspace even though the linked password route worked with the same `.env`.
 
 Use the globally installed `supabase` CLI directly:
@@ -162,6 +164,8 @@ Remove-Variable pw -ErrorAction SilentlyContinue
 exit $exitCode
 ```
 
+Use the regex exactly as shown, with single backslashes (`\s`). A pasted escaped form containing `\\s` does not parse `.env` assignments in PowerShell and must not be used.
+
 Do not use `pnpm dlx supabase` as the apply fallback on this Windows workspace. It can read the linked project and report `Remote database is up to date`, but pending migration apply has repeatedly failed in its Bun/TypeScript wrapper with `LegacyDbPushApplyError` or a hanging `supabase-go` child process. If the global CLI is unavailable, perform the linked push from the configured device where the global binary works, or install a supported CLI before continuing.
 
 Do not print the password. A personal `SUPABASE_ACCESS_TOKEN` is not required for `db push` when the project is already linked; it is required only for initial link/re-link or Management API operations. If `supabase/.temp/project-ref` is missing or points elsewhere, re-link project `bsikxrsguwketlloflgi` before pushing.
@@ -170,8 +174,8 @@ Do not treat `db push --dry-run` alone as proof that database credentials work: 
 
 After the push, verify both:
 
-1. `supabase migration list --linked --password $pw` (or the `pnpm dlx` equivalent) shows the local timestamp in remote history.
-2. A read-only project REST request to one of the newly created tables succeeds with HTTP `200`. Use the server-side service-role key only from the local environment and never include it in command output, logs, documentation, or client code.
+1. `supabase migration list --linked --password $pw` shows the local timestamp in remote history. Do not substitute the unreliable `pnpm dlx` apply workflow on this Windows workspace.
+2. A read-only project REST request to one of the newly created or changed tables succeeds with HTTP `200`. Use the server-side service-role key only from the local environment and never include it in command output, logs, documentation, or client code.
 
 The project Data REST API is suitable for schema availability checks but not for applying DDL. The official Management API SQL endpoint requires a current personal access token with `database:write`; do not use it as an ad-hoc migration fallback because bypassing CLI migration history can cause later `db push` drift.
 

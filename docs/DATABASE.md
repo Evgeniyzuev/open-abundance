@@ -48,9 +48,42 @@ pnpm dlx supabase migration new <name>
 
 Apply local migrations to the linked remote project:
 
-```bash
-pnpm db:push
+For schema inspection and local-only workflows, the package scripts remain available. On this Windows workspace, do not use `pnpm db:push` to apply remote migrations; use the verified linked CLI workflow below.
+
+### Remote migration push (verified Windows workflow)
+
+The working apply path is the globally installed `supabase` CLI with the linked project and the database password read from `.env`:
+
+```powershell
+$path = Join-Path (Get-Location) '.env'
+$values = @{}
+foreach ($line in Get-Content -LiteralPath $path) {
+  if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$') {
+    $values[$matches[1]] = $matches[2].Trim().Trim('"').Trim("'")
+  }
+}
+$pw = [string]$values['POSTGRES_PASSWORD']
+if ([string]::IsNullOrWhiteSpace($pw)) {
+  throw 'POSTGRES_PASSWORD is missing in .env'
+}
+
+& supabase db push --linked --password $pw
+$exitCode = $LASTEXITCODE
+Remove-Variable pw -ErrorAction SilentlyContinue
+exit $exitCode
 ```
+
+The CLI may ask for confirmation; answer `Y`. The regex must contain single backslashes (`\s`), as shown above. Do not paste a JSON- or shell-escaped form with `\\s`, because it will not parse the `.env` lines correctly.
+
+Before applying, verify that `project_id` in `supabase/config.toml`, `supabase/.temp/project-ref`, `SUPABASE_URL`, and the Postgres host all point to `bsikxrsguwketlloflgi`. Do not print `$pw` or construct a `--db-url` from `POSTGRES_URL*`.
+
+After applying, verify the remote migration history:
+
+```powershell
+& supabase migration list --linked --password $pw
+```
+
+The newest local timestamp must have the same value in the `Remote` column. Also make one read-only REST request with the local service-role key to a newly created or changed table and confirm HTTP 200. Never include the password or service-role key in output, logs, documentation, or client code.
 
 Generate TypeScript database types:
 

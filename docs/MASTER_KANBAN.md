@@ -128,6 +128,7 @@
 - [ ] Referrals/teams: referral claim, team membership, capacity, контакты команды и team bonus ledger.
 - [ ] Trust-lite: mutual confirmations, trust events, reciprocity summary и challenge checks.
 - [ ] AI Coordinator: единый AI Gateway, capability registry, consent-aware Context Broker и подтверждаемая память пользователя; чат доступен как вторичная вкладка Home и пока не получает user context. Архитектура и этапы: `docs/AI_CONTEXT_MEMORY_ARCHITECTURE.md`.
+- [x] AI chat stage 1 технически реализован: локальная история Home → Ideas, 20 встроенных вопросов, Nova/quick actions и локальный UX-лимит 20 сообщений в UTC-сутки / 300 в UTC-месяц; требуется отдельный User QA, server-side quota остаётся следующим этапом.
 - [x] Reflection Inbox + Today rhythm: быстрый local-first захват в Notes с `reviewAt = +24h`, агрегированный локальный пункт `Разобрать заметки · N` на Home, guided AI-разбор из четырёх выборов с собственным вариантом и максимум двумя адаптивными уточнениями, редактируемое я-высказывание, возможные причины, ресурсы, if-then действие, связь с Checks, единый Today reminder и completion-streak челленджи 7/30. Push требует применения миграций и настройки VAPID/Vault; детали в `docs/REFLECTION_PROCESSING_PLAN.md` и `docs/TODAY_DAILY_CHALLENGE_PLAN.md`.
 
 ### Поздние контуры, уже имеющие технический фундамент

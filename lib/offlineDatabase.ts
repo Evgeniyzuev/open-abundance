@@ -1,12 +1,14 @@
 const DB_NAME = "open-abundance-offline";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 const STORES = [
   ["notes", { keyPath: "id" }],
   ["lists", { keyPath: "id" }],
   ["tasks", { keyPath: "id" }],
   ["taskCompletions", { keyPath: "id" }],
-  ["guestIdentity", { keyPath: "key" }]
+  ["guestIdentity", { keyPath: "key" }],
+  ["aiChats", { keyPath: "id" }],
+  ["aiUsage", { keyPath: "id" }]
 ] as const;
 
 export function openOfflineDatabase(): Promise<IDBDatabase> {

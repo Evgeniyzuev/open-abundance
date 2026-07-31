@@ -129,6 +129,7 @@ export default function AppNavigation() {
     wallet: false,
     people: false
   });
+  const [visitedHomeViews, setVisitedHomeViews] = useState({ ideas: false });
   const refreshInFlightRef = useRef(false);
   const refreshQueuedRef = useRef(false);
   const refreshQueueResolversRef = useRef<Array<() => void>>([]);
@@ -377,6 +378,11 @@ export default function AppNavigation() {
     }));
   }, [showChallenges, showMap, showPeople, showWallet, showWishes]);
 
+  useEffect(() => {
+    if (!showIdeas) return;
+    setVisitedHomeViews((current) => ({ ...current, ideas: true }));
+  }, [showIdeas]);
+
   function handleTopTabChange(tab: string) {
     if (activeMainTab === "home") setActiveHomeTab(tab as HomeTabId);
     if (activeMainTab === "goals") setActiveGoalTab(tab as GoalTabId);
@@ -440,7 +446,9 @@ export default function AppNavigation() {
         <KeepAliveView active={showWishes} visited={visitedServerViews.wishes}>
           <WishesApp active={showWishes} refreshNonce={refreshNonce} />
         </KeepAliveView>
-        {showIdeas ? <AiChatApp active={showIdeas} /> : null}
+        <KeepAliveView active={showIdeas} visited={visitedHomeViews.ideas}>
+          <AiChatApp active={showIdeas} />
+        </KeepAliveView>
         <KeepAliveView active={showChecks} visited>
           <TasksApp createRequest={reflectionTaskDraft} onCreateRequestHandled={() => setReflectionTaskDraft(null)} />
         </KeepAliveView>

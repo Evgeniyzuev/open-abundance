@@ -5,23 +5,51 @@
  */
 
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import {
+  getAiProviderHealth,
+  markAiProviderFailure,
+  markAiProviderSuccess,
+  type AiProviderName
+} from "@/lib/ai/serverUsage";
 
 export type AiConversationMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
-export type AiProvider = "gemini" | "groq";
+export type AiProvider = AiProviderName;
 
-export type AiGatewayErrorCode = "not_configured" | "all_providers_failed";
+export type AiGatewayErrorCode = "not_configured" | "providers_unavailable" | "all_providers_failed";
 
 export class AiGatewayError extends Error {
   readonly code: AiGatewayErrorCode;
 
   constructor(code: AiGatewayErrorCode) {
-    super(code === "not_configured" ? "AI providers are not configured." : "All AI providers failed.");
+    super(
+      code === "not_configured"
+        ? "AI providers are not configured."
+        : code === "providers_unavailable"
+          ? "AI providers are temporarily unavailable."
+          : "All AI providers failed."
+    );
     this.name = "AiGatewayError";
     this.code = code;
+  }
+}
+
+class AiProviderRequestError extends Error {
+  readonly provider: AiProvider;
+  readonly status: number | null;
+  readonly retryAfterMs: number | null;
+  readonly failureCode: string;
+
+  constructor(provider: AiProvider, status: number | null, failureCode: string, retryAfterMs: number | null = null) {
+    super(`${provider} provider request failed.`);
+    this.name = "AiProviderRequestError";
+    this.provider = provider;
+    this.status = status;
+    this.failureCode = failureCode;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -45,8 +73,13 @@ export type AiJsonResult<T> = {
   provider: AiProvider;
 };
 
-const GEMINI_MODEL = "gemini-2.0-flash";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+export const AI_PROVIDER_MODELS: Record<AiProvider, string> = {
+  gemini: "gemini-2.0-flash",
+  groq: "llama-3.3-70b-versatile"
+};
+
+const GEMINI_MODEL = AI_PROVIDER_MODELS.gemini;
+const GROQ_MODEL = AI_PROVIDER_MODELS.groq;
 
 export async function streamAiText({
   systemPrompt,
@@ -54,25 +87,17 @@ export async function streamAiText({
   temperature = 0.7,
   maxOutputTokens = 1_024,
 }: StreamTextOptions): Promise<Response> {
-  const { geminiKey, groqKey } = configuredProviderKeys();
+  const providers = await getAvailableProviders();
 
-  if (!geminiKey && !groqKey) {
-    throw new AiGatewayError("not_configured");
-  }
-
-  if (geminiKey) {
+  for (const { provider, apiKey } of providers) {
     try {
-      return await streamGemini(geminiKey, systemPrompt, messages, temperature, maxOutputTokens);
-    } catch {
-      console.warn("AI gateway: Gemini streaming failed; trying fallback.");
-    }
-  }
-
-  if (groqKey) {
-    try {
-      return await streamGroq(groqKey, systemPrompt, messages, temperature, maxOutputTokens);
-    } catch {
-      console.warn("AI gateway: Groq streaming failed.");
+      const response = provider === "gemini"
+        ? await streamGemini(apiKey, systemPrompt, messages, temperature, maxOutputTokens)
+        : await streamGroq(apiKey, systemPrompt, messages, temperature, maxOutputTokens);
+      await markAiProviderSuccess(provider);
+      return response;
+    } catch (error) {
+      await noteProviderFailure(provider, error);
     }
   }
 
@@ -86,43 +111,18 @@ export async function generateAiJson<T>({
   temperature = 0.25,
   maxOutputTokens = 1_800,
 }: GenerateJsonOptions<T>): Promise<AiJsonResult<T>> {
-  const { geminiKey, groqKey } = configuredProviderKeys();
+  const providers = await getAvailableProviders();
 
-  if (!geminiKey && !groqKey) {
-    throw new AiGatewayError("not_configured");
-  }
-
-  if (geminiKey) {
+  for (const { provider, apiKey } of providers) {
     try {
-      const value = validate(
-        await generateGeminiJson(
-          geminiKey,
-          systemPrompt,
-          userPrompt,
-          temperature,
-          maxOutputTokens
-        )
-      );
-      return { value, provider: "gemini" };
-    } catch {
-      console.warn("AI gateway: Gemini JSON generation failed; trying fallback.");
-    }
-  }
-
-  if (groqKey) {
-    try {
-      const value = validate(
-        await generateGroqJson(
-          groqKey,
-          systemPrompt,
-          userPrompt,
-          temperature,
-          maxOutputTokens
-        )
-      );
-      return { value, provider: "groq" };
-    } catch {
-      console.warn("AI gateway: Groq JSON generation failed.");
+      const rawValue = provider === "gemini"
+        ? await generateGeminiJson(apiKey, systemPrompt, userPrompt, temperature, maxOutputTokens)
+        : await generateGroqJson(apiKey, systemPrompt, userPrompt, temperature, maxOutputTokens);
+      const value = validate(rawValue);
+      await markAiProviderSuccess(provider);
+      return { value, provider };
+    } catch (error) {
+      await noteProviderFailure(provider, error);
     }
   }
 
@@ -134,6 +134,46 @@ function configuredProviderKeys() {
     geminiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     groqKey: process.env.GROQ_API_KEY,
   };
+}
+
+async function getAvailableProviders(): Promise<Array<{ provider: AiProvider; apiKey: string }>> {
+  const { geminiKey, groqKey } = configuredProviderKeys();
+  const configured = [
+    geminiKey ? { provider: "gemini" as const, apiKey: geminiKey } : null,
+    groqKey ? { provider: "groq" as const, apiKey: groqKey } : null
+  ].filter((item): item is { provider: AiProvider; apiKey: string } => Boolean(item));
+
+  if (!configured.length) throw new AiGatewayError("not_configured");
+
+  const available: Array<{ provider: AiProvider; apiKey: string }> = [];
+  for (const item of configured) {
+    const health = await getAiProviderHealth(item.provider);
+    const blocked = health?.blockedUntil ? Date.parse(health.blockedUntil) > Date.now() : false;
+    if (health && (!health.enabled || blocked)) continue;
+    available.push(item);
+  }
+
+  if (!available.length) throw new AiGatewayError("providers_unavailable");
+  return available;
+}
+
+async function noteProviderFailure(provider: AiProvider, error: unknown): Promise<void> {
+  const providerError = error instanceof AiProviderRequestError ? error : null;
+  const failureCode = providerError?.failureCode ?? "provider_error";
+  await markAiProviderFailure(provider, failureCode, providerError?.retryAfterMs);
+  const status = providerError?.status ? ` ${providerError.status}` : "";
+  console.warn(`AI gateway: ${provider} failed${status}; trying fallback.`);
+}
+
+function retryAfterMs(response: Response): number | null {
+  const value = response.headers.get("Retry-After");
+  if (!value) return null;
+
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.ceil(seconds * 1_000));
+
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : null;
 }
 
 async function streamGemini(
@@ -160,10 +200,10 @@ async function streamGemini(
   );
 
   if (!response.ok) {
-    throw new Error(`Gemini API error ${response.status}.`);
+    throw new AiProviderRequestError("gemini", response.status, `http_${response.status}`, retryAfterMs(response));
   }
   if (!response.body) {
-    throw new Error("Gemini returned no response body.");
+    throw new AiProviderRequestError("gemini", null, "empty_response");
   }
 
   const reader = response.body.getReader();
@@ -223,10 +263,10 @@ async function streamGroq(
   });
 
   if (!response.ok) {
-    throw new Error(`Groq API error ${response.status}.`);
+    throw new AiProviderRequestError("groq", response.status, `http_${response.status}`, retryAfterMs(response));
   }
   if (!response.body) {
-    throw new Error("Groq returned no response body.");
+    throw new AiProviderRequestError("groq", null, "empty_response");
   }
 
   const reader = response.body.getReader();
@@ -328,7 +368,7 @@ async function generateGeminiJson(
   );
 
   if (!response.ok) {
-    throw new Error(`Gemini API error ${response.status}.`);
+    throw new AiProviderRequestError("gemini", response.status, `http_${response.status}`, retryAfterMs(response));
   }
 
   const payload = (await response.json()) as {
@@ -363,7 +403,7 @@ async function generateGroqJson(
   });
 
   if (!response.ok) {
-    throw new Error(`Groq API error ${response.status}.`);
+    throw new AiProviderRequestError("groq", response.status, `http_${response.status}`, retryAfterMs(response));
   }
 
   const payload = (await response.json()) as {

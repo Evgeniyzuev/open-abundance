@@ -69,7 +69,16 @@ Open Abundance — AI-координируемый слой над сущест�
 - `Home → Ideas` сохраняет один текущий draft и локальную историю чатов в общей IndexedDB `open-abundance-offline` (DB version 5); Supabase и AI API не изменялись.
 - Добавлены 20 локализованных встроенных вопросов, панель `?`, quick actions и локальный статический персонаж Nova/Нова.
 - Локальный UX-лимит составляет 20 отправок в UTC-сутки и 300 в UTC-месяц; повторная отправка блокируется до завершения streaming-ответа.
-- Локальный лимит не является серверной защитой; server-side quota, usage ledger и provider health остаются этапом 2.
+- Локальный лимит остаётся UX-подсказкой; серверная квота является источником истины на этапе 2.
+
+### AI chat stage 2 implemented — 2026-07-31
+
+- `/api/ai/chat` принимает текущий Supabase access token, использует `user.id` и не добавляет отдельный глобальный auth guard.
+- Migration `20260731150000_ai_usage_quota_and_provider_health.sql` добавляет атомарную квоту `20/day` и `300/month` для `chat.general`, usage ledger без raw prompt/полного текста чата, per-user rate limit `6/min` и concurrency `1`.
+- Quota резервируется перед вызовом провайдера; ошибка провайдера не возвращает сообщение в квоту, а фиксируется как metadata-only `failed` event. Вызов fallback считается одним пользовательским запросом.
+- `ai_provider_health` хранит cooldown конкретного Gemini/Groq. Для HTTP 429 используется `Retry-After`, иначе применяется ограниченный exponential cooldown; fallback идёт только по доступным провайдерам.
+- Применение migration к удалённому Supabase ещё не выполнялось. До применения серверный chat quota работает fail-closed (`ai_quota_unavailable`), а provider health мягко возвращается к текущему поведению.
+- Reflection сохраняет текущий контракт и не включён в chat quota; общий gateway health/fallback применяется и к reflection.
 
 ### AI пока не реализован
 
@@ -77,8 +86,7 @@ Open Abundance — AI-координируемый слой над сущест�
 - Consent-контракт и отдельные пользовательские разрешения по scopes.
 - Долговременная AI-память.
 - Пользовательские provider connections и BYOK.
-- Provider registry, capability-based routing и usage ledger.
-- Централизованные квоты, очереди, cost ceiling и per-user rate limits.
+- Полный provider registry, capability-based routing, очереди, cost ceiling и token-based billing.
 - Prompt/semantic caching и Batch-задачи.
 - Remote MCP server Open Abundance.
 - Интеграции с ChatGPT, Claude или Gemini CLI.

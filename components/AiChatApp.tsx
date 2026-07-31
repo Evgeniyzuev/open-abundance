@@ -183,9 +183,15 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         setInput("");
 
         abortRef.current = new AbortController();
+        const supabase = getBrowserSupabaseClient();
+        const {
+          data: { session }
+        } = await supabase.auth.getSession();
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
         const res = await fetch("/api/ai/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
             locale
@@ -194,7 +200,14 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         });
 
         if (!res.ok) {
-          const errorPayload = await res.json().catch(() => null) as { error?: string } | null;
+          const errorPayload = await res.json().catch(() => null) as { error?: string; code?: string; quota?: LocalQuota } | null;
+          if (errorPayload?.quota) setQuota(errorPayload.quota);
+          if (errorPayload?.code === "ai_quota_exhausted") errorPayload.error = t("ai.chat.quotaLimited");
+          if (errorPayload?.code === "ai_quota_unavailable") errorPayload.error = t("ai.chat.quotaUnavailable");
+          if (errorPayload?.code === "ai_request_in_progress") errorPayload.error = t("ai.chat.requestInProgress");
+          if (errorPayload?.code === "ai_rate_limited") errorPayload.error = t("ai.chat.rateLimited");
+          if (errorPayload?.code === "ai_auth_required") errorPayload.error = t("ai.chat.authRequired");
+          if (errorPayload?.code === "ai_providers_unavailable") errorPayload.error = t("ai.chat.providerUnavailable");
           setMessages((current) => replaceLastAssistant(current, `⚠️ ${errorPayload?.error ?? t("ai.chat.error")}`));
           return;
         }

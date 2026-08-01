@@ -5,7 +5,7 @@ import {
   AiGatewayError,
   streamAiText,
   type AiConversationMessage,
-  type AiProvider
+  type AiResponseProvider
 } from "@/lib/ai/providerGateway";
 import {
   acquireAiRequest,
@@ -18,6 +18,7 @@ import {
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { AppLocale } from "@/lib/i18n";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { getAiUserSettings } from "@/lib/ai/userAiConnections";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -65,6 +66,9 @@ export async function POST(request: NextRequest) {
     return errorResponse("Authentication is required for AI chat.", 401, { code: "ai_auth_required" });
   }
 
+  const aiSettings = await getAiUserSettings(auth.user.id);
+  const isByok = aiSettings.routeMode === "byok";
+
   let requestAcquired = false;
 
   try {
@@ -90,14 +94,15 @@ export async function POST(request: NextRequest) {
     }
     requestAcquired = true;
 
-    const quota = await reserveAiChatMessage(auth.user.id);
-    if (!quota.allowed) {
+    const quota = isByok ? null : await reserveAiChatMessage(auth.user.id);
+    if (quota && !quota.allowed) {
       await releaseAiRequest(auth.user.id);
       requestAcquired = false;
       await recordAiUsageEvent({
         requestId,
         userId: auth.user.id,
         capability: "chat.general",
+        route: "system",
         status: "quota_blocked",
         inputTokens: estimateChatInputTokens(systemPrompt, messages),
         latencyMs: Date.now() - startedAt,
@@ -106,14 +111,21 @@ export async function POST(request: NextRequest) {
       return errorResponse("AI message quota exhausted.", 429, { code: "ai_quota_exhausted", quota });
     }
 
-    const response = await streamAiText({ systemPrompt, messages });
+    const response = await streamAiText({
+      systemPrompt,
+      messages,
+      routeMode: aiSettings.routeMode,
+      userId: auth.user.id,
+      modelId: aiSettings.modelId
+    });
     const provider = readProvider(response.headers.get("X-AI-Provider"));
     await recordAiUsageEvent({
       requestId,
       userId: auth.user.id,
       capability: "chat.general",
+      route: isByok ? "byok" : "system",
       provider,
-      model: provider ? AI_PROVIDER_MODELS[provider] : undefined,
+      model: provider === "openrouter" ? aiSettings.modelId : provider ? AI_PROVIDER_MODELS[provider] : undefined,
       status: "accepted",
       inputTokens: estimateChatInputTokens(systemPrompt, messages),
       latencyMs: Date.now() - startedAt,
@@ -132,6 +144,7 @@ export async function POST(request: NextRequest) {
       requestId,
       userId: auth.user.id,
       capability: "chat.general",
+      route: isByok ? "byok" : "system",
       status: "failed",
       inputTokens: estimateChatInputTokens(systemPrompt, messages),
       latencyMs: Date.now() - startedAt,
@@ -146,6 +159,18 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof AiGatewayError && error.code === "providers_unavailable") {
       return errorResponse("AI providers are temporarily unavailable.", 503, { code: "ai_providers_unavailable" });
+    }
+    if (error instanceof AiGatewayError) {
+      const byokErrors: Record<string, { message: string; status: number; code: string }> = {
+        byok_not_configured: { message: "OpenRouter is not connected.", status: 409, code: "ai_byok_not_configured" },
+        byok_invalid: { message: "The OpenRouter key is invalid.", status: 401, code: "ai_byok_invalid" },
+        byok_credits_exhausted: { message: "OpenRouter credits or key limit are exhausted.", status: 402, code: "ai_byok_credits_exhausted" },
+        byok_rate_limited: { message: "OpenRouter request rate limit reached.", status: 429, code: "ai_byok_rate_limited" },
+        byok_failed: { message: "OpenRouter could not complete the request.", status: 502, code: "ai_byok_failed" },
+        model_not_allowed: { message: "This OpenRouter model is not available in the app.", status: 400, code: "ai_model_not_allowed" }
+      };
+      const mapped = byokErrors[error.code];
+      if (mapped) return errorResponse(mapped.message, mapped.status, { code: mapped.code });
     }
 
     return errorResponse("All AI providers failed. Please try again.", 502, { code: "ai_providers_failed" });
@@ -181,8 +206,8 @@ function estimateChatInputTokens(systemPrompt: string, messages: AiConversationM
   return estimateAiTokens([systemPrompt, ...messages.map((message) => message.content)].join("\n"));
 }
 
-function readProvider(value: string | null): AiProvider | undefined {
-  return value === "gemini" || value === "groq" ? value : undefined;
+function readProvider(value: string | null): AiResponseProvider | undefined {
+  return value === "gemini" || value === "groq" || value === "openrouter" ? value : undefined;
 }
 
 function releaseWhenStreamEnds(response: Response, release: () => Promise<void>): Response {

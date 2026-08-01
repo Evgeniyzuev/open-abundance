@@ -7,6 +7,7 @@ export const AI_CHAT_RATE_WINDOW_SECONDS = 60;
 export const AI_CHAT_MAX_CONCURRENT = 1;
 
 export type AiProviderName = "gemini" | "groq";
+export type AiUsageProvider = AiProviderName | "openrouter";
 
 export type AiQuotaReservation = {
   allowed: boolean;
@@ -38,7 +39,8 @@ export type AiUsageEvent = {
   requestId: string;
   userId: string;
   capability: string;
-  provider?: AiProviderName;
+  provider?: AiUsageProvider;
+  route?: "system" | "byok";
   model?: string;
   status: "quota_blocked" | "rate_limited" | "concurrency_blocked" | "accepted" | "failed";
   inputTokens?: number | null;
@@ -151,7 +153,7 @@ export async function recordAiUsageEvent(event: AiUsageEvent): Promise<void> {
       capability: event.capability,
       provider: event.provider ?? null,
       model: event.model ?? null,
-      route: "system",
+      route: event.route ?? "system",
       status: event.status,
       input_tokens: event.inputTokens ?? null,
       output_tokens: event.outputTokens ?? null,

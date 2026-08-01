@@ -11,6 +11,14 @@ import {
   markAiProviderSuccess,
   type AiProviderName
 } from "@/lib/ai/serverUsage";
+import { getOpenRouterModel, type OpenRouterModelId } from "@/lib/ai/openrouterModels";
+import {
+  AiConnectionServiceError,
+  getOpenRouterApiKey,
+  markOpenRouterConnectionInvalid,
+  markOpenRouterConnectionUsed,
+  type AiRouteMode
+} from "@/lib/ai/userAiConnections";
 
 export type AiConversationMessage = {
   role: "user" | "assistant";
@@ -18,8 +26,18 @@ export type AiConversationMessage = {
 };
 
 export type AiProvider = AiProviderName;
+export type AiResponseProvider = AiProvider | "openrouter";
 
-export type AiGatewayErrorCode = "not_configured" | "providers_unavailable" | "all_providers_failed";
+export type AiGatewayErrorCode =
+  | "not_configured"
+  | "providers_unavailable"
+  | "all_providers_failed"
+  | "byok_not_configured"
+  | "byok_invalid"
+  | "byok_credits_exhausted"
+  | "byok_rate_limited"
+  | "byok_failed"
+  | "model_not_allowed";
 
 export class AiGatewayError extends Error {
   readonly code: AiGatewayErrorCode;
@@ -30,7 +48,19 @@ export class AiGatewayError extends Error {
         ? "AI providers are not configured."
         : code === "providers_unavailable"
           ? "AI providers are temporarily unavailable."
-          : "All AI providers failed."
+          : code === "byok_not_configured"
+            ? "OpenRouter is not connected."
+            : code === "byok_invalid"
+              ? "The OpenRouter key is invalid."
+              : code === "byok_credits_exhausted"
+                ? "OpenRouter credits or key limit are exhausted."
+                : code === "byok_rate_limited"
+                  ? "OpenRouter request rate limit reached."
+                  : code === "model_not_allowed"
+                    ? "This OpenRouter model is not available in the app."
+                    : code === "byok_failed"
+                      ? "OpenRouter could not complete the request."
+                      : "All AI providers failed."
     );
     this.name = "AiGatewayError";
     this.code = code;
@@ -58,6 +88,9 @@ type StreamTextOptions = {
   messages: AiConversationMessage[];
   temperature?: number;
   maxOutputTokens?: number;
+  routeMode?: AiRouteMode;
+  userId?: string;
+  modelId?: OpenRouterModelId;
 };
 
 type GenerateJsonOptions<T> = {
@@ -86,7 +119,16 @@ export async function streamAiText({
   messages,
   temperature = 0.7,
   maxOutputTokens = 1_024,
+  routeMode = "system",
+  userId,
+  modelId,
 }: StreamTextOptions): Promise<Response> {
+  if (routeMode === "byok") {
+    if (!userId) throw new AiGatewayError("byok_not_configured");
+    if (!modelId || !getOpenRouterModel(modelId)) throw new AiGatewayError("model_not_allowed");
+    return streamOpenRouter({ userId, modelId, systemPrompt, messages, temperature, maxOutputTokens });
+  }
+
   const providers = await getAvailableProviders();
 
   for (const { provider, apiKey } of providers) {
@@ -155,6 +197,104 @@ async function getAvailableProviders(): Promise<Array<{ provider: AiProvider; ap
 
   if (!available.length) throw new AiGatewayError("providers_unavailable");
   return available;
+}
+
+async function streamOpenRouter({
+  userId,
+  modelId,
+  systemPrompt,
+  messages,
+  temperature,
+  maxOutputTokens,
+}: {
+  userId: string;
+  modelId: OpenRouterModelId;
+  systemPrompt: string;
+  messages: AiConversationMessage[];
+  temperature: number;
+  maxOutputTokens: number;
+}): Promise<Response> {
+  let connection: { apiKey: string; connectionId: string };
+  try {
+    connection = await getOpenRouterApiKey(userId);
+  } catch (error) {
+    if (error instanceof AiConnectionServiceError) {
+      throw new AiGatewayError(
+        error.code === "not_configured"
+          ? "byok_not_configured"
+          : error.code === "invalid"
+            ? "byok_invalid"
+            : "byok_failed"
+      );
+    }
+    throw new AiGatewayError("byok_failed");
+  }
+
+  let response: Response;
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${connection.apiKey}`,
+        "X-Title": "Open Abundance"
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
+        temperature,
+        max_tokens: maxOutputTokens,
+        stream: true
+      })
+    });
+  } catch {
+    throw new AiGatewayError("byok_failed");
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      await markOpenRouterConnectionInvalid(connection.connectionId);
+      throw new AiGatewayError("byok_invalid");
+    }
+    if (response.status === 402) throw new AiGatewayError("byok_credits_exhausted");
+    if (response.status === 429) throw new AiGatewayError("byok_rate_limited");
+    throw new AiGatewayError("byok_failed");
+  }
+  if (!response.body) throw new AiGatewayError("byok_failed");
+
+  await markOpenRouterConnectionUsed(connection.connectionId);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const text = readOpenRouterStreamText(line);
+            if (text) controller.enqueue(encoder.encode(`${text}\n`));
+          }
+        }
+
+        const finalText = readOpenRouterStreamText(buffer);
+        if (finalText) controller.enqueue(encoder.encode(`${finalText}\n`));
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    }
+  });
+
+  return streamedTextResponse(stream, "openrouter");
 }
 
 async function noteProviderFailure(provider: AiProvider, error: unknown): Promise<void> {
@@ -303,7 +443,7 @@ async function streamGroq(
   return streamedTextResponse(stream, "groq");
 }
 
-function streamedTextResponse(stream: ReadableStream, provider: AiProvider): Response {
+function streamedTextResponse(stream: ReadableStream, provider: AiResponseProvider): Response {
   return new Response(stream, {
     headers: {
       ...NO_STORE_HEADERS,
@@ -341,6 +481,10 @@ function readGroqStreamText(line: string): string | null {
   } catch {
     return null;
   }
+}
+
+function readOpenRouterStreamText(line: string): string | null {
+  return readGroqStreamText(line);
 }
 
 async function generateGeminiJson(

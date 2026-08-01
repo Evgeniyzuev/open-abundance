@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CircleHelp, History, Plus, Send, Trash2, X } from "lucide-react";
+import { CircleHelp, History, Plus, Send, Settings2, Trash2, X } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
 import {
   NOVA_NAME,
@@ -38,6 +38,23 @@ type PendingChatAction =
 
 const PROMPT_CATEGORIES: AiPromptCategory[] = ["mechanics", "route", "ai", "trust"];
 
+type AiSettingsModel = {
+  id: string;
+  key: string;
+  titleKey: string;
+};
+
+type AiChatSettings = {
+  routeMode: "system" | "byok";
+  modelId: string;
+  connection: {
+    maskedKey: string;
+    status: "active" | "invalid" | "revoked";
+  } | null;
+  encryptionConfigured: boolean;
+  models: AiSettingsModel[];
+};
+
 export default function AiChatApp({ active }: AiChatAppProps) {
   const { locale, t, user } = useUserContext();
   const userId = user?.id ?? null;
@@ -51,6 +68,12 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   const [isSavingChat, setIsSavingChat] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aiSettings, setAiSettings] = useState<AiChatSettings | null>(null);
+  const [openrouterKey, setOpenrouterKey] = useState("");
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingChatAction | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -61,7 +84,8 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   const welcome = WELCOME_MESSAGES[locale] ?? WELCOME_MESSAGES.en;
   const novaName = NOVA_NAME[locale] ?? NOVA_NAME.en;
   const persistableMessages = useMemo(() => messages.filter((message) => message.content.trim()), [messages]);
-  const quotaBlocked = Boolean(quota && (quota.dayRemaining <= 0 || quota.monthRemaining <= 0));
+  const isByok = aiSettings?.routeMode === "byok";
+  const quotaBlocked = !isByok && Boolean(quota && (quota.dayRemaining <= 0 || quota.monthRemaining <= 0));
   const groupedSuggestions = useMemo(
     () => PROMPT_CATEGORIES.map((category) => ({
       category,
@@ -105,6 +129,30 @@ export default function AiChatApp({ active }: AiChatAppProps) {
       })
       .finally(() => {
         if (!cancelled) setIsRestoring(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAiSettings(null);
+    setSettingsError(null);
+    setOpenrouterKey("");
+    setPrivacyAcknowledged(false);
+
+    if (!userId) return () => {
+      cancelled = true;
+    };
+
+    void loadAiSettings()
+      .then((nextSettings) => {
+        if (!cancelled && nextSettings) setAiSettings(nextSettings);
+      })
+      .catch((error) => {
+        if (!cancelled) console.warn("AI settings restore failed.", error);
       });
 
     return () => {
@@ -167,7 +215,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
       setIsLoading(true);
 
       try {
-        if (userId) {
+        if (userId && !isByok) {
           const nextQuota = await consumeLocalMessage(userId);
           setQuota(nextQuota);
           if (!nextQuota.consumed) return;
@@ -208,6 +256,12 @@ export default function AiChatApp({ active }: AiChatAppProps) {
           if (errorPayload?.code === "ai_rate_limited") errorPayload.error = t("ai.chat.rateLimited");
           if (errorPayload?.code === "ai_auth_required") errorPayload.error = t("ai.chat.authRequired");
           if (errorPayload?.code === "ai_providers_unavailable") errorPayload.error = t("ai.chat.providerUnavailable");
+          if (errorPayload?.code === "ai_byok_not_configured") errorPayload.error = t("ai.chat.byokNotConfigured");
+          if (errorPayload?.code === "ai_byok_invalid") errorPayload.error = t("ai.chat.byokInvalid");
+          if (errorPayload?.code === "ai_byok_credits_exhausted") errorPayload.error = t("ai.chat.byokCredits");
+          if (errorPayload?.code === "ai_byok_rate_limited") errorPayload.error = t("ai.chat.byokRateLimited");
+          if (errorPayload?.code === "ai_byok_failed") errorPayload.error = t("ai.chat.byokFailed");
+          if (errorPayload?.code === "ai_model_not_allowed") errorPayload.error = t("ai.chat.modelNotAllowed");
           setMessages((current) => replaceLastAssistant(current, `⚠️ ${errorPayload?.error ?? t("ai.chat.error")}`));
           return;
         }
@@ -239,8 +293,75 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         abortRef.current = null;
       }
     },
-    [activeChat, isLoading, isRestoring, locale, messages, recordAiChallengeProgress, t, userId]
+    [activeChat, isByok, isLoading, isRestoring, locale, messages, recordAiChallengeProgress, t, userId]
   );
+
+  const updateAiSettings = useCallback(async (routeMode: "system" | "byok", modelId = aiSettings?.modelId) => {
+    if (!modelId || (routeMode === "byok" && aiSettings?.connection?.status !== "active")) return;
+    setIsSavingSettings(true);
+    setSettingsError(null);
+    try {
+      const accessToken = await getAiAccessToken();
+      if (!accessToken) throw new Error("auth");
+      const response = await fetch("/api/ai/settings", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ routeMode, modelId })
+      });
+      if (!response.ok) throw new Error("settings");
+      setAiSettings(await response.json() as AiChatSettings);
+    } catch (error) {
+      console.warn("AI settings update failed.", error);
+      setSettingsError(t("ai.openrouter.settings.saveError"));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }, [aiSettings?.connection?.status, aiSettings?.modelId, t]);
+
+  const connectOpenRouter = useCallback(async () => {
+    const key = openrouterKey.trim();
+    if (!key || !privacyAcknowledged) return;
+    setIsSavingSettings(true);
+    setSettingsError(null);
+    try {
+      const accessToken = await getAiAccessToken();
+      if (!accessToken) throw new Error("auth");
+      const response = await fetch("/api/ai/openrouter/key", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: key, privacyAcknowledged })
+      });
+      if (!response.ok) throw new Error("connection");
+      setAiSettings(await response.json() as AiChatSettings);
+      setOpenrouterKey("");
+      setPrivacyAcknowledged(false);
+    } catch (error) {
+      console.warn("OpenRouter connection failed.", error);
+      setSettingsError(t("ai.openrouter.settings.saveError"));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }, [openrouterKey, privacyAcknowledged, t]);
+
+  const disconnectOpenRouter = useCallback(async () => {
+    setIsSavingSettings(true);
+    setSettingsError(null);
+    try {
+      const accessToken = await getAiAccessToken();
+      if (!accessToken) throw new Error("auth");
+      const response = await fetch("/api/ai/openrouter/key", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (!response.ok) throw new Error("connection");
+      setAiSettings(await response.json() as AiChatSettings);
+    } catch (error) {
+      console.warn("OpenRouter disconnect failed.", error);
+      setSettingsError(t("ai.openrouter.settings.saveError"));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }, [t]);
 
   const resetChat = useCallback(() => {
     setMessages([]);
@@ -358,6 +479,15 @@ export default function AiChatApp({ active }: AiChatAppProps) {
           <button
             className="ai-chat-icon-btn"
             type="button"
+            onClick={() => setSettingsOpen((open) => !open)}
+            aria-label={settingsOpen ? t("ai.openrouter.settings.close") : t("ai.openrouter.settings.open")}
+            aria-expanded={settingsOpen}
+          >
+            <Settings2 size={18} />
+          </button>
+          <button
+            className="ai-chat-icon-btn"
+            type="button"
             onClick={() => setHistoryOpen((open) => !open)}
             aria-label={t("ai.chat.history.open")}
             aria-expanded={historyOpen}
@@ -375,6 +505,110 @@ export default function AiChatApp({ active }: AiChatAppProps) {
           </button>
         </div>
       </header>
+
+      {settingsOpen ? (
+        <aside className="ai-chat-settings" aria-label={t("ai.openrouter.settings.title")}>
+          <div className="ai-chat-settings-heading">
+            <div>
+              <strong>{t("ai.openrouter.settings.title")}</strong>
+              <small>{isByok ? t("ai.openrouter.settings.active") : t("ai.openrouter.settings.systemActive")}</small>
+            </div>
+            <button className="ai-chat-close-btn" type="button" onClick={() => setSettingsOpen(false)} aria-label={t("app.common.close")}>
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="ai-chat-mode-grid" aria-label={t("ai.openrouter.settings.mode")}>
+            <button
+              className={isByok ? "ai-chat-mode-card" : "ai-chat-mode-card is-active"}
+              type="button"
+              disabled={isSavingSettings}
+              onClick={() => void updateAiSettings("system")}
+            >
+              <strong>{t("ai.openrouter.settings.system")}</strong>
+              <span>{t("ai.openrouter.settings.systemDescription")}</span>
+            </button>
+            <button
+              className={isByok ? "ai-chat-mode-card is-active" : "ai-chat-mode-card"}
+              type="button"
+              disabled={isSavingSettings || aiSettings?.connection?.status !== "active" || aiSettings.encryptionConfigured === false}
+              onClick={() => void updateAiSettings("byok")}
+            >
+              <strong>{t("ai.openrouter.settings.byok")}</strong>
+              <span>{t("ai.openrouter.settings.byokDescription")}</span>
+            </button>
+          </div>
+
+          <div className="ai-chat-settings-section">
+            <strong>{t("ai.openrouter.settings.connection")}</strong>
+            {aiSettings?.connection?.status === "active" ? (
+              <>
+                <p className="ai-chat-connection-status">{t("ai.openrouter.settings.connected", { key: aiSettings.connection.maskedKey })}</p>
+                <p className="ai-chat-settings-muted">{t("ai.openrouter.settings.activePrivacy")}</p>
+                {aiSettings.encryptionConfigured === false ? <p className="ai-chat-settings-warning">{t("ai.openrouter.settings.noEncryption")}</p> : null}
+                <label className="ai-chat-field">
+                  <span>{t("ai.openrouter.settings.model")}</span>
+                  <select
+                    value={aiSettings.modelId}
+                    disabled={isSavingSettings}
+                    onChange={(event) => void updateAiSettings(aiSettings.routeMode, event.target.value)}
+                  >
+                    {aiSettings.models.map((model) => <option value={model.id} key={model.id}>{t(model.titleKey as MessageKey)}</option>)}
+                  </select>
+                </label>
+                <button className="text-button ai-chat-disconnect" type="button" disabled={isSavingSettings} onClick={() => void disconnectOpenRouter()}>
+                  {t("ai.openrouter.settings.disconnect")}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="ai-chat-settings-muted">{t("ai.openrouter.settings.notConnected")}</p>
+                <strong>{t("ai.openrouter.settings.instructionsTitle")}</strong>
+                <ol className="ai-chat-instructions">
+                  <li>{t("ai.openrouter.settings.step1")}</li>
+                  <li>{t("ai.openrouter.settings.step2")}</li>
+                  <li>{t("ai.openrouter.settings.step3")}</li>
+                  <li>{t("ai.openrouter.settings.step4")}</li>
+                </ol>
+                <a className="ai-chat-openrouter-link" href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer">
+                  {t("ai.openrouter.settings.openDashboard")}
+                </a>
+                <label className="ai-chat-field">
+                  <span>{t("ai.openrouter.settings.keyLabel")}</span>
+                  <input
+                    type="password"
+                    value={openrouterKey}
+                    onChange={(event) => setOpenrouterKey(event.target.value)}
+                    placeholder={t("ai.openrouter.settings.keyPlaceholder")}
+                    autoComplete="off"
+                    spellCheck={false}
+                    disabled={isSavingSettings || aiSettings?.encryptionConfigured === false}
+                  />
+                </label>
+                <label className="ai-chat-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={privacyAcknowledged}
+                    onChange={(event) => setPrivacyAcknowledged(event.target.checked)}
+                    disabled={isSavingSettings || aiSettings?.encryptionConfigured === false}
+                  />
+                  <span>{t("ai.openrouter.settings.privacy")}</span>
+                </label>
+                <button
+                  className="primary-button ai-chat-connect"
+                  type="button"
+                  disabled={isSavingSettings || !openrouterKey.trim() || !privacyAcknowledged || aiSettings?.encryptionConfigured === false}
+                  onClick={() => void connectOpenRouter()}
+                >
+                  {t("ai.openrouter.settings.connect")}
+                </button>
+                {aiSettings?.encryptionConfigured === false ? <p className="ai-chat-settings-warning">{t("ai.openrouter.settings.noEncryption")}</p> : null}
+              </>
+            )}
+            {settingsError ? <p className="ai-chat-settings-error" role="alert">{settingsError}</p> : null}
+          </div>
+        </aside>
+      ) : null}
 
       {historyOpen ? (
         <aside className="ai-chat-history" aria-label={t("ai.chat.history")}>
@@ -486,9 +720,10 @@ export default function AiChatApp({ active }: AiChatAppProps) {
       </div>
 
       <div className="ai-chat-status-row">
-        {quotaText ? <span>{quotaText}</span> : null}
-        {quotaBlocked ? <strong>{t("ai.chat.quotaLimited")}</strong> : null}
-        {quota ? <small>{t("ai.chat.quotaReset")}</small> : null}
+        {isByok ? <span>{t("ai.openrouter.settings.active")}</span> : null}
+        {!isByok && quotaText ? <span>{quotaText}</span> : null}
+        {!isByok && quotaBlocked ? <strong>{t("ai.chat.quotaLimited")}</strong> : null}
+        {!isByok && quota ? <small>{t("ai.chat.quotaReset")}</small> : null}
       </div>
 
       {pendingAction ? (
@@ -520,6 +755,25 @@ function PromptButton({ prompt, onSelect }: { prompt: AiPrompt; onSelect: (text:
       {prompt.text}
     </button>
   );
+}
+
+async function getAiAccessToken(): Promise<string | null> {
+  const supabase = getBrowserSupabaseClient();
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}
+
+async function loadAiSettings(): Promise<AiChatSettings | null> {
+  const accessToken = await getAiAccessToken();
+  if (!accessToken) return null;
+  const response = await fetch("/api/ai/settings", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store"
+  });
+  if (!response.ok) throw new Error("AI settings unavailable");
+  return await response.json() as AiChatSettings;
 }
 
 function createDraftChat(userId: string): AiLocalChat {

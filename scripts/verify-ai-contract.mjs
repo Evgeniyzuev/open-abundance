@@ -21,7 +21,7 @@ const sourceFiles = sourceRoots
   .filter((path) => /\.(?:ts|tsx)$/.test(path));
 
 const providerGatewayPath = "lib/ai/providerGateway.ts";
-const providerEndpointPattern = /generativelanguage\.googleapis\.com|api\.groq\.com/;
+const providerEndpointPattern = /generativelanguage\.googleapis\.com|api\.groq\.com|openrouter\.ai\/api\/v1/;
 
 for (const path of sourceFiles) {
   const relativePath = relative(root, path).replaceAll("\\", "/");
@@ -49,7 +49,11 @@ const aiRoutes = sourceFiles.filter((path) =>
 );
 
 assert.ok(aiRoutes.length > 0, "No AI routes found.");
-for (const path of aiRoutes) {
+const generationRoutes = aiRoutes.filter((path) => {
+  const relativePath = relative(root, path).replaceAll("\\", "/");
+  return !relativePath.includes("app/api/ai/settings/") && !relativePath.includes("app/api/ai/openrouter/");
+});
+for (const path of generationRoutes) {
   const relativePath = relative(root, path).replaceAll("\\", "/");
   const source = readFileSync(path, "utf8");
   assert.match(source, /buildAiSystemPrompt/, `${relativePath} does not use the shared system prompt builder.`);
@@ -85,4 +89,4 @@ assert.match(reflectionRoute, /generateAiJson\(\{/);
 assert.match(reflectionRoute, /validate: \(value\) => validateModelResponse/);
 assert.match(reflectionRoute, /<private_note>/);
 
-console.log(`AI contract verified: ${aiRoutes.length} routes use one knowledge base and provider gateway.`);
+console.log(`AI contract verified: ${generationRoutes.length} generation routes use one knowledge base and provider gateway.`);

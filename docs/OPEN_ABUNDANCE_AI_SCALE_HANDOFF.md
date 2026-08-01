@@ -77,15 +77,23 @@ Open Abundance — AI-координируемый слой над сущест�
 - Migration `20260731150000_ai_usage_quota_and_provider_health.sql` добавляет атомарную квоту `20/day` и `300/month` для `chat.general`, usage ledger без raw prompt/полного текста чата, per-user rate limit `6/min` и concurrency `1`.
 - Quota резервируется перед вызовом провайдера; ошибка провайдера не возвращает сообщение в квоту, а фиксируется как metadata-only `failed` event. Вызов fallback считается одним пользовательским запросом.
 - `ai_provider_health` хранит cooldown конкретного Gemini/Groq. Для HTTP 429 используется `Retry-After`, иначе применяется ограниченный exponential cooldown; fallback идёт только по доступным провайдерам.
-- Применение migration к удалённому Supabase ещё не выполнялось. До применения серверный chat quota работает fail-closed (`ai_quota_unavailable`), а provider health мягко возвращается к текущему поведению.
+- Migration `20260731150000_ai_usage_quota_and_provider_health.sql` применена к удалённому Supabase; migration BYOK ниже требует отдельного deploy после проверки доступности DB connection.
 - Reflection сохраняет текущий контракт и не включён в chat quota; общий gateway health/fallback применяется и к reflection.
+
+### AI chat stage 3 BYOK implemented — 2026-08-01
+
+- В Ideas добавлены режимы `System quota` и `My OpenRouter`; по умолчанию сохраняется системный режим. BYOK не расходует системную квоту, но использует общий rate limit `6/min` и concurrency `1`.
+- Подключение пока manual key only: OpenRouter API key шифруется server-side AES-256-GCM через deployment secret `AI_CONNECTION_ENCRYPTION_KEY`; клиент получает только masked metadata и не сохраняет key в IndexedDB.
+- Добавлены server-side settings/key routes, consent fact, RLS без client policies и curated allowlist из трёх моделей. При ошибке OpenRouter нет автоматического перехода на Gemini/Groq.
+- Reflection и чувствительные wellbeing-данные остаются в системном маршруте; OAuth/PKCE, произвольные Gemini/OpenAI/Anthropic keys и пользовательская долговременная память не входят в этот MVP.
+- Локальная migration `20260801100000_ai_openrouter_byok.sql` подготовлена. Linked/direct DB push вернул `Connection error`; remote migration list подтверждает stage 2, но BYOK migration ещё не применена.
 
 ### AI пока не реализован
 
 - Context Broker.
 - Consent-контракт и отдельные пользовательские разрешения по scopes.
 - Долговременная AI-память.
-- Пользовательские provider connections и BYOK.
+- OAuth/PKCE и прямые пользовательские ключи Gemini/OpenAI/Anthropic.
 - Полный provider registry, capability-based routing, очереди, cost ceiling и token-based billing.
 - Prompt/semantic caching и Batch-задачи.
 - Remote MCP server Open Abundance.
@@ -517,9 +525,8 @@ Exact wire schema must be designed together with the database migration and auth
 
 ### Phase 3 — OpenRouter BYOK
 
-- Implement OAuth PKCE flow.
-- Exchange callback code server-side.
-- Encrypt user-controlled key with KMS/deployment secret.
+- Implement manual OpenRouter key connection first; keep OAuth PKCE deferred.
+- Store only encrypted user-controlled key with KMS/deployment secret.
 - Add connection status, masked metadata, revoke/delete and usage display.
 - Add model allowlist, user budget and no-secret logging tests.
 - Route only permitted capabilities through the connection.

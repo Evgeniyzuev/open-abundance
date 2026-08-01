@@ -2135,7 +2135,7 @@ function SystemProfileView({
           {t("social.systemProfile.backToFeed")}
         </button>
         <span className="system-profile-avatar">
-          <img alt="" src={account?.avatar_url ?? "/icons/icon2.svg"} />
+          <img alt="" src={account?.avatar_url ?? "/icons/twenty-levels-app-icon-192.png"} />
         </span>
         <div className="system-profile-copy">
           <strong>{account?.display_name ?? "Abundance System"}</strong>
@@ -3081,7 +3081,7 @@ function PostAuthor({
   const content = (
     <>
       <span className="feed-author-avatar">
-        {isSystemStory ? <img alt="" src={post.systemStory?.account?.avatar_url ?? "/icons/icon2.svg"} /> : post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} style={{ objectPosition: post.author.avatar_position ?? "50% 50%" }} /> : <UserRound size={18} />}
+        {isSystemStory ? <img alt="" src={post.systemStory?.account?.avatar_url ?? "/icons/twenty-levels-app-icon-192.png"} /> : post.author?.avatar_url ? <img alt="" src={post.author.avatar_url} style={{ objectPosition: post.author.avatar_position ?? "50% 50%" }} /> : <UserRound size={18} />}
       </span>
       {isSystemStory ? (
         <span>{post.systemStory?.account?.display_name ?? post.authorName ?? "Open Abundance"}</span>

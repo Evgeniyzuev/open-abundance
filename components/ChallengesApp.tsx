@@ -168,13 +168,14 @@ type ChallengesAppProps = {
   focusNextChallengeNonce?: number;
   onChallengesViewed?: () => void;
   onTodayViewed?: () => void;
+  onOpenFeedDrafts: () => void;
   onNavigateTesting: (target: AppTestingNavigationTarget) => void;
   refreshNonce: number;
   todayUnread?: boolean;
   onRefresh: () => Promise<void>;
 };
 
-export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, onChallengesViewed, onTodayViewed, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
+export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, onChallengesViewed, onTodayViewed, onOpenFeedDrafts, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
@@ -641,7 +642,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           />
         ) : null}
 
-        {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} /> : null}
+        {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} /> : null}
       </>
     );
   }
@@ -734,7 +735,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
         />
       ) : null}
 
-      {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} /> : null}
+      {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} /> : null}
     </section>
   );
 }
@@ -1436,7 +1437,7 @@ function ProjectDetailModal({
   );
 }
 
-function ChallengeCompleteModal({ challenge, reward, locale, t, onClose }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void }) {
+function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenFeedDrafts }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void; onOpenFeedDrafts: () => void }) {
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="challenge-receipt-title">
@@ -1463,7 +1464,13 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose }: { cha
             </div>
           ) : null}
         </div>
-        <button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
+        <div className="challenge-complete-actions">
+          <button className="challenge-primary-action" type="button" onClick={() => { onClose(); onOpenFeedDrafts(); }}>
+            <Send size={16} />
+            {t("social.feed.openDrafts")}
+          </button>
+          <button className="challenge-secondary-action" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
+        </div>
       </div>
     </div>
   );

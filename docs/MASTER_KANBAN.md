@@ -31,31 +31,35 @@
 
 ### Verified Reality Feed
 
-- **Статус:** Сейчас — 23 server-backed demo posts реализованы, 10 согласованных demo-текстов обновлены, 12 system stories опубликованы; профиль `Abundance System` реализован, real verified `Challenge Done` реализован (миграция + API + интеграция с check route), ожидает применения миграции и User QA.
+- **Статус:** Сейчас — 23 server-backed demo posts реализованы, 10 согласованных demo-текстов обновлены, 12 system stories опубликованы; профиль `Abundance System` реализован, real verified `Challenge Done` реализован (migration `20260724220000` применена, API/UI интеграция и privacy guard добавлены), Technical QA закрыт, User QA впереди.
 - **Пользовательский результат:** в `People → Feed` пользователь различает fictional `Демо-истории`, системные объясняющие главы `Abundance System` и ручной контент по автору, аватару и отдельным бейджам; у всех demo и system stories есть изображения.
 - **Почему сейчас:** Notes и Home/Today уже поддерживают личное действие, а receipt подтверждает награду; следующий риск — пользователь не видит накопленный результат и не получает безопасного социального сигнала для возвращения.
 - **Главное решение:** Verified Reality Feed остается вторичной вкладкой `People → Feed`; первый slice строится только из server-backed completion факта challenge и метаданных challenge, без суммы reward/ledger и финансовых обещаний. `Демо`, системно подтвержденные факты и ручной пользовательский контент никогда не смешиваются.
 - **Narrative direction для demo:** герой начинает из точки боли и ощущения тупика, случайно узнает об Abundance, сначала пробует из любопытства, а затем через маленькие последовательные шаги замечает, что у него появляются ясность, опора и реальный выбор. Финал — личное ощущение «я могу изменить свою жизнь», а не обещание гарантированного дохода или универсального успеха.
 - **Новая editorial direction для системных историй:** в рамках Reality Feed подготовлена отдельная последовательная серия от аккаунта `Abundance System`. Она объясняет устройство и замысел системы, но не выдается за verified research и не смешивается с demo-историями или реальными `Challenge Done`.
 - **Системный аккаунт и порядок:** в БД создан `Abundance System`, главы имеют server-backed порядок `1–12`, тип `system_story`, отдельный бейдж и фото 4:5; имя/аватар и ссылка `Все главы` открывают отдельный профиль с возвратом в позицию ленты. Подробности — `docs/REALITY_FEED_SYSTEM_STORIES_PLAN.md`.
-- **Граница текущего шага:** системные истории объясняют позицию проекта, но не получают verified badge; отдельный source pack не блокирует slice, а real `Challenge Done` уже реализован и ожидает migration apply + User QA.
+- **Граница текущего шага:** системные истории объясняют позицию проекта, но не получают verified badge; отдельный source pack не блокирует slice. `Challenge Done` создаётся один раз как verified draft, а после публикации становится публичной карточкой; технический контур закрыт, остаётся User QA.
 - **Изменения:**
   - добавить migration `20260715120000_reality_feed_demo_posts.sql`: `post_type = reality_demo`, системный `source_key`, локализованные тексты и 23 идемпотентных `feed_posts`;
   - добавить общую схему `feed_post_media` для изображений/видео Reality Feed и `feed_post_translations` для RU/EN body/author name;
   - читать demo body/media через существующий no-store feed API и показывать их в общем `PostList`, а не отдельным локальным блоком;
   - переписать истории от первого лица, убрать объясняющие `milestones/outcome` и сохранить визуальную маркировку `Демо-история`;
   - применить migration `20260719123000_reality_feed_updated_demo_and_system_stories.sql`: обновить 10 demo-текстов, добавить системный аккаунт, 12 ordered system stories, RU/EN-переводы и 12 изображений;
-  - сделать server-backed read model или безопасную проекцию для `Challenge Done`, не используя `product_events` как публичный источник истины;
-  - обеспечить один системный пост/snapshot на один user challenge completion и сохранить source type/id;
-  - показать verified badge, автора, challenge title, verification type, completed date и короткий CTA в challenge/Today;
+  - сделать server-backed read model или безопасную проекцию для `Challenge Done`, не используя `product_events` как публичный источник истины — реализовано через `challenge_completion_snapshots`;
+  - обеспечить один системный пост/snapshot на один user challenge completion и сохранить source type/id — реализовано уникальным snapshot и feed link;
+  - показать verified badge, автора, challenge title, verification type, completed date и короткий CTA в challenge/Today — реализовано в Feed API/detail/gallery;
+  - явно маркировать verified draft в личных `Черновики событий` и объяснить, что публикация добавит результат в `People → Feed` — реализовано в `SystemDraftEditor`;
+  - объяснить следующий шаг в пустой общей ленте и дать CTA в challenge — реализовано в actionable empty state для `People → Feed`;
+  - замкнуть completion → receipt → verified drafts без ручного поиска вкладки — реализовано прямым CTA из completion receipt и автооткрытием `Blog → Drafts`;
+  - после публикации verified draft автоматически вернуть пользователя в `People → Feed`, где результат виден сразу — реализовано в `publishPost`;
   - добавить отдельные demo fixtures/cards с явной маркировкой `Демо`, не выдавая их за реальные истории;
   - сохранить visibility-проверки и no-store feed API; пользовательский текст/медиа остаются отдельным типом контента без verified badge.
 - **Не входит:** reward amount и ledger/финансовые данные, Wallet-выплаты, рекомендации `For You`, полноценные comments/reactions/follows, видео, сложный Hero Path, автоматическое создание истории из всех daily accruals и изменение стартового `Goals → Notes` маршрута.
-- **Критерии приемки:** 23 demo stories приходят из Supabase как отдельные обычные посты, локализуются по языку интерфейса, содержат изображение и явную маркировку; verified `Challenge Done` появляется ровно один раз после completion; в карточке нет неподтвержденных финансовых утверждений; ручной пост не получает verified badge; чужие private данные не попадают в feed; пустая лента объясняет следующий шаг; CTA открывает challenge/Today.
-- **Технические проверки:** review существующих `feed_posts`/`progress_snapshots`/stat blocks, migration/API contract review, `pnpm exec tsc --noEmit`, `pnpm lint`, feed smoke с повторной загрузкой и ручной проверкой visibility/no-store.
-- **Ручной UX-сценарий:** завершить Core challenge, открыть `People → Feed`, найти одну verified карточку `Challenge Done`, проверить источник/дату/тип проверки и CTA, обновить feed и убедиться, что дубля нет; отдельно проверить demo-карточку и ручной пост.
+- **Критерии приемки:** 23 demo stories приходят из Supabase как отдельные обычные посты, локализуются по языку интерфейса, содержат изображение и явную маркировку; verified `Challenge Done` создаётся ровно один раз после completion и появляется в общем feed после публикации; в карточке нет неподтвержденных финансовых утверждений; ручной пост не получает verified badge; чужие private/draft snapshots недоступны; пустая лента объясняет следующий шаг; CTA открывает challenge/Today.
+- **Технические проверки:** review существующих `feed_posts`/`progress_snapshots`/stat blocks, migration/API contract review, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build` и bounded HTTP smoke app shell. Все перечисленные команды пройдены; HTTP smoke вернул 200, visibility/no-store подтверждены route contract и read-only data checks. In-app browser в этой сессии недоступен, поэтому визуальная проверка остаётся частью User QA.
+- **Ручной UX-сценарий:** завершить Core challenge, нажать `Открыть черновик` в receipt, убедиться, что открылся собственный `Blog → Drafts` с verified metadata, опубликовать одну карточку `Challenge Done`, убедиться в автоматическом возврате в `People → Feed`, проверить источник/дату/тип проверки и CTA, обновить feed и убедиться, что дубля нет; отдельно проверить demo-карточку и ручной пост.
 - **Метрика:** доля завершивших challenge пользователей, увидевших verified result; доля verified карточек без дублей; переходы из карточки в следующий challenge/Today; доля demo-контента, который пользователь правильно отличает от реального.
-- **Блокеры:** продуктовый blocker не найден; остаются применение migration real `Challenge Done`, детерминированные проверки и ручной User QA. Challenge reward/ledger source сознательно не входит в этот этап.
+- **Блокеры:** продуктовый и технический blocker не найден; нужен ручной User QA по draft-first публикации, badge/metadata/CTA и отсутствию дублей. Challenge reward/ledger source сознательно не входит в этот этап.
 - **Связанные документы:** `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`, `docs/PROJECT_MEMORY.md`, `docs/NEXT_TASK_CONTEXT.md`.
 
 ## Параллельный операционный трек — первая когорта

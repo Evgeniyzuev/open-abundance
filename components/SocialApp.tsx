@@ -202,13 +202,17 @@ type PeopleSection = "discover" | "contacts" | "confirmations";
 export default function SocialApp({
   active,
   activeTab,
+  openFeedDraftsNonce,
   refreshNonce,
-  onTabChange
+  onTabChange,
+  onOpenChallenge
 }: {
   active: boolean;
   activeTab: SocialTab;
+  openFeedDraftsNonce: number;
   refreshNonce: number;
   onTabChange: SocialTabChange;
+  onOpenChallenge: () => void;
 }) {
   const {
     user,
@@ -279,6 +283,11 @@ export default function SocialApp({
   const feedScrollPositionRef = useRef(0);
   const feedCursorRef = useRef<string | null>(null);
   const dailyDraftEnsuredRef = useRef(false);
+
+  useEffect(() => {
+    if (!openFeedDraftsNonce) return;
+    setSelectedBlogAuthorId(null);
+  }, [openFeedDraftsNonce]);
 
   useEffect(() => {
     setSocialError(null);
@@ -528,6 +537,7 @@ export default function SocialApp({
     if (!user) return;
     setFeedLoading(true);
     try {
+      if (!selectedBlogAuthorId) await loadSystemDrafts();
       const token = await getAccessToken();
       const params = new URLSearchParams({ scope: "blog", locale, ts: String(Date.now()) });
       if (selectedBlogAuthorId) params.set("authorUserId", selectedBlogAuthorId);
@@ -544,7 +554,7 @@ export default function SocialApp({
     } finally {
       setFeedLoading(false);
     }
-  }, [locale, selectedBlogAuthorId, user]);
+  }, [loadSystemDrafts, locale, selectedBlogAuthorId, user]);
 
   const loadSystemProfile = useCallback(async () => {
     if (!user || !selectedSystemAccountKey) return;
@@ -1071,10 +1081,16 @@ export default function SocialApp({
       });
       const payload = (await response.json()) as { post?: FeedPost; error?: string };
       if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to publish post.");
-      const updatedPost = payload.post;
+      const updatedPost: FeedPost = {
+        ...post,
+        ...payload.post,
+        system_verified: payload.post.system_verified ?? post.system_verified,
+        verifiedChallenge: payload.post.verifiedChallenge ?? post.verifiedChallenge ?? null
+      };
       setDailyDraft((current) => current?.id === updatedPost.id ? updatedPost : current);
       setSelectedPost((current) => current?.id === updatedPost.id ? updatedPost : current);
       await Promise.all([loadFeed(), loadBlog()]);
+      if (updatedPost.system_verified) onTabChange("feed");
     } catch (publishError) {
       console.warn("Feed post publish failed", publishError);
       setSocialError(publishError instanceof Error ? publishError.message : "Failed to publish post.");
@@ -1282,6 +1298,7 @@ export default function SocialApp({
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
           onOpenPost={setSelectedPost}
+          onOpenChallenge={onOpenChallenge}
           onOpenSystemAccount={openSystemAccount}
           onDeletePost={deletePost}
           onPublish={publishPost}
@@ -1357,6 +1374,7 @@ export default function SocialApp({
           linkComposerOpen={linkComposerOpen}
           loading={feedLoading}
           locale={locale}
+          openDraftsNonce={openFeedDraftsNonce}
           saving={feedSaving}
           selectedBlogAuthorId={selectedBlogAuthorId}
           t={t}
@@ -1674,6 +1692,7 @@ export default function SocialApp({
           onDeletePost={deletePost}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
+          onOpenChallenge={onOpenChallenge}
           onOpenSystemAccount={openSystemAccount}
           onPublish={publishPost}
           onUpdateCover={updatePostCover}
@@ -2190,6 +2209,7 @@ function FeedView({
   onLinkComposerToggle,
   onOpenAuthor,
   onOpenBlog,
+  onOpenChallenge,
   onOpenPost,
   onOpenSystemAccount,
   onDeletePost,
@@ -2222,6 +2242,7 @@ function FeedView({
   onLinkComposerToggle: () => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
+  onOpenChallenge: () => void;
   onOpenPost: (post: FeedPost) => void;
   onOpenSystemAccount: (accountKey: string) => void;
   onDeletePost: (post: FeedPost) => void;
@@ -2258,6 +2279,16 @@ function FeedView({
         loading={loading}
         locale={locale}
         posts={posts}
+        emptyState={filter === "all" ? (
+          <div className="feed-empty-action">
+            <p>{t("social.feed.empty")}</p>
+            <small>{t("social.feed.emptyHint")}</small>
+            <button className="primary-button" type="button" onClick={onOpenChallenge}>
+              <Check size={15} />
+              {t("social.feed.openChallenge")}
+            </button>
+          </div>
+        ) : undefined}
         showBlogAction={true}
         t={t}
         onCopyWish={onCopyWish}
@@ -2367,6 +2398,7 @@ function BlogView({
   linkComposerOpen,
   loading,
   locale,
+  openDraftsNonce,
   saving,
   selectedBlogAuthorId,
   t,
@@ -2396,6 +2428,7 @@ function BlogView({
   linkComposerOpen: boolean;
   loading: boolean;
   locale: AppLocale;
+  openDraftsNonce: number;
   saving: boolean;
   selectedBlogAuthorId: string | null;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -2417,6 +2450,9 @@ function BlogView({
   onCreateExternalLink: () => void;
 }) {
   const [blogSubTab, setBlogSubTab] = useState<BlogSubTab>("posts");
+  useEffect(() => {
+    if (openDraftsNonce) setBlogSubTab("drafts");
+  }, [openDraftsNonce]);
   const posts = blogPayload?.posts ?? [];
   const author = blogPayload?.author ?? posts[0]?.author ?? null;
   const title = selectedBlogAuthorId ? formatProfileName(author, selectedBlogAuthorId) : t("social.blog.mine");
@@ -2592,6 +2628,13 @@ function SystemDraftEditor({ locale, post, saving, t, onBodyChange, onPublish, o
 }) {
   return (
     <div className="daily-draft-editor system-event-draft-editor">
+      {post.system_verified ? (
+        <div className="verified-draft-note">
+          <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span>
+          {post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
+          <small>{t("social.feed.verifiedDraftHint")}</small>
+        </div>
+      ) : null}
       <textarea value={post.body ?? ""} maxLength={700} onChange={(event) => onBodyChange(event.target.value)} />
       <SystemEventCoverPicker post={post} saving={saving} t={t} onUpdateCover={onUpdateCover} onUploadCover={onUploadCover} />
       <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
@@ -2646,6 +2689,7 @@ function PostList(props: {
   copyingWishId: string | null;
   currentUserId: string;
   emptyText: string;
+  emptyState?: ReactNode;
   loading: boolean;
   locale: AppLocale;
   posts: FeedPost[];
@@ -2661,11 +2705,11 @@ function PostList(props: {
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
-  const { emptyText, loading, onOpenPost, posts, t } = props;
+  const { emptyState, emptyText, loading, onOpenPost, posts, t } = props;
   if (loading && !posts.length) return <p className="finance-error neutral">{t("app.common.loading")}</p>;
-  if (!posts.length) return <p className="feed-empty">{emptyText}</p>;
+  if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={posts} onOpen={onOpenPost} />;
+  return <FeedPostGallery fallbackTitle={t("social.post.detail")} getBadge={(post) => postBadgeLabel(post, t)} posts={posts} onOpen={onOpenPost} />;
 }
 
 export function PostCard({
@@ -2708,6 +2752,7 @@ export function PostCard({
       <header>
         <div className="feed-author-block">
           <PostAuthor post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+          {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
           {post.post_type === "abundance_story" ? (
             <span className="system-story-badge">
@@ -2832,6 +2877,7 @@ export function PostDetailModal({
   onDeletePost,
   onOpenAuthor,
   onOpenBlog,
+  onOpenChallenge,
   onOpenSystemAccount,
   onPublish,
   onUpdateCover,
@@ -2849,6 +2895,7 @@ export function PostDetailModal({
   onDeletePost: (post: FeedPost) => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
+  onOpenChallenge: () => void;
   onOpenSystemAccount: (accountKey: string) => void;
   onPublish: (post: FeedPost) => void;
   onUpdateCover?: (post: FeedPost, templateKey: string) => void;
@@ -2886,10 +2933,12 @@ export function PostDetailModal({
         </button>
         <div className="post-detail-author-row">
           <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+          {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
           {post.post_type === "abundance_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
           {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
         </div>
+        {post.system_verified && post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
         {post.projectReview && !editingReview ? (
           <div className="project-review-detail-meta">
             <ReviewStars value={post.projectReview.overall_rating} />
@@ -2951,6 +3000,12 @@ export function PostDetailModal({
         />
         <ExternalLinkPreview post={post} />
         <div className="post-detail-actions">
+          {post.system_verified && post.verifiedChallenge ? (
+            <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
+              <Check size={15} />
+              {t("social.feed.openChallenge")}
+            </button>
+          ) : null}
           {post.author_user_id ? (
             <button className="secondary-button" type="button" onClick={() => onOpenBlog(post.author_user_id!)}>
               <BookOpen size={16} />
@@ -2996,6 +3051,30 @@ function ExternalLinkPreview({ post }: { post: FeedPost }) {
       {externalLink.author_handle ? <small>{externalLink.author_handle}</small> : null}
       <ExternalLink size={15} />
     </a>
+  );
+}
+
+function VerifiedChallengeMeta({
+  locale,
+  post,
+  t
+}: {
+  locale: AppLocale;
+  post: FeedPost;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+}) {
+  const challenge = post.verifiedChallenge;
+  if (!challenge) return null;
+
+  const title = localizedSystemBio(challenge.challenge_title, locale) || t("social.feed.challengeDone");
+  const verificationType = t(verificationLabelKey(challenge.verification_type));
+
+  return (
+    <div className="verified-challenge-meta">
+      <strong>{t("social.feed.challengeDone")}: {title}</strong>
+      <span>{t("social.feed.challengeVerification", { type: verificationType })}</span>
+      <span>{t("social.feed.challengeCompletedAt", { date: formatDate(challenge.completed_at, locale) })}</span>
+    </div>
   );
 }
 
@@ -3444,6 +3523,23 @@ function postStatusLabelKey(status: FeedPost["status"]): MessageKey {
   if (status === "published") return "social.post.published";
   if (status === "archived") return "social.post.archived";
   return "social.post.draft";
+}
+
+function postBadgeLabel(
+  post: FeedPost,
+  t: (key: MessageKey, values?: Record<string, string | number>) => string
+): string | null {
+  if (post.system_verified) return t("social.feed.verifiedBadge");
+  if (post.post_type === "reality_demo") return t("social.feed.demoBadge");
+  if (post.post_type === "abundance_story") return t("social.feed.systemStoryBadge");
+  if (post.post_type === "project_review") return t("social.review.badge");
+  return null;
+}
+
+function verificationLabelKey(type: string | null): MessageKey {
+  if (type === "auto") return "challenges.verification.auto";
+  if (type === "community") return "challenges.verification.community";
+  return "challenges.verification.manual";
 }
 
 function statBlockLabelKey(blockKey: string): MessageKey {

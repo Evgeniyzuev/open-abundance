@@ -1,6 +1,8 @@
 # TON Deposit MVP
 
-Статус: реализован основной вертикальный срез пополнения Wallet нативным Toncoin в mainnet.
+Статус: реализован основной вертикальный срез пополнения Wallet нативным Toncoin в mainnet; 2026-08-01 пользователь подтвердил, что первая версия пополнения работает.
+
+Этот файл остаётся implementation record native TON deposit. Следующий withdrawal и подключение assets/networks не расширяются здесь; канонический план — `WALLET_CRYPTO_RAILS_PLAN.md`.
 
 ## Архитектура
 
@@ -136,3 +138,7 @@ Wallet history и общий server-side Supabase client используют п
 - hot-wallet signing;
 - другие сети и активы;
 - Fireblocks/MPC.
+
+## Следующий rail
+
+Ограниченный native TON withdrawal использует тот же amount/rate UX, atomic Wallet reserve, fee settlement, idempotency и chain reconciliation. Затем подключается USDT Jetton в TON и только после него одна следующая сеть. Требования, custody boundaries и decision gates описаны в `WALLET_CRYPTO_RAILS_PLAN.md`.

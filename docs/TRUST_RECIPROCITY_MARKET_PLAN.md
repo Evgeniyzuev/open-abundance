@@ -11,15 +11,16 @@
 1. Trust-lite: ledger подтвержденных действий и взаимные подтверждения.
 2. Reciprocity balance: мягкий баланс "получаю / помогаю / завершаю".
 3. Inventory artifacts: предметы как доказательства пути, без рыночной экономики.
-4. Trade-lite: простые предложения услуг и ручное подтверждение результата.
-5. Automatic contracts: только после Wallet-to-Wallet ledger, dispute flow и anti-abuse.
+4. Trade-lite и deal lifecycle.
+5. Escrow/reviews/dispute и anti-abuse.
+6. Trust v2: shadow calculation → private summary → calibrated public score.
 
 ## Принципы
 
 - Trust не является абстрактной репутацией личности. Trust начинается как набор подтвержденных событий.
-- Mutual rating не должен быть публичной оценкой "хороший/плохой человек". Для MVP это reciprocity signal: насколько пользователь участвует во взаимном росте.
+- В Trust-lite mutual confirmation не является публичной оценкой «хороший/плохой человек». В Trust v2 принято публичное число над проверяемыми взаимодействиями, но не моральный рейтинг личности; оно появляется только после shadow/private фаз.
 - Предметы сначала являются артефактами прогресса, а не торгуемыми NFT/asset.
-- Торговля запускается после публичных профилей, Skill Passport, Wallet-to-Wallet и подтверждений участников.
+- Технический deal lifecycle может развиваться до полного Skill Passport, но публичный Trust v2 и квалифицированный рынок требуют evidence, reviews, dispute flow и Wallet ledger.
 - Автоматические контракты откладываются до появления надежного ledger, статусов сделки, ручного review и механики споров.
 
 ## Scope MVP
@@ -41,6 +42,42 @@
 - автоматические контракты;
 - арбитраж денежных споров;
 - продажа предметов.
+
+## Trust v2 — принятое направление
+
+Trust v2 не заменяет `trust_events`; он рассчитывает объяснимый summary поверх append-only событий, сделок, оценок, corrections и annual decay.
+
+Принятые правила:
+
+- при регистрации создаётся небольшой положительный starter event; точное значение ещё не утверждено;
+- после допустимого взаимодействия контрагент оценивает другого по шкале `0.0–5.0` с шагом `0.1`; `3.0` нейтрально;
+- завершённая settled deal использует фактическую сумму после возвратов, нелинейно через квадратный корень;
+- максимальное положительное и отрицательное влияние одного rater на одного target линейно зависит от Core Level rater и ограничивается rolling pair budget;
+- после всех caps rater получает `10%` от того же подписанного изменения: положительная оценка немного повышает обоих, негативная имеет небольшую цену для автора;
+- в конце каждого календарного года текущий summary умножается на `0.9`; исходные ledger events не меняются;
+- score не меняет Core, Wallet, Core Level или Skill Level.
+
+Кандидат формулы:
+
+```text
+amount_factor(a) = c + sqrt(clamp(a / A, 0, amount_cap))
+raw_delta = beta × (rating - 3.0) × amount_factor(a)
+pair_cap(level) = cap_base + cap_per_level × level
+target_delta = clamp_to_remaining_pair_budget(raw_delta, pair_cap(level))
+rater_delta = 0.10 × target_delta
+```
+
+`A`, `c`, `beta`, caps, rolling window, starter value и публичная шкала являются versioned configuration и decision gate. Одна крупная сделка не может определить весь Trust.
+
+Для незавершённого, отменённого или нулевого заказа допускается отдельный малый fixed-impact rating event только после доказанного двустороннего взаимодействия: обе стороны приняли условия, либо контрагент подтвердил контакт/работу. Одного созданного запроса недостаточно. Amount multiplier для такого события равен нулю; применяется отдельная малая константа и более строгий pair cap.
+
+Публичность вводится поэтапно:
+
+1. shadow calculation и анализ synthetic/real сценариев;
+2. private summary владельцу с основаниями, corrections и disputes;
+3. qualitative badges контрагентам;
+4. ограниченный public numeric pilot после anti-abuse review;
+5. более широкое использование только по данным пилота.
 
 ## Current Status
 
@@ -70,6 +107,12 @@
 - Added and applied Marketplace listings Phase 2: `marketplace_listings`, create/list/cancel API and Wallet -> Market listing grid.
 - Updated Marketplace listings UI/API so users can create product/service/skill cards directly; open cards are limited by current Core level.
 - Planned marketplace quality/discovery layer in `docs/MARKETPLACE_ESCROW_PLAN.md`: sales count, buyer reviews, seller rating and private `mutual_market_balance = spent - earned` ranking signal.
+
+2026-08-01:
+
+- Trust v2 accepted as a future public numeric summary, without changing the current Trust-lite implementation.
+- Marketplace deal lifecycle and atomic completion code now exist, but funds reserve, expire/refund, disputes, reviews and User QA remain prerequisites for Trust v2.
+- Exact Trust scale and constants remain decision gates; no Trust v2 tables or scoring worker are implemented.
 
 ## Core Entities
 
@@ -344,7 +387,16 @@ MVP endpoints:
 - anti-abuse thresholds;
 - clear legal/product language.
 
-## Acceptance Criteria For MVP
+### Phase 8. Trust v2
+
+- reviews и dispute/correction ledger поверх допустимых interaction events;
+- versioned score configuration и deterministic recalculation;
+- synthetic scenarios, shadow calculation и abuse monitoring;
+- private owner summary с объяснением каждой дельты;
+- ограниченный public pilot только после утверждения scale/start/constants/caps;
+- никакого автоматического уменьшения Core, Wallet, Skill Level или базового доступа.
+
+## Acceptance Criteria For Trust-lite MVP
 
 - Пользователь может запросить подтверждение действия у другого пользователя.
 - Второй пользователь может подтвердить или отклонить запрос.
@@ -353,13 +405,21 @@ MVP endpoints:
 - Community-check челлендж может проверять confirmed trust event.
 - Reciprocity summary считается без публичного числового рейтинга.
 - Предметы могут выдаваться за подтвержденные milestones.
-- Marketplace и automatic contracts остаются закрытыми, пока нет ledger и dispute flow.
+- Marketplace economic launch и Trust v2 остаются закрытыми, пока нет funds reserve, dispute/review, anti-abuse и User QA.
 
 ## Open Questions
 
-- Какие типы подтверждений показывать публично, а какие только владельцу?
-- Нужен ли counter-confirmation для каждого help event или достаточно одного подтверждения получателя?
-- Какой срок жизни pending confirmation: 3, 7 или 14 дней?
-- Где лучше показывать входящие подтверждения в MVP: Social/Profile или отдельный Notifications экран?
-- Сколько подтверждений от одного counterparty учитывать в reciprocity за 30 дней?
-- Когда вводить ручной review для спорных событий?
+Trust-lite:
+
+- какие help/proof confirmations показывать публично;
+- срок жизни pending confirmation и лимит одного counterparty;
+- где показывать входящие запросы и когда включать ручной review.
+
+Trust v2 decision gates:
+
+- публичная шкала summary (`0–5`, `0–100` или level + score);
+- starter Trust и абсолютные границы score;
+- `A`, `c`, `beta`, per-deal caps, rolling pair window и fixed constant для нулевой суммы;
+- минимальное доказательство двустороннего взаимодействия для cancelled/incomplete rating;
+- окно rating/edit, обязательные причины и evidence для экстремальных оценок;
+- correction/dispute SLA и критерии выхода из shadow/private в public pilot.

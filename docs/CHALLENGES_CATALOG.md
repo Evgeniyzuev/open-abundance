@@ -155,6 +155,8 @@
 
 **Зачем:** запускает вирусный рост. Пользователь создаёт команду и получает 10% от суточного прироста Core команды.
 
+**Граница проверки 2026-08-01:** этот простой challenge открывается после собственного первого результата и засчитывает одну уникальную подтверждённую регистрацию (`registered_referral`). Текущий `has_referral` остаётся технической реализацией до отдельной миграции. Это не Skill Level: `referral_acquisition` L1 использует отдельную server-authoritative проверку двух регистраций, а L2+ требует активации и удержания. Исторические награды не пересчитываются.
+
 ---
 
 ## 2. Предлагаемые новые челленджи (10 штук)
@@ -386,8 +388,9 @@
 | P0 | Turn Wish Into 3 Steps — Разбей желание на 3 шага | 1 | `wish_steps_created` | Желание становится маршрутом, а не пассивной мечтой |
 | P0 | First Growth Story — Первая история прогресса | 1-2 | `first_growth_post_published` | Закрывает социальный слой: действие превращается в контент |
 | P1 | Help Someone Move — Помоги другому сделать шаг | 2 | `trust_event_confirmed:help_given` | Добавляет вклад и взаимную поддержку до marketplace |
-| P1 | Skill Passport — Паспорт навыков | 2 | `skill_profile_completed` | Готовит пользователя к заработку на навыках без раннего рынка |
+| P1 | Software Creation L1 — Первая работающая фича | 1-2 | `software_creation_l1_reviewed` | Первый Skill Passport slice: обучение, deliverable, proof и peer review |
 | P1 | Team Welcome — Познакомься с участником команды | 2 | `team_contact_active` | Команда становится отношением доверия, а не только реферальной связкой |
+| P1 | Referral Acquisition L1 — Приведи двух участников | 1-2 | `referral_skill_l1` | Отделяет подтверждённый навык привлечения от разового Invite challenge |
 | P2 | Trust Proof — Подтверди надежность | 2 | `trust_event_confirmed:proof_added` | Подготовка Trust-слоя: верифицированный контакт, портфолио, рекомендация или подтвержденный результат |
 
 Эти челленджи лучше поставить перед marketplace-цепочкой. Тогда путь будет ближе к концепту: `самопонимание -> желание -> действие -> прогресс -> вклад -> доверие -> рынок`.
@@ -403,8 +406,13 @@
 | Complete a Marketplace Deal | `community` + ledger | Покупатель и продавец подтвердили завершение сделки |
 | Earn from Your Skill | `community` + ledger | Платеж пришел от другого пользователя за выполненную услугу |
 | Trust Proof | `community` + `trust_event_confirmed:proof_added` | Подтвержден контакт, результат, рекомендация или верифицированный proof |
+| Software Creation L1 | три независимых structured reviews | Минимум 2/3 pass и нет нерешённого critical issue; reviewer имеет тот же или более высокий skill |
 
 До появления этих сущностей такие челленджи можно держать в каталоге, но не делать P0-реализацией.
+
+### 3.3 Skill-challenge contract
+
+Skill challenge всегда содержит три части: короткое обучение, практический deliverable и проверку по rubric. Просмотр материала без результата не повышает Skill Level. Первый slice — `software_creation` L1; второй — `referral_acquisition` L1. `peer_point` резервирует review-slot, но не влияет на verdict. Полный контракт — `docs/SKILLS_SYSTEM_PLAN.md`.
 
 ## 4. Логика развития пользователя через челленджи
 
@@ -471,8 +479,9 @@
 | P1 | First Wallet To Core | реализовано технически; нужна ручная UX-проверка |
 | P1 | Send Your First Transfer | реализовано технически; нужна ручная UX-проверка |
 | P1 | Earn Your First $5 | демонстрация роста капитала после baseline tracking |
-| P1 | Skill Passport | готовит монетизацию навыков без полного marketplace |
-| P2 | Grow Your Team to 3 | вирусный рост |
+| P1 | Software Creation L1 | даёт первый доказанный навык и реальный deliverable до полного marketplace |
+| P1 | Referral Acquisition L1 | проверяет две регистрации отдельно от разового Invite challenge |
+| P2 | Grow Your Team to 3 | вирусный рост после подтверждённой активации |
 | P2 | Create a Marketplace Offer | запуск внутреннего рынка |
 | P3 | Complete a Marketplace Deal | первый цикл рынка |
 | P3 | Fund Someone's Goal | культура поддержки |

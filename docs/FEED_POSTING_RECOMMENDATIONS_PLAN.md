@@ -647,6 +647,33 @@ create table public.feed_views (
 
 `stats_hash` нужен как основа будущего централизованного реестра: verified-пост ссылается на неизменяемый snapshot, а hash позволяет проверить, что подтвержденные данные не были переписаны.
 
+## Канонические решения по user content — 2026-08-01
+
+Первый user-content slice развивает уже существующий feed, а не создаёт вторую социальную подсистему.
+
+Хранение:
+
+- собственные MVP-файлы загружаются в существующий private Supabase Storage bucket `feed-media`; в БД хранятся только path, metadata, ownership, visibility и processing status;
+- доступ выдаётся через server-side visibility check и short-lived signed URL; public row сам по себе не раскрывает private/team media;
+- изображения сжимаются и получают размеры/thumbnail; видео сначала ограничено короткими файлами или link-only без сложного streaming/transcoding;
+- Supabase Storage — MVP-адаптер, а не вечный vendor lock-in. При достижении лимита, проблемах доступности или стоимости media переносится за `media.open-abundance.com` в S3-compatible storage/CDN без изменения post contract;
+- внешние TikTok/Instagram/Telegram/YouTube файлы не копируются: хранится URL + metadata + relation `source|mirror`, embed загружается только после действия пользователя.
+
+Порядок социальных действий:
+
+1. ручной текст + first-party image/short video;
+2. одна реакция `like` с unique user/post;
+3. плоские комментарии с soft-delete, author controls и report; replies появляются позже;
+4. repost как новый пост-ссылка на canonical original с optional commentary, без копирования media;
+5. Daily Progress и verified result используют те же cards/visibility rules;
+6. saves, несколько эмоций, глубокие ветки и full follows graph — после данных MVP.
+
+Repost всегда повторно проверяет доступ к original. Private/team/followers content нельзя раскрыть через repost, notification, counter или external share.
+
+Внешнее распространение: сначала share package (`caption + public OA URL + selected stat blocks`), ручная публикация пользователем и сохранение mirror URL. Official posting APIs добавляются только при доказанном спросе и наличии moderation/permission contract. KPI — onboarding, first result, D1 и activated referrals, а не clicks/shares сами по себе.
+
+До публичного трафика обязательны report, mute/block для критических случаев, rate limits, media limits и moderation queue. Полная премодерация каждого поста для закрытого MVP не требуется.
+
 ## MVP
 
 ### Current Status — 2026-07-15
@@ -1009,7 +1036,7 @@ Pending:
 - outbound share package для daily progress/achievement posts и сохранение external mirrors;
 - daily ledger/audit source для challenge/task rewards и ручных пополнений Core, чтобы включать их в `total_core_growth` без риска двойного счета;
 - daily draft sources для новых публичных желаний, исполненных публичных желаний и расходов внутри системы;
-- `feed_post_media`, ручные текстовые посты, реакции, комментарии, сохранения и grid/list режим blog;
+- generalized multi-media upload поверх существующего `feed-media`/cover foundation, ручные текстовые посты, like, плоские комментарии, canonical repost, сохранения и grid/list режим blog;
 - visibility-фильтрация реальных желаний, достижений, доходов, расходов и постов после появления этих социальных сущностей;
 - отдельные публичные profile URLs вне текущего Social modal.
 
@@ -1023,21 +1050,17 @@ Planned 2026-06-07:
 
 ## Открытые вопросы
 
-1. Какие счетчики входят в MVP по ресурсам: просмотры, реакции, комментарии, сохранения, подписки на автора?
-2. Как именно устроен centralized verified registry: отдельная таблица, hash snapshot, append-only ledger или будущий приватный блокчейн?
-3. Нужны ли жалобы/скрытия уже в MVP, если премодерации нет? - будет trust механизм.
-4. Нужны ли временные stories, которые исчезают, или все опубликованные посты остаются частью истории пути?
-5. Какой первый экран Social выбираем для MVP: гибрид, профиль/мой путь, `For You` или `Team`?
-6. Какой минимальный визуальный шаблон daily progress делаем первым: stat card, слайд, мини-инфографика или карточка с фоном желания?
-7. Нужно ли хранить черновик автопоста отдельно от snapshot, если пользователь долго редактирует текст/картинки?
-8. Может ли автор удалить verified daily progress пост из публичной ленты, сохранив его в приватной истории пути?
-9. Какой минимальный набор реакций нужен: один `like` или несколько эмоциональных реакций?
-10. Нужно ли показывать отрицательную динамику, например расходы больше доходов, если автор включил соответствующие блоки?
-11. Должны ли посты лида автоматически попадать в `Team`-ленту участников выше обычных рекомендаций?
-12. Какой первый формат stat card/export нужен после MVP copy/share: квадратная картинка, vertical story/reel, plain text или несколько шаблонов?
-13. Какие ограничения нужны на комментарии: все, подписчики, команда, выбранные пользователи, выключено?
-14. Нужно ли разрешить автору скрывать точную сумму Core, но показывать диапазон или процентный прирост?
-15. Какие блоки расходов считаются безопасными для публичного `public`, а какие лучше разрешать только для `followers/team/private`?
+Решено для первого slice: Supabase `feed-media` как MVP storage adapter, одна реакция `like`, плоские комментарии, canonical repost, ручной outbound share и запрет копирования external media.
+
+Остаётся определить:
+
+1. конкретные лимиты image/video, retention originals и момент миграции в S3-compatible storage;
+2. минимальный report/mute/block UX и moderation SLA для закрытой когорты;
+3. устройство centralized verified registry: immutable snapshot/hash или отдельный append-only ledger;
+4. первый stat-card/export формат после text/link share;
+5. правила видимости счетчиков и безопасных финансовых блоков;
+6. какой Social home проверять после Basic Feed: профиль/мой путь, `For You`, `Team` или hybrid;
+7. может ли автор скрыть verified post из public feed, сохранив immutable private history.
 
 ## Current UI Status (2026-07-25)
 

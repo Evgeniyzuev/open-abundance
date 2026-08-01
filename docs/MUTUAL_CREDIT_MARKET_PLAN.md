@@ -1,99 +1,94 @@
 # Mutual Credit & Internal Market Plan
 
-Этот документ фиксирует механику взаимных сделок (mutual credit), продвижения продукта пользователя в зависимости от его трат и повышения внутреннего оборота за счет внутренних продаж.
+Статус: канонический план mutual credit discovery, 2026-08-01. Алгоритм не реализован и не включается до безопасного settlement/review слоя Marketplace.
 
 ## 1. Концепция
 
-**Основная идея:** чем больше пользователь тратит внутри системы, тем выше продвигаются его собственные товары и услуги. Это создает замкнутый цикл:
-
-```
-покупаю у других → мой mutual market balance растет → мои товары видят чаще → я больше продаю → я больше трачу
-```
-
-## 2. Механика Mutual Credit
-
-### Баланс взаимности на рынке
+Пользователь, который сам покупает полезные продукты и обучение у других, получает ограниченное дополнительное распространение собственных предложений. Цель — приблизить дельту взаимного продвижения к балансу и увеличивать максимально возможный **легитимный** GMV, не создавая награду за искусственный оборот.
 
 ```text
-mutual_market_balance = total_spent - total_earned
+покупаю у других
+→ получаю временный capped discovery boost
+→ мои релевантные качественные предложения видят чаще
+→ совершаю продажи
+→ boost постепенно возвращается к нейтральному
 ```
 
-Где:
-- `total_spent` — сумма всех завершенных покупок пользователя на marketplace
-- `total_earned` — сумма всех завершенных продаж пользователя на marketplace
+Внутренний GMV не равен внешней ликвидности и сам по себе не увеличивает Treasury. Он повышает полезность Wallet; ликвидностью являются только реальные внешние активы и фактическая выручка/комиссия системы.
 
-### Влияние на ранжирование
+## 2. Баланс взаимности
 
-`mutual_market_balance` используется как мягкий повышающий сигнал в выдаче объявлений:
+Базовый private signal:
+
+```text
+mutual_market_balance(window) = settled_spent - settled_earned
+```
+
+Учитываются только completed settlements в rolling window, без возвращённой или оспоренной суммы. Суммы нормализуются в одной расчётной единице по зафиксированному deal rate.
+
+Правила:
+
+- положительный balance даёт мягкий boost;
+- отрицательный balance нейтрален и не штрафуется;
+- boost ограничен, сглажен и со временем уменьшается;
+- одна крупная покупка не поднимает весь каталог;
+- signal не публикуется как рейтинг личности;
+- Core/Wallet-награды за balance или raw GMV не выдаются.
+
+## 3. Ranking contract
 
 ```text
 listing_score =
-  freshness
-  + smoothed_rating_boost
-  + log(1 + sales_count) * sales_weight
+  relevance_and_eligibility
+  + freshness
+  + quality_and_review_confidence
+  + log(1 + legitimate_completed_sales) × sales_weight
   + capped_mutual_balance_boost
   - risk_or_report_penalty
 ```
 
-Правила:
-- Положительный balance (потратил > заработал) = мягкий boost в выдаче
-- Отрицательный balance (заработал > потратил) = нейтрально, без штрафа
-- Boost имеет кап (например, не более +20% к базовому score)
-- `mutual_market_balance` не показывается как публичный рейтинг
-- Это системный сигнал, а не социальная оценка
+`relevance_and_eligibility` и качество доминируют над mutual boost. Алгоритм дополнительно учитывает unique counterparties, return/dispute rate, повторное качество, концентрацию показов и diversity. Коммерческий boost маркируется и не может скрывать нерелевантное или небезопасное предложение.
 
-### Зачем это нужно
+Исключаются self-deals, связанные аккаунты, circular trading, искусственное дробление, reciprocal rings, сделки без deliverable и аномальные price/rate patterns. Подозрительный оборот не создаёт ни signal, ни challenge/skill proof до review.
 
-1. **Стимулирует внутренние продажи:** пользователи покупают друг у друга, а не уходят на внешние площадки
-2. **Повышает внутренний оборот (GMV):** чем больше транзакций внутри системы, тем выше liquidity и полезность Wallet
-3. **Создает "экономику внимания":** активные покупатели получают больше просмотров своих товаров
-4. **Снижает отток:** пользователь, который и продает, и покупает, сильнее привязан к системе
+## 4. Продуктовый цикл
 
-## 3. Продуктовый цикл
+Для покупателя: найти релевантное предложение → принять условия → безопасный settlement → получить результат → оставить review → при наличии своих listings получить временный boost.
 
-### Для продавца
-1. Создает карточку товара/услуги/навыка
-2. Выставляет цену в Wallet
-3. Получает оплату после завершения сделки
-4. Тратит полученное на покупки у других → повышает свой mutual balance → его товары видят чаще
+Для продавца: создать качественную карточку → завершить сделку → получить Wallet → покупать у других → поддерживать взаимный внутренний спрос.
 
-### Для покупателя
-1. Находит товар/услугу в marketplace
-2. Покупает за Wallet
-3. Получает товар, оставляет отзыв
-4. Его mutual balance растет → его собственные товары продвигаются
+Для системы: измерять полезные settled сделки, фактическую комиссию, возвраты/споры, концентрацию и incrementality boost. Рост показов без прироста legitimate completion не считается успехом.
 
-### Для системы
-1. Каждая сделка = +1 к внутреннему обороту
-2. Комиссия системы (менее 1%) пополняет Treasury
-3. Рост оборота = рост ликвидности = больше возможностей для всех
+## 5. Статус реализации
 
-## 4. Статус реализации
+Реализован технический фундамент:
 
-### Реализовано:
-- **Phase 1 (Ownership & Ledger):** `user_artifacts`, `wallet_ledger`, `wallet_core_topup` RPC, `wallet_transfer` RPC, Wallet-to-Wallet UI
-- **Phase 2 (Listings):** `marketplace_listings`, create/list/cancel API, UI listing grid, создание карточек товаров/услуг, лимит = уровень Core
-- **Trust-lite Phase 1-2:** `trust_events`, `mutual_confirmations`, `reciprocity_balances`, API confirm/decline, UX в SocialApp
+- Phase 1: `user_artifacts`, `wallet_ledger`, Wallet-to-Wallet и Wallet → Core;
+- Phase 2: `marketplace_listings`, create/list/cancel и Market UI;
+- partial Phase 3/4: deal/events, create/accept/cancel routes и atomic Wallet + artifact completion в migration `20260724230000_marketplace_deals_phase3_4.sql`.
 
-### Не реализовано:
-- **Phase 3 (Deals & Escrow):** `marketplace_deals`, `marketplace_deal_events`, создание сделки покупателем, Wallet reserve/escrow, accept flow продавца
-- **Phase 4 (Atomic Completion):** серверная транзакция завершения, transfer Wallet + item ownership, refund/cancel/expire
-- **Phase 5 (Trust & Challenges):** `trust_events deal_completed`, челленджи для сделок
-- **Phase 6 (Reviews & Discovery):** `marketplace_reviews`, рейтинг/отзывы, `marketplace_user_balances`, ranking с mutual credit boost
+Критические gaps текущего Marketplace:
 
-## 5. Что требуется прояснить/решить
+- buyer Wallet не резервируется при accept;
+- automatic expire/refund, dispute и idempotent retry не завершены;
+- `deal_completed` Trust event, reviews и User QA отсутствуют;
+- `marketplace_user_balances` и mutual ranking не реализованы.
 
-1. Точный размер комиссии системы (менее 1%, но какая именно?)
-2. Кап для mutual balance boost (максимальный процент повышения в выдаче)
-3. Минимальный порог сделок перед включением mutual credit в ранжирование
-4. Нужен ли dispute flow в MVP или достаточно "обратиться в поддержку"?
-5. Как учитывать сделки, если одна сторона не выполнила обязательства?
+Поэтому mutual credit пока является только принятым алгоритмическим направлением.
 
-## 6. Следующие шаги
+## 6. Порядок реализации
 
-1. [ ] Реализовать Phase 3: `marketplace_deals`, `marketplace_deal_events`, создание сделки, Wallet reserve/escrow
-2. [ ] Реализовать Phase 4: атомарное завершение сделки (transfer Wallet + item ownership), refund/cancel/expire
-3. [ ] Реализовать Phase 5: `trust_events deal_completed`, челленджи для сделок
-4. [ ] Реализовать Phase 6: `marketplace_reviews`, рейтинг/отзывы, `marketplace_user_balances`, ranking
-5. [ ] Включить mutual credit boost в алгоритм ранжирования
-6. [ ] Добавить UI "Мои покупки / Мои продажи" с историей и mutual balance
+1. Закрыть funds reserve, expire/refund, dispute и User QA Marketplace.
+2. Добавить buyer reviews и quality confidence, не доверяя сырой средней оценке.
+3. Материализовать `spent`, `earned`, eligible amount и unique counterparties по rolling windows.
+4. Считать boost в shadow mode и сравнить с выдачей без него.
+5. Провести A/B или ограниченный pilot с cap и kill switch.
+6. Включить только если растут legitimate completions/GMV без роста returns, disputes и concentration.
+
+## 7. Decision gates и метрики
+
+До реализации определить rolling window, cap, smoothing/decay, минимальное число контрагентов, комиссию системы и dispute SLA. Значения хранятся как versioned configuration.
+
+Главные метрики: legitimate settled GMV, completion rate, unique buyers/sellers, repeat purchases, return/dispute/wash rate, seller exposure concentration, incremental conversions и фактически полученная комиссия. `spent - earned → 0` является направлением балансировки возможностей, а не обязательным индивидуальным долгом пользователя.
+
+Связанные документы: `MARKETPLACE_ESCROW_PLAN.md`, `TRUST_RECIPROCITY_MARKET_PLAN.md`, `OPEN_ABUNDANCE_MASTER_PLAN.md`, `MASTER_KANBAN.md`.

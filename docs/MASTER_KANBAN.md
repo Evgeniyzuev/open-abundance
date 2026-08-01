@@ -38,7 +38,7 @@
 - **Narrative direction для demo:** герой начинает из точки боли и ощущения тупика, случайно узнает об Abundance, сначала пробует из любопытства, а затем через маленькие последовательные шаги замечает, что у него появляются ясность, опора и реальный выбор. Финал — личное ощущение «я могу изменить свою жизнь», а не обещание гарантированного дохода или универсального успеха.
 - **Новая editorial direction для системных историй:** в рамках Reality Feed подготовлена отдельная последовательная серия от аккаунта `Abundance System`. Она объясняет устройство и замысел системы, но не выдается за verified research и не смешивается с demo-историями или реальными `Challenge Done`.
 - **Системный аккаунт и порядок:** в БД создан `Abundance System`, главы имеют server-backed порядок `1–12`, тип `system_story`, отдельный бейдж и фото 4:5; имя/аватар и ссылка `Все главы` открывают отдельный профиль с возвратом в позицию ленты. Подробности — `docs/REALITY_FEED_SYSTEM_STORIES_PLAN.md`.
-- **Граница текущего шага:** системные истории объясняют позицию проекта, но не получают verified badge; отдельный source pack и real `Challenge Done` выполняются следующими независимыми срезами.
+- **Граница текущего шага:** системные истории объясняют позицию проекта, но не получают verified badge; отдельный source pack не блокирует slice, а real `Challenge Done` уже реализован и ожидает migration apply + User QA.
 - **Изменения:**
   - добавить migration `20260715120000_reality_feed_demo_posts.sql`: `post_type = reality_demo`, системный `source_key`, локализованные тексты и 23 идемпотентных `feed_posts`;
   - добавить общую схему `feed_post_media` для изображений/видео Reality Feed и `feed_post_translations` для RU/EN body/author name;
@@ -55,44 +55,65 @@
 - **Технические проверки:** review существующих `feed_posts`/`progress_snapshots`/stat blocks, migration/API contract review, `pnpm exec tsc --noEmit`, `pnpm lint`, feed smoke с повторной загрузкой и ручной проверкой visibility/no-store.
 - **Ручной UX-сценарий:** завершить Core challenge, открыть `People → Feed`, найти одну verified карточку `Challenge Done`, проверить источник/дату/тип проверки и CTA, обновить feed и убедиться, что дубля нет; отдельно проверить demo-карточку и ручной пост.
 - **Метрика:** доля завершивших challenge пользователей, увидевших verified result; доля verified карточек без дублей; переходы из карточки в следующий challenge/Today; доля demo-контента, который пользователь правильно отличает от реального.
-- **Блокеры:** demo posts не заблокированы; для real verified cards текущий feed-фундамент умеет читать `feed_posts`, media и stat blocks, но canonical public snapshot для challenge completion еще не определен; challenge reward/ledger source сознательно не добавляется в этот этап.
+- **Блокеры:** продуктовый blocker не найден; остаются применение migration real `Challenge Done`, детерминированные проверки и ручной User QA. Challenge reward/ledger source сознательно не входит в этот этап.
 - **Связанные документы:** `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`, `docs/PROJECT_MEMORY.md`, `docs/NEXT_TASK_CONTEXT.md`.
+
+## Параллельный операционный трек — первая когорта
+
+Это не вторая карточка разработки и не меняет правило одного шага в `Сейчас`. Пока завершается Reality Feed, основатель может без изменения кода:
+
+- [ ] составить список первых 5–10 людей из тёплой сети и приглашать партиями, затем расширять закрытую когорту до 20–50;
+- [ ] подготовить одно честное сообщение: beta, результат первых 24 часов, Core/Wallet без гарантий, ссылка и следующий шаг;
+- [ ] назначить короткие сопровождаемые сессии Day 0/Day 1 и фиксировать причину каждого отказа или застревания;
+- [ ] измерять `registration → wish+plan → first result → D1`, а не регистрации или просмотры сами по себе;
+- [ ] не требовать deposit, Wallet -> Core, withdrawal или referral для обязательной активации.
+
+Канонический маршрут и каналы: `docs/OPEN_ABUNDANCE_SYSTEM_GROWTH_PLAN.md`; outreach блогерам: `docs/BLOGGER_OUTREACH_PLAN.md`.
 
 ## Следующие шаги
 
-1. [x] **Verified Challenge Done (завершение Reality Feed)**
-   - Server-backed read model для challenge completion snapshot.
-   - Один verified пост на один completion, без reward/ledger.
-   - CTA в challenge/Today.
+1. [ ] **Pilot Activation Loop: Day 0 / Day 1**
+   - Связать onboarding, Demo/Verified, App Testing, желание, финансовый план, daily goal, первый challenge/receipt и возврат.
+   - Закрыть server-side события и проверить первую партию 5–10 человек.
+   - Финансовый и referral-треки остаются добровольными и идут после первого результата.
 
-2. [x] **Marketplace Phase 3-4: Deals + Atomic Completion**
-   - `marketplace_deals`, `marketplace_deal_events`, создание сделки, Wallet reserve/escrow.
-   - Атомарное завершение: transfer Wallet + item ownership, refund/cancel/expire.
-   - Связанные документы: `docs/MARKETPLACE_ESCROW_PLAN.md`, `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
+2. [ ] **Ограниченный native TON withdrawal**
+   - Dual amount USD/TON, rate snapshot, `1%` сверху + зарезервированная network fee, atomic Wallet reserve и reconciliation.
+   - Allowlist, малые лимиты, coverage gate, address confirmation/cooling и emergency pause.
+   - Существующий TON address допустим только как ограниченный operating hot wallet; детали: `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
 
-3. [ ] **MVP панели команды (лидерский дашборд)**
-   - Список участников, свободное Лидерство, прогресс команды.
-   - Базовая коммуникация: личный чат лид → участник.
-   - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/BLOGGER_OUTREACH_PLAN.md`.
+3. [ ] **User Content Growth Loop**
+   - First-party фото/короткое видео, ручной post, одна реакция `like` и простые комментарии.
+   - Canonical repost без копирования media, Daily Progress и outbound share package с external mirror.
+   - Связанный документ: `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`.
 
-4. [ ] **Daily Progress автопост (Reality Feed MVP-2)**
-   - Daily snapshot, выбор видимых блоков, stat card.
-   - Публикация в ленту и личный блог.
+4. [ ] **Skill Passport + `software_creation` L1**
+   - RPG-параметр навыка, evidence, vibecoding learning path, практическая фича и три peer review.
+   - `peer_point` организует review, но не покупает verdict; затем отдельный `referral_acquisition` L1.
+   - Связанный документ: `docs/SKILLS_SYSTEM_PLAN.md`.
 
-5. [ ] **Обучающие челленджи для лидеров**
-   - "Приведи первого участника", "Помоги новичку", "Стань лидером".
-   - Связанные документы: `docs/LEADER_GROWTH_PROGRAM.md`.
+5. [ ] **Team / Referral / Leader Loop**
+   - Team dashboard, помощь новичку, лидерские челленджи и базовая коммуникация.
+   - Invite challenge считает регистрацию; высокий уровень навыка привлечения — активацию и удержание.
+   - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
 
-6. [ ] **Возврат Day 1/3/7 и недельная сюжетная дуга**
-   - Связать новый Today, streak без наказаний, обновленный прогноз и результаты других участников.
+6. [ ] **Marketplace safety completion + Mutual Credit**
+   - Buyer funds reserve, expire/refund, dispute, reviews и ручной UX QA.
+   - Затем rolling `spent - earned` как capped discovery boost только по legitimate settled deals.
 
-7. [ ] **Реферальное приглашение после первого результата**
-   - Открывать активное приглашение после подтвержденной награды.
-   - Считать активированных участников, а не регистрации.
+7. [ ] **Trust v2**
+   - Rating `0.0–5.0`, amount smoothing, level-based pair cap, `10%` signed rater effect и calendar-year `×0.9` summary.
+   - Порядок: shadow calculation → private summary → calibrated public pilot.
+   - Связанный документ: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
 
-8. [ ] **Ограниченный автоматический вывод Wallet**
-   - Выбрать одну сеть, разделить cold treasury и hot payout wallet, реализовать idempotent payout worker и светофор ликвидности.
-   - До вывода реализовать и проверить self-hosted TON Deposit MVP из `docs/TON_DEPOSIT_MVP_PLAN.md`.
+8. [ ] **USDT Jetton в TON и следующая сеть**
+   - Сначала полный deposit/withdrawal loop USDT Jetton, затем одна пара `asset + network` по спросу.
+   - Несколько сетей одновременно, bridge и swap не входят.
+
+9. [ ] **Future Sim**
+   - Сначала честная статичная simulation с формулой, watermark и opt-in; face/video позже.
+   - Стартует только после устойчивого workflow, калькулятора и подтверждённого D1/D3/D7.
+   - Связанный документ: `docs/FUTURE_SIM_PLAN.md`.
 
 ## Технически реализовано / нужен User QA
 
@@ -136,7 +157,8 @@
 ### Поздние контуры, уже имеющие технический фундамент
 
 - [ ] Open Projects: каталог, заявки и project tasks без завершенного participation loop.
-- [ ] Marketplace: artifacts, wallet ledger, Wallet-to-Wallet transfer и listings create/list/cancel без deals/escrow.
+- [x] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Migration `20260724230000_marketplace_deals_phase3_4.sql` и routes требуют environment apply/User QA; деньги покупателя пока не резервируются, expire/refund/dispute отсутствуют, поэтому escrow не считается завершённым.
+- [x] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; withdrawal — отдельная pending-карточка.
 
 ## Подтверждено пользователями
 
@@ -149,25 +171,26 @@
 
 ## Заблокировано
 
-- Массовый внешний вывод Wallet заблокирован до проверки TON Deposit MVP, платежного канала, резервов и операционной поддержки.
+- Массовый внешний вывод Wallet заблокирован до успешного малого allowlist withdrawal loop, сверки chain/ledger, разделения основного резерва и operating hot wallet, безопасной custody и операционной поддержки. Ограниченный MVP из очереди этим blocker не запрещён.
 - Публичные обещания фиксированного или гарантированного дохода заблокированы до доказуемого покрытия обязательств и юридической проверки формулировок.
 - Пользовательский текст о redemption Core запрещён: Core строго неснижаем. Старый feature flag, Core-redemption liability, KYC/AML, cooling period и worker не являются основанием для его включения.
 - Масштабирование за пределы закрытой когорты заблокировано до появления аналитики, положительного D1/D3/D7 и сверки Wallet-обязательств с фондом.
 
 ## Отложено
 
-- Marketplace deals/escrow, отзывы, рейтинги и сложное ранжирование.
+- Advanced Marketplace: полный арбитраж, аукционы, частичные платежи и сложный uncapped discovery.
 - Расширенный project participation loop и большой каталог проектов.
-- Публичные feed reactions/comments/saves как самостоятельная соцсетевая механика.
-- Полный Skill Passport, сложный Trust/reciprocity score и публичная числовая репутация.
+- Advanced social: несколько реакций, saves, глубокие comment threads, full follows graph и автоматический cross-posting APIs.
+- Advanced Skills: полный каталог высоких уровней, сертификаты, поручительство и сложный рынок review-slots.
+- Global Trust leaderboard и автоматические ограничения базового доступа по Trust; публичный calibrated Trust v2 остаётся плановым этапом очереди.
 - Afterburn.
 - Полноценный Direct: список диалогов, read receipts, mute/report и расширенные настройки приватности.
 - Полный marketplace пользовательских заданий и marketplace-челленджи.
-- Внешний onramp, автоматический crypto/P2P off-ramp и банковские интеграции.
-- Нативные приложения, счета, инвойсы, смарт-контракты и приватный блокчейн.
-- Vision/Sims full economy.
+- Банковский onramp/off-ramp, P2P, bridge, swap и несколько одновременно запускаемых blockchain-сетей.
+- Нативные приложения, счета, инвойсы, smart contracts и приватный блокчейн.
+- Video/interactive Future Sim и Vision/Sims full economy до проверки статичного сценария.
 - AI autonomous/high-risk actions.
-- Платная реклама и публичный неуправляемый трафик.
+- Платная реклама и публичный неуправляемый трафик до quality gates.
 
 ## Критерии закрытого пилота
 

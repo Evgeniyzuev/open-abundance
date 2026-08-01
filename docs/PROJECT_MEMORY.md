@@ -138,6 +138,7 @@ coverage_ratio =
 
 ## 8. Сертификаты навыков
 
+Статус 2026-08-01: нижеследующая экономика сертификатов сохранена как историческая гипотеза. Первый принятый слой заменён на Skill Passport с RPG-уровнями, evidence и практическими challenge; сертификаты и Wallet -> Core экономика сертификата отложены. Канонический план — `docs/SKILLS_SYSTEM_PLAN.md`.
 Один из способов создавать полезность и снижать текущие Wallet liabilities — системные сертификаты навыков.
 
 Пример направлений:
@@ -196,7 +197,7 @@ Wallet пользователя уменьшается
 - Trust-lite;
 - AI chat;
 - Open Projects foundation;
-- marketplace artifacts и listings без deals/escrow.
+- marketplace artifacts/listings и partial deal lifecycle с atomic completion; buyer funds escrow, expire/refund, dispute и User QA отсутствуют.
 
 Большинство контуров технически реализованы, но не прошли связный User QA. Единственный существующий e2e smoke-тест устарел относительно гостевого onboarding.
 
@@ -245,6 +246,10 @@ Wallet пользователя уменьшается
 
 - `docs/Abundance_SYS_CONCEPT` — исходная системная концепция.
 - `docs/CHALLENGES_CATALOG.md` — каталог и правила челленджей.
+- `docs/SKILLS_SYSTEM_PLAN.md` — Skill Passport, уровни, peer review и peer-points.
+- `docs/WALLET_CRYPTO_RAILS_PLAN.md` — TON withdrawal, комиссии, custody и следующие asset/network rails.
+- `docs/FUTURE_SIM_PLAN.md` — границы и этапы образа будущего.
+- `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md` — user content, media и внешние соцсети.
 - `docs/REFERRALS_TEAMS_PLAN.md` — рефералы, команды и бонусы.
 - `docs/TRUST_RECIPROCITY_MARKET_PLAN.md` — Trust и взаимные подтверждения.
 - `docs/MARKETPLACE_ESCROW_PLAN.md` — торговля, ownership и escrow roadmap.
@@ -275,7 +280,7 @@ Wallet пользователя уменьшается
 Зафиксировано предложение для блогеров в `docs/BLOGGER_OUTREACH_PLAN.md`. Основной стимул: реферальная ссылка → команда → 10% от роста Core участников. Ключевые недостающие элементы: панель команды (UI), личный чат лид→участник, задачи от лида, публичный профиль лида.
 
 ### 15.3. Mutual Credit / Внутренние продажи
-Зафиксирована механика в `docs/MUTUAL_CREDIT_MARKET_PLAN.md`. Принцип: `mutual_market_balance = spent - earned` → мягкий boost в выдаче. Реализация требует Phase 3-4 Marketplace (deals + atomic completion).
+Зафиксирована механика в `docs/MUTUAL_CREDIT_MARKET_PLAN.md`. Принцип: rolling `settled_spent - settled_earned` → мягкий capped boost в выдаче. Deal lifecycle и atomic completion появились технически, но funds reserve, expire/refund, dispute, reviews и User QA всё ещё блокируют включение алгоритма.
 
 ### 15.4. Открытые вопросы по новым направлениям
 - Кто разрабатывает учебные материалы для программы лидеров?
@@ -284,3 +289,27 @@ Wallet пользователя уменьшается
 - Кап для mutual balance boost?
 - Нужен ли dispute flow в MVP marketplace?
 - Как часто показывать блогеру отчет по команде?
+
+## 16. Интеграция новых направлений (2026-08-01)
+
+Приняты и разнесены по каноническим документам:
+
+- Skills: `software_creation` (vibecoding как первый метод), content, influence, referrals, mentoring и sales; Skill Level не выше Core Level; первая реализация — один L1 vertical slice и peer review, без сертификатов.
+- Referrals: простой Invite challenge считает одну регистрацию после первого результата; `referral_acquisition` L1 использует две регистрации, следующие уровни — quality activation/retention.
+- Trust v2: будущий публичный summary, starter event, рейтинг 0.0–5.0, sqrt amount factor, linear level pair-cap, 10% signed effect rater и calendar-year `×0.9`; запуск только shadow → private → public.
+- Native TON withdrawal: два связанных поля USD/TON, `1%` сверху + network fee reserve, existing address только как ограниченный hot operating wallet; production custody не остаётся в `.env`.
+- Rails: native TON complete loop → USDT Jetton в TON → одна следующая asset/network pair.
+- Feed: first-party media через текущий Supabase Storage adapter, external media как links, затем like → flat comments → canonical repost → outbound share.
+- Mutual credit: capped rolling `spent - earned` signal только по legitimate settled deals; GMV не приравнивается к внешней ликвидности.
+- Future Sim: поздняя честно маркированная simulation с opt-in, а не финансовое обещание.
+- Первый workflow: обязательный Day 0 заканчивается желанием, планом, daily goal и первым результатом; деньги и referral добровольны; привлечение когорты начинается сейчас партиями по 5–10.
+
+Разрешённые конфликты и safety corrections:
+
+- пользовательское желание использовать один TON address сохранено только для закрытого ограниченного hot-wallet MVP; основной reserve отделяется до существенного объёма;
+- cancelled/zero order может влиять на Trust только после доказанного двустороннего взаимодействия, а не по одной заявке;
+- Marketplace Phase 3/4 признан partial foundation: atomic completion есть, настоящего buyer funds escrow и expire/refund/dispute ещё нет;
+- `X × 365 × N` является линейной иллюстрацией, не обещанием пожизненного начисления;
+- публичный Trust является целевым решением, но текущий Trust-lite остаётся непубличным до калибровки v2.
+
+Открытые decision gates: withdrawal limits/custody production, `peer_point` price/refund/initial reviewers, Trust scale/start/constants/caps, media limits/moderation SLA, exact first cohort and founder outreach capacity.

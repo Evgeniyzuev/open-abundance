@@ -33,7 +33,16 @@
 - Added MVP listing limit: open listing cards per user cannot exceed the user's current Core level.
 - Planned marketplace quality layer: sales count, buyer rating, buyer reviews and mutual market balance ranking signals.
 - Regenerated `lib/database.types.ts`.
-- Remaining app work: Phase 3 deals/escrow and atomic completion.
+- На эту дату оставались Phase 3 deals/escrow и atomic completion.
+
+2026-07-24 / проверено по коду 2026-08-01:
+
+- migration `20260724230000_marketplace_deals_phase3_4.sql` добавляет `marketplace_deals`, events и RPC create/accept/complete/cancel;
+- `/api/marketplace/deals` и `/api/marketplace/deals/[dealId]` дают deal lifecycle;
+- listing и artifact резервируются, а completion в одной DB transaction проверяет Wallet, списывает/зачисляет баланс и передаёт artifact;
+- buyer Wallet funds при create/accept ещё не резервируются и не переводятся в escrow; достаточность проверяется только в момент completion;
+- automated expire, refund, dispute, idempotent completion key, `deal_completed` Trust event и reviews не реализованы;
+- migration/environment apply и ручной User QA не подтверждены, поэтому это partial Phase 3/4 foundation, а не готовый escrow.
 
 ## Принципы
 
@@ -44,7 +53,7 @@
 - Предмет блокируется на время активной сделки, чтобы его нельзя было продать дважды.
 - Деньги покупателя резервируются или переводятся в escrow ledger до финального завершения.
 - Завершение сделки происходит в одной серверной транзакции.
-- Trust события появляются после завершения, но публичная числовая репутация не вводится.
+- Trust event появляется после безопасного завершения. Публичный Trust v2 не входит в этот marketplace slice и запускается позже через shadow/private/public этапы.
 
 ## MVP Scope
 
@@ -429,19 +438,17 @@ Additional quality anti-abuse:
 
 ### Phase 3. Deals And Escrow
 
-- `marketplace_deals`, `marketplace_deal_events`.
-- Создание deal покупателем.
-- Wallet reserve/escrow.
-- Accept flow для продавца.
+- Done in code: `marketplace_deals`, `marketplace_deal_events`, buyer create и seller accept.
+- Done in code: listing/artifact lock на активную сделку.
+- Pending: atomic buyer Wallet reserve/escrow при accept, отдельные hold ledger rows и idempotency contract.
+- Pending: migration apply и User QA.
 
 ### Phase 4. Atomic Completion
 
-- Update listing `sales_count` and `marketplace_user_balances` inside the same successful completion flow.
-
-- Server transaction / private RPC для completion.
-- Transfer Wallet + item ownership.
-- Refund/cancel/expire.
-- Audit log и no-store refresh.
+- Done in code: private completion RPC, Wallet debit/credit, artifact transfer, listing `sold` и deal event в одной transaction.
+- Done in code: manual cancel освобождает artifact/listing до completion.
+- Pending: automatic expire, true refund после hold, dispute и retry/idempotency proof.
+- Pending: `sales_count`, `marketplace_user_balances`, Trust event и no-store end-to-end QA.
 
 ### Phase 5. Trust And Challenges
 
@@ -477,6 +484,10 @@ Additional quality criteria:
 
 ## Next Step
 
-Следующий шаг: перейти к Phase 3 `marketplace_deals` и escrow.
+Не включать mutual credit, reviews или Trust v2 поверх текущего partial foundation. Сначала закрыть safety gap:
 
-Сделать `marketplace_deals`, `marketplace_deal_events`, buyer accept flow and Wallet escrow/reserve. Atomic Wallet + item ownership completion still stays separate until the deal state machine is visible and testable.
+1. применить migration в целевом окружении и пройти create → accept → complete/cancel User QA;
+2. атомарно резервировать buyer Wallet при принятии сделки и писать hold ledger;
+3. реализовать idempotent expire/refund и сценарий insufficient balance/retry;
+4. добавить dispute/manual review и `deal_completed` event;
+5. только затем reviews, mutual credit discovery и Trust v2.

@@ -59,22 +59,6 @@
 - **Блокеры:** продуктовый blocker по границам снят decision-complete планом; User QA потребуется после реализации. Автоматическая модерация и moderation queue сознательно не планируются.
 - **Связанный документ:** docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md.
 
-## Тестирование
-
-### Ограниченный native TON withdrawal
-
-- **Статус:** Кодовый этап реализован — локальный Technical QA пройден, remote migration `20260802100000_ton_withdrawal_mvp.sql` применена и сверена с Supabase 2026-08-02. Отдельный ручной mainnet User QA и операционные процедуры могут выполняться позже и не блокируют переход к Content Loop.
-- **Пользовательский результат:** авторизованный пользователь может безопасно вывести небольшой объём native TON из Wallet с понятным курсом, комиссиями, лимитами и статусом транзакции.
-- **Почему тестируем:** native TON deposit MVP уже существует, а withdrawal loop теперь присутствует на целевом mainnet-конфиге и в удалённой схеме.
-- **Главное решение:** авторизация + feature flag, малый max limit, atomic Wallet reserve, rate snapshot, 1% service fee сверху, network fee reserve, idempotency и emergency pause. Allowlist не используется.
-- **Граница реализованного среза:** только TON, mainnet по умолчанию, сумма в TON, server-side signer, доступ любому авторизованному пользователю при включённом feature flag, atomic reserve и статусы до `broadcast`; `manual_review` сохраняет резерв при неопределённом результате. Reconciliation/confirmed worker, cooling, coverage gate и production custody остаются открытыми.
-- **Критерии следующего decision-complete плана:** success/duplicate/insufficient balance/bad address/timeout/final failure, idempotency, address confirmation/cooling, coverage gate, custody/operator boundary и возврат fee reserve.
-- **Технические проверки:** `pnpm exec tsc --noEmit`, `pnpm lint` и эскалированный `pnpm build` пройдены 2026-08-02; lint оставил только существующие предупреждения `<img>`. Все локальные migration IDs совпадают с remote, включая TON withdrawal.
-- **Ручной UX-сценарий:** проверить mainnet signer и малый operating balance → `Wallet → Withdraw TON` → ввести TON-адрес и сумму → проверить курс/1%/network reserve/итог → подтвердить → проверить debit в Wallet history и `broadcast`/`manual_review`; затем отдельно проверить insufficient balance, bad address и повтор idempotency key.
-- **Метрика:** доля успешных withdrawal без расхождения Wallet/chain, время до подтверждения и доля возвратов после final failure.
-- **Блокеры:** для User QA нужны ручная mainnet-проверка и подтверждение результата основателем; до расширения за тестовый срез нужны custody, операционный ответственный, coverage thresholds, reconciliation/confirmed worker и процедура возврата при final failure. Emergency pause и малый max limit обязательны.
-- **Связанный документ:** docs/WALLET_CRYPTO_RAILS_PLAN.md.
-
 ## Завершённая карточка — Verified Reality Feed
 
 ### Verified Reality Feed
@@ -211,10 +195,11 @@
 
 - [ ] Open Projects: каталог, заявки и project tasks без завершенного participation loop.
 - [x] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Migration `20260724230000_marketplace_deals_phase3_4.sql` и routes требуют environment apply/User QA; деньги покупателя пока не резервируются, expire/refund/dispute отсутствуют, поэтому escrow не считается завершённым.
-- [x] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; withdrawal находится в тестировании, полный статус и границы — `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
+- [x] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; ограниченный withdrawal подтверждён ручным mainnet User QA, полный статус и границы — `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
 
 ## Подтверждено пользователями
 
+- [x] **Ограниченный native TON withdrawal:** пользователь подтвердил 2026-08-02, что ручной mainnet success-сценарий работает. Feature flag, авторизация, server-side signer, Wallet reserve, комиссии и отправка TON доступны без allowlist; расширенные failure-сценарии, reconciliation/confirmed worker и production custody остаются отдельным hardening-этапом до массового вывода.
 - [x] **Home/Today как отдельный главный экран:** пользователь подтвердил 2026-07-15, что Home работает; Home и AI chat объединены в одной навигационной группе, количество главных вкладок сокращено с шести до пяти, CTA/Today/план и переходы работают в ручном сценарии. Стартовый маршрут при этом остается `Goals → Notes`.
 - [x] **MVP receipt после Core reward:** пользователь подтвердил receipt после начисления; receipt показывает challenge, verification, сумму и Core после начисления. Ledger ID, финансовая история и server-side изменение личного плана отложены до финансового этапа.
 - [x] **Единый onboarding:** 2026-07-22 три экрана `миссия -> истории -> программа 20 уровней` завершаются обязательным Google-входом без guest shell. Первая регистрация автоматически создаёт профиль/Core/Wallet, начисляет стартовый бонус `+2$ Core`, показывает одноразовый receipt и открывает ленту. Старый signup-челлендж скрыт из каталога; визуальный эталон закреплен в `docs/VISUAL_LANGUAGE.md`.
@@ -225,7 +210,7 @@
 
 ## Заблокировано
 
-- Массовый внешний вывод Wallet заблокирован до успешного малого авторизованного withdrawal loop, сверки chain/ledger, разделения основного резерва и operating hot wallet, безопасной custody и операционной поддержки. Ограниченный MVP из очереди этим blocker не запрещён.
+- Массовый внешний вывод Wallet остаётся заблокирован до полной сверки chain/ledger, разделения основного резерва и operating hot wallet, безопасной custody, failure/reconciliation-процедур и операционной поддержки. Успешный малый mainnet withdrawal loop подтверждён 2026-08-02.
 - Публичные обещания фиксированного или гарантированного дохода заблокированы до доказуемого покрытия обязательств и юридической проверки формулировок.
 - Пользовательский текст о redemption Core запрещён: Core строго неснижаем. Старый feature flag, Core-redemption liability, KYC/AML, cooling period и worker не являются основанием для его включения.
 - Масштабирование за пределы закрытой когорты заблокировано до появления аналитики, положительного D1/D3/D7 и сверки Wallet-обязательств с фондом.

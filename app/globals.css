@@ -709,7 +709,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .owner-profile-copy { min-width: 0; display: grid; gap: 5px; }
 .owner-profile-copy strong { min-width: 0; max-width: 100%; font-size: 22px; }
 .owner-profile-copy p { margin: 0; color: var(--muted); font-size: 0.875rem; }
-.profile-action-row { width: min(100%, 360px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.profile-action-row { width: min(100%, 360px); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
 .profile-action-button { min-height: 54px; display: grid; place-items: center; gap: 4px; border-radius: 13px; background: var(--surface-soft); color: var(--muted); font-size: 0.6875rem; font-weight: 850; }
 .profile-action-button[aria-expanded="true"] { background: var(--accent-soft); color: var(--blue); }
 .profile-action-icon-with-badge { position: relative; display: inline-flex; }

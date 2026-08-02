@@ -102,6 +102,7 @@
 ### Pilot Activation Loop: Day 0 / Day 1
 
 - **Статус:** переведён в параллельный операционный трек 2026-08-02.
+
 - [ ] Связать onboarding, Demo/Verified, App Testing, желание, финансовый план, daily goal, первый challenge/receipt и возврат.
 - [ ] Закрыть server-side события и проверить первую партию 5–10 человек.
 - [ ] Оставить финансовый и referral-треки добровольными и включать их после первого результата.
@@ -118,49 +119,50 @@
 
 ## Следующие шаги
 
-1. [x] **User Content Growth Loop — кодовый MVP**
-   - First-party фото/короткое видео, ручной post, одна реакция `like` и простые комментарии.
-   - Canonical repost без копирования media, Daily Progress и outbound share package с external mirror.
-   - Осталось: провести bounded HTTP smoke и ручной User QA; автоматическая модерация и moderation queue не планируются.
-   - Связанный документ: `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`.
+1. [X] **User Content Growth Loop — кодовый MVP**
 
-2. [ ] **Skill Passport + `software_creation` L1**
-   - RPG-параметр навыка, evidence, vibecoding learning path, практическая фича и три peer review.
-   - `peer_point` организует review, но не покупает verdict; затем отдельный `referral_acquisition` L1.
-   - Связанный документ: `docs/SKILLS_SYSTEM_PLAN.md`.
+    - First-party фото/короткое видео, ручной post, одна реакция `like` и простые комментарии.
+    - Canonical repost без копирования media, Daily Progress и outbound share package с external mirror.
+    - Осталось: провести bounded HTTP smoke и ручной User QA; автоматическая модерация и moderation queue не планируются.
+    - Связанный документ: `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`.
+2. [X] **Skill Passport + `software_creation` L1**
 
+    - RPG-параметр навыка, evidence, vibecoding learning path, практическая фича и три peer review.
+    - `peer_point` организует review, но не покупает verdict; затем отдельный `referral_acquisition` L1.
+    - Связанный документ: `docs/SKILLS_SYSTEM_PLAN.md`.
 3. [ ] **Team / Referral / Leader Loop**
-   - Team dashboard, помощь новичку, лидерские челленджи и базовая коммуникация.
-   - Invite challenge считает регистрацию; высокий уровень навыка привлечения — активацию и удержание.
-   - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
 
+    - Team dashboard, помощь новичку, лидерские челленджи и базовая коммуникация.
+    - Invite challenge считает регистрацию; высокий уровень навыка привлечения — активацию и удержание.
+    - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
 4. [ ] **Marketplace safety completion + Mutual Credit**
-   - Buyer funds reserve, expire/refund, dispute, reviews и ручной UX QA.
-   - Затем rolling `spent - earned` как capped discovery boost только по legitimate settled deals.
 
+    - Buyer funds reserve, expire/refund, dispute, reviews и ручной UX QA.
+    - Затем rolling `spent - earned` как capped discovery boost только по legitimate settled deals.
 5. [ ] **Trust v2**
-   - Rating `0.0–5.0`, amount smoothing, level-based pair cap, `10%` signed rater effect и calendar-year `×0.9` summary.
-   - Порядок: shadow calculation → private summary → calibrated public pilot.
-   - Связанный документ: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
 
-6. [ ] **USDT Jetton в TON и следующая сеть**
-   - Сначала полный deposit/withdrawal loop USDT Jetton, затем одна пара `asset + network` по спросу.
-   - Несколько сетей одновременно, bridge и swap не входят.
+    - Rating `0.0–5.0`, amount smoothing, level-based pair cap, `10%` signed rater effect и calendar-year `×0.9` summary.
+    - Порядок: shadow calculation → private summary → calibrated public pilot.
+    - Связанный документ: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
+6. [ ] **м**
 
+    - Сначала полный deposit/withdrawal loop USDT Jetton, затем одна пара `asset + network` по спросу.
+    - Несколько сетей одновременно, bridge и swap не входят.
 7. [ ] **Future Sim**
-   - Сначала честная статичная simulation с формулой, watermark и opt-in; face/video позже.
-   - Стартует только после устойчивого workflow, калькулятора и подтверждённого D1/D3/D7.
-   - Связанный документ: `docs/FUTURE_SIM_PLAN.md`.
+
+    - Сначала честная статичная simulation с формулой, watermark и opt-in; face/video позже.
+    - Стартует только после устойчивого workflow, калькулятора и подтверждённого D1/D3/D7.
+    - Связанный документ: `docs/FUTURE_SIM_PLAN.md`.
 
 ## Технически реализовано / нужен User QA
 
 ### Первый пользовательский маршрут
 
-- [x] **Offline-first старт:** default navigation возвращен на `Goals → Notes`; Notes остаются local-first и доступны мгновенно без сети, Home сохраняется отдельной вкладкой.
+- [X] **Offline-first старт:** default navigation возвращен на `Goals → Notes`; Notes остаются local-first и доступны мгновенно без сети, Home сохраняется отдельной вкладкой.
 - [ ] Wishes: личные желания CRUD, рекомендации, копирование рекомендации и публичные желания.
 - [ ] Пирамида глубины желаний: продуктовая модель и рекомендуемый UX зафиксированы в `docs/WISH_PROGRESS_PYRAMID.md`; следующий шаг — прототип блока `Goals -> Wishes -> Моя пирамида желаний` без миграции данных.
 - [ ] Wallet/Core: балансы, история, уровни, ежедневное начисление, reinvest split и Wallet -> Core через atomic ledger RPC.
-- [x] **Core redemption safeguard (legacy):** старый obligations/breach/redemption-контур сохранён в истории, но признан несовместимым с базовым принципом строго неснижаемого Core и не должен включаться. Миграция `20260731120000_core_strictly_non_decreasing.sql` добавляет DB-trigger, который отклоняет уменьшение Core; применение к окружениям остаётся отдельным шагом. История: `docs/CORE_REDEMPTION_SAFEGUARD_PLAN.md`.
+- [X] **Core redemption safeguard (legacy):** старый obligations/breach/redemption-контур сохранён в истории, но признан несовместимым с базовым принципом строго неснижаемого Core и не должен включаться. Миграция `20260731120000_core_strictly_non_decreasing.sql` добавляет DB-trigger, который отклоняет уменьшение Core; применение к окружениям остаётся отдельным шагом. История: `docs/CORE_REDEMPTION_SAFEGUARD_PLAN.md`.
 - [ ] Финансовый калькулятор: future amount, time to goal, daily income и сравнение сценариев.
 - [ ] Today technical MVP: сохраненный growth plan, дневная цель, checklist, progress, streak, встроенное состояние Home и карточка в Challenges.
 - [ ] Starter Challenges: accept/check/reward, автопроверки и quiz сложного процента.
@@ -169,6 +171,7 @@
 ### Goals Growth Map MVP
 
 - [ ] Первая версия карты технически реализована в `components/GrowthMapApp.tsx` и подключена как вкладка Goals: показывает текущий уровень, ближайшие пороги Core, маршрут из шести остановок, привязанные желания и состояния loading/offline/error.
+
 - **Оценка:** это полезный слой ориентации в Core, но пока не отдельный action-loop: карта не ведет прямо в Today/следующий challenge и не показывает динамику личного плана.
 - **Статус:** нужен User QA; расширение CTA, динамики плана и финансовой истории не добавлять в текущий MVP.
 
@@ -186,27 +189,27 @@
 - [ ] Referrals/teams: referral claim, team membership, capacity, контакты команды и team bonus ledger.
 - [ ] Trust-lite: mutual confirmations, trust events, reciprocity summary и challenge checks.
 - [ ] AI Coordinator: единый AI Gateway, capability registry, consent-aware Context Broker и подтверждаемая память пользователя; чат доступен как вторичная вкладка Home и пока не получает user context. Архитектура и этапы: `docs/AI_CONTEXT_MEMORY_ARCHITECTURE.md`.
-- [x] AI chat stage 1 технически реализован: локальная история Home → Ideas, 20 встроенных вопросов, Nova/quick actions и локальный UX-лимит 20 сообщений в UTC-сутки / 300 в UTC-месяц; требуется отдельный User QA.
-- [x] AI chat stage 2 технически реализован: `/api/ai/chat` использует существующий Supabase access token, атомарную серверную quota `20/day` и `300/month`, metadata-only `ai_usage_events`, per-user rate/concurrency control и provider health/cooldown для Gemini → Groq fallback. Migration `20260731150000_ai_usage_quota_and_provider_health.sql` применена к удалённому Supabase.
-- [x] AI chat stage 3 BYOK технически реализован: режимы `System quota` / `My OpenRouter`, encrypted manual OpenRouter key, server-side settings/key routes, consent fact, curated model allowlist и no-fallback policy. Migration `20260801100000_ai_openrouter_byok.sql` применена к удалённому Supabase.
-- [x] Reflection Inbox + Today rhythm: быстрый local-first захват в Notes с `reviewAt = +24h`, агрегированный локальный пункт `Разобрать заметки · N` на Home, guided AI-разбор из четырёх выборов с собственным вариантом и максимум двумя адаптивными уточнениями, редактируемое я-высказывание, возможные причины, ресурсы, if-then действие, связь с Checks, единый Today reminder и completion-streak челленджи 7/30. Push требует применения миграций и настройки VAPID/Vault; детали в `docs/REFLECTION_PROCESSING_PLAN.md` и `docs/TODAY_DAILY_CHALLENGE_PLAN.md`.
+- [X] AI chat stage 1 технически реализован: локальная история Home → Ideas, 20 встроенных вопросов, Nova/quick actions и локальный UX-лимит 20 сообщений в UTC-сутки / 300 в UTC-месяц; требуется отдельный User QA.
+- [X] AI chat stage 2 технически реализован: `/api/ai/chat` использует существующий Supabase access token, атомарную серверную quota `20/day` и `300/month`, metadata-only `ai_usage_events`, per-user rate/concurrency control и provider health/cooldown для Gemini → Groq fallback. Migration `20260731150000_ai_usage_quota_and_provider_health.sql` применена к удалённому Supabase.
+- [X] AI chat stage 3 BYOK технически реализован: режимы `System quota` / `My OpenRouter`, encrypted manual OpenRouter key, server-side settings/key routes, consent fact, curated model allowlist и no-fallback policy. Migration `20260801100000_ai_openrouter_byok.sql` применена к удалённому Supabase.
+- [X] Reflection Inbox + Today rhythm: быстрый local-first захват в Notes с `reviewAt = +24h`, агрегированный локальный пункт `Разобрать заметки · N` на Home, guided AI-разбор из четырёх выборов с собственным вариантом и максимум двумя адаптивными уточнениями, редактируемое я-высказывание, возможные причины, ресурсы, if-then действие, связь с Checks, единый Today reminder и completion-streak челленджи 7/30. Push требует применения миграций и настройки VAPID/Vault; детали в `docs/REFLECTION_PROCESSING_PLAN.md` и `docs/TODAY_DAILY_CHALLENGE_PLAN.md`.
 
 ### Поздние контуры, уже имеющие технический фундамент
 
 - [ ] Open Projects: каталог, заявки и project tasks без завершенного participation loop.
-- [x] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Migration `20260724230000_marketplace_deals_phase3_4.sql` и routes требуют environment apply/User QA; деньги покупателя пока не резервируются, expire/refund/dispute отсутствуют, поэтому escrow не считается завершённым.
-- [x] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; ограниченный withdrawal подтверждён ручным mainnet User QA, полный статус и границы — `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
+- [X] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Migration `20260724230000_marketplace_deals_phase3_4.sql` и routes требуют environment apply/User QA; деньги покупателя пока не резервируются, expire/refund/dispute отсутствуют, поэтому escrow не считается завершённым.
+- [X] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; ограниченный withdrawal подтверждён ручным mainnet User QA, полный статус и границы — `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
 
 ## Подтверждено пользователями
 
-- [x] **Ограниченный native TON withdrawal:** пользователь подтвердил 2026-08-02, что ручной mainnet success-сценарий работает. Feature flag, авторизация, server-side signer, Wallet reserve, комиссии и отправка TON доступны без allowlist; расширенные failure-сценарии, reconciliation/confirmed worker и production custody остаются отдельным hardening-этапом до массового вывода.
-- [x] **Home/Today как отдельный главный экран:** пользователь подтвердил 2026-07-15, что Home работает; Home и AI chat объединены в одной навигационной группе, количество главных вкладок сокращено с шести до пяти, CTA/Today/план и переходы работают в ручном сценарии. Стартовый маршрут при этом остается `Goals → Notes`.
-- [x] **MVP receipt после Core reward:** пользователь подтвердил receipt после начисления; receipt показывает challenge, verification, сумму и Core после начисления. Ledger ID, финансовая история и server-side изменение личного плана отложены до финансового этапа.
-- [x] **Единый onboarding:** 2026-07-22 три экрана `миссия -> истории -> программа 20 уровней` завершаются обязательным Google-входом без guest shell. Первая регистрация автоматически создаёт профиль/Core/Wallet, начисляет стартовый бонус `+2$ Core`, показывает одноразовый receipt и открывает ленту. Старый signup-челлендж скрыт из каталога; визуальный эталон закреплен в `docs/VISUAL_LANGUAGE.md`.
-- [x] Offline Notes Pilot: создание, изменение и удаление заметок offline, восстановление и синхронизация после возвращения сети были вручную приняты.
-- [x] Документационная фиксация: Markdown-канбан принят как канонический трекер; мастер-план отделен от накопительного project memory.
-- [x] Первая цепочка Core-челленджей: пользователь подтвердил 2026-07-13, что текущую карточку переносим в подтвержденные; цепочка остается без жестких prerequisite-блокировок, completed не возвращаются в доступные, accepted раскрывается списком, `Give up` возвращает accepted-челлендж в доступные, `Turn On Core Growth` заменен на Today Core target.
-- [x] **Verified Reality Feed:** пользователь подтвердил 2026-08-02 draft-first сценарий Core challenge → Открыть черновик → Blog → Drafts → опубликовать → People → Feed → обновить; verified/demo/system badges убраны с плиток-обложек и остаются только внутри detail.
+- [X] **Ограниченный native TON withdrawal:** пользователь подтвердил 2026-08-02, что ручной mainnet success-сценарий работает. Feature flag, авторизация, server-side signer, Wallet reserve, комиссии и отправка TON доступны без allowlist; расширенные failure-сценарии, reconciliation/confirmed worker и production custody остаются отдельным hardening-этапом до массового вывода.
+- [X] **Home/Today как отдельный главный экран:** пользователь подтвердил 2026-07-15, что Home работает; Home и AI chat объединены в одной навигационной группе, количество главных вкладок сокращено с шести до пяти, CTA/Today/план и переходы работают в ручном сценарии. Стартовый маршрут при этом остается `Goals → Notes`.
+- [X] **MVP receipt после Core reward:** пользователь подтвердил receipt после начисления; receipt показывает challenge, verification, сумму и Core после начисления. Ledger ID, финансовая история и server-side изменение личного плана отложены до финансового этапа.
+- [X] **Единый onboarding:** 2026-07-22 три экрана `миссия -> истории -> программа 20 уровней` завершаются обязательным Google-входом без guest shell. Первая регистрация автоматически создаёт профиль/Core/Wallet, начисляет стартовый бонус `+2$ Core`, показывает одноразовый receipt и открывает ленту. Старый signup-челлендж скрыт из каталога; визуальный эталон закреплен в `docs/VISUAL_LANGUAGE.md`.
+- [X] Offline Notes Pilot: создание, изменение и удаление заметок offline, восстановление и синхронизация после возвращения сети были вручную приняты.
+- [X] Документационная фиксация: Markdown-канбан принят как канонический трекер; мастер-план отделен от накопительного project memory.
+- [X] Первая цепочка Core-челленджей: пользователь подтвердил 2026-07-13, что текущую карточку переносим в подтвержденные; цепочка остается без жестких prerequisite-блокировок, completed не возвращаются в доступные, accepted раскрывается списком, `Give up` возвращает accepted-челлендж в доступные, `Turn On Core Growth` заменен на Today Core target.
+- [X] **Verified Reality Feed:** пользователь подтвердил 2026-08-02 draft-first сценарий Core challenge → Открыть черновик → Blog → Drafts → опубликовать → People → Feed → обновить; verified/demo/system badges убраны с плиток-обложек и остаются только внутри detail.
 
 ## Заблокировано
 

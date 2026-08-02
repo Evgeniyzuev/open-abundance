@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Settings, Share2, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -199,7 +199,7 @@ type ProfileEditorState = {
   avatarRemoved: boolean;
 };
 
-type ProfileAction = "edit" | "settings" | "activity" | null;
+type ProfileAction = "edit" | "settings" | "skills" | "activity" | null;
 type PeopleSection = "discover" | "contacts" | "confirmations";
 
 export default function SocialApp({
@@ -1631,6 +1631,10 @@ export default function SocialApp({
               <Settings size={18} />
               <span>{t("profile.actions.settings")}</span>
             </button>
+            <button className="profile-action-button" type="button" aria-label={t("profile.actions.skills")} aria-expanded={profileAction === "skills"} onClick={() => toggleProfileAction("skills")}>
+              <Sparkles size={18} />
+              <span>{t("profile.actions.skills")}</span>
+            </button>
             <button className="profile-action-button" type="button" aria-label={t("profile.actions.activity")} aria-expanded={profileAction === "activity"} onClick={openPayoutNotifications}>
               <span className="profile-action-icon-with-badge"><Bell size={18} />{pendingIncomingConfirmations > 0 ? <i>{pendingIncomingConfirmations}</i> : null}</span>
               <span>{t("profile.actions.activity")}</span>
@@ -1649,7 +1653,6 @@ export default function SocialApp({
             <div><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
             <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
           </div>
-          <SkillPassportApp />
         </section>
       ) : null}
 
@@ -1675,6 +1678,9 @@ export default function SocialApp({
           onScale={(value) => setUiScale(value)}
           onTheme={(value) => setColorTheme(value)}
         />
+      ) : null}
+      {profileAction === "skills" ? (
+        <SkillPassportDialog t={t} onClose={() => setProfileAction(null)} />
       ) : null}
       {profileAction === "activity" ? (
         <ActivityDialog
@@ -1998,6 +2004,18 @@ function ActivityDialog({ notifications, notificationsLoading, pendingConfirmati
         {notificationsLoading ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
         {!notificationsLoading && notifications?.length ? <div className="notification-list">{notifications.map((item) => <article className="notification-row" key={item.id}><strong>{item.title}</strong><p>{item.body}</p></article>)}</div> : null}
         {!notificationsLoading && !pendingConfirmations && notifications && notifications.length === 0 ? <p className="feed-empty">{t("profile.activity.empty")}</p> : null}
+      </section>
+    </div>
+  );
+}
+
+function SkillPassportDialog({ t, onClose }: { t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet profile-action-modal skills-modal" role="dialog" aria-modal="true" aria-labelledby="skills-title" onClick={(event) => event.stopPropagation()}>
+        <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
+        <div className="modal-header"><h2 id="skills-title">{t("profile.actions.skills")}</h2></div>
+        <SkillPassportApp />
       </section>
     </div>
   );

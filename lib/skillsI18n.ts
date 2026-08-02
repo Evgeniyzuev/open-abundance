@@ -2,9 +2,7 @@ import type { AppLocale } from "@/lib/i18n";
 
 const skillMessages = {
   ru: {
-    kicker: "RPG-параметры",
-    title: "Паспорт навыков",
-    description: "Уровни считаются автоматически по действиям в продукте.",
+    title: "Навыки",
     coreLevel: "Core {level}",
     earned: "Заработано",
     effective: "Доступно сейчас",
@@ -17,6 +15,8 @@ const skillMessages = {
     refreshed: "Прогресс обновлён.",
     level: "Уровень",
     nextCheck: "Следующая автоматическая проверка",
+    completedLevel: "Уровень L{level} достигнут",
+    completed: "Достигнут",
     current: "Сейчас",
     target: "Цель",
     noCheck: "Для этого навыка автоматическое правило ещё готовится.",
@@ -27,9 +27,7 @@ const skillMessages = {
     challengeCompletionCount: "Количество завершённых челленджей"
   },
   en: {
-    kicker: "RPG stats",
-    title: "Skill Passport",
-    description: "Levels are calculated automatically from actions in the product.",
+    title: "Skills",
     coreLevel: "Core {level}",
     earned: "Earned",
     effective: "Available now",
@@ -42,6 +40,8 @@ const skillMessages = {
     refreshed: "Progress updated.",
     level: "Level",
     nextCheck: "Next automatic check",
+    completedLevel: "Level L{level} reached",
+    completed: "Reached",
     current: "Now",
     target: "Target",
     noCheck: "An automatic rule for this skill is still being prepared.",

@@ -241,6 +241,14 @@ from (
       '{"metric":"referrals"}'::jsonb
     ),
     (
+      'referral_acquisition',
+      2,
+      'referral_count',
+      4::bigint,
+      '{"ru":"Приведи 4 зарегистрированных участников.","en":"Bring in 4 registered participants."}'::jsonb,
+      '{"metric":"referrals"}'::jsonb
+    ),
+    (
       'content_creation',
       1,
       'public_post_count',
@@ -249,11 +257,27 @@ from (
       '{"metric":"public_posts"}'::jsonb
     ),
     (
+      'content_creation',
+      2,
+      'public_post_count',
+      3::bigint,
+      '{"ru":"Опубликуй 3 публичных материала.","en":"Publish 3 public posts."}'::jsonb,
+      '{"metric":"public_posts"}'::jsonb
+    ),
+    (
       'team_building',
       1,
       'team_member_count',
       1::bigint,
       '{"ru":"Собери команду хотя бы из 1 активного участника.","en":"Build a team with at least 1 active member."}'::jsonb,
+      '{"metric":"team_members"}'::jsonb
+    ),
+    (
+      'team_building',
+      2,
+      'team_member_count',
+      3::bigint,
+      '{"ru":"Собери команду хотя бы из 3 активных участников.","en":"Build a team with at least 3 active members."}'::jsonb,
       '{"metric":"team_members"}'::jsonb
     )
 ) as rule(slug, level, verification_logic, threshold, requirements, metadata)

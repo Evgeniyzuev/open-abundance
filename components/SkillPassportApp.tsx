@@ -60,9 +60,7 @@ export default function SkillPassportApp() {
       <header className={styles.header}>
         <div className={styles.icon}><Sparkles size={18} /></div>
         <div className={styles.headingCopy}>
-          <span className={styles.kicker}>{st("kicker")}</span>
           <h2 id="skill-passport-title">{st("title")}</h2>
-          <p>{st("description")}</p>
         </div>
         <div className={styles.headerActions}>
           <span className={styles.core}>{st("coreLevel", { level: core?.level ?? payload?.coreLevel ?? 0 })}</span>
@@ -82,8 +80,9 @@ export default function SkillPassportApp() {
 }
 
 function SkillCard({ skill, st }: { skill: PassportSkill; st: (key: Parameters<typeof skillTranslate>[1], values?: Record<string, string | number>) => string }) {
-  const currentCheck = skill.checks.find((check) => !check.passed) ?? skill.checks[skill.checks.length - 1] ?? null;
+  const currentCheck = skill.checks.find((check) => check.level > skill.earnedLevel) ?? skill.checks[skill.checks.length - 1] ?? null;
   const progress = currentCheck ? Math.min(100, Math.round((currentCheck.currentValue / currentCheck.threshold) * 100)) : 0;
+  const currentLevelCompleted = currentCheck ? currentCheck.level <= skill.earnedLevel : false;
   const statusLabel = skill.status === "verified" ? st("verified") : st("unverified");
 
   return (
@@ -108,10 +107,10 @@ function SkillCard({ skill, st }: { skill: PassportSkill; st: (key: Parameters<t
 
       {currentCheck ? (
         <div className={styles.checkBox}>
-          <div className={styles.checkHeader}><strong>{st("nextCheck")}</strong><span>L{currentCheck.level}</span></div>
+          <div className={styles.checkHeader}><strong>{currentLevelCompleted ? st("completedLevel", { level: currentCheck.level }) : st("nextCheck")}</strong><span>L{currentCheck.level}</span></div>
           <p>{currentCheck.requirements}</p>
-          <div className={styles.progressTrack} aria-label={`${currentCheck.currentValue}/${currentCheck.threshold}`}><span style={{ width: `${progress}%` }} /></div>
-          <div className={styles.checkMeta}><span>{st(logicMessageKey[currentCheck.verificationLogic])}</span><b>{currentCheck.currentValue} / {currentCheck.threshold}</b></div>
+          {!currentLevelCompleted ? <div className={styles.progressTrack} aria-label={String(currentCheck.currentValue) + "/" + currentCheck.threshold}><span style={{ width: String(progress) + "%" }} /></div> : null}
+          <div className={styles.checkMeta}><span>{st(logicMessageKey[currentCheck.verificationLogic])}</span><b>{currentLevelCompleted ? st("completed") : String(currentCheck.currentValue) + " / " + currentCheck.threshold}</b></div>
         </div>
       ) : <p className={styles.muted}>{st("noCheck")}</p>}
     </article>

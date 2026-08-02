@@ -1667,9 +1667,24 @@ function TonWithdrawalModal({
           cache: "no-store",
           headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
         });
-        const payload = (await response.json()) as { enabled?: boolean; quote?: TonWithdrawalQuote; error?: string };
+        const payload = (await response.json()) as {
+          enabled?: boolean;
+          quote?: TonWithdrawalQuote;
+          error?: string;
+          reason?: "disabled" | "mnemonic_missing" | "mnemonic_invalid" | "ready";
+          diagnostics?: { mnemonicWordCount?: number };
+        };
         if (!response.ok || payload.error) throw new Error(payload.error ?? t("wallet.withdraw.error.quote"));
-        if (!payload.enabled || !payload.quote) throw new Error(t("wallet.withdraw.unavailable"));
+        if (!payload.enabled || !payload.quote) {
+          const unavailableMessage = payload.reason === "disabled"
+            ? t("wallet.withdraw.unavailable.disabled")
+            : payload.reason === "mnemonic_missing"
+              ? t("wallet.withdraw.unavailable.mnemonicMissing")
+              : payload.reason === "mnemonic_invalid"
+                ? t("wallet.withdraw.unavailable.mnemonicInvalid", { count: payload.diagnostics?.mnemonicWordCount ?? 0 })
+                : t("wallet.withdraw.unavailable");
+          throw new Error(unavailableMessage);
+        }
         if (mounted) setQuote(payload.quote);
       } catch (loadError) {
         if (mounted) setError(loadError instanceof Error ? loadError.message : t("wallet.withdraw.error.quote"));

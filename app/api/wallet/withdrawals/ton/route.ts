@@ -38,7 +38,11 @@ export async function GET(request: NextRequest) {
 
     const config = loadTonWithdrawalConfig();
     if (!config.ready) {
-      return jsonResponse({ enabled: false, reason: config.reason });
+      return jsonResponse({
+        enabled: false,
+        reason: config.reason,
+        diagnostics: config.diagnostics
+      });
     }
 
     const quote = await resolveTonWithdrawalQuote(config);
@@ -56,7 +60,13 @@ export async function POST(request: NextRequest) {
     if (error || !user) return jsonResponse({ error }, { status: 401 });
 
     const config = loadTonWithdrawalConfig();
-    if (!config.ready) return jsonResponse({ error: "TON withdrawal is not configured for testing yet." }, { status: 503 });
+    if (!config.ready) {
+      return jsonResponse({
+        error: "TON withdrawal is not configured on this server.",
+        reason: config.reason,
+        diagnostics: config.diagnostics
+      }, { status: 503 });
+    }
 
     const body = (await request.json().catch(() => ({}))) as WithdrawalBody;
     const amountTon = typeof body.amountTon === "string" ? body.amountTon.trim() : "";

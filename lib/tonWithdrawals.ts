@@ -12,7 +12,12 @@ const DEFAULT_TESTNET_TONCENTER_URL = "https://testnet.toncenter.com/api/v2/json
 export type TonWithdrawalConfig = {
   enabled: boolean;
   ready: boolean;
-  reason: "disabled" | "not_configured" | "ready";
+  reason: "disabled" | "mnemonic_missing" | "mnemonic_invalid" | "ready";
+  diagnostics: {
+    enabledVariablePresent: boolean;
+    mnemonicVariablePresent: boolean;
+    mnemonicWordCount: number;
+  };
   network: TonNetwork;
   endpoint: string;
   apiKey?: string;
@@ -55,20 +60,28 @@ export class TonWithdrawalBroadcastError extends Error {
 }
 
 export function loadTonWithdrawalConfig(): TonWithdrawalConfig {
-  const enabled = process.env.TON_WITHDRAWAL_ENABLED?.trim().toLowerCase() === "true";
-  const network: TonNetwork = process.env.TON_WITHDRAWAL_NETWORK?.trim() === "testnet" ? "testnet" : "mainnet";
-  const endpoint = process.env.TON_WITHDRAWAL_TONCENTER_URL?.trim()
+  const enabledValue = configuredEnvValue(process.env.TON_WITHDRAWAL_ENABLED);
+  const mnemonicValue = configuredEnvValue(process.env.TON_WITHDRAWAL_MNEMONIC);
+  const mnemonicWords = mnemonicValue?.split(/\s+/).filter(Boolean) ?? [];
+  const enabled = enabledValue?.toLowerCase() === "true";
+  const network: TonNetwork = configuredEnvValue(process.env.TON_WITHDRAWAL_NETWORK) === "testnet" ? "testnet" : "mainnet";
+  const endpoint = configuredEnvValue(process.env.TON_WITHDRAWAL_TONCENTER_URL)
     || (network === "mainnet" ? DEFAULT_MAINNET_TONCENTER_URL : DEFAULT_TESTNET_TONCENTER_URL);
-  const mnemonic = parseMnemonic(process.env.TON_WITHDRAWAL_MNEMONIC);
+  const mnemonic = mnemonicWords.length >= 12 ? mnemonicWords : undefined;
   const config = {
     enabled,
     ready: false,
     reason: "disabled" as TonWithdrawalConfig["reason"],
+    diagnostics: {
+      enabledVariablePresent: Boolean(enabledValue),
+      mnemonicVariablePresent: Boolean(mnemonicValue),
+      mnemonicWordCount: mnemonicWords.length
+    },
     network,
     endpoint,
-    apiKey: process.env.TONCENTER_API_KEY?.trim() || undefined,
+    apiKey: configuredEnvValue(process.env.TONCENTER_API_KEY),
     mnemonic,
-    sourceAddress: process.env.TON_WITHDRAWAL_SOURCE_ADDRESS?.trim() || undefined,
+    sourceAddress: configuredEnvValue(process.env.TON_WITHDRAWAL_SOURCE_ADDRESS),
     serviceFeePercent: positiveConfiguredDecimal(process.env.TON_WITHDRAWAL_SERVICE_FEE_PERCENT, "1"),
     networkFeeEstimateTon: positiveConfiguredDecimal(process.env.TON_WITHDRAWAL_NETWORK_FEE_ESTIMATE_TON, "0.01"),
     networkFeeFloorTon: positiveConfiguredDecimal(process.env.TON_WITHDRAWAL_NETWORK_FEE_FLOOR_TON, "0.05"),
@@ -77,7 +90,8 @@ export function loadTonWithdrawalConfig(): TonWithdrawalConfig {
   } satisfies TonWithdrawalConfig;
 
   if (!enabled) return config;
-  if (!mnemonic) return { ...config, reason: "not_configured" };
+  if (!mnemonicValue) return { ...config, reason: "mnemonic_missing" };
+  if (!mnemonic) return { ...config, reason: "mnemonic_invalid" };
   return { ...config, ready: true, reason: "ready" };
 }
 
@@ -208,13 +222,19 @@ export async function broadcastTonWithdrawal({
   };
 }
 
-function parseMnemonic(value: string | undefined): string[] | undefined {
-  const words = value?.trim().split(/\s+/).filter(Boolean) ?? [];
-  return words.length >= 12 ? words : undefined;
+function configuredEnvValue(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  if (!normalized) return undefined;
+  const first = normalized[0];
+  const last = normalized[normalized.length - 1];
+  if (normalized.length >= 2 && ((first === '"' && last === '"') || (first === "'" && last === "'"))) {
+    return normalized.slice(1, -1).trim() || undefined;
+  }
+  return normalized;
 }
 
 function positiveConfiguredDecimal(value: string | undefined, fallback: string): string {
-  const normalized = value?.trim() || fallback;
+  const normalized = configuredEnvValue(value) || fallback;
   return /^(?:\d+)(?:\.\d+)?$/.test(normalized) && Number(normalized) > 0 ? normalized : fallback;
 }
 

@@ -26,6 +26,10 @@ assertIncludes(scanner, "verifyJettonWalletSource", "source wallet master verifi
 assertIncludes(scanner, "claim_ton_chain_scan", "scanner lease");
 assertIncludes(ui, "/api/wallet/deposits/usdt", "USDT deposit UI route");
 assertIncludes(ui, "/api/wallet/withdrawals/usdt", "USDT withdrawal UI route");
+assertIncludes(ui, "wallet.usdt.withdraw.unavailable.railDisabled", "USDT disabled reason");
+assertIncludes(ui, "wallet.usdt.withdraw.unavailable.ownerMissing", "USDT owner reason");
+assertIncludes(ui, "wallet.usdt.withdraw.unavailable.masterInvalid", "USDT master reason");
+assertIncludes(ui, "wallet.usdt.withdraw.unavailable.jettonWalletMissing", "USDT Jetton wallet reason");
 assertIncludes(methodUi, "wallet.cryptoMethod.ton", "TON method selector");
 assertIncludes(methodUi, "wallet.cryptoMethod.usdtTon", "USDT method selector");
 assertIncludes(walletUi, "setDepositMethodOpen(true)", "deposit method selector action");

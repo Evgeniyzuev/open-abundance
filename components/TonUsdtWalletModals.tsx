@@ -98,12 +98,12 @@ export function TonUsdtWithdrawalModal({ locale, t, wallet, onClose, onSuccess }
 
   useEffect(() => {
     let mounted = true;
-    void loadJson<{ enabled?: boolean; quote?: WithdrawalQuote; error?: string; reason?: string }>("/api/wallet/withdrawals/usdt")
+    void loadJson<{ enabled?: boolean; quote?: WithdrawalQuote; error?: string; reason?: string; diagnostics?: { mnemonicWordCount?: number } }>("/api/wallet/withdrawals/usdt")
       .then((payload) => {
         if (!mounted) return;
         if (payload.quote) setQuote(payload.quote);
         if (payload.enabled) setEnabled(true);
-        else setError(payload.error ?? usdtWithdrawalAvailabilityError(payload.reason, t));
+        else setError(payload.error ?? usdtWithdrawalAvailabilityError(payload.reason, payload.diagnostics, t));
       })
       .catch((loadError) => {
         if (mounted) setError(loadError instanceof Error ? loadError.message : t("wallet.usdt.withdraw.error.quote"));
@@ -148,12 +148,16 @@ export function TonUsdtWithdrawalModal({ locale, t, wallet, onClose, onSuccess }
   </section></div>;
 }
 
-function usdtWithdrawalAvailabilityError(reason: string | undefined, t: TFunction): string {
+function usdtWithdrawalAvailabilityError(reason: string | undefined, diagnostics: { mnemonicWordCount?: number } | undefined, t: TFunction): string {
+  if (reason === "disabled") return t("wallet.usdt.withdraw.unavailable.railDisabled");
+  if (reason === "owner_missing") return t("wallet.usdt.withdraw.unavailable.ownerMissing");
+  if (reason === "master_invalid") return t("wallet.usdt.withdraw.unavailable.masterInvalid");
+  if (reason === "jetton_wallet_missing") return t("wallet.usdt.withdraw.unavailable.jettonWalletMissing");
   if (reason === "withdrawal_disabled") return t("wallet.usdt.withdraw.unavailable.disabled");
-  if (reason === "mnemonic_missing" || reason === "mnemonic_invalid") return t("wallet.usdt.withdraw.unavailable.signer");
+  if (reason === "mnemonic_missing") return t("wallet.usdt.withdraw.unavailable.mnemonicMissing");
+  if (reason === "mnemonic_invalid") return t("wallet.usdt.withdraw.unavailable.mnemonicInvalid", { count: diagnostics?.mnemonicWordCount ?? 0 });
   return t("wallet.usdt.withdraw.unavailable.setup");
-}
-function ValueRow({ label, value, onCopy, copied, t }: { label: string; value: string; onCopy?: () => void; copied?: boolean; t?: TFunction }) { return <div className="ton-deposit-field"><span>{label}</span><code>{value}</code>{onCopy && t ? <button className="text-button" type="button" onClick={onCopy}>{copied ? t("wallet.usdt.deposit.copied") : t("wallet.usdt.deposit.copy")}</button> : null}</div>; }
+}function ValueRow({ label, value, onCopy, copied, t }: { label: string; value: string; onCopy?: () => void; copied?: boolean; t?: TFunction }) { return <div className="ton-deposit-field"><span>{label}</span><code>{value}</code>{onCopy && t ? <button className="text-button" type="button" onClick={onCopy}>{copied ? t("wallet.usdt.deposit.copied") : t("wallet.usdt.deposit.copy")}</button> : null}</div>; }
 async function loadJson<T>(path: string, options?: { method?: string; body?: string }): Promise<T & { error?: string; events?: DepositEvent[] }> { const token = await getAccessToken(); const response = await fetch(`${path}${path.includes("?") ? "&" : "?"}ts=${Date.now()}`, { method: options?.method ?? "GET", cache: "no-store", headers: { Authorization: `Bearer ${token}`, ...(options?.body ? { "Content-Type": "application/json" } : {}) }, body: options?.body }); const payload = (await response.json().catch(() => ({}))) as T & { error?: string }; if (!response.ok || payload.error) throw new Error(payload.error ?? "Request failed."); return payload; }
 async function getAccessToken(): Promise<string> { const supabase = getBrowserSupabaseClient(); const { data: { session }, error } = await supabase.auth.getSession(); if (error) throw error; if (!session?.access_token) throw new Error("Supabase session is missing."); return session.access_token; }
 function formatUsd(value: string, locale: AppLocale): string { const number = Number(value); return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(Number.isFinite(number) ? number : 0)} USD`; }

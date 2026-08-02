@@ -123,6 +123,7 @@ export default function AppNavigation() {
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
   const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
   const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
+  const [feedDraftFocusNonce, setFeedDraftFocusNonce] = useState(0);
   const [, setDailyUnreadVersion] = useState(0);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
@@ -404,12 +405,20 @@ export default function AppNavigation() {
   }
 
   function openToday() {
+    setActiveChallengeTab("challenges");
     setActiveMainTab("challenges");
   }
 
   function openNextChallenge() {
     setChallengeFocusNonce((value) => value + 1);
+    setActiveChallengeTab("challenges");
     setActiveMainTab("challenges");
+  }
+
+  function openFeedDrafts() {
+    setFeedDraftFocusNonce((value) => value + 1);
+    setActiveSocialTab("blog");
+    setActiveMainTab("people");
   }
 
   function openCalculator(draft: HomePlanDraft | null) {
@@ -486,6 +495,7 @@ export default function AppNavigation() {
             challengesUnread={challengesUnread}
             onChallengesViewed={markChallengesSeen}
             onTodayViewed={markTodaySeen}
+            onOpenFeedDrafts={openFeedDrafts}
             todayUnread={todayUnread}
             onNavigateTesting={navigateFromAppTesting}
             refreshNonce={refreshNonce}
@@ -502,7 +512,7 @@ export default function AppNavigation() {
           />
         </KeepAliveView>
         <KeepAliveView active={showPeople} visited={visitedServerViews.people}>
-          <SocialApp active={showPeople} activeTab={activeSocialTab} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} />
+          <SocialApp active={showPeople} activeTab={activeSocialTab} openFeedDraftsNonce={feedDraftFocusNonce} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} onOpenChallenge={openNextChallenge} />
         </KeepAliveView>
         {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>

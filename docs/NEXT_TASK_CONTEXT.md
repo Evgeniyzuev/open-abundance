@@ -1,6 +1,6 @@
 # Open Abundance — контекст для следующего task
 
-Дата: 2026-07-20
+Дата: 2026-08-01
 
 ## Текущее состояние
 
@@ -23,9 +23,9 @@
 
 ## Что делать дальше
 
-Home/Today, MVP receipt и UI-срез профиля `Abundance System` закрыты. Внутри текущего Verified Reality Feed следующим отдельным серверным срезом остается real verified `Challenge Done`. В `Сейчас` по-прежнему одна карточка.
+Home/Today, MVP receipt и UI-срез профиля `Abundance System` закрыты. Real verified `Challenge Done` теперь реализован как отдельный server-backed срез: migration применена, completion receipt ведёт прямо в собственный `Blog → Drafts`, после публикации verified draft пользователь возвращается в `People → Feed`, Feed API передаёт snapshot metadata, gallery/detail и личные `Черновики событий` показывают verified badge/metadata, пустая лента объясняет следующий шаг и ведёт CTA в Challenges, а endpoint snapshots ограничен текущим пользователем. В `Сейчас` по-прежнему одна карточка; Technical QA закрыт, следующий рубеж — ручной User QA.
 
-Цель следующего шага: реализовать real verified `Challenge Done` как отдельный server-backed срез с переходом к challenge/Today, не смешивая его с demo и системными историями.
+Безопасная MVP-модель — draft-first: completion создаёт один системный draft, пользователь публикует его через личные черновики событий. Demo, system stories и verified results остаются разными типами и бейджами.
 
 Не входит в шаг: reward amount и ledger/финансовая история, Wallet-ввод/вывод, Wallet-награды, реферальные выплаты, рекомендации, сложный social graph, изменение server-side GrowthPlan и полноценное создание server-side Wish/GrowthPlan из onboarding draft.
 
@@ -60,7 +60,7 @@ Home/Today, MVP receipt и UI-срез профиля `Abundance System` зак�
 
 ## Проверки
 
-После frontend-изменений: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test:e2e` (для e2e сразу использовать escalation). После tsc восстановить только incidental `tsconfig.tsbuildinfo` через `git restore tsconfig.tsbuildinfo`. Один раз попытаться выполнить ручную проверку в in-app browser; известная ошибка среды: `sandbox-state-meta`.
+После frontend-изменений: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`, bounded feed smoke и затем ручной UX-сценарий. В этой итерации typecheck, lint, build и HTTP smoke (200) пройдены; in-app browser недоступен в текущей сессии, поэтому ручная визуальная проверка остаётся User QA. После tsc восстановить только incidental `tsconfig.tsbuildinfo` через `git restore tsconfig.tsbuildinfo`.
 
 ## Важное незавершённое
 

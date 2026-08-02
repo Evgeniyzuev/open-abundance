@@ -166,6 +166,7 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
                 onDeletePost={() => undefined}
                 onOpenAuthor={(authorUserId) => router.push(`/u/${authorUserId}`)}
                 onOpenBlog={(authorUserId) => router.push(`/u/${authorUserId}/blog`)}
+                onOpenChallenge={() => router.push("/?view=challenges")}
                 onOpenSystemAccount={() => undefined}
                 onPublish={() => undefined}
                 onUpdateReview={async () => undefined}

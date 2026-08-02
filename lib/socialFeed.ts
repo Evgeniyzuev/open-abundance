@@ -1,3 +1,5 @@
+import type { Json } from "@/lib/database.types";
+
 export type FeedAuthor = {
   user_id: string;
   username: string | null;
@@ -112,6 +114,15 @@ export type FeedReviewSummary = {
   distribution: Record<string, number>;
 };
 
+export type FeedVerifiedChallenge = {
+  snapshot_id: string;
+  challenge_id: string;
+  challenge_title: Json;
+  challenge_category: string | null;
+  verification_type: string | null;
+  completed_at: string;
+};
+
 export type FeedPost = {
   id: string;
   author_user_id: string | null;
@@ -119,6 +130,7 @@ export type FeedPost = {
   authorName: string | null;
   source_key: string | null;
   snapshot_id: string | null;
+  system_verified?: boolean;
   post_type: "daily_progress" | "level_up" | "manual" | "external_link" | "wish" | "wish_completed" | "reality_demo" | "abundance_story" | "challenge" | "project_review" | string;
   status: "draft" | "published" | "archived";
   visibility: string;
@@ -134,6 +146,7 @@ export type FeedPost = {
   wish: FeedWish | null;
   projectReview: FeedProjectReview | null;
   systemStory: FeedSystemStory | null;
+  verifiedChallenge?: FeedVerifiedChallenge | null;
 };
 
 export type FeedPayload = {

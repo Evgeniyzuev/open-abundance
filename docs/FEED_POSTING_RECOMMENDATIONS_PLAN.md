@@ -686,6 +686,17 @@ Repost всегда повторно проверяет доступ к original
 - Текущий `feed_posts`/stat-block фундамент можно переиспользовать, но публичный snapshot challenge completion должен иметь отдельный server-backed источник и idempotent source key.
 - CTA из verified `Challenge Done` должен вести к challenge/Today; reward history, ledger proof, recommendations и полный social graph остаются следующими этапами.
 
+### Implemented — 2026-08-01
+
+- migration `20260724220000_challenge_completion_snapshots.sql` применена к linked Supabase; уникальный snapshot связывает user/challenge completion с одним feed post.
+- Feed API возвращает `system_verified` и только связанный snapshot для уже разрешённого feed/blog post; verified detail показывает challenge title, verification type, completion date и CTA в Challenges.
+- Gallery маркирует verified карточки отдельно от `Демо-история` и `История Abundance`; `/api/social/verified-challenges` ограничен текущим пользователем, поэтому чужие draft snapshots не раскрываются.
+- Личные `Черновики событий` явно показывают verified badge, completion metadata и подсказку о публикации в `People → Feed`, чтобы пользователь не путал системный результат с обычным daily draft.
+- Пустая общая лента теперь объясняет следующий шаг и ведёт CTA в challenge; пустые фильтры блога/отзывов сохраняют нейтральное состояние.
+- Completion receipt теперь ведёт напрямую в собственный `Blog → Drafts`, а `SocialApp` загружает system drafts на этом маршруте и автоматически открывает вкладку drafts.
+- После успешной публикации verified draft `SocialApp` переключает пользователя обратно на `People → Feed`, чтобы подтверждённый результат был виден сразу.
+- Безопасная MVP-модель остаётся draft-first: completion создаёт системный draft, пользователь публикует его через личные черновики событий. Reward amount, ledger и финансовая история не добавлялись.
+
 ### Narrative Direction — 2026-07-15
 
 Для demo-историй принят более личный общий нарратив: герой сначала находится в тяжелой точке — нелюбимая работа, выгорание, тревога за семью, ощущение тупика или давно отложенная мечта. Затем он случайно или через знакомого узнает об Abundance: его приглашают, подсказывают или он сам натыкается на проект. Важно, что герой не верит в обещания и не меняет жизнь за один день — сначала пробует из любопытства, делает маленький шаг и наблюдает за собой.

@@ -37,7 +37,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Session expired. Sign in again." }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
-  const targetUserId = request.nextUrl.searchParams.get("userId") ?? user.id;
+  const requestedUserId = request.nextUrl.searchParams.get("userId");
+  if (requestedUserId && requestedUserId !== user.id) {
+    return NextResponse.json({ error: "Only your own verified challenges are available here." }, { status: 403, headers: NO_STORE_HEADERS });
+  }
+  const targetUserId = user.id;
 
   const { data: snapshots, error: snapshotsError } = await (supabase as any)
     .from("challenge_completion_snapshots")

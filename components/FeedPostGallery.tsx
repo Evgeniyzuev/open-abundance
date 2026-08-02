@@ -6,23 +6,25 @@ type FeedPostGalleryProps = {
   fallbackTitle: string;
   posts: FeedPost[];
   onOpen: (post: FeedPost) => void;
+  getBadge?: (post: FeedPost) => string | null;
 };
 
-export default function FeedPostGallery({ fallbackTitle, posts, onOpen }: FeedPostGalleryProps) {
+export default function FeedPostGallery({ fallbackTitle, posts, onOpen, getBadge }: FeedPostGalleryProps) {
   return (
     <div className="feed-post-gallery">
       {posts.map((post) => (
-        <FeedPostTile fallbackTitle={fallbackTitle} key={post.id} post={post} onOpen={onOpen} />
+        <FeedPostTile fallbackTitle={fallbackTitle} getBadge={getBadge} key={post.id} post={post} onOpen={onOpen} />
       ))}
     </div>
   );
 }
 
-function FeedPostTile({ fallbackTitle, post, onOpen }: { fallbackTitle: string; post: FeedPost; onOpen: (post: FeedPost) => void }) {
+function FeedPostTile({ fallbackTitle, getBadge, post, onOpen }: { fallbackTitle: string; getBadge?: (post: FeedPost) => string | null; post: FeedPost; onOpen: (post: FeedPost) => void }) {
   const title = getFeedPostTitle(post, fallbackTitle);
   const cover = getFeedPostCover(post);
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
   const author = getTileAuthor(post);
+  const badge = getBadge?.(post);
 
   return (
     <button aria-label={title} className="feed-post-tile" type="button" onClick={() => onOpen(post)}>
@@ -36,6 +38,7 @@ function FeedPostTile({ fallbackTitle, post, onOpen }: { fallbackTitle: string; 
         </span>
       ) : null}
       {imageCount > 1 ? <span className="feed-post-tile-count">{imageCount}</span> : null}
+      {badge ? <span className={`feed-post-tile-badge ${post.system_verified ? "verified" : ""}`}>{badge}</span> : null}
       <span className="feed-post-tile-copy">{title}</span>
     </button>
   );

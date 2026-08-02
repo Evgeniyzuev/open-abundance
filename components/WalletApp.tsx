@@ -7,6 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { TonUsdtDepositModal, TonUsdtWithdrawalModal } from "@/components/TonUsdtWalletModals";
+import { WalletCryptoMethodModal, type WalletCryptoMethod } from "@/components/WalletCryptoMethodModal";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
 import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -262,8 +263,10 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [targetDailyIncome, setTargetDailyIncome] = useState("10");
   const [targetCalculationTouched, setTargetCalculationTouched] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
+  const [depositMethodOpen, setDepositMethodOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [usdtDepositOpen, setUsdtDepositOpen] = useState(false);
+  const [withdrawMethodOpen, setWithdrawMethodOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [usdtWithdrawOpen, setUsdtWithdrawOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -610,14 +613,6 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           {wallet && core ? (
             <>
               <div className="wallet-action-grid">
-                <button className="wallet-action-button" type="button" onClick={() => setUsdtWithdrawOpen(true)} aria-label={t("wallet.usdt.withdraw.title")}>
-                  <div className="wallet-action-icon-wrap">
-                    <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 5v14M19 12l-7 7-7-7" />
-                    </svg>
-                  </div>
-                  <span className="wallet-action-label">USDT ↓</span>
-                </button>
                 <button className="wallet-action-button" type="button" onClick={() => setTransferOpen(true)} aria-label={t("wallet.transfer.title")}>
                   <div className="wallet-action-icon-wrap">
                     <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -634,7 +629,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                   </div>
                   <span className="wallet-action-label">{t("wallet.topup.title")}</span>
                 </button>
-                <button className="wallet-action-button" type="button" onClick={() => setDepositOpen(true)} aria-label={t("wallet.deposit.title")}>
+                <button className="wallet-action-button" type="button" onClick={() => setDepositMethodOpen(true)} aria-label={t("wallet.deposit.title")}>
                   <div className="wallet-action-icon-wrap">
                     <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 5v14M5 12l7 7 7-7" />
@@ -642,15 +637,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                   </div>
                   <span className="wallet-action-label">{t("wallet.deposit.title")}</span>
                 </button>
-                <button className="wallet-action-button" type="button" onClick={() => setUsdtDepositOpen(true)} aria-label={t("wallet.usdt.deposit.title")}>
-                  <div className="wallet-action-icon-wrap">
-                    <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 5v14M5 12l7 7 7-7" />
-                    </svg>
-                  </div>
-                  <span className="wallet-action-label">USDT · TON ↑</span>
-                </button>
-                <button className="wallet-action-button" type="button" onClick={() => setWithdrawOpen(true)} aria-label={t("wallet.withdraw.title")}>
+                <button className="wallet-action-button" type="button" onClick={() => setWithdrawMethodOpen(true)} aria-label={t("wallet.withdraw.title")}>
                   <div className="wallet-action-icon-wrap">
                     <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 5v14M19 12l-7 7-7-7" />
@@ -847,6 +834,18 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
         />
       ) : null}
 
+      {depositMethodOpen ? (
+        <WalletCryptoMethodModal
+          direction="deposit"
+          t={t}
+          onClose={() => setDepositMethodOpen(false)}
+          onSelect={(method: WalletCryptoMethod) => {
+            setDepositMethodOpen(false);
+            if (method === "ton") setDepositOpen(true);
+            else setUsdtDepositOpen(true);
+          }}
+        />
+      ) : null}
       {depositOpen ? (
         <TonDepositModal
           locale={locale}
@@ -859,6 +858,18 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
 
       {usdtDepositOpen ? (
         <TonUsdtDepositModal locale={locale} t={t} onClose={() => setUsdtDepositOpen(false)} onRefresh={onRefresh} />
+      ) : null}
+      {withdrawMethodOpen ? (
+        <WalletCryptoMethodModal
+          direction="withdraw"
+          t={t}
+          onClose={() => setWithdrawMethodOpen(false)}
+          onSelect={(method: WalletCryptoMethod) => {
+            setWithdrawMethodOpen(false);
+            if (method === "ton") setWithdrawOpen(true);
+            else setUsdtWithdrawOpen(true);
+          }}
+        />
       ) : null}
       {withdrawOpen && wallet ? (
         <TonWithdrawalModal
@@ -1903,7 +1914,7 @@ function TonDepositModal({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const tonQuote = quotes.find((quote) => quote.assetCode === "TON") ?? null;
-  const usdtQuote = quotes.find((quote) => quote.assetCode === "USDT") ?? null;
+
   const normalizedAmount = amount.trim();
   const expectedAmountNano = normalizedAmount ? tonAmountToNano(normalizedAmount) : null;
   const amountValid = !normalizedAmount || Boolean(expectedAmountNano);
@@ -2103,15 +2114,6 @@ function TonDepositModal({
                 assetCode="TON"
                 title="Toncoin"
                 quote={tonQuote}
-                quoteLoading={quoteLoading}
-                walletBalance={wallet?.balance ?? 0}
-                locale={locale}
-                t={t}
-              />
-              <DepositAssetCard
-                assetCode="USDT"
-                title="Tether USD"
-                quote={usdtQuote}
                 quoteLoading={quoteLoading}
                 walletBalance={wallet?.balance ?? 0}
                 locale={locale}

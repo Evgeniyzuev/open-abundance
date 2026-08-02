@@ -132,7 +132,7 @@ Bridge, swap и параллельный запуск нескольких се�
 
 - [x] decision-complete plan and next-network gate;
 - [x] USDT schema, scanner, settlement and withdrawal code;
-- [x] Wallet UI and translations;
+- [x] Wallet UI and translations; Wallet keeps the original four actions, opens a Gram (TON) / USDT (TON) method selector for deposit and withdrawal, and shows an available USDT rate separately from the withdrawal enablement gate.
 - [x] typecheck/lint/build/contract checks; `pnpm test:usdt`, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`; REST schema check returned HTTP 200. Bounded local HTTP smoke-check attempted once, but `next dev` was unavailable because of Windows `spawn EPERM`.
 - [x] remote migration apply; `20260802140000_ton_usdt_jetton_rail.sql` applied and migration list verified.
 - [ ] testnet and mainnet User QA; remains the next external gate before enabling real withdrawals.

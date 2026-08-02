@@ -17,8 +17,16 @@ export async function GET(request: NextRequest) {
     if (error || !user) return jsonResponse({ error }, { status: 401 });
     const config = await loadTonUsdtConfig();
     const signer = loadTonWithdrawalConfig();
-    if (!config?.ready || !config.withdrawalEnabled || !signer.ready) return jsonResponse({ enabled: false, reason: !config ? "disabled" : !config.ready ? config.reason : !config.withdrawalEnabled ? "withdrawal_disabled" : signer.reason, diagnostics: signer.diagnostics });
+    if (!config?.ready) {
+      return jsonResponse({ enabled: false, reason: !config ? "disabled" : config.reason, diagnostics: signer.diagnostics });
+    }
     const quote = await resolveTonUsdtWithdrawalQuote(config);
+    if (!config.withdrawalEnabled) {
+      return jsonResponse({ enabled: false, reason: "withdrawal_disabled", quote, diagnostics: signer.diagnostics });
+    }
+    if (!signer.ready) {
+      return jsonResponse({ enabled: false, reason: signer.reason, quote, diagnostics: signer.diagnostics });
+    }
     return jsonResponse({ enabled: true, quote });
   } catch (routeError) { return jsonResponse({ error: routeError instanceof Error ? routeError.message : "Could not load TON USDT withdrawal quote." }, { status: 503 }); }
 }

@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #f2f2f7;
   --surface: #ffffff;
   --surface-soft: #f7f8fb;
@@ -877,7 +877,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .ton-deposit-asset-card div strong { color: var(--text); font-size: 0.9375rem; }
 .ton-deposit-asset-card div span, .ton-deposit-asset-card small { color: var(--muted); font-size: 0.6875rem; line-height: 1.25; }
 .ton-deposit-asset-card p { margin: 0; color: var(--text); font-size: 0.75rem; font-weight: 850; line-height: 1.25; }
-.ton-deposit-asset-card em { justify-self: start; border-radius: 999px; padding: 3px 7px; background: var(--surface); color: var(--muted); font-size: 0.625rem; font-style: normal; font-weight: 850; }
+.ton-deposit-asset-card em { justify-self: start; border-radius: 999px; padding: 3px 7px; background: var(--surface); color: var(--muted); font-size: 0.625rem; font-style: normal; font-weight: 850; } .wallet-crypto-method-prompt { margin: 12px 0 0; } .wallet-crypto-method-list { display: grid; gap: 8px; margin-top: 14px; } .wallet-crypto-method-card { width: 100%; display: grid; gap: 5px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--surface-soft); color: var(--text); text-align: left; } .wallet-crypto-method-card:hover, .wallet-crypto-method-card:focus-visible { border-color: var(--blue); background: var(--accent-soft); } .wallet-crypto-method-card:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; } .wallet-crypto-method-card strong { font-size: 0.9375rem; } .wallet-crypto-method-card span { color: var(--muted); font-size: 0.75rem; line-height: 1.3; }
 .ton-deposit-estimate { margin: -5px 0 0; color: var(--muted); font-size: 0.75rem; line-height: 1.3; }
 .ton-deposit-qr { display: grid; justify-items: center; border-radius: 16px; padding: 12px; background: var(--surface-soft); }
 .ton-deposit-field { display: grid; gap: 5px; min-width: 0; }

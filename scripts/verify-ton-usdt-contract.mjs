@@ -4,6 +4,8 @@ const migration = fs.readFileSync("supabase/migrations/20260802140000_ton_usdt_j
 const lib = fs.readFileSync("lib/tonUsdt.ts", "utf8");
 const scanner = fs.readFileSync("app/api/internal/ton/usdt/deposits/scan/route.ts", "utf8");
 const ui = fs.readFileSync("components/TonUsdtWalletModals.tsx", "utf8");
+const walletUi = fs.readFileSync("components/WalletApp.tsx", "utf8");
+const methodUi = fs.readFileSync("components/WalletCryptoMethodModal.tsx", "utf8");
 
 function assertIncludes(source, value, label) {
   if (!source.includes(value)) throw new Error(`${label}: missing ${value}`);
@@ -24,4 +26,10 @@ assertIncludes(scanner, "verifyJettonWalletSource", "source wallet master verifi
 assertIncludes(scanner, "claim_ton_chain_scan", "scanner lease");
 assertIncludes(ui, "/api/wallet/deposits/usdt", "USDT deposit UI route");
 assertIncludes(ui, "/api/wallet/withdrawals/usdt", "USDT withdrawal UI route");
+assertIncludes(methodUi, "wallet.cryptoMethod.ton", "TON method selector");
+assertIncludes(methodUi, "wallet.cryptoMethod.usdtTon", "USDT method selector");
+assertIncludes(walletUi, "setDepositMethodOpen(true)", "deposit method selector action");
+assertIncludes(walletUi, "setWithdrawMethodOpen(true)", "withdrawal method selector action");
+const walletActionCount = (walletUi.match(/wallet-action-button/g) ?? []).length;
+if (walletActionCount !== 4) throw new Error(`Wallet action grid must keep four actions, found ${walletActionCount}.`);
 console.log("TON USDT rail contract checks passed.");

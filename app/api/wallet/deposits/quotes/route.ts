@@ -6,6 +6,7 @@ import {
   resolveTonPriceSnapshot,
   resolveUsdtPriceSnapshot
 } from "@/lib/tonDeposits";
+import { loadTonUsdtConfig } from "@/lib/tonUsdt";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +29,9 @@ export async function GET(request: NextRequest) {
     if (error || !user) return jsonResponse({ error }, { status: 401 });
 
     const network = resolveTonNetwork();
-    const [config, tonQuote, usdtQuote] = await Promise.all([
+    const [config, usdtConfig, tonQuote, usdtQuote] = await Promise.all([
       loadTonDepositConfig(supabase).catch(() => null),
+      loadTonUsdtConfig(supabase as any).catch(() => null),
       resolveTonPriceSnapshot(network),
       resolveUsdtPriceSnapshot()
     ]);
@@ -46,11 +48,11 @@ export async function GET(request: NextRequest) {
         },
         {
           assetCode: "USDT",
-          network: "mainnet",
+          network: usdtConfig?.network ?? "mainnet",
           usdRate: usdtQuote?.rate ?? null,
           provider: usdtQuote?.provider ?? null,
           sourceTimestamp: usdtQuote?.sourceTimestamp ?? null,
-          depositEnabled: false
+          depositEnabled: Boolean(usdtConfig?.ready)
         }
       ]
     });

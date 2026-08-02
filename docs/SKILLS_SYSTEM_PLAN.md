@@ -1,6 +1,6 @@
 # Skills System Plan
 
-Статус: канонический продуктовый план системы навыков, обновлён 2026-08-02. Текущий кодовый срез — Skill Passport с server-authoritative automatic checks; remote apply миграции и User QA ещё не подтверждены. Оперативный порядок задаёт только `MASTER_KANBAN.md`.
+Статус: канонический продуктовый план системы навыков, обновлён 2026-08-02. Текущий automatic-checks-first срез закрыт; пользователь подтвердил ручной User QA сценариев refresh после referral, public post и team fact. Оперативный порядок задаёт только `MASTER_KANBAN.md`.
 
 ## 1. Продуктовый контракт
 
@@ -84,8 +84,8 @@ Skill Passport в профиле:
 
 ## 6. Порядок реализации
 
-1. Применить миграцию Skill Passport и проверить три автоматических L1 на целевом окружении.
-2. Провести User QA сценариев: referral → refresh, public post → refresh, team member → refresh.
+1. Завершено 2026-08-02: миграция Skill Passport применена, три автоматических L1 проверены.
+2. Завершено 2026-08-02: пользователь подтвердил User QA сценариев referral → refresh, public post → refresh, team member → refresh.
 3. Сопоставить следующие уровни с устойчивыми product facts и добавить их как новые rules.
 4. Связать skill levels с подбором квалифицированных задач после подтверждения качества метрик.
 5. Расширять каталог только вместе с работающей server-side проверкой.

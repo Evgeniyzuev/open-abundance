@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test:ai": "node scripts/verify-ai-contract.mjs && node scripts/verify-ai-usage-contract.mjs",
     "test:skills": "node scripts/verify-skills-contract.mjs",
+    "test:usdt": "node scripts/verify-ton-usdt-contract.mjs",
     "test:e2e": "playwright test",
     "db:link": "pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi",
     "db:pull": "pnpm dlx supabase db pull",

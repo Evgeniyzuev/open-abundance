@@ -29,19 +29,30 @@
 
 ## Сейчас
 
+### USDT Jetton в TON и следующая сеть
+
+- **Статус:** Сейчас — кодовый срез реализован 2026-08-02, remote migration применена и REST schema check вернул HTTP 200; testnet/mainnet User QA ещё впереди.
+- **Пользовательский результат:** пользователь выбирает USDT в сети TON, получает проверяемый invoice, отправляет настоящий Jetton, видит финальность и зачисление USD-эквивалента в Wallet; вывод проходит через тот же reserve/idempotency/manual-review контур.
+- **Почему сейчас:** native TON deposit/ограниченный withdrawal уже проверены; следующий риск — подключить самый востребованный TON-актив без принятия fake Jetton и без смешивания token units с USD Wallet ledger.
+- **Главное решение:** отдельные USDT tables/RPC и adapter поверх TON signer; принимается только allowlisted master `EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs`, его детерминированный token wallet, `transfer_notification`, `decimals = 6` и свежий price snapshot.
+- **Граница шага:** полный TON USDT deposit/withdrawal loop, idempotent settlement, duplicate/unknown/fake-Jetton guards, Wallet UI и техническая готовность к следующей паре. Bridge, swap, несколько сетей одновременно, user-specific custody и массовый payout не входят.
+- **Decision-complete план:** `docs/USDT_JETTON_TON_NEXT_NETWORK_PLAN.md`; следующая сеть выбирается только после User QA и операционного review USDT.
+- **Технические проверки:** `pnpm test:skills`, `pnpm test:usdt`, `pnpm exec tsc --noEmit`, `pnpm lint` и эскалированный `pnpm build` пройдены; remote migration `20260802140000_ton_usdt_jetton_rail.sql` применена, REST schema check — HTTP 200. Единственный bounded local HTTP smoke-check не стартовал из-за известного Windows `spawn EPERM`; in-app browser недоступен в текущем окружении.
+- **Ручной UX-сценарий:** Wallet → USDT · TON ↑ → invoice и QR → тестовый перевод USDT с comment → дождаться `credited`; затем USDT ↓ → адрес → fee preview → confirm → on-chain status.
+- **Метрика:** доля USDT deposits, корректно найденных с первого scan; duplicate/unknown/fake-Jetton rejection rate; время `transfer_notification → credit`; успешный withdrawal и доля manual review.
+- **Блокеры:** User QA полного loop, testnet/mainnet success и failure-сценариев остаётся впереди; mainnet withdrawal flag выключен, seed/mnemonic не попадает в клиент, логи или миграции.
+- **Связанный документ:** `docs/USDT_JETTON_TON_NEXT_NETWORK_PLAN.md`.
+
+## Завершённая карточка — Skill Passport
+
 ### Skill Passport + automatic skill levels
 
-- **Статус:** Сейчас — локальный кодовый срез реализован 2026-08-02; migration подготовлена, remote apply и User QA ещё не подтверждены.
+- **Статус:** Подтверждено пользователем 2026-08-02 — ручной User QA пройден; automatic-checks-first срез закрыт как выполненная задача.
 - **Пользовательский результат:** пользователь открывает Skill Passport, видит уровни и прогресс по referral, public content и team facts, а после действия запускает автоматическую проверку.
-- **Почему сейчас:** Content Loop уже даёт first-party артефакты, но у пользователя нет проверяемого маршрута от действия к способности, следующему challenge и квалифицированной задаче.
-- **Главное решение:** один vertical slice automatic-checks-first: server-side refresh читает существующие referral, публикации и активные team memberships, записывает snapshot и считает effective skill level через min(earned, core).
 - **Граница шага:** RPG-блок Skill Passport и автоматические L1 для referral acquisition, content creation и team building. Submission, evidence, human review, peer point, сертификаты, AI-matching и публичный Trust не входят.
-- **Decision-complete план:** docs/SKILLS_SYSTEM_PLAN.md; human review вынесен на неопределённое будущее и не добавляется в очередь выполнения.
-- **Технические проверки:** deterministic contract checks, `pnpm exec tsc --noEmit`, `pnpm lint` и `pnpm build` пройдены локально; bounded HTTP smoke, remote migration и User QA ещё не подтверждены. In-app browser недоступен в текущем окружении.
-- **Ручной UX-сценарий:** открыть Skill Passport → сделать referral, public post или активировать team relation → нажать «Проверить прогресс» → увидеть current value, threshold и новый earned/effective level.
-- **Метрика:** доля пользователей с найденным прогрессом, completion rate каждого L1, время от действия до refresh и переход из навыка к полезной задаче.
-- **Блокеры:** remote migration и User QA остаются отдельными внешними шагами; не смешивать automatic skill levels с Wallet/Core ledger.
-- **Связанный документ:** docs/SKILLS_SYSTEM_PLAN.md.
+- **Ручной UX-сценарий:** открыть Skill Passport → сделать referral, public post или активировать team relation → нажать «Проверить прогресс» → увидеть current value, threshold и новый earned/effective level; сценарий принят пользователем.
+- **Технический статус:** deterministic checks, typecheck, lint и build были пройдены; дальнейшие уровни и human review остаются вне текущей очереди.
+- **Связанный документ:** `docs/SKILLS_SYSTEM_PLAN.md`.
 
 ## Технически реализовано / нужен User QA
 
@@ -125,10 +136,10 @@
     - Canonical repost без копирования media, Daily Progress и outbound share package с external mirror.
     - Осталось: провести bounded HTTP smoke и ручной User QA; автоматическая модерация и moderation queue не планируются.
     - Связанный документ: `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`.
-2. [X] **Skill Passport + `software_creation` L1**
+2. [X] **Skill Passport + automatic skill levels**
 
-    - RPG-параметр навыка, evidence, vibecoding learning path, практическая фича и три peer review.
-    - `peer_point` организует review, но не покупает verdict; затем отдельный `referral_acquisition` L1.
+    - Server-authoritative refresh и автоматические уровни по referral, public content и team facts.
+    - Ручной User QA подтверждён пользователем 2026-08-02; human review, evidence и certificates не входят.
     - Связанный документ: `docs/SKILLS_SYSTEM_PLAN.md`.
 3. [ ] **Team / Referral / Leader Loop**
 
@@ -144,7 +155,7 @@
     - Rating `0.0–5.0`, amount smoothing, level-based pair cap, `10%` signed rater effect и calendar-year `×0.9` summary.
     - Порядок: shadow calculation → private summary → calibrated public pilot.
     - Связанный документ: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
-6. [ ] **м**
+6. [ ] **USDT Jetton в TON и следующая сеть**
 
     - Сначала полный deposit/withdrawal loop USDT Jetton, затем одна пара `asset + network` по спросу.
     - Несколько сетей одновременно, bridge и swap не входят.
@@ -210,6 +221,7 @@
 - [X] Документационная фиксация: Markdown-канбан принят как канонический трекер; мастер-план отделен от накопительного project memory.
 - [X] Первая цепочка Core-челленджей: пользователь подтвердил 2026-07-13, что текущую карточку переносим в подтвержденные; цепочка остается без жестких prerequisite-блокировок, completed не возвращаются в доступные, accepted раскрывается списком, `Give up` возвращает accepted-челлендж в доступные, `Turn On Core Growth` заменен на Today Core target.
 - [X] **Verified Reality Feed:** пользователь подтвердил 2026-08-02 draft-first сценарий Core challenge → Открыть черновик → Blog → Drafts → опубликовать → People → Feed → обновить; verified/demo/system badges убраны с плиток-обложек и остаются только внутри detail.
+- [X] **Skill Passport + automatic skill levels:** пользователь подтвердил 2026-08-02 ручной сценарий refresh после referral/public post/team fact; текущий automatic-checks-first срез закрыт.
 
 ## Заблокировано
 

@@ -3,7 +3,6 @@ import "server-only";
 import { mnemonicToPrivateKey } from "@ton/crypto";
 import { Address, internal, toNano, TonClient, WalletContractV4 } from "@ton/ton";
 import type { OpenedContract } from "@ton/ton";
-import type { User } from "@supabase/supabase-js";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import { resolveTonPriceResolution, type TonNetwork } from "@/lib/tonDeposits";
 
@@ -24,7 +23,6 @@ export type TonWithdrawalConfig = {
   networkFeeFloorTon: string;
   minAmountTon: string;
   maxAmountTon: string;
-  allowlist: string[];
 };
 
 export type TonWithdrawalQuote = {
@@ -62,7 +60,6 @@ export function loadTonWithdrawalConfig(): TonWithdrawalConfig {
   const endpoint = process.env.TON_WITHDRAWAL_TONCENTER_URL?.trim()
     || (network === "mainnet" ? DEFAULT_MAINNET_TONCENTER_URL : DEFAULT_TESTNET_TONCENTER_URL);
   const mnemonic = parseMnemonic(process.env.TON_WITHDRAWAL_MNEMONIC);
-  const allowlist: string[] = [];
   const config = {
     enabled,
     ready: false,
@@ -76,17 +73,12 @@ export function loadTonWithdrawalConfig(): TonWithdrawalConfig {
     networkFeeEstimateTon: positiveConfiguredDecimal(process.env.TON_WITHDRAWAL_NETWORK_FEE_ESTIMATE_TON, "0.01"),
     networkFeeFloorTon: positiveConfiguredDecimal(process.env.TON_WITHDRAWAL_NETWORK_FEE_FLOOR_TON, "0.05"),
     minAmountTon: positiveConfiguredDecimal(process.env.TON_WITHDRAWAL_MIN_TON, "0.01"),
-    maxAmountTon: positiveConfiguredDecimal(process.env.TON_WITHDRAWAL_MAX_TON, "1"),
-    allowlist
+    maxAmountTon: positiveConfiguredDecimal(process.env.TON_WITHDRAWAL_MAX_TON, "1")
   } satisfies TonWithdrawalConfig;
 
   if (!enabled) return config;
   if (!mnemonic) return { ...config, reason: "not_configured" };
   return { ...config, ready: true, reason: "ready" };
-}
-
-export function isTonWithdrawalAllowed(config: TonWithdrawalConfig, _user: User): boolean {
-  return config.ready;
 }
 
 export async function resolveTonWithdrawalQuote(config: TonWithdrawalConfig, amountTon?: string): Promise<TonWithdrawalQuote> {

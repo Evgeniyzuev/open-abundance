@@ -1,11 +1,11 @@
 # Open Abundance — контекст для следующего task
 
-Дата: 2026-08-01
+Дата: 2026-08-02
 
 ## Текущее состояние
 
 - Канонический трекер: `docs/MASTER_KANBAN.md`.
-- Единственный активный продуктовый шаг: **Verified Reality Feed**.
+- Единственный активный продуктовый шаг: **Ограниченный native TON withdrawal**; кодирование ещё не начато, приоритет отмечен только в канбане.
 - Home/Today и объединение Home с AI chat вручную подтверждены пользователем и находятся в `Подтверждено пользователями`.
 - Награды за завершенные challenges в Core и MVP receipt вручную проверены; полноценный ledger/финансовый receipt отложен до финансового этапа.
 - Стартовый маршрут возвращен на `Goals → Notes`: Notes local-first и доступны без сети; Home остается отдельной вкладкой, а не offline-first стартом.
@@ -19,11 +19,11 @@
 - Первая Core-цепочка челленджей также подтверждена пользователем.
 - Пилот закрытый: 20–50 русскоязычных пользователей.
 - Основной цикл: история → желание → финансовый план → Today → действие/награда → рост → публикация → возврат.
-- Wallet/выводы и реферальная монетизация пока не являются текущим шагом.
+- Pilot Activation Loop: Day 0 / Day 1 переведён в параллельный операционный трек; Wallet/выводы теперь входят в текущий технический приоритет только как планируемый allowlist withdrawal slice.
 
 ## Что делать дальше
 
-Home/Today, MVP receipt и UI-срез профиля `Abundance System` закрыты. Real verified `Challenge Done` теперь реализован как отдельный server-backed срез: migration применена, completion receipt ведёт прямо в собственный `Blog → Drafts`, после публикации verified draft пользователь возвращается в `People → Feed`, Feed API передаёт snapshot metadata, gallery/detail и личные `Черновики событий` показывают verified badge/metadata, пустая лента объясняет следующий шаг и ведёт CTA в Challenges, а endpoint snapshots ограничен текущим пользователем. В `Сейчас` по-прежнему одна карточка; Technical QA закрыт, следующий рубеж — ручной User QA.
+Home/Today, MVP receipt, UI-срез профиля `Abundance System` и `Verified Reality Feed` закрыты. Пользователь подтвердил сценарий `Core challenge → Открыть черновик → Blog → Drafts → опубликовать → People → Feed → обновить`; verified/demo/system badges убраны с плиток-обложек и остаются только внутри detail. Текущая карточка канбана — ограниченный native TON withdrawal: только decision-complete план и последующая реализация allowlist, без кода в этой итерации.
 
 Безопасная MVP-модель — draft-first: completion создаёт один системный draft, пользователь публикует его через личные черновики событий. Demo, system stories и verified results остаются разными типами и бейджами.
 
@@ -60,7 +60,7 @@ Home/Today, MVP receipt и UI-срез профиля `Abundance System` зак�
 
 ## Проверки
 
-После frontend-изменений: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`, bounded feed smoke и затем ручной UX-сценарий. В этой итерации typecheck, lint, build и HTTP smoke (200) пройдены; in-app browser недоступен в текущей сессии, поэтому ручная визуальная проверка остаётся User QA. После tsc восстановить только incidental `tsconfig.tsbuildinfo` через `git restore tsconfig.tsbuildinfo`.
+После frontend-изменений: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`, bounded feed smoke и затем ручной UX-сценарий. В предыдущей итерации typecheck, lint, build и HTTP smoke (200) пройдены; ручной UX-сценарий Verified Reality Feed подтверждён пользователем 2026-08-02. После tsc восстановить только incidental `tsconfig.tsbuildinfo` через `git restore tsconfig.tsbuildinfo`.
 
 ## Важное незавершённое
 

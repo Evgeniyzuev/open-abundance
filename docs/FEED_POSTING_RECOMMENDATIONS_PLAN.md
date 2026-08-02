@@ -678,7 +678,7 @@ Repost всегда повторно проверяет доступ к original
 
 ### Current Status — 2026-07-15
 
-`Verified Reality Feed` стал текущим активным шагом после ручного подтверждения Home/Today, Core reward и MVP receipt. Для первого slice выбран только server-backed `Challenge Done`: карточка строится из факта завершения challenge и его verification metadata, без reward amount, ledger или финансовых обещаний.
+`Verified Reality Feed` был активным шагом после ручного подтверждения Home/Today, Core reward и MVP receipt и 2026-08-02 подтверждён пользователем. Для первого slice выбран только server-backed `Challenge Done`: карточка строится из факта завершения challenge и его verification metadata, без reward amount, ledger или финансовых обещаний.
 
 - 2026-07-15: первый content slice перенесен из локального массива в Supabase: migration `20260715120000_reality_feed_demo_posts.sql` применена и создает 23 идемпотентных `feed_posts.post_type = reality_demo`, 46 RU/EN переводов от первого лица в `feed_post_translations` и 23 внешних изображения в общей `feed_post_media`. `SocialApp` показывает их как обычные посты общей ленты с бейджем `Демо-история`; это не testimonials и не verified system results.
 - `People → Feed` остается вторичной социальной вкладкой; стартовый маршрут приложения — `Goals → Notes` для offline-first работы.
@@ -690,12 +690,16 @@ Repost всегда повторно проверяет доступ к original
 
 - migration `20260724220000_challenge_completion_snapshots.sql` применена к linked Supabase; уникальный snapshot связывает user/challenge completion с одним feed post.
 - Feed API возвращает `system_verified` и только связанный snapshot для уже разрешённого feed/blog post; verified detail показывает challenge title, verification type, completion date и CTA в Challenges.
-- Gallery маркирует verified карточки отдельно от `Демо-история` и `История Abundance`; `/api/social/verified-challenges` ограничен текущим пользователем, поэтому чужие draft snapshots не раскрываются.
+- Detail маркирует verified карточки отдельно от `Демо-история` и `История Abundance`; плитки-обложки не содержат плашек и не перекрывают контент. `/api/social/verified-challenges` ограничен текущим пользователем, поэтому чужие draft snapshots не раскрываются.
 - Личные `Черновики событий` явно показывают verified badge, completion metadata и подсказку о публикации в `People → Feed`, чтобы пользователь не путал системный результат с обычным daily draft.
 - Пустая общая лента теперь объясняет следующий шаг и ведёт CTA в challenge; пустые фильтры блога/отзывов сохраняют нейтральное состояние.
 - Completion receipt теперь ведёт напрямую в собственный `Blog → Drafts`, а `SocialApp` загружает system drafts на этом маршруте и автоматически открывает вкладку drafts.
 - После успешной публикации verified draft `SocialApp` переключает пользователя обратно на `People → Feed`, чтобы подтверждённый результат был виден сразу.
 - Безопасная MVP-модель остаётся draft-first: completion создаёт системный draft, пользователь публикует его через личные черновики событий. Reward amount, ledger и финансовая история не добавлялись.
+
+### Confirmed — 2026-08-02
+
+Пользователь подтвердил draft-first сценарий: Core challenge → Открыть черновик → Blog → Drafts → опубликовать → People → Feed → обновить и проверить отсутствие дубля. Verified, demo, system и другие бейджи остаются только внутри раскрытой detail-карточки; на обложках они не показываются.
 
 ### Narrative Direction — 2026-07-15
 

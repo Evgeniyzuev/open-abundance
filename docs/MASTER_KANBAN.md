@@ -29,16 +29,32 @@
 
 ## Сейчас
 
+### Ограниченный native TON withdrawal
+
+- **Статус:** Сейчас — приоритет принят 2026-08-02; код не начат, этот шаг пока только отмечен в канбане.
+- **Пользовательский результат:** пользователь из allowlist сможет безопасно вывести небольшой объём native TON из Wallet с понятным курсом, комиссиями, лимитами и статусом транзакции.
+- **Почему сейчас:** native TON deposit MVP уже существует; следующий реальный пользовательский контур — замкнуть ограниченный withdrawal loop до USDT Jetton и следующих сетей.
+- **Главное решение:** начать только с allowlist, малых лимитов, atomic Wallet reserve, rate snapshot, 1% service fee сверху, network fee reserve, reconciliation и emergency pause.
+- **Граница текущего шага:** в этой итерации только смена приоритета в канбане; код, миграции и remote/production изменения не выполняются.
+- **Критерии следующего decision-complete плана:** success/duplicate/insufficient balance/bad address/timeout/final failure, idempotency, address confirmation/cooling, coverage gate, custody/operator boundary и возврат fee reserve.
+- **Технические проверки:** не запускались — реализация ещё не начата.
+- **Ручной UX-сценарий:** будет подготовлен после decision-complete плана и реализации allowlist slice.
+- **Метрика:** доля успешных allowlist withdrawal без расхождения Wallet/chain, время до подтверждения и доля возвратов после final failure.
+- **Блокеры:** до реализации требуется зафиксировать лимиты, custody, операционного ответственного и coverage thresholds.
+- **Связанный документ:** docs/WALLET_CRYPTO_RAILS_PLAN.md.
+
+## Завершённая карточка — Verified Reality Feed
+
 ### Verified Reality Feed
 
-- **Статус:** Сейчас — 23 server-backed demo posts реализованы, 10 согласованных demo-текстов обновлены, 12 system stories опубликованы; профиль `Abundance System` реализован, real verified `Challenge Done` реализован (migration `20260724220000` применена, API/UI интеграция и privacy guard добавлены), Technical QA закрыт, User QA впереди.
+- **Статус:** Подтверждено пользователем 2026-08-02 — 23 server-backed demo posts реализованы, 10 согласованных demo-текстов обновлены, 12 system stories опубликованы; профиль `Abundance System` реализован, real verified `Challenge Done` реализован (migration `20260724220000` применена, API/UI интеграция и privacy guard добавлены), draft-first сценарий пройден.
 - **Пользовательский результат:** в `People → Feed` пользователь различает fictional `Демо-истории`, системные объясняющие главы `Abundance System` и ручной контент по автору, аватару и отдельным бейджам; у всех demo и system stories есть изображения.
 - **Почему сейчас:** Notes и Home/Today уже поддерживают личное действие, а receipt подтверждает награду; следующий риск — пользователь не видит накопленный результат и не получает безопасного социального сигнала для возвращения.
 - **Главное решение:** Verified Reality Feed остается вторичной вкладкой `People → Feed`; первый slice строится только из server-backed completion факта challenge и метаданных challenge, без суммы reward/ledger и финансовых обещаний. `Демо`, системно подтвержденные факты и ручной пользовательский контент никогда не смешиваются.
 - **Narrative direction для demo:** герой начинает из точки боли и ощущения тупика, случайно узнает об Abundance, сначала пробует из любопытства, а затем через маленькие последовательные шаги замечает, что у него появляются ясность, опора и реальный выбор. Финал — личное ощущение «я могу изменить свою жизнь», а не обещание гарантированного дохода или универсального успеха.
 - **Новая editorial direction для системных историй:** в рамках Reality Feed подготовлена отдельная последовательная серия от аккаунта `Abundance System`. Она объясняет устройство и замысел системы, но не выдается за verified research и не смешивается с demo-историями или реальными `Challenge Done`.
 - **Системный аккаунт и порядок:** в БД создан `Abundance System`, главы имеют server-backed порядок `1–12`, тип `system_story`, отдельный бейдж и фото 4:5; имя/аватар и ссылка `Все главы` открывают отдельный профиль с возвратом в позицию ленты. Подробности — `docs/REALITY_FEED_SYSTEM_STORIES_PLAN.md`.
-- **Граница текущего шага:** системные истории объясняют позицию проекта, но не получают verified badge; отдельный source pack не блокирует slice. `Challenge Done` создаётся один раз как verified draft, а после публикации становится публичной карточкой; технический контур закрыт, остаётся User QA.
+- **Граница текущего шага:** системные истории объясняют позицию проекта, но не получают verified badge; отдельный source pack не блокирует slice. `Challenge Done` создаётся один раз как verified draft, а после публикации становится публичной карточкой; ручной сценарий подтвержден пользователем.
 - **Изменения:**
   - добавить migration `20260715120000_reality_feed_demo_posts.sql`: `post_type = reality_demo`, системный `source_key`, локализованные тексты и 23 идемпотентных `feed_posts`;
   - добавить общую схему `feed_post_media` для изображений/видео Reality Feed и `feed_post_translations` для RU/EN body/author name;
@@ -52,19 +68,29 @@
   - объяснить следующий шаг в пустой общей ленте и дать CTA в challenge — реализовано в actionable empty state для `People → Feed`;
   - замкнуть completion → receipt → verified drafts без ручного поиска вкладки — реализовано прямым CTA из completion receipt и автооткрытием `Blog → Drafts`;
   - после публикации verified draft автоматически вернуть пользователя в `People → Feed`, где результат виден сразу — реализовано в `publishPost`;
+  - убрать все бейджи с плиток-обложек и оставить `verified`, `Демо-история`, `История Abundance` и другие маркировки только внутри detail — реализовано;
   - добавить отдельные demo fixtures/cards с явной маркировкой `Демо`, не выдавая их за реальные истории;
   - сохранить visibility-проверки и no-store feed API; пользовательский текст/медиа остаются отдельным типом контента без verified badge.
 - **Не входит:** reward amount и ledger/финансовые данные, Wallet-выплаты, рекомендации `For You`, полноценные comments/reactions/follows, видео, сложный Hero Path, автоматическое создание истории из всех daily accruals и изменение стартового `Goals → Notes` маршрута.
 - **Критерии приемки:** 23 demo stories приходят из Supabase как отдельные обычные посты, локализуются по языку интерфейса, содержат изображение и явную маркировку; verified `Challenge Done` создаётся ровно один раз после completion и появляется в общем feed после публикации; в карточке нет неподтвержденных финансовых утверждений; ручной пост не получает verified badge; чужие private/draft snapshots недоступны; пустая лента объясняет следующий шаг; CTA открывает challenge/Today.
-- **Технические проверки:** review существующих `feed_posts`/`progress_snapshots`/stat blocks, migration/API contract review, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build` и bounded HTTP smoke app shell. Все перечисленные команды пройдены; HTTP smoke вернул 200, visibility/no-store подтверждены route contract и read-only data checks. In-app browser в этой сессии недоступен, поэтому визуальная проверка остаётся частью User QA.
-- **Ручной UX-сценарий:** завершить Core challenge, нажать `Открыть черновик` в receipt, убедиться, что открылся собственный `Blog → Drafts` с verified metadata, опубликовать одну карточку `Challenge Done`, убедиться в автоматическом возврате в `People → Feed`, проверить источник/дату/тип проверки и CTA, обновить feed и убедиться, что дубля нет; отдельно проверить demo-карточку и ручной пост.
+- **Технические проверки:** review существующих `feed_posts`/`progress_snapshots`/stat blocks, migration/API contract review, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build` и bounded HTTP smoke app shell. Все перечисленные команды пройдены; HTTP smoke вернул 200, visibility/no-store подтверждены route contract и read-only data checks.
+- **Ручной UX-сценарий:** пользователь подтвердил 2026-08-02: завершить Core challenge → `Открыть черновик` → `Blog → Drafts` → опубликовать → `People → Feed` → обновить и проверить отсутствие дубля; verified metadata и detail CTA остаются внутри раскрытия карточки.
 - **Метрика:** доля завершивших challenge пользователей, увидевших verified result; доля verified карточек без дублей; переходы из карточки в следующий challenge/Today; доля demo-контента, который пользователь правильно отличает от реального.
-- **Блокеры:** продуктовый и технический blocker не найден; нужен ручной User QA по draft-first публикации, badge/metadata/CTA и отсутствию дублей. Challenge reward/ledger source сознательно не входит в этот этап.
+- **Блокеры:** продуктовый и технический blocker не найден; ручной User QA подтверждён. Challenge reward/ledger source сознательно не входит в этот этап.
 - **Связанные документы:** `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`, `docs/PROJECT_MEMORY.md`, `docs/NEXT_TASK_CONTEXT.md`.
 
 ## Параллельный операционный трек — первая когорта
 
-Это не вторая карточка разработки и не меняет правило одного шага в `Сейчас`. Пока завершается Reality Feed, основатель может без изменения кода:
+Это не вторая карточка разработки и не меняет правило одного шага в `Сейчас`. Этот операционный трек идёт параллельно активной технической карточке и не требует изменения кода.
+
+### Pilot Activation Loop: Day 0 / Day 1
+
+- **Статус:** переведён в параллельный операционный трек 2026-08-02.
+- [ ] Связать onboarding, Demo/Verified, App Testing, желание, финансовый план, daily goal, первый challenge/receipt и возврат.
+- [ ] Закрыть server-side события и проверить первую партию 5–10 человек.
+- [ ] Оставить финансовый и referral-треки добровольными и включать их после первого результата.
+
+Основатель может одновременно:
 
 - [ ] составить список первых 5–10 людей из тёплой сети и приглашать партиями, затем расширять закрытую когорту до 20–50;
 - [ ] подготовить одно честное сообщение: beta, результат первых 24 часов, Core/Wallet без гарантий, ссылка и следующий шаг;
@@ -76,45 +102,35 @@
 
 ## Следующие шаги
 
-1. [ ] **Pilot Activation Loop: Day 0 / Day 1**
-   - Связать onboarding, Demo/Verified, App Testing, желание, финансовый план, daily goal, первый challenge/receipt и возврат.
-   - Закрыть server-side события и проверить первую партию 5–10 человек.
-   - Финансовый и referral-треки остаются добровольными и идут после первого результата.
-
-2. [ ] **Ограниченный native TON withdrawal**
-   - Dual amount USD/TON, rate snapshot, `1%` сверху + зарезервированная network fee, atomic Wallet reserve и reconciliation.
-   - Allowlist, малые лимиты, coverage gate, address confirmation/cooling и emergency pause.
-   - Существующий TON address допустим только как ограниченный operating hot wallet; детали: `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
-
-3. [ ] **User Content Growth Loop**
+1. [ ] **User Content Growth Loop**
    - First-party фото/короткое видео, ручной post, одна реакция `like` и простые комментарии.
    - Canonical repost без копирования media, Daily Progress и outbound share package с external mirror.
    - Связанный документ: `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`.
 
-4. [ ] **Skill Passport + `software_creation` L1**
+2. [ ] **Skill Passport + `software_creation` L1**
    - RPG-параметр навыка, evidence, vibecoding learning path, практическая фича и три peer review.
    - `peer_point` организует review, но не покупает verdict; затем отдельный `referral_acquisition` L1.
    - Связанный документ: `docs/SKILLS_SYSTEM_PLAN.md`.
 
-5. [ ] **Team / Referral / Leader Loop**
+3. [ ] **Team / Referral / Leader Loop**
    - Team dashboard, помощь новичку, лидерские челленджи и базовая коммуникация.
    - Invite challenge считает регистрацию; высокий уровень навыка привлечения — активацию и удержание.
    - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
 
-6. [ ] **Marketplace safety completion + Mutual Credit**
+4. [ ] **Marketplace safety completion + Mutual Credit**
    - Buyer funds reserve, expire/refund, dispute, reviews и ручной UX QA.
    - Затем rolling `spent - earned` как capped discovery boost только по legitimate settled deals.
 
-7. [ ] **Trust v2**
+5. [ ] **Trust v2**
    - Rating `0.0–5.0`, amount smoothing, level-based pair cap, `10%` signed rater effect и calendar-year `×0.9` summary.
    - Порядок: shadow calculation → private summary → calibrated public pilot.
    - Связанный документ: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
 
-8. [ ] **USDT Jetton в TON и следующая сеть**
+6. [ ] **USDT Jetton в TON и следующая сеть**
    - Сначала полный deposit/withdrawal loop USDT Jetton, затем одна пара `asset + network` по спросу.
    - Несколько сетей одновременно, bridge и swap не входят.
 
-9. [ ] **Future Sim**
+7. [ ] **Future Sim**
    - Сначала честная статичная simulation с формулой, watermark и opt-in; face/video позже.
    - Стартует только после устойчивого workflow, калькулятора и подтверждённого D1/D3/D7.
    - Связанный документ: `docs/FUTURE_SIM_PLAN.md`.
@@ -162,7 +178,7 @@
 
 - [ ] Open Projects: каталог, заявки и project tasks без завершенного participation loop.
 - [x] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Migration `20260724230000_marketplace_deals_phase3_4.sql` и routes требуют environment apply/User QA; деньги покупателя пока не резервируются, expire/refund/dispute отсутствуют, поэтому escrow не считается завершённым.
-- [x] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; withdrawal — отдельная pending-карточка.
+- [x] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; withdrawal принят как текущая активная карточка без начатой реализации.
 
 ## Подтверждено пользователями
 
@@ -172,6 +188,7 @@
 - [x] Offline Notes Pilot: создание, изменение и удаление заметок offline, восстановление и синхронизация после возвращения сети были вручную приняты.
 - [x] Документационная фиксация: Markdown-канбан принят как канонический трекер; мастер-план отделен от накопительного project memory.
 - [x] Первая цепочка Core-челленджей: пользователь подтвердил 2026-07-13, что текущую карточку переносим в подтвержденные; цепочка остается без жестких prerequisite-блокировок, completed не возвращаются в доступные, accepted раскрывается списком, `Give up` возвращает accepted-челлендж в доступные, `Turn On Core Growth` заменен на Today Core target.
+- [x] **Verified Reality Feed:** пользователь подтвердил 2026-08-02 draft-first сценарий Core challenge → Открыть черновик → Blog → Drafts → опубликовать → People → Feed → обновить; verified/demo/system badges убраны с плиток-обложек и остаются только внутри detail.
 
 ## Заблокировано
 

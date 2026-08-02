@@ -2709,7 +2709,7 @@ function PostList(props: {
   if (loading && !posts.length) return <p className="finance-error neutral">{t("app.common.loading")}</p>;
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery fallbackTitle={t("social.post.detail")} getBadge={(post) => postBadgeLabel(post, t)} posts={posts} onOpen={onOpenPost} />;
+  return <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={posts} onOpen={onOpenPost} />;
 }
 
 export function PostCard({
@@ -3523,17 +3523,6 @@ function postStatusLabelKey(status: FeedPost["status"]): MessageKey {
   if (status === "published") return "social.post.published";
   if (status === "archived") return "social.post.archived";
   return "social.post.draft";
-}
-
-function postBadgeLabel(
-  post: FeedPost,
-  t: (key: MessageKey, values?: Record<string, string | number>) => string
-): string | null {
-  if (post.system_verified) return t("social.feed.verifiedBadge");
-  if (post.post_type === "reality_demo") return t("social.feed.demoBadge");
-  if (post.post_type === "abundance_story") return t("social.feed.systemStoryBadge");
-  if (post.post_type === "project_review") return t("social.review.badge");
-  return null;
 }
 
 function verificationLabelKey(type: string | null): MessageKey {

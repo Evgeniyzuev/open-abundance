@@ -2,6 +2,8 @@
 
 Документ описывает текущий набор челленджей и предлагает новые для увеличения привлечения пользователей, роста Core (инвестиций), пополнения Wallet (ликвидности), расширения внутреннего рынка и торговли между пользователями.
 
+Статус 2026-08-02: челлендж `Turn Wish Into 3 Steps` / «Разбей желание на 3 шага» удалён вручную из пользовательского каталога, потому что текущая проверка не исполняется надёжно. Отдельная migration для этого не добавлялась.
+
 ## 0. Сверка с концептом и мастер-планом
 
 Стратегическая рамка выбора процессов, AI-контуров и пользовательских вкладов находится в [OPEN_ABUNDANCE_SYSTEM_GROWTH_PLAN.md](OPEN_ABUNDANCE_SYSTEM_GROWTH_PLAN.md). Этот каталог отвечает за конкретные карточки, verification logic и их текущий статус.
@@ -19,13 +21,13 @@
 Статус 2026-07-28: отдельный UI-раздел `First Core Path` удален. Все карточки отображаются в стандартных контейнерах `Доступные`, `Принятые` и `Завершенные`; исторические `track_key`/`track_step` остаются только в данных. Добавлены два самостоятельных first-session челленджа с серверным proof и наградой `+1$ Core`: `attention_value_audit` и `core_law_understood`. Второй показывает 30-летнюю иллюстрацию сложного роста без изменения реального Core/Wallet.
 
 Что доработать в каталоге:
-- добавить челленджи на self-discovery, skill inventory, превращение желания в 3 задачи, первый публичный progress story, помощь другому пользователю и подтверждение доверия;
+- добавить челленджи на self-discovery, skill inventory, первый публичный progress story, помощь другому пользователю и подтверждение доверия;
 - разделить `Core growth` и реальные пополнения: ранние челленджи должны поощрять действие и маршрут, а не подталкивать к onramp до готовности платежной инфраструктуры;
 - не начислять Wallet как системную награду; Trust/репутацию отложить до отдельной Trust-системы;
 - для переводов, команд и поддержки целей сразу задать анти-накрутку: non-self операции, минимальная сумма, rate limit, уникальные контрагенты, статус `completed`, связь с `wish_id` или конкретной сущностью;
 - у каждого нового челленджа должен быть конкретный `verification_logic`, а не только `auto` / `manual` в описании.
 
-Статус 2026-06-11: реализованы автопроверки `ai_message_sent`, `profile_strengths_filled`, `wish_steps_created`, `first_growth_post_published`, `reinvest_enabled`, `has_referral`, `team_contact_active`, `skill_profile_completed`. Добавлены челленджи без Wallet-наград и без репутации: Personal Value Map, Turn Wish Into 3 Steps, First Growth Story, Enable Reinvestment, Skill Passport, Team Welcome.
+Статус 2026-06-11: реализованы автопроверки `ai_message_sent`, `profile_strengths_filled`, `wish_steps_created`, `first_growth_post_published`, `reinvest_enabled`, `has_referral`, `team_contact_active`, `skill_profile_completed`. Исторически были добавлены челленджи без Wallet-наград и без репутации: Personal Value Map, Turn Wish Into 3 Steps, First Growth Story, Enable Reinvestment, Skill Passport, Team Welcome. Turn Wish Into 3 Steps удалён из каталога 2026-08-02.
 
 Статус 2026-06-11, оффер и понимание: вкладка Goals -> Results заменяет прежний `growth`-слот и показывает общий оффер `Abundance System`: маршрут к $1,000,000 Core за 20 уровней. После первого прочтения брошюра остается как локальный предмет в инвентаре результата. Для `calculate_time_to_goal` добавлен тест на понимание сложного процента: 5 вопросов, проходной порог 4/5, повторы без ограничения, серверный proof `compound_quiz_passed`. UI теста вынесен в переиспользуемый `ChallengeQuiz`: пошаговые экраны, один вопрос за раз, поддержка `imageUrl`/`imageAltKey` перед вопросом.
 
@@ -385,7 +387,7 @@
 | Приоритет | Челлендж | Уровень | Проверка | Зачем |
 |-----------|----------|---------|----------|-------|
 | P0 | Personal Value Map — Карта сильных сторон | 0-1 | `profile_strengths_filled` | Пользователь фиксирует навыки, интересы, опыт и доступное время |
-| P0 | Turn Wish Into 3 Steps — Разбей желание на 3 шага | 1 | `wish_steps_created` | Желание становится маршрутом, а не пассивной мечтой |
+| Удалён 2026-08-02 | Turn Wish Into 3 Steps — Разбей желание на 3 шага | 1 | `wish_steps_created` | Текущая проверка не исполняется надёжно; карточка удалена из пользовательского каталога |
 | P0 | First Growth Story — Первая история прогресса | 1-2 | `first_growth_post_published` | Закрывает социальный слой: действие превращается в контент |
 | P1 | Help Someone Move — Помоги другому сделать шаг | 2 | `trust_event_confirmed:help_given` | Добавляет вклад и взаимную поддержку до marketplace |
 | P1 | Software Creation L1 — Первая работающая фича | 1-2 | `software_creation_l1_reviewed` | Первый Skill Passport slice: обучение, deliverable, proof и peer review |
@@ -456,7 +458,7 @@ Skill challenge всегда содержит три части: коротко�
   - `marketplace_deal_completed` — проверка `marketplace_deals`
   - `first_marketplace_income` — проверка входящего платежа
   - `goal_funding` — проверка перевода с привязкой к цели
-  - `profile_strengths_filled`, `wish_steps_created`, `first_growth_post_published`, `skill_profile_completed`, `team_contact_active`, `ai_message_sent`, `has_referral` — проверки для новых ранних челленджей из секции 3.1
+  - `profile_strengths_filled`, `first_growth_post_published`, `skill_profile_completed`, `team_contact_active`, `ai_message_sent`, `has_referral` — проверки для активных ранних челленджей из секции 3.1; `wish_steps_created` оставлен только как историческая логика
 
 Для всех денежных проверок обязательны server-authoritative записи, non-self ограничения, статус `completed`, минимальные пороги и защита от повторного зачета одной операции в нескольких челленджах.
 
@@ -471,7 +473,6 @@ Skill challenge всегда содержит три части: коротко�
 | Приоритет | Челлендж | Причина |
 |-----------|----------|---------|
 | P0 | Personal Value Map | закрывает self-discovery из концепта |
-| P0 | Turn Wish Into 3 Steps | превращает желание в маршрут |
 | P0 | First Growth Story | связывает прогресс с соцлентой |
 | P0 | Enable Reinvestment | активация главной механики системы |
 | P0 | Team Welcome | первая проверяемая командная связь |

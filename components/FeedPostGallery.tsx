@@ -42,7 +42,7 @@ function FeedPostTile({ fallbackTitle, post, onOpen }: { fallbackTitle: string; 
 }
 
 export function getFeedPostCover(post: FeedPost): string | null {
-  const media = post.media.find((item) => item.media_type === "image" && (item.thumbnail_url || item.media_url));
+  const media = [...post.media, ...(post.repostOf?.media ?? [])].find((item) => item.media_type === "image" && (item.thumbnail_url || item.media_url));
   if (media?.thumbnail_url || media?.media_url) return media.thumbnail_url ?? media.media_url;
   if (post.wish?.image_url) return post.wish.image_url;
   const externalThumbnail = post.externalLinks.find((item) => item.thumbnail_url)?.thumbnail_url;
@@ -51,7 +51,7 @@ export function getFeedPostCover(post: FeedPost): string | null {
 }
 
 export function getFeedPostTitle(post: FeedPost, fallbackTitle: string): string {
-  const bodyTitle = post.body?.trim().split("\n").find(Boolean)?.trim();
+  const bodyTitle = post.body?.trim().split("\n").find(Boolean)?.trim() ?? post.repostOf?.body?.trim().split("\n").find(Boolean)?.trim();
   return post.wish?.title ?? post.externalLinks[0]?.title ?? bodyTitle ?? fallbackTitle;
 }
 

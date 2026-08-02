@@ -440,7 +440,7 @@ next_recommendation
 
 - **автоматический:** серверная ledger-операция, завершённый Today, созданный шаг желания;
 - **полуавтоматический:** публикация с согласованием, оценка AI-рекомендации, подтверждение командного действия;
-- **ручной с модерацией:** история результата, решение, помощь другому, report issue;
+- **ручной при необходимости:** история результата, решение, помощь другому; отдельный report/abuse UX не входит в текущий срез;
 - **неподходящий proof:** один клик, массовая рассылка, саморепорт без проверяемого контекста, публичное раскрытие чувствительных данных.
 
 ## 8. Последовательность реализации
@@ -457,16 +457,16 @@ next_recommendation
 
 Выход: человек отличает Demo/Verified, выбирает желание, сохраняет план и ежедневную цель, получает первый результат, понимает следующий день; измеряются D1/D3/D7.
 
-### Волна 1. Финансовое доверие и полный native TON loop
+### Завершённая кодовая волна. Финансовое доверие и полный native TON loop
 
 - объяснить Core, Wallet, Treasury, курс, комиссию и отсутствие гарантий;
 - подтвердить native TON deposit и reconciliation на целевом окружении;
-- реализовать малый allowlist withdrawal с atomic reserve, idempotency, tx status, fee settlement, coverage gates и emergency pause;
+- реализовать малый native TON withdrawal с atomic reserve, idempotency, tx status, fee settlement и emergency pause; кодовый срез выполнен, последующие ручные проверки и операционные gates не блокируют следующий кодовый шаг;
 - начать с существующего TON address как ограниченного operating hot wallet, отделив основной резерв до существенного объёма.
 
-Выход: добровольный пользовательский тест `deposit → Wallet → Wallet to Core и/или withdrawal` сходится по ledger и chain. Детали — `WALLET_CRYPTO_RAILS_PLAN.md`.
+Выход кодового среза: контур `deposit → Wallet → withdrawal` присутствует в приложении и удалённой схеме. Добровольный mainnet User QA, reconciliation и custody-процедуры выполняются отдельным операционным треком. Детали — `WALLET_CRYPTO_RAILS_PLAN.md`.
 
-### Волна 2. Контент и измеримое распространение
+### Текущая кодовая волна. Контент и измеримое распространение
 
 - собственные фото/короткие видео через first-party storage;
 - одна реакция `like`, простые комментарии и canonical repost без копирования media;
@@ -512,8 +512,8 @@ next_recommendation
 2. Подготовить одно честное приглашение и список первых 5–10 людей из тёплой сети; затем наращивать закрытую когорту до 20–50 партиями.
 3. Проверить события `registration → wish+plan → first result → D1` и короткий Day 0/Day 1 сценарий.
 4. Провести первую партию вручную, собрать причины отказа/застревания и исправить только главное узкое место.
-5. Утвердить лимиты, custody и fee settlement native TON withdrawal; после текущей карточки сделать decision-complete slice.
-6. Следующим content slice связать пользовательское media, like/comment, Daily Progress и outbound share с first result.
+5. Текущим content slice связать пользовательское media, like/comment, Daily Progress и outbound share с first result; применить migration и провести User QA Content Loop.
+6. Отдельно провести ручной mainnet User QA, reconciliation и custody-процедуры native TON withdrawal; не блокировать ими следующий кодовый шаг.
 7. После устойчивой активации запустить `software_creation` L1 и первые реальные системные задачи.
 8. Раз в неделю вести короткий внутренний отчёт: activation, D1/D3/D7, external inflow, coverage, `Total Core`, принятые результаты и incident/abuse signals.
 

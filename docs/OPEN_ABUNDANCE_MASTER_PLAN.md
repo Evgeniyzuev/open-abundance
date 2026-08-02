@@ -169,8 +169,8 @@ coverage_ratio =
 
 1. Завершить текущий Verified Reality Feed slice и его User QA.
 2. Собрать короткий Day 0/Day 1 activation loop, закрыть события воронки и начать управляемую когорту 20–50 человек.
-3. Ограниченный native TON withdrawal для allowlist с reconciliation, coverage gates и безопасной custody.
-4. Пользовательский content loop: ручной media-post, like, простые комментарии, canonical repost и outbound share package; Daily Progress входит в этот контур.
+3. Пользовательский content loop: ручной media-post, like, простые комментарии, canonical repost и outbound share package; Daily Progress входит в этот контур и является текущим кодовым шагом. Кодовый MVP и remote migration реализованы 2026-08-02; User QA остаётся впереди.
+4. Отдельно завершить ручной User QA и операционные процедуры ограниченного native TON withdrawal; кодовый срез уже реализован и не блокирует Content Loop.
 5. Skill Passport foundation и `software_creation` L1; затем `referral_acquisition` L1.
 6. Team/referral/leader loop: dashboard, помощь новичку, лидерские челленджи и приглашение после результата.
 7. Довести Marketplace до funds reserve, expire/refund, dispute и reviews; затем включить mutual credit discovery.

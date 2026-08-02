@@ -647,7 +647,7 @@ create table public.feed_views (
 
 `stats_hash` нужен как основа будущего централизованного реестра: verified-пост ссылается на неизменяемый snapshot, а hash позволяет проверить, что подтвержденные данные не были переписаны.
 
-## Канонические решения по user content — 2026-08-01
+## Канонические решения по user content — 2026-08-02
 
 Первый user-content slice развивает уже существующий feed, а не создаёт вторую социальную подсистему.
 
@@ -663,7 +663,7 @@ create table public.feed_views (
 
 1. ручной текст + first-party image/short video;
 2. одна реакция `like` с unique user/post;
-3. плоские комментарии с soft-delete, author controls и report; replies появляются позже;
+3. плоские комментарии с soft-delete и author controls; replies и отдельный abuse/report UX появляются только после отдельного решения;
 4. repost как новый пост-ссылка на canonical original с optional commentary, без копирования media;
 5. Daily Progress и verified result используют те же cards/visibility rules;
 6. saves, несколько эмоций, глубокие ветки и full follows graph — после данных MVP.
@@ -672,7 +672,62 @@ Repost всегда повторно проверяет доступ к original
 
 Внешнее распространение: сначала share package (`caption + public OA URL + selected stat blocks`), ручная публикация пользователем и сохранение mirror URL. Official posting APIs добавляются только при доказанном спросе и наличии moderation/permission contract. KPI — onboarding, first result, D1 и activated referrals, а не clicks/shares сами по себе.
 
-До публичного трафика обязательны report, mute/block для критических случаев, rate limits, media limits и moderation queue. Полная премодерация каждого поста для закрытого MVP не требуется.
+Для закрытой когорты в этом MVP не вводятся автоматическая модерация, премодерация, moderation queue или отдельный report/mute/block UX. Если появится очевидный проблемный материал или внешний сигнал, основатель/оператор разбирает конкретный пост вручную и при необходимости архивирует или удаляет его. Публичный traffic gate и отдельные abuse-инструменты остаются будущим решением.
+
+### Decision-complete MVP plan — 2026-08-02
+
+Цель среза: превратить подтверждённый результат или личный прогресс пользователя в безопасный first-party post, который можно обсудить, переиспользовать ссылкой и вручную вынести наружу.
+
+Граница реализации:
+
+- ручной текстовый пост с одним first-party media-файлом: изображение или короткое видео;
+- одна реакция `like`, плоские комментарии и canonical repost;
+- Daily Progress и verified result используют тот же post/card contract, но не получают новые финансовые поля;
+- outbound share package создаётся вручную: caption, публичная OA-ссылка и выбранные публичные stat blocks;
+- external mirror сохраняется после ручной публикации пользователем; автоматический cross-posting не делается;
+- full follows graph, replies, saves, несколько реакций, автоматическая модерация, сложный video pipeline и внешние posting APIs не входят.
+
+Media/storage contract:
+
+- использовать private Supabase Storage bucket `feed-media`; в БД хранить только storage path, MIME/type, size, dimensions/duration, ownership, visibility и processing status;
+- выдавать media только после server-side visibility check через short-lived signed URL;
+- разрешить один файл на пост: JPEG/PNG/WebP до 8 MB или MP4 до 30 секунд и 25 MB; без server-side transcoding, streaming pipeline и обязательного thumbnail worker;
+- принимать только валидированные MIME/type и размер, отклонять остальные файлы; удалить загруженный объект при отмене или soft-delete поста;
+- сохранить текущий post contract так, чтобы позднее заменить Storage adapter на S3-compatible storage/CDN без изменения feed API.
+
+Visibility and privacy:
+
+- в composer текущего среза доступны `public` и `private`; `followers`, `team` и `contacts` не открываются до готовности соответствующих relationship guards;
+- опубликованный `public` post виден в `People → Feed`, личный `private` post — только автору;
+- draft/deleted/private/team/followers content не раскрывается через repost, share package, external mirror, counters или notifications;
+- canonical repost повторно проверяет доступ к original на сервере и хранит только ссылку на original post с optional commentary; media не копируется.
+
+Idempotency and actions:
+
+- `like` имеет unique key `(user_id, post_id)`; повторный `like` безопасен, снятие реакции выполняется отдельным delete;
+- comment сохраняется с автором, post id, body, created/updated timestamps и soft-delete; повтор запроса с тем же client idempotency key не создаёт дубль;
+- canonical repost имеет unique key `(user_id, original_post_id)`; повторный repost возвращает уже существующий canonical post;
+- author controls ограничены редактированием/soft-delete собственных постов и комментариев; чужой контент не редактируется пользователем.
+
+Acceptance and manual scenario:
+
+1. Автор создаёт draft с текстом и одним изображением или коротким видео.
+2. Публикует его как `public` или `private` и видит корректную карточку в blog/feed согласно visibility.
+3. Другой авторизованный пользователь ставит один `like` и оставляет плоский комментарий; повтор запроса не создаёт дубль.
+4. Автор или доступный viewer создаёт canonical repost; original остаётся единственным media source.
+5. Автор собирает share package, вручную публикует его во внешнем канале и сохраняет external mirror URL.
+6. Повторное открытие feed/detail не раскрывает private/draft media и не создаёт дубликатов.
+
+Технический выход среза: local migration/API/UI contract review, typecheck, lint и production build выполнены; remote migration, bounded HTTP smoke и один ручной User QA-сценарий остаются отдельными шагами без утверждения production.
+
+### Implemented — 2026-08-02
+
+- migration `20260802120000_user_content_growth_loop.sql` применена к linked Supabase и сверена в remote history; она добавляет `repost_of_post_id`, idempotent likes/comments, RLS и video MIME/size contract;
+- добавлены first-party manual post API, private `feed-media` upload/delete API с signed URL, server-side MIME/size/duration checks и очисткой storage при soft-delete;
+- добавлены idempotent like/comment/repost API, canonical source loading в Feed API и ручное сохранение `relation = 'mirror'` для external share;
+- Blog → Drafts получил manual composer для текста, public/private visibility, одного image/video media-файла и publish; detail получил like, flat comments, canonical repost, share package и manual mirror URL;
+- private/draft posts не попадают в public feed и не принимаются interaction/mirror endpoints; автоматическая модерация, premoderation и moderation queue не добавлялись, проблемный материал остаётся ручным операционным исключением;
+- `pnpm exec tsc --noEmit`, `pnpm lint` и эскалированный `pnpm build` пройдены; REST read-only check новой таблицы вернул HTTP 200; in-app browser в текущей сессии недоступен, ручной User QA остаётся впереди.
 
 ## MVP
 
@@ -974,7 +1029,7 @@ MEDIA_PUBLIC_BASE_URL=
 12. Добавить "Добавить себе такое желание".
 13. Добавить Hero Path 30 дней.
 14. Добавить простые рекомендации.
-15. Добавить moderation/complaints.
+15. В будущем отдельно решить abuse/complaints UX; это не часть текущего Content Loop.
 
 ### Пошаговое внедрение внешних соцсетей
 
@@ -1065,17 +1120,17 @@ Planned 2026-06-07:
 
 ## Открытые вопросы
 
-Решено для первого slice: Supabase `feed-media` как MVP storage adapter, одна реакция `like`, плоские комментарии, canonical repost, ручной outbound share и запрет копирования external media.
+Решено для первого slice: Supabase `feed-media` как MVP storage adapter, один media-файл на пост, лимиты 8 MB для image и 30 секунд/25 MB для MP4, public/private visibility, одна реакция `like`, плоские комментарии, canonical repost, ручной outbound share и запрет копирования external media. Проактивная модерация и moderation queue не входят; проблемные материалы обрабатываются вручную по необходимости.
 
 Остаётся определить:
 
-1. конкретные лимиты image/video, retention originals и момент миграции в S3-compatible storage;
-2. минимальный report/mute/block UX и moderation SLA для закрытой когорты;
-3. устройство centralized verified registry: immutable snapshot/hash или отдельный append-only ledger;
-4. первый stat-card/export формат после text/link share;
-5. правила видимости счетчиков и безопасных финансовых блоков;
-6. какой Social home проверять после Basic Feed: профиль/мой путь, `For You`, `Team` или hybrid;
-7. может ли автор скрыть verified post из public feed, сохранив immutable private history.
+1. retention originals и момент миграции в S3-compatible storage;
+2. устройство centralized verified registry: immutable snapshot/hash или отдельный append-only ledger;
+3. первый stat-card/export формат после text/link share;
+4. правила видимости счетчиков и безопасных финансовых блоков;
+5. какой Social home проверять после Basic Feed: профиль/мой путь, `For You`, `Team` или hybrid;
+6. может ли автор скрыть verified post из public feed, сохранив immutable private history;
+7. нужен ли отдельный abuse/report UX после появления публичного трафика.
 
 ## Current UI Status (2026-07-25)
 

@@ -53,6 +53,19 @@ export async function PATCH(request: NextRequest, { params }: { params: { postId
     const nextVisibility = normalizeProfileVisibility(body.visibility, normalizeProfileVisibility(currentPost.visibility));
     const now = new Date().toISOString();
 
+    if (currentPost.post_type === "manual" && nextVisibility !== "public" && nextVisibility !== "private") {
+      return NextResponse.json({ error: "Manual posts support only public or private visibility." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+
+    if (currentPost.post_type === "manual" && nextStatus === "published" && !currentPost.repost_of_post_id && !nextBody) {
+      const { count: mediaCount, error: mediaCountError } = await supabase
+        .from("feed_post_media")
+        .select("id", { count: "exact", head: true })
+        .eq("post_id", postId);
+      if (mediaCountError) return NextResponse.json({ error: mediaCountError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      if (!mediaCount) return NextResponse.json({ error: "Add text or media before publishing." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+
     if (currentPost.post_type === "project_review" && (!nextBody || nextBody.length < 100)) {
       return NextResponse.json({ error: "A public review must contain 100 to 1500 characters." }, { status: 400, headers: NO_STORE_HEADERS });
     }
@@ -154,6 +167,20 @@ export async function DELETE(request: NextRequest, { params }: { params: { postI
     if (!currentPost) return NextResponse.json({ error: "Post not found." }, { status: 404, headers: NO_STORE_HEADERS });
     if (currentPost.author_user_id !== user.id) {
       return NextResponse.json({ error: "Only the author can delete this post." }, { status: 403, headers: NO_STORE_HEADERS });
+    }
+
+    if (currentPost.post_type === "manual") {
+      const { data: mediaRows, error: mediaError } = await supabase
+        .from("feed_post_media")
+        .select("storage_path")
+        .eq("post_id", postId)
+        .not("storage_path", "is", null);
+      if (mediaError) return NextResponse.json({ error: mediaError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      const storagePaths = (mediaRows ?? []).map((row) => row.storage_path).filter((path): path is string => Boolean(path));
+      if (storagePaths.length) {
+        const { error: storageError } = await supabase.storage.from("feed-media").remove(storagePaths);
+        if (storageError) return NextResponse.json({ error: storageError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      }
     }
 
     const { error: deleteError } = await supabase

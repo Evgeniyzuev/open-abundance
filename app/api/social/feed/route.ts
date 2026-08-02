@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Database, Tables, TablesInsert } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import type { FeedRepostSource } from "@/lib/socialFeed";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,6 +14,7 @@ type FeedPostEntityRow = Tables<"feed_post_entities">;
 type FeedStatBlockRow = Tables<"feed_post_stat_blocks">;
 type FeedExternalLinkRow = Tables<"feed_post_external_links">;
 type FeedMediaRow = Tables<"feed_post_media">;
+type FeedRepostRow = Pick<FeedPostRow, "id" | "author_user_id" | "author_label" | "post_type" | "body" | "status" | "visibility" | "deleted_at">;
 type FeedTranslationRow = Tables<"feed_post_translations">;
 type FeedSystemAccountRow = Tables<"feed_system_accounts">;
 type FeedSystemStoryMetadataRow = Tables<"feed_system_story_metadata">;
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("feed_posts")
-      .select("id,author_user_id,author_label,source_key,snapshot_id,system_verified,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at")
+      .select("id,author_user_id,author_label,source_key,snapshot_id,system_verified,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at,repost_of_post_id")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(scope === "feed" ? limit + 1 : limit);
@@ -132,8 +134,9 @@ export async function GET(request: NextRequest) {
       ? [...rawPostRows].sort((left, right) => (systemStoryMetadataByPostId.get(left.id)?.series_order ?? 0) - (systemStoryMetadataByPostId.get(right.id)?.series_order ?? 0))
       : rawPostRows;
     const postIds = postRows.map((post) => post.id);
+    const repostSourceIds = Array.from(new Set(postRows.map((post) => post.repost_of_post_id).filter(isString)));
     const systemAccountKeys = Array.from(new Set(systemStoryMetadata.map((item) => item.system_account_key)));
-    const [profiles, statBlocks, externalLinks, wishPosts, translations, media, systemAccounts, reviewMetadata, reviewSummary, challengeSnapshots] = await Promise.all([
+    const [profiles, statBlocks, externalLinks, wishPosts, translations, media, systemAccounts, reviewMetadata, reviewSummary, challengeSnapshots, repostSources] = await Promise.all([
       loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id).filter(isString)))),
       loadStatBlocks(supabase, postRows.map((post) => post.id), scope === "blog" && authorUserId === user.id),
       loadExternalLinks(supabase, postIds),
@@ -143,7 +146,8 @@ export async function GET(request: NextRequest) {
       loadSystemAccounts(supabase, systemAccountKeys),
       loadProjectReviewMetadata(supabase, postIds),
       category === "reviews" || postType === "project_review" ? loadProjectReviewSummary(supabase) : Promise.resolve(null),
-      loadChallengeCompletionSnapshots(supabase, postIds)
+      loadChallengeCompletionSnapshots(supabase, postIds),
+      loadRepostSources(supabase, repostSourceIds, locale)
     ]);
     const systemAccountsByKey = new Map(systemAccounts.map((account) => [account.account_key, account]));
     const challengeSnapshotsByPostId = new Map(
@@ -185,6 +189,7 @@ export async function GET(request: NextRequest) {
             wish: wishPosts.get(post.id) ?? null,
             projectReview: reviewMetadata.get(post.id) ?? null,
             verifiedChallenge: challengeSnapshotsByPostId.get(post.id) ?? null,
+            repostOf: post.repost_of_post_id ? repostSources.get(post.repost_of_post_id) ?? null : null,
             systemStory: systemStory ? {
               ...systemStory,
               account: systemAccountsByKey.get(systemStory.system_account_key) ?? systemAccount
@@ -482,6 +487,44 @@ async function loadProjectReviewMetadata(
 
   if (error) throw error;
   return new Map(((data ?? []) as FeedProjectReviewMetadataRow[]).map((item) => [item.post_id, item]));
+}
+
+async function loadRepostSources(
+  supabase: SupabaseClient<Database>,
+  postIds: string[],
+  locale: "ru" | "en"
+): Promise<Map<string, FeedRepostSource>> {
+  if (!postIds.length) return new Map();
+
+  const { data, error } = await supabase
+    .from("feed_posts")
+    .select("id,author_user_id,author_label,post_type,body,status,visibility,deleted_at")
+    .in("id", postIds)
+    .eq("status", "published")
+    .eq("visibility", "public")
+    .is("deleted_at", null);
+  if (error) throw error;
+
+  const rows = (data ?? []) as FeedRepostRow[];
+  const [profiles, translations, media] = await Promise.all([
+    loadProfiles(supabase, Array.from(new Set(rows.map((post) => post.author_user_id).filter(isString)))),
+    loadTranslations(supabase, rows.map((post) => post.id), locale),
+    loadMedia(supabase, rows.map((post) => post.id))
+  ]);
+
+  return new Map(rows.map((post) => {
+    const author = profiles.find((profile) => profile.user_id === post.author_user_id) ?? null;
+    const translation = translations.get(post.id);
+    return [post.id, {
+      id: post.id,
+      author_user_id: post.author_user_id,
+      authorName: translation?.author_name ?? post.author_label,
+      author,
+      body: translation?.body ?? post.body,
+      postType: post.post_type,
+      media: media.filter((item) => item.post_id === post.id)
+    }] satisfies [string, FeedRepostSource];
+  }));
 }
 
 async function loadChallengeCompletionSnapshots(

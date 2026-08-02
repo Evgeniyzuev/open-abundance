@@ -1,14 +1,14 @@
 # Wallet Crypto Rails Plan
 
-Статус: канонический продуктовый план внешних пополнений и выводов, 2026-08-02. Native TON deposit реализован; ограниченный тестовый native TON withdrawal slice реализован локально, remote migration и ручной User QA ещё не выполнены.
+Статус: канонический продуктовый план внешних пополнений и выводов, 2026-08-02. Native TON deposit реализован; кодовый срез ограниченного native TON withdrawal реализован, remote migration применена и сверена. Отдельный ручной mainnet User QA выполняется позже и не блокирует следующий кодовый шаг.
 
 Текущий реализованный срез: только TON, mainnet по умолчанию, доступ только авторизованным пользователям, ввод суммы в TON, snapshot курса, `1%` service fee сверху, фиксированный network fee reserve, atomic Wallet reserve, idempotency, серверная подпись через `@ton/ton` и статусы `funds_reserved → broadcasting → broadcast`. При неопределённом результате отправки средства не возвращаются автоматически и запрос переводится в `manual_review`; reconciliation, `confirmed` worker, cooling/address history, coverage gate и production custody остаются следующим обязательным шагом.
 
-Для mainnet-проверки серверу нужны `TON_WITHDRAWAL_ENABLED=true`, `TON_WITHDRAWAL_NETWORK=mainnet`, `TON_WITHDRAWAL_MNEMONIC` и небольшой запас TON на derived operating wallet. Без allowlist любой авторизованный пользователь может создать вывод, поэтому до теста обязательны малый `TON_WITHDRAWAL_MAX_TON` и готовая emergency pause через `TON_WITHDRAWAL_ENABLED=false`. Необязательные настройки: `TON_WITHDRAWAL_SOURCE_ADDRESS`, `TON_WITHDRAWAL_TONCENTER_URL`, `TONCENTER_API_KEY`, `TON_WITHDRAWAL_MIN_TON`, `TON_WITHDRAWAL_MAX_TON`, `TON_WITHDRAWAL_NETWORK_FEE_ESTIMATE_TON`, `TON_WITHDRAWAL_NETWORK_FEE_FLOOR_TON`, `TON_WITHDRAWAL_SERVICE_FEE_PERCENT`.
+Для mainnet-проверки серверу нужны `TON_WITHDRAWAL_ENABLED=true`, `TON_WITHDRAWAL_NETWORK=mainnet`, `TON_WITHDRAWAL_MNEMONIC` и небольшой запас TON на derived operating wallet. Доступ закрыт обычной авторизацией и feature flag; allowlist не используется. До теста обязательны малый `TON_WITHDRAWAL_MAX_TON` и готовая emergency pause через `TON_WITHDRAWAL_ENABLED=false`. Необязательные настройки: `TON_WITHDRAWAL_SOURCE_ADDRESS`, `TON_WITHDRAWAL_TONCENTER_URL`, `TONCENTER_API_KEY`, `TON_WITHDRAWAL_MIN_TON`, `TON_WITHDRAWAL_MAX_TON`, `TON_WITHDRAWAL_NETWORK_FEE_ESTIMATE_TON`, `TON_WITHDRAWAL_NETWORK_FEE_FLOOR_TON`, `TON_WITHDRAWAL_SERVICE_FEE_PERCENT`.
 
 ## 1. Порядок развития
 
-1. Закрыть полный контур `native TON deposit → Wallet → native TON withdrawal` на allowlist.
+1. Закрыть полный контур `native TON deposit → Wallet → native TON withdrawal` для авторизованных пользователей с малым лимитом и ручным контролем.
 2. Подключить `USDT Jetton` в TON для пополнения и вывода.
 3. Выбрать одну следующую пару `asset + network` по реальному спросу и операционной готовности.
 4. Подключать последующие сети через единый adapter contract и отдельный risk review.
@@ -63,9 +63,9 @@ requested
 - на адресе хранится не больше утверждённого операционного лимита;
 - избыток регулярно переводится в отдельный основной резерв;
 - worker не имеет доступа к остальным treasury-активам;
-- действуют малые разовые/суточные лимиты, allowlist и emergency pause.
+- действуют малые разовые/суточные лимиты и emergency pause.
 
-Таким образом, первая версия использует «тот же адрес», но этот адрес не должен оставаться неограниченным основным резервом. До публичного или существенного объёма обязательны отдельный cold treasury и ограниченный hot payout wallet.
+Таким образом, первая версия использует «тот же адрес», но этот адрес не должен оставаться неограниченным основным резервом. До публичного или существенного объёма обязательны отдельный cold treasury и ограниченный hot payout wallet; allowlist не является частью текущего доступа.
 
 Ключ в server `.env` допустим только для локального/закрытого теста: он не попадает в клиент, логи или git. Для production нужен KMS/Vault либо отдельный signing service, ротация и операционная процедура восстановления.
 
@@ -98,7 +98,7 @@ requested
 - Native TON deposit подтверждён на целевом окружении и ledger сходится с chain.
 - Проведены success, duplicate, insufficient balance, bad address, timeout и final failure сценарии.
 - Неиспользованный fee reserve освобождается, окончательная ошибка возвращает Wallet один раз.
-- Настроены allowlist, лимиты, coverage gate, monitoring и ручная остановка.
+- Настроены авторизация, feature flag, малые лимиты, coverage gate, monitoring и ручная остановка.
 - Пользователь видит курс, обе суммы, полный fee, статус и explorer link до/после подтверждения.
 - Custody и ответственный оператор явно определены.
 

@@ -479,6 +479,76 @@ export type Database = {
           },
         ]
       }
+      feed_post_comments: {
+        Row: {
+          body: string
+          client_idempotency_key: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          post_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          client_idempotency_key: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          post_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          client_idempotency_key?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          post_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_post_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_post_external_links: {
         Row: {
           author_handle: string | null
@@ -696,6 +766,7 @@ export type Database = {
           id: string
           post_type: string
           published_at: string | null
+          repost_of_post_id: string | null
           snapshot_id: string | null
           source_key: string | null
           status: string
@@ -712,6 +783,7 @@ export type Database = {
           id?: string
           post_type?: string
           published_at?: string | null
+          repost_of_post_id?: string | null
           snapshot_id?: string | null
           source_key?: string | null
           status?: string
@@ -728,6 +800,7 @@ export type Database = {
           id?: string
           post_type?: string
           published_at?: string | null
+          repost_of_post_id?: string | null
           snapshot_id?: string | null
           source_key?: string | null
           status?: string
@@ -741,6 +814,13 @@ export type Database = {
             columns: ["snapshot_id"]
             isOneToOne: false
             referencedRelation: "progress_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_posts_repost_of_post_id_fkey"
+            columns: ["repost_of_post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
             referencedColumns: ["id"]
           },
         ]

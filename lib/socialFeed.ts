@@ -123,6 +123,16 @@ export type FeedVerifiedChallenge = {
   completed_at: string;
 };
 
+export type FeedRepostSource = {
+  id: string;
+  author_user_id: string | null;
+  authorName: string | null;
+  author: FeedAuthor | null;
+  body: string | null;
+  postType: string;
+  media: FeedMedia[];
+};
+
 export type FeedPost = {
   id: string;
   author_user_id: string | null;
@@ -139,6 +149,7 @@ export type FeedPost = {
   updated_at: string;
   published_at: string | null;
   deleted_at: string | null;
+  repost_of_post_id?: string | null;
   author: FeedAuthor | null;
   statBlocks: FeedStatBlock[];
   externalLinks: FeedExternalLink[];
@@ -147,6 +158,7 @@ export type FeedPost = {
   projectReview: FeedProjectReview | null;
   systemStory: FeedSystemStory | null;
   verifiedChallenge?: FeedVerifiedChallenge | null;
+  repostOf?: FeedRepostSource | null;
 };
 
 export type FeedPayload = {

@@ -29,19 +29,34 @@
 
 ## Сейчас
 
+### User Content Growth Loop
+
+- **Статус:** Сейчас — кодовый срез и remote migration реализованы 2026-08-02; ручной User QA и bounded HTTP smoke остаются отдельными шагами.
+- **Пользовательский результат:** пользователь публикует собственное фото/короткое видео о результате, получает простую реакцию и комментарий, а затем может безопасно переиспользовать историю в каноническом repost и внешнем share package.
+- **Почему сейчас:** Verified Reality Feed уже подтверждён пользователем; следующий риск — лента остаётся в основном server-backed/demo-контуром без простого first-party action-loop.
+- **Главное решение:** начать с ручного поста, одной реакции `like`, простых комментариев и canonical repost без копирования media; Daily Progress и outbound share package остаются частью одного короткого loop.
+- **Граница шага:** first-party фото/короткое видео, ручной post, одна реакция, комментарии, canonical repost, Daily Progress и outbound share package с external mirror. Full follows graph, replies, saves, автоматическая модерация, moderation queue, автоматический кросс-постинг и полноценный short-video pipeline не входят; проблемный материал обрабатывается вручную только при необходимости.
+- **Decision-complete план:** зафиксирован 2026-08-02 в `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`: private `feed-media`, один image/video-файл на пост, лимиты 8 MB image или 30 секунд/25 MB MP4, public/private visibility, privacy guard, idempotent like/comment/repost и manual share flow.
+- **Технические проверки:** `pnpm exec tsc --noEmit`, `pnpm lint`, эскалированный `pnpm build` и REST read-only check новой таблицы пройдены 2026-08-02; in-app browser недоступен в текущей сессии, migration `20260802120000_user_content_growth_loop.sql` применена remote.
+- **Ручной UX-сценарий:** создать post с фото/коротким видео → опубликовать → открыть в `People → Feed` → поставить `like` и оставить комментарий → сделать canonical repost → собрать outbound share package и открыть external mirror.
+- **Метрика:** доля активированных пользователей с первым first-party post, доля post с реакцией/комментарием, доля canonical repost без дублей и переходы из share package во внешний mirror.
+- **Блокеры:** продуктовый blocker по границам снят decision-complete планом; User QA потребуется после реализации. Автоматическая модерация и moderation queue сознательно не планируются.
+- **Связанный документ:** docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md.
+
+## Тестирование
+
 ### Ограниченный native TON withdrawal
 
-- **Статус:** Сейчас — приоритет принят 2026-08-02; ограниченный тестовый slice реализован локально 2026-08-02 и прошёл локальный Technical QA. Remote migration, environment setup и ручной User QA ещё не выполнены.
-- **Пользовательский результат:** пользователь из allowlist сможет безопасно вывести небольшой объём native TON из Wallet с понятным курсом, комиссиями, лимитами и статусом транзакции.
-- **Почему сейчас:** native TON deposit MVP уже существует; следующий реальный пользовательский контур — замкнуть ограниченный withdrawal loop до USDT Jetton и следующих сетей.
-- **Главное решение:** начать с авторизованных пользователей, малых лимитов, atomic Wallet reserve, rate snapshot, 1% service fee сверху, network fee reserve, reconciliation и emergency pause. Allowlist убран по явному решению основателя 2026-08-02.
+- **Статус:** Кодовый этап реализован — локальный Technical QA пройден, remote migration `20260802100000_ton_withdrawal_mvp.sql` применена и сверена с Supabase 2026-08-02. Отдельный ручной mainnet User QA и операционные процедуры могут выполняться позже и не блокируют переход к Content Loop.
+- **Пользовательский результат:** авторизованный пользователь может безопасно вывести небольшой объём native TON из Wallet с понятным курсом, комиссиями, лимитами и статусом транзакции.
+- **Почему тестируем:** native TON deposit MVP уже существует, а withdrawal loop теперь присутствует на целевом mainnet-конфиге и в удалённой схеме.
+- **Главное решение:** авторизация + feature flag, малый max limit, atomic Wallet reserve, rate snapshot, 1% service fee сверху, network fee reserve, idempotency и emergency pause. Allowlist не используется.
 - **Граница реализованного среза:** только TON, mainnet по умолчанию, сумма в TON, server-side signer, доступ любому авторизованному пользователю при включённом feature flag, atomic reserve и статусы до `broadcast`; `manual_review` сохраняет резерв при неопределённом результате. Reconciliation/confirmed worker, cooling, coverage gate и production custody остаются открытыми.
-
 - **Критерии следующего decision-complete плана:** success/duplicate/insufficient balance/bad address/timeout/final failure, idempotency, address confirmation/cooling, coverage gate, custody/operator boundary и возврат fee reserve.
-- **Технические проверки:** `pnpm exec tsc --noEmit`, `pnpm lint` и эскалированный `pnpm build` пройдены 2026-08-02; lint оставил только существующие предупреждения `<img>`. SQL migration подготовлена, но remote Supabase не изменялся.
-- **Ручной UX-сценарий:** после настройки mainnet signer, малого operating balance и allowlist: Wallet → Withdraw TON → ввести TON-адрес и сумму → проверить курс/1%/network reserve/итог → подтвердить → проверить debit в Wallet history и `broadcast`/`manual_review`; затем отдельно проверить insufficient balance, bad address и повтор idempotency key.
-- **Метрика:** доля успешных allowlist withdrawal без расхождения Wallet/chain, время до подтверждения и доля возвратов после final failure.
-- **Блокеры:** для User QA нужны mainnet signer с малым operating balance и применение migration; до расширения за тестовый срез нужны custody, операционный ответственный, coverage thresholds, reconciliation/confirmed worker и процедура возврата при final failure. Без allowlist emergency pause и малый max limit обязательны.
+- **Технические проверки:** `pnpm exec tsc --noEmit`, `pnpm lint` и эскалированный `pnpm build` пройдены 2026-08-02; lint оставил только существующие предупреждения `<img>`. Все локальные migration IDs совпадают с remote, включая TON withdrawal.
+- **Ручной UX-сценарий:** проверить mainnet signer и малый operating balance → `Wallet → Withdraw TON` → ввести TON-адрес и сумму → проверить курс/1%/network reserve/итог → подтвердить → проверить debit в Wallet history и `broadcast`/`manual_review`; затем отдельно проверить insufficient balance, bad address и повтор idempotency key.
+- **Метрика:** доля успешных withdrawal без расхождения Wallet/chain, время до подтверждения и доля возвратов после final failure.
+- **Блокеры:** для User QA нужны ручная mainnet-проверка и подтверждение результата основателем; до расширения за тестовый срез нужны custody, операционный ответственный, coverage thresholds, reconciliation/confirmed worker и процедура возврата при final failure. Emergency pause и малый max limit обязательны.
 - **Связанный документ:** docs/WALLET_CRYPTO_RAILS_PLAN.md.
 
 ## Завершённая карточка — Verified Reality Feed
@@ -103,9 +118,10 @@
 
 ## Следующие шаги
 
-1. [ ] **User Content Growth Loop**
+1. [x] **User Content Growth Loop — кодовый MVP**
    - First-party фото/короткое видео, ручной post, одна реакция `like` и простые комментарии.
    - Canonical repost без копирования media, Daily Progress и outbound share package с external mirror.
+   - Осталось: провести bounded HTTP smoke и ручной User QA; автоматическая модерация и moderation queue не планируются.
    - Связанный документ: `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`.
 
 2. [ ] **Skill Passport + `software_creation` L1**
@@ -172,14 +188,14 @@
 - [ ] AI Coordinator: единый AI Gateway, capability registry, consent-aware Context Broker и подтверждаемая память пользователя; чат доступен как вторичная вкладка Home и пока не получает user context. Архитектура и этапы: `docs/AI_CONTEXT_MEMORY_ARCHITECTURE.md`.
 - [x] AI chat stage 1 технически реализован: локальная история Home → Ideas, 20 встроенных вопросов, Nova/quick actions и локальный UX-лимит 20 сообщений в UTC-сутки / 300 в UTC-месяц; требуется отдельный User QA.
 - [x] AI chat stage 2 технически реализован: `/api/ai/chat` использует существующий Supabase access token, атомарную серверную quota `20/day` и `300/month`, metadata-only `ai_usage_events`, per-user rate/concurrency control и provider health/cooldown для Gemini → Groq fallback. Migration `20260731150000_ai_usage_quota_and_provider_health.sql` применена к удалённому Supabase.
-- [x] AI chat stage 3 BYOK технически реализован: режимы `System quota` / `My OpenRouter`, encrypted manual OpenRouter key, server-side settings/key routes, consent fact, curated model allowlist и no-fallback policy. Migration `20260801100000_ai_openrouter_byok.sql` подготовлена; удалённый push заблокирован connection error и требует отдельного deploy.
+- [x] AI chat stage 3 BYOK технически реализован: режимы `System quota` / `My OpenRouter`, encrypted manual OpenRouter key, server-side settings/key routes, consent fact, curated model allowlist и no-fallback policy. Migration `20260801100000_ai_openrouter_byok.sql` применена к удалённому Supabase.
 - [x] Reflection Inbox + Today rhythm: быстрый local-first захват в Notes с `reviewAt = +24h`, агрегированный локальный пункт `Разобрать заметки · N` на Home, guided AI-разбор из четырёх выборов с собственным вариантом и максимум двумя адаптивными уточнениями, редактируемое я-высказывание, возможные причины, ресурсы, if-then действие, связь с Checks, единый Today reminder и completion-streak челленджи 7/30. Push требует применения миграций и настройки VAPID/Vault; детали в `docs/REFLECTION_PROCESSING_PLAN.md` и `docs/TODAY_DAILY_CHALLENGE_PLAN.md`.
 
 ### Поздние контуры, уже имеющие технический фундамент
 
 - [ ] Open Projects: каталог, заявки и project tasks без завершенного participation loop.
 - [x] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Migration `20260724230000_marketplace_deals_phase3_4.sql` и routes требуют environment apply/User QA; деньги покупателя пока не резервируются, expire/refund/dispute отсутствуют, поэтому escrow не считается завершённым.
-- [x] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; withdrawal принят как текущая активная карточка без начатой реализации.
+- [x] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; withdrawal находится в тестировании, полный статус и границы — `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
 
 ## Подтверждено пользователями
 
@@ -193,7 +209,7 @@
 
 ## Заблокировано
 
-- Массовый внешний вывод Wallet заблокирован до успешного малого allowlist withdrawal loop, сверки chain/ledger, разделения основного резерва и operating hot wallet, безопасной custody и операционной поддержки. Ограниченный MVP из очереди этим blocker не запрещён.
+- Массовый внешний вывод Wallet заблокирован до успешного малого авторизованного withdrawal loop, сверки chain/ledger, разделения основного резерва и operating hot wallet, безопасной custody и операционной поддержки. Ограниченный MVP из очереди этим blocker не запрещён.
 - Публичные обещания фиксированного или гарантированного дохода заблокированы до доказуемого покрытия обязательств и юридической проверки формулировок.
 - Пользовательский текст о redemption Core запрещён: Core строго неснижаем. Старый feature flag, Core-redemption liability, KYC/AML, cooling period и worker не являются основанием для его включения.
 - Масштабирование за пределы закрытой когорты заблокировано до появления аналитики, положительного D1/D3/D7 и сверки Wallet-обязательств с фондом.

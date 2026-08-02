@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import {
   broadcastTonWithdrawal,
-  isTonWithdrawalAllowed,
   loadTonWithdrawalConfig,
   normalizeTonWithdrawalAddress,
   resolveTonWithdrawalQuote,
@@ -38,7 +37,7 @@ export async function GET(request: NextRequest) {
     if (error || !user) return jsonResponse({ error }, { status: 401 });
 
     const config = loadTonWithdrawalConfig();
-    if (!config.ready || !isTonWithdrawalAllowed(config, user)) {
+    if (!config.ready) {
       return jsonResponse({ enabled: false, reason: config.reason });
     }
 

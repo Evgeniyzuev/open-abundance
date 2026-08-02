@@ -1,13 +1,18 @@
 .passport { display: grid; gap: 12px; margin-top: 14px; border-top: 1px solid var(--line-subtle); padding-top: 14px; }
 .header { display: flex; align-items: flex-start; gap: 10px; }
+.headingCopy { min-width: 0; flex: 1; }
 .icon, .skillMark { display: grid; place-items: center; flex: 0 0 auto; border-radius: 12px; background: var(--accent-soft); color: var(--blue); }
 .icon { width: 36px; height: 36px; }
-.header h2, .challenge h3 { margin: 2px 0 3px; font-size: 1.08rem; }
-.header p, .skillCopy p, .challengeHeader p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.35; }
+.header h2 { margin: 2px 0 3px; font-size: 1.08rem; }
+.header p, .skillCopy p, .checkBox p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.35; }
 .kicker { color: var(--blue); font-size: .68rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
-.core { margin-left: auto; white-space: nowrap; border-radius: 999px; padding: 6px 9px; background: var(--surface-soft); color: var(--muted); font-size: .7rem; font-weight: 850; }
-.skillCard, .challenge, .reviews { display: grid; gap: 10px; border-radius: 14px; padding: 12px; background: var(--surface-soft); }
-.skillCardHead, .challengeHeader, .queueHead, .sectionTitle { display: flex; align-items: flex-start; gap: 9px; }
+.headerActions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.core { white-space: nowrap; border-radius: 999px; padding: 6px 9px; background: var(--surface-soft); color: var(--muted); font-size: .7rem; font-weight: 850; }
+.refreshButton { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 9px; background: var(--surface-muted); color: var(--text); cursor: pointer; }
+.refreshButton:disabled { opacity: .55; cursor: wait; }
+.spin { animation: spin .8s linear infinite; }
+.skillCard { display: grid; gap: 10px; border-radius: 14px; padding: 12px; background: var(--surface-soft); }
+.skillCardHead { display: flex; align-items: flex-start; gap: 9px; }
 .skillMark { width: 36px; height: 36px; }
 .skillCopy { min-width: 0; flex: 1; }
 .titleLine { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
@@ -15,62 +20,30 @@
 .levelPill, .statusPill { border-radius: 999px; padding: 3px 7px; font-size: .65rem; font-weight: 900; }
 .levelPill { background: var(--accent-soft); color: var(--blue); }
 .statusPill { background: var(--surface-muted); color: var(--muted); }
-.status_in_review { background: var(--accent-soft); color: var(--blue); }
-.status_rework { background: var(--danger-soft); color: var(--danger); }
-.status_accepted { background: var(--success-soft); color: var(--green); }
+.status_verified { background: var(--success-soft); color: var(--green); }
+.status_unverified { background: var(--surface-muted); color: var(--muted); }
 .levelBox { display: grid; justify-items: end; gap: 1px; }
 .levelBox strong { color: var(--blue); font-size: 1.35rem; line-height: 1; }
-.levelBox small, .queueHead small { color: var(--muted); font-size: .65rem; }
+.levelBox small { color: var(--muted); font-size: .65rem; }
 .levelMetrics { display: flex; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: .7rem; }
 .levelMetrics span { border-radius: 8px; padding: 5px 7px; background: var(--surface); }
 .levelMetrics b { color: var(--text); }
-.primaryButton, .secondaryButton { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 10px; padding: 0 12px; font-size: .82rem; font-weight: 850; cursor: pointer; }
-.primaryButton { background: var(--accent-fill); color: #fff; }
-.secondaryButton { background: var(--surface-muted); color: var(--text); }
-.primaryButton:disabled, .secondaryButton:disabled { opacity: .55; cursor: wait; }
-.verified, .success, .error, .muted { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .78rem; line-height: 1.35; }
-.verified, .success { color: var(--green); }
+.checkBox { display: grid; gap: 7px; border-radius: 10px; padding: 9px; background: var(--surface); }
+.checkHeader, .checkMeta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.checkHeader strong { font-size: .76rem; }
+.checkHeader span { border-radius: 999px; padding: 3px 7px; background: var(--accent-soft); color: var(--blue); font-size: .65rem; font-weight: 900; }
+.checkMeta { color: var(--muted); font-size: .68rem; line-height: 1.3; }
+.checkMeta b { color: var(--text); white-space: nowrap; }
+.progressTrack { height: 7px; overflow: hidden; border-radius: 999px; background: var(--surface-muted); }
+.progressTrack span { display: block; height: 100%; border-radius: inherit; background: var(--accent-fill); transition: width .25s ease; }
+.success, .error, .muted { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .78rem; line-height: 1.35; }
+.success { color: var(--green); }
 .error { color: var(--danger); }
 .muted { color: var(--muted); }
-.challengeHeader { justify-content: space-between; }
-.challengeHeader > svg { color: var(--blue); }
-.briefGrid, .twoColumns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.brief, .rubric { display: grid; gap: 6px; border-radius: 10px; padding: 9px; background: var(--surface); }
-.brief strong, .rubric strong { font-size: .75rem; }
-.brief p, .brief li { margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.35; }
-.brief ol { display: grid; gap: 5px; margin: 0; padding-left: 17px; }
-.rubric > div { display: grid; gap: 5px; }
-.rubric span { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: .72rem; }
-.rubric svg { color: var(--green); }
-.form { display: grid; gap: 8px; }
-.field { display: grid; gap: 5px; }
-.field > span { color: var(--muted); font-size: .72rem; font-weight: 800; }
-.field input, .field textarea, .reviewForm textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; background: var(--surface); color: var(--text); font: inherit; font-size: 1rem; }
-.field textarea, .reviewForm textarea { min-height: 72px; resize: vertical; }
-.formActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
-.formActions .primaryButton, .formActions .secondaryButton { flex: 1 1 160px; }
-.sectionTitle { align-items: center; }
-.sectionTitle svg { color: var(--blue); }
-.sectionTitle strong { flex: 1; font-size: .88rem; }
-.sectionTitle > span { color: var(--blue); font-size: .78rem; font-weight: 900; }
-.slotList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.slot { display: flex; align-items: center; gap: 5px; min-width: 0; border-radius: 8px; padding: 7px; background: var(--surface); }
-.slot > span { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--blue); font-size: .68rem; font-weight: 900; }
-.slot strong { overflow: hidden; color: var(--muted); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
-.successIcon { color: var(--green); }
-.errorIcon { color: var(--danger); }
-.queueCard { display: grid; gap: 8px; border-top: 1px solid var(--line-subtle); padding-top: 9px; }
-.queueHead { align-items: center; justify-content: space-between; }
-.queueHead > div { display: grid; gap: 2px; min-width: 0; }
-.queueHead strong { overflow: hidden; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
-.proofLink { display: inline-flex; align-items: center; gap: 5px; overflow: hidden; color: var(--blue); font-size: .75rem; font-weight: 800; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
-.reviewForm { display: grid; gap: 7px; }
-.checkGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
-.checkGrid label, .checkbox { display: flex; align-items: flex-start; gap: 5px; color: var(--muted); font-size: .72rem; line-height: 1.25; }
-.reviewOutcome { margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.35; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 480px) {
-  .briefGrid, .twoColumns { grid-template-columns: 1fr; }
-  .slotList { grid-template-columns: 1fr; }
-  .slot { min-height: 28px; }
+  .headerActions { align-items: flex-start; }
+  .core { padding: 5px 7px; }
 }

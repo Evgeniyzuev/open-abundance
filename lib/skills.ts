@@ -1,8 +1,9 @@
-export const SOFTWARE_CREATION_SLUG = "software_creation" as const;
-
-export type SkillSubmissionStatus = "draft" | "in_review" | "rework" | "accepted";
-export type SkillReviewStatus = "open" | "assigned" | "decided" | "superseded";
-export type SkillReviewVerdict = "pass" | "rework";
+export type SkillVerificationLogic =
+  | "referral_count"
+  | "public_post_count"
+  | "team_member_count"
+  | "team_contact_count"
+  | "challenge_completion_count";
 
 export type LocalizedText = {
   en?: string;
@@ -16,85 +17,29 @@ export type SkillCatalogItem = {
   title: string;
   description: string;
   learningPath: string[];
-  available: boolean;
 };
 
-export type SkillLevelRule = {
+export type SkillAutoCheck = {
   level: number;
+  verificationLogic: SkillVerificationLogic;
+  threshold: number;
+  currentValue: number;
   requirements: string;
-  rubric: Array<{ key: string; label: string }>;
-};
-
-export type SkillEvidence = {
-  id: string;
-  version: number;
-  deliverableTitle: string;
-  deliverableDescription: string;
-  acceptanceCriteria: string;
-  repoUrl: string;
-  proofUrl: string;
-  testScenario: string;
-  limitations: string;
-  contentHash: string;
-  createdAt: string;
-};
-
-export type SkillReviewDecision = {
-  id: string;
-  requestId: string;
-  reviewerUserId: string;
-  verdict: SkillReviewVerdict;
-  reproducibility: boolean;
-  criteriaMet: boolean;
-  proofSufficient: boolean;
-  safety: boolean;
-  criticalIssue: boolean;
-  recommendation: string;
-  comment: string;
-  createdAt: string;
-};
-
-export type SkillReviewRequest = {
-  id: string;
-  slotNo: number;
-  status: SkillReviewStatus;
-  reviewerUserId: string | null;
-  claimedAt: string | null;
-  decidedAt: string | null;
-  evidence: SkillEvidence | null;
-  decision: SkillReviewDecision | null;
-  ownerName?: string;
-  skillTitle?: string;
-  targetLevel?: number;
-  canClaim?: boolean;
-};
-
-export type SkillSubmission = {
-  id: string;
-  targetLevel: number;
-  status: SkillSubmissionStatus;
-  attempt: number;
-  latestEvidenceVersion: number;
-  reworkReason: string | null;
-  submittedAt: string | null;
-  acceptedAt: string | null;
-  evidence: SkillEvidence | null;
-  reviewRequests: SkillReviewRequest[];
+  passed: boolean;
 };
 
 export type PassportSkill = SkillCatalogItem & {
   earnedLevel: number;
   effectiveLevel: number;
   status: "unverified" | "verified";
-  rule: SkillLevelRule | null;
-  submission: SkillSubmission | null;
+  lastCheckedAt: string | null;
+  checks: SkillAutoCheck[];
 };
 
 export type SkillPassportPayload = {
   coreLevel: number;
   skills: PassportSkill[];
-  reviewQueue: SkillReviewRequest[];
-  reviewerBootstrapEnabled: boolean;
+  checkedAt: string | null;
   error?: string;
 };
 
@@ -112,4 +57,3 @@ export function localizedList(value: unknown, locale: "ru" | "en"): string[] {
     .map((item) => localizedText(item, locale))
     .filter(Boolean);
 }
-

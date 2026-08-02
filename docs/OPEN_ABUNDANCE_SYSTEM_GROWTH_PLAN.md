@@ -479,10 +479,10 @@ next_recommendation
 ### Текущая кодовая волна. Skills, фабрика задач и AI-координация
 
 - Skill Passport foundation и RPG-представление;
-- `software_creation` L1 с практической фичей, `peer_point` и тремя review;
-- `referral_acquisition` L1 с отдельной server-authoritative проверкой;
-- первые 10–15 реальных задач системы с deliverable, acceptance criteria, proof, reviewer и Core-наградой;
-- AI подбирает задачу, сопровождает и готовит review в пределах разрешений.
+- automatic L1 checks для referral, public content и team membership; human review не входит в текущую волну и отложен на неопределённое будущее;
+- server-authoritative refresh с snapshot и effective-level cap;
+- первые 10–15 реальных задач системы после проверки качества автоматических skill-фактов;
+- AI подбирает задачу и сопровождает пользователя в пределах разрешений; ручной reviewer-flow не запускается.
 
 Выход: несколько принятых результатов реально используются системой, а допуск к квалифицированным задачам опирается на evidence. Детали — `SKILLS_SYSTEM_PLAN.md`.
 
@@ -514,7 +514,7 @@ next_recommendation
 4. Провести первую партию вручную, собрать причины отказа/застревания и исправить только главное узкое место.
 5. Провести bounded HTTP smoke и ручной User QA Content Loop; его QA не блокирует следующую кодовую карточку.
 6. Отдельно провести ручной mainnet User QA, reconciliation и custody-процедуры native TON withdrawal; не блокировать ими следующий кодовый шаг.
-7. Текущим кодовым шагом запустить `Skill Passport + software_creation` L1 и первые реальные system tasks после фиксации evidence/review contract.
+7. Текущим кодовым шагом запустить Skill Passport automatic L1 checks и первые реальные system tasks после проверки referral/content/team counters.
 8. Раз в неделю вести короткий внутренний отчёт: activation, D1/D3/D7, external inflow, coverage, `Total Core`, принятые результаты и incident/abuse signals.
 
 Связанные документы: [OPEN_ABUNDANCE_MASTER_PLAN.md](OPEN_ABUNDANCE_MASTER_PLAN.md), [MASTER_KANBAN.md](MASTER_KANBAN.md), [WALLET_CRYPTO_RAILS_PLAN.md](WALLET_CRYPTO_RAILS_PLAN.md), [SKILLS_SYSTEM_PLAN.md](SKILLS_SYSTEM_PLAN.md), [FEED_POSTING_RECOMMENDATIONS_PLAN.md](FEED_POSTING_RECOMMENDATIONS_PLAN.md), [BLOGGER_OUTREACH_PLAN.md](BLOGGER_OUTREACH_PLAN.md).

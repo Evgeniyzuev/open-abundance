@@ -126,12 +126,12 @@ coverage_ratio =
 
 ## 6. Навыки и обучающие челленджи
 
-- `Skill Passport` показывает подтверждённые навыки как RPG-параметры пользователя, evidence и следующий шаг.
+- Skill Passport показывает автоматические уровни навыков как RPG-параметры пользователя, текущий прогресс и следующий шаг.
 - Skill Level повышается по результату, а не по просмотру материала, самооценке или покупке проверки.
 - Инвариант: `effective_skill_level = min(earned_skill_level, Core Level)`.
-- Первый vertical slice — `software_creation` L1; vibecoding является начальным методом, а не отдельным навыком. Практическая фича получает три независимых peer review с rubric.
-- Второй slice — `referral_acquisition` L1. Простой Invite challenge считает одну регистрацию; навык использует отдельную проверку и рабочий порог двух уникальных регистраций, а следующие уровни требуют активации и удержания.
-- `peer_point` организует review-slot, но не покупает положительную оценку или Skill Level.
+- Первый vertical slice — automatic checks для referral, public content и team membership; vibecoding остаётся методом будущего software_creation, а не отдельным навыком.
+- Стартовые rules используют уже существующие server-side факты: две referral edges для referral_acquisition L1, один public post для content_creation L1 и один active team member для team_building L1.
+- Human review, peer point и ручные verdicts не входят в текущий MVP и перенесены на неопределённое будущее без места в execution queue.
 - Сертификаты, поручительство и полный каталог уровней отложены до проверки первых двух slices.
 - Канонический контракт: `docs/SKILLS_SYSTEM_PLAN.md`.
 
@@ -171,7 +171,7 @@ coverage_ratio =
 2. Собрать короткий Day 0/Day 1 activation loop, закрыть события воронки и начать управляемую когорту 20–50 человек.
 3. Пользовательский content loop: ручной media-post, like, простые комментарии, canonical repost и outbound share package; Daily Progress входит в этот контур и является текущим кодовым шагом. Кодовый MVP и remote migration реализованы 2026-08-02; User QA остаётся впереди.
 4. Отдельно завершить ручной User QA и операционные процедуры ограниченного native TON withdrawal; кодовый срез уже реализован и не блокирует Content Loop.
-5. **Текущая кодовая карточка:** Skill Passport foundation и `software_creation` L1; затем `referral_acquisition` L1.
+5. **Текущая кодовая карточка:** Skill Passport foundation и automatic L1 checks для referral, public content и team membership.
 6. Team/referral/leader loop: dashboard, помощь новичку, лидерские челленджи и приглашение после результата.
 7. Довести Marketplace до funds reserve, expire/refund, dispute и reviews; затем включить mutual credit discovery.
 8. Trust v2: shadow calculation, private summary и только после калибровки публичный pilot.
@@ -209,7 +209,7 @@ coverage_ratio =
 - Контекст и открытые вопросы: `docs/PROJECT_MEMORY.md`.
 - Текущий статус и очередь: `docs/MASTER_KANBAN.md`.
 - Системный рост, первый workflow и привлечение: `docs/OPEN_ABUNDANCE_SYSTEM_GROWTH_PLAN.md`.
-- Навыки и peer review: `docs/SKILLS_SYSTEM_PLAN.md`.
+- Навыки и automatic checks: docs/SKILLS_SYSTEM_PLAN.md.
 - Crypto deposit/withdrawal и новые сети: `docs/WALLET_CRYPTO_RAILS_PLAN.md`; реализация native TON deposit — `docs/TON_DEPOSIT_MVP_PLAN.md`.
 - Trust-lite и Trust v2: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
 - Сделки и escrow: `docs/MARKETPLACE_ESCROW_PLAN.md`; mutual credit ranking: `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.

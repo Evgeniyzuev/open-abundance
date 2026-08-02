@@ -1,33 +1,44 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(process.cwd());
 const read = (file) => readFileSync(resolve(root, file), "utf8");
 const migration = read("supabase/migrations/20260802150000_skill_passport_software_creation_l1.sql");
 const passportApi = read("app/api/skills/route.ts");
-const submissionApi = read("app/api/skills/submissions/route.ts");
-const reviewApi = read("app/api/skills/reviews/route.ts");
 const ui = read("components/SkillPassportApp.tsx");
+const skillsTypes = read("lib/skills.ts");
+const skillsI18n = read("lib/skillsI18n.ts");
+
+const reviewArtifacts = [
+  "skill_submissions",
+  "skill_evidence",
+  "skill_review_requests",
+  "skill_review_decisions",
+  "skill_progress_events",
+  "submit_skill_evidence",
+  "claim_skill_review_request",
+  "record_skill_review_decision",
+  "reviewQueue",
+  "ReviewQueue",
+  "ReviewForm"
+];
 
 const checks = [
   ["skill catalog table", migration.includes("create table if not exists public.skills")],
-  ["versioned rubric table", migration.includes("create table if not exists public.skill_level_rules")],
+  ["automatic level rules table", migration.includes("create table if not exists public.skill_level_rules")],
   ["user skill RPG levels", migration.includes("create table if not exists public.user_skills")],
-  ["immutable evidence table", migration.includes("create table if not exists public.skill_evidence")],
-  ["structured review decisions", migration.includes("create table if not exists public.skill_review_decisions")],
-  ["three review slots", migration.includes("values (submission_row.id, evidence_row.id, 1), (submission_row.id, evidence_row.id, 2), (submission_row.id, evidence_row.id, 3)")],
-  ["evidence immutability trigger", migration.includes("protect_skill_evidence_immutable")],
-  ["decision immutability trigger", migration.includes("protect_skill_review_decisions_immutable")],
-  ["reviewer level gate", migration.includes("earned_skill_level >= request_row.target_level")],
-  ["2/3 pass gate", migration.includes("decided_count = 3 and pass_count >= 2")],
-  ["critical issue gate", migration.includes("critical_count > 0")],
-  ["effective level cap", migration.includes("least(request_row.target_level, coalesce(core_level, 0))")],
-  ["submission RPC", migration.includes("create or replace function public.submit_skill_evidence") && submissionApi.includes("submit_skill_evidence")],
-  ["claim RPC", migration.includes("create or replace function public.claim_skill_review_request") && reviewApi.includes("claim_skill_review_request")],
-  ["decision RPC", migration.includes("create or replace function public.record_skill_review_decision") && reviewApi.includes("record_skill_review_decision")],
+  ["verification logic column", migration.includes("verification_logic text not null")],
+  ["threshold column", migration.includes("threshold bigint not null")],
+  ["server refresh RPC", migration.includes("create or replace function public.refresh_user_skill_levels") && passportApi.includes("refresh_user_skill_levels")],
+  ["referral count check", migration.includes("referral_count") && migration.includes("from public.referral_edges")],
+  ["public post count check", migration.includes("public_post_count") && migration.includes("from public.feed_posts")],
+  ["team member count check", migration.includes("team_member_count") && migration.includes("from public.team_memberships")],
+  ["server snapshot", migration.includes("verification_snapshot") && passportApi.includes("current_value")],
   ["no-store passport API", passportApi.includes('export const dynamic = "force-dynamic"') && passportApi.includes("NO_STORE_HEADERS")],
-  ["evidence form fields", ["repoUrl", "proofUrl", "testScenario", "limitations"].every((field) => ui.includes(field))],
-  ["review UI", ui.includes("SubmissionReviews") && ui.includes("ReviewQueue") && ui.includes("ReviewForm")]
+  ["automatic progress UI", ui.includes("nextCheck") && ui.includes("progressTrack") && ui.includes("refresh")],
+  ["automatic logic labels", skillsI18n.includes("referralCount") && skillsI18n.includes("publicPostCount")],
+  ["review is absent from current contract", reviewArtifacts.every((artifact) => !migration.includes(artifact) && !passportApi.includes(artifact) && !ui.includes(artifact) && !skillsTypes.includes(artifact) && !skillsI18n.includes(artifact))],
+  ["review routes removed", !existsSync(resolve(root, "app/api/skills/submissions/route.ts")) && !existsSync(resolve(root, "app/api/skills/reviews/route.ts"))]
 ];
 
 const failed = checks.filter(([, passed]) => !passed);
@@ -38,4 +49,3 @@ if (failed.length) {
 }
 
 console.log(`Skill contract verification passed (${checks.length} checks).`);
-

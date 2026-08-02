@@ -390,14 +390,14 @@
 | Удалён 2026-08-02 | Turn Wish Into 3 Steps — Разбей желание на 3 шага | 1 | `wish_steps_created` | Текущая проверка не исполняется надёжно; карточка удалена из пользовательского каталога |
 | P0 | First Growth Story — Первая история прогресса | 1-2 | `first_growth_post_published` | Закрывает социальный слой: действие превращается в контент |
 | P1 | Help Someone Move — Помоги другому сделать шаг | 2 | `trust_event_confirmed:help_given` | Добавляет вклад и взаимную поддержку до marketplace |
-| P1 | Software Creation L1 — Первая работающая фича | 1-2 | `software_creation_l1_reviewed` | Первый Skill Passport slice: обучение, deliverable, proof и peer review |
+| Отложено | Software Creation L1 — Первая работающая фича | 1-2 | future manual verification | Ручной skill-review flow перенесён на неопределённое будущее; не входит в текущую очередь |
 | P1 | Team Welcome — Познакомься с участником команды | 2 | `team_contact_active` | Команда становится отношением доверия, а не только реферальной связкой |
 | P1 | Referral Acquisition L1 — Приведи двух участников | 1-2 | `referral_skill_l1` | Отделяет подтверждённый навык привлечения от разового Invite challenge |
 | P2 | Trust Proof — Подтверди надежность | 2 | `trust_event_confirmed:proof_added` | Подготовка Trust-слоя: верифицированный контакт, портфолио, рекомендация или подтвержденный результат |
 
 Эти челленджи лучше поставить перед marketplace-цепочкой. Тогда путь будет ближе к концепту: `самопонимание -> желание -> действие -> прогресс -> вклад -> доверие -> рынок`.
 
-## 3.2 Где нужна проверка другими пользователями
+## 3.2 Где в будущем может понадобиться проверка другими пользователями
 
 Эти челленджи не стоит засчитывать одной кнопкой пользователя. Их нужно запускать после появления комментариев, ревью, подтверждений или Trust-системы:
 
@@ -410,11 +410,11 @@
 | Trust Proof | `community` + `trust_event_confirmed:proof_added` | Подтвержден контакт, результат, рекомендация или верифицированный proof |
 | Software Creation L1 | три независимых structured reviews | Минимум 2/3 pass и нет нерешённого critical issue; reviewer имеет тот же или более высокий skill |
 
-До появления этих сущностей такие челленджи можно держать в каталоге, но не делать P0-реализацией.
+До появления этих сущностей такие челленджи можно держать в каталоге, но не делать частью текущей реализации. Этот раздел — долгосрочный backlog без срока и без записи в execution queue.
 
 ### 3.3 Skill-challenge contract
 
-Skill challenge всегда содержит три части: короткое обучение, практический deliverable и проверку по rubric. Просмотр материала без результата не повышает Skill Level. Первый slice — `software_creation` L1; второй — `referral_acquisition` L1. `peer_point` резервирует review-slot, но не влияет на verdict. Полный контракт — `docs/SKILLS_SYSTEM_PLAN.md`.
+Skill challenge всегда содержит короткое обучение, практическое действие и проверку результата. Первые Skill Passport levels проверяются автоматически по product facts: referral, public post и team membership. Ручной software_creation review, peer point и rubric остаются долгосрочным backlog. Полный текущий контракт — docs/SKILLS_SYSTEM_PLAN.md.
 
 ## 4. Логика развития пользователя через челленджи
 

@@ -2,18 +2,54 @@ import type { AppLocale } from "@/lib/i18n";
 
 const skillMessages = {
   ru: {
-    kicker: "RPG-параметр", title: "Паспорт навыков", description: "Подтверждённые способности, evidence и следующий полезный шаг.", coreLevel: "Core {level}", earned: "Доказано", effective: "Доступно сейчас", unverified: "Пока не подтверждено", verified: "Подтверждено", open: "Открыть challenge", loading: "Загружаем Skill Passport…", error: "Не удалось загрузить Skill Passport.",
-    softwareTitle: "Software creation", softwareLevel: "L1 · Первая работающая фича", softwareDescription: "Собери небольшую фичу, опиши proof и подготовь результат к независимой проверке.", learning: "Короткий маршрут обучения", brief: "Практическая часть", briefDescription: "Создай или клонируй репозиторий, сделай branch и commit, приложи diff и покажи воспроизводимый результат.", rubric: "Rubric проверки", requirements: "Критерии L1", saveDraft: "Сохранить draft", sendToReview: "Отправить на 3 review", updateEvidence: "Отправить новую версию", saved: "Draft сохранён.",
-    draft: "Draft", inReview: "На проверке", rework: "Нужна доработка", accepted: "Принято", reworkReason: "Что исправить", acceptedDescription: "Навык принят: evidence сохранён, а уровень рассчитан сервером.", nextStep: "Следующий шаг", nextStepText: "Используй доказанный навык в следующей полезной задаче.", evidence: "Immutable evidence", evidenceVersion: "Версия evidence {version}",
-    fieldTitle: "Название фичи", fieldDescription: "Что сделано", fieldCriteria: "Критерии приёмки", fieldRepo: "Репозиторий", fieldProof: "Proof / ссылка на результат", fieldTest: "Тестовый сценарий", fieldLimitations: "Известные ограничения", titlePlaceholder: "Например: фильтр задач по статусу", descriptionPlaceholder: "Коротко опиши изменение и пользовательский результат.", criteriaPlaceholder: "Что должно быть верно, чтобы считать фичу готовой?", testPlaceholder: "Шаги, по которым другой человек воспроизведёт результат.", limitationsPlaceholder: "Что пока не покрыто или требует внимания?",
-    reviewTitle: "Review slots", reviewSubtitle: "Нужно 3 независимых structured review; зачёт — минимум 2 pass без critical issue.", reviewOpen: "Открыт", reviewAssigned: "Назначен тебе", reviewDecided: "Решение принято", claim: "Взять review", pass: "Pass", requestRework: "Вернуть на доработку", reproducibility: "Воспроизводимость", criteria: "Критерии выполнены", proof: "Proof достаточен", safety: "Безопасность учтена", critical: "Есть critical issue", recommendation: "Рекомендация", comment: "Комментарий", commentPlaceholder: "Что именно увидел reviewer?", recommendationPlaceholder: "Какой следующий шаг рекомендуешь?", saveVerdict: "Сохранить verdict", queue: "Доступные review", emptyQueue: "Свободных review пока нет.", awaiting: "Ждём review от участника с таким же или более высоким уровнем."
+    kicker: "RPG-параметры",
+    title: "Паспорт навыков",
+    description: "Уровни считаются автоматически по действиям в продукте.",
+    coreLevel: "Core {level}",
+    earned: "Заработано",
+    effective: "Доступно сейчас",
+    unverified: "В прогрессе",
+    verified: "Подтверждено автоматически",
+    loading: "Загружаем Skill Passport…",
+    error: "Не удалось загрузить Skill Passport.",
+    refresh: "Проверить прогресс",
+    refreshing: "Проверяем…",
+    refreshed: "Прогресс обновлён.",
+    level: "Уровень",
+    nextCheck: "Следующая автоматическая проверка",
+    current: "Сейчас",
+    target: "Цель",
+    noCheck: "Для этого навыка автоматическое правило ещё готовится.",
+    referralCount: "Количество подтверждённых приглашённых участников",
+    publicPostCount: "Количество публичных опубликованных материалов",
+    teamMemberCount: "Количество активных участников в команде",
+    teamContactCount: "Количество активных контактов команды",
+    challengeCompletionCount: "Количество завершённых челленджей"
   },
   en: {
-    kicker: "RPG stat", title: "Skill Passport", description: "Verified abilities, evidence and the next useful step.", coreLevel: "Core {level}", earned: "Earned", effective: "Available now", unverified: "Not verified yet", verified: "Verified", open: "Open challenge", loading: "Loading Skill Passport…", error: "Could not load Skill Passport.",
-    softwareTitle: "Software creation", softwareLevel: "L1 · First working feature", softwareDescription: "Build a small feature, document the proof and prepare it for independent review.", learning: "Short learning path", brief: "Practical task", briefDescription: "Create or clone a repository, make a branch and commit, attach the diff and show a reproducible result.", rubric: "Review rubric", requirements: "L1 requirements", saveDraft: "Save draft", sendToReview: "Send to 3 reviews", updateEvidence: "Send new version", saved: "Draft saved.",
-    draft: "Draft", inReview: "In review", rework: "Rework needed", accepted: "Accepted", reworkReason: "What to fix", acceptedDescription: "Skill accepted: evidence is stored and the level was calculated on the server.", nextStep: "Next step", nextStepText: "Use the proven skill in the next useful task.", evidence: "Immutable evidence", evidenceVersion: "Evidence version {version}",
-    fieldTitle: "Feature title", fieldDescription: "What you built", fieldCriteria: "Acceptance criteria", fieldRepo: "Repository", fieldProof: "Proof / result link", fieldTest: "Test scenario", fieldLimitations: "Known limitations", titlePlaceholder: "For example: filter tasks by status", descriptionPlaceholder: "Briefly describe the change and user result.", criteriaPlaceholder: "What must be true for the feature to be ready?", testPlaceholder: "Steps another person can use to reproduce the result.", limitationsPlaceholder: "What is not covered or needs attention yet?",
-    reviewTitle: "Review slots", reviewSubtitle: "Three independent structured reviews are required; pass means at least 2/3 with no critical issue.", reviewOpen: "Open", reviewAssigned: "Assigned to you", reviewDecided: "Decision recorded", claim: "Claim review", pass: "Pass", requestRework: "Request rework", reproducibility: "Reproducible", criteria: "Criteria met", proof: "Proof is sufficient", safety: "Safety considered", critical: "Critical issue found", recommendation: "Recommendation", comment: "Comment", commentPlaceholder: "What did you observe as a reviewer?", recommendationPlaceholder: "What next step do you recommend?", saveVerdict: "Save verdict", queue: "Available reviews", emptyQueue: "No open reviews yet.", awaiting: "Waiting for a participant with the same or higher level to review."
+    kicker: "RPG stats",
+    title: "Skill Passport",
+    description: "Levels are calculated automatically from actions in the product.",
+    coreLevel: "Core {level}",
+    earned: "Earned",
+    effective: "Available now",
+    unverified: "In progress",
+    verified: "Automatically verified",
+    loading: "Loading Skill Passport…",
+    error: "Could not load Skill Passport.",
+    refresh: "Check progress",
+    refreshing: "Checking…",
+    refreshed: "Progress updated.",
+    level: "Level",
+    nextCheck: "Next automatic check",
+    current: "Now",
+    target: "Target",
+    noCheck: "An automatic rule for this skill is still being prepared.",
+    referralCount: "Confirmed referred participants",
+    publicPostCount: "Public published posts",
+    teamMemberCount: "Active team members",
+    teamContactCount: "Active team contacts",
+    challengeCompletionCount: "Completed challenges"
   }
 } as const;
 
@@ -24,4 +60,3 @@ export function skillTranslate(locale: AppLocale, key: SkillMessageKey, values?:
   if (!values) return template;
   return Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, String(value)), template);
 }
-

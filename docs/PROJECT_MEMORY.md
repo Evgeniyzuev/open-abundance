@@ -250,7 +250,7 @@ Wallet пользователя уменьшается
 
 - `docs/Abundance_SYS_CONCEPT` — исходная системная концепция.
 - `docs/CHALLENGES_CATALOG.md` — каталог и правила челленджей.
-- `docs/SKILLS_SYSTEM_PLAN.md` — Skill Passport, уровни, peer review и peer-points.
+- docs/SKILLS_SYSTEM_PLAN.md — Skill Passport и automatic skill checks; human review/peer-points отложены без срока.
 - `docs/WALLET_CRYPTO_RAILS_PLAN.md` — TON withdrawal, комиссии, custody и следующие asset/network rails.
 - `docs/FUTURE_SIM_PLAN.md` — границы и этапы образа будущего.
 - `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md` — user content, media и внешние соцсети.
@@ -298,7 +298,7 @@ Wallet пользователя уменьшается
 
 Приняты и разнесены по каноническим документам:
 
-- Skills: `software_creation` (vibecoding как первый метод), content, influence, referrals, mentoring и sales; Skill Level не выше Core Level; первая реализация — один L1 vertical slice и peer review, без сертификатов.
+- Skills: software_creation (vibecoding как будущий метод), content, influence, referrals, mentoring и sales; Skill Level не выше Core Level; текущая реализация — automatic L1 checks по referral/content/team facts, без сертификатов и human review.
 - Referrals: простой Invite challenge считает одну регистрацию после первого результата; `referral_acquisition` L1 использует две регистрации, следующие уровни — quality activation/retention.
 - Trust v2: будущий публичный summary, starter event, рейтинг 0.0–5.0, sqrt amount factor, linear level pair-cap, 10% signed effect rater и calendar-year `×0.9`; запуск только shadow → private → public.
 - Native TON withdrawal: два связанных поля USD/TON, `1%` сверху + network fee reserve, existing address только как ограниченный hot operating wallet; production custody не остаётся в `.env`.
@@ -316,4 +316,4 @@ Wallet пользователя уменьшается
 - `X × 365 × N` является линейной иллюстрацией, не обещанием пожизненного начисления;
 - публичный Trust является целевым решением, но текущий Trust-lite остаётся непубличным до калибровки v2.
 
-Открытые decision gates: withdrawal limits/custody production, `peer_point` price/refund/initial reviewers, Trust scale/start/constants/caps, media retention and future abuse/report UX, exact first cohort and founder outreach capacity.
+Открытые decision gates: withdrawal limits/custody production, Trust scale/start/constants/caps, media retention and future abuse/report UX, exact first cohort and founder outreach capacity. Human review и peer point возвращаются только отдельным будущим decision-complete планом.

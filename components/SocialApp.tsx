@@ -9,6 +9,7 @@ import FeedPostInteractions from "@/components/FeedPostInteractions";
 import ManualPostComposer from "@/components/ManualPostComposer";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
+import SkillPassportApp from "@/components/SkillPassportApp";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
@@ -1648,6 +1649,7 @@ export default function SocialApp({
             <div><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
             <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
           </div>
+          <SkillPassportApp />
         </section>
       ) : null}
 

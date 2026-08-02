@@ -29,6 +29,22 @@
 
 ## Сейчас
 
+### Skill Passport + `software_creation` L1
+
+- **Статус:** Сейчас — локальный кодовый срез реализован 2026-08-02; migration подготовлена, remote apply и User QA ещё не подтверждены.
+- **Пользовательский результат:** пользователь открывает Skill Passport, проходит короткий `software_creation` L1 challenge, сдаёт небольшую работающую фичу с proof и получает понятный skill-level/evidence результат.
+- **Почему сейчас:** Content Loop уже даёт first-party артефакты, но у пользователя нет проверяемого маршрута от действия к способности, следующему challenge и квалифицированной задаче.
+- **Главное решение:** один vertical slice `software_creation` L1: обучение → deliverable → immutable evidence → три structured review; минимум `2/3 pass` и ни одного нерешённого critical issue. `effective_skill_level = min(earned_skill_level, core_level)`.
+- **Граница шага:** каталог `software_creation`, RPG-блок Skill Passport, одна L1 submission с rework, review request/decision и ручной founder/operator bootstrap для первых reviewers. Сертификаты, `peer_point` ledger/рынок, `referral_acquisition` L1, автоматические L2+, AI-matching и публичный Trust не входят.
+- **Decision-complete план:** `docs/SKILLS_SYSTEM_PLAN.md`; reviewer bootstrap на закрытой когорте — founder/operator или пользователь с уже принятым равным/более высоким уровнем, без оплаты review и без покупки verdict.
+- **Технические проверки:** deterministic contract checks, `pnpm exec tsc --noEmit`, `pnpm lint` и `pnpm build` пройдены локально; bounded HTTP smoke, remote migration и User QA ещё не подтверждены. In-app browser недоступен в текущем окружении.
+- **Ручной UX-сценарий:** открыть Skill Passport → выбрать `software_creation` L1 → пройти brief → создать feature branch/commit → приложить repo/proof/test scenario/limitations → отправить на 3 review → получить 2/3 pass или rework по critical issue → увидеть evidence и следующий шаг.
+- **Метрика:** completion rate L1, доля submissions с валидным proof, время до первого review, rework rate и расхождение reviewer verdicts.
+- **Блокеры:** продуктовые границы сняты этим планом; внешние reviewer-пулы и peer-point экономика сознательно отложены. Не смешивать skill verdict с Wallet/Core ledger.
+- **Связанный документ:** docs/SKILLS_SYSTEM_PLAN.md.
+
+## Технически реализовано / нужен User QA
+
 ### User Content Growth Loop
 
 - **Статус:** Сейчас — кодовый срез и remote migration реализованы 2026-08-02; ручной User QA и bounded HTTP smoke остаются отдельными шагами.

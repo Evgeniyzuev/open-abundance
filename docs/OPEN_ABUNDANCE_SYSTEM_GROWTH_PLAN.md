@@ -466,7 +466,7 @@ next_recommendation
 
 Выход кодового среза: контур `deposit → Wallet → withdrawal` присутствует в приложении и удалённой схеме. Добровольный mainnet User QA, reconciliation и custody-процедуры выполняются отдельным операционным треком. Детали — `WALLET_CRYPTO_RAILS_PLAN.md`.
 
-### Текущая кодовая волна. Контент и измеримое распространение
+### Реализованный кодовый срез. Контент и измеримое распространение
 
 - собственные фото/короткие видео через first-party storage;
 - одна реакция `like`, простые комментарии и canonical repost без копирования media;
@@ -476,7 +476,7 @@ next_recommendation
 
 Выход: подтверждённый результат превращается в безопасный контент и приводит к onboarding/first result, а не только к просмотру.
 
-### Волна 3. Skills, фабрика задач и AI-координация
+### Текущая кодовая волна. Skills, фабрика задач и AI-координация
 
 - Skill Passport foundation и RPG-представление;
 - `software_creation` L1 с практической фичей, `peer_point` и тремя review;
@@ -508,13 +508,13 @@ next_recommendation
 
 Ближайший операционный пакет:
 
-1. Довести текущий Verified Reality Feed до миграции и User QA; не открывать вторую кодовую карточку параллельно.
+1. Оставить Content Loop bounded HTTP smoke и ручной User QA отдельным операционным хвостом; не блокировать им следующую кодовую карточку.
 2. Подготовить одно честное приглашение и список первых 5–10 людей из тёплой сети; затем наращивать закрытую когорту до 20–50 партиями.
 3. Проверить события `registration → wish+plan → first result → D1` и короткий Day 0/Day 1 сценарий.
 4. Провести первую партию вручную, собрать причины отказа/застревания и исправить только главное узкое место.
-5. Текущим content slice связать пользовательское media, like/comment, Daily Progress и outbound share с first result; применить migration и провести User QA Content Loop.
+5. Провести bounded HTTP smoke и ручной User QA Content Loop; его QA не блокирует следующую кодовую карточку.
 6. Отдельно провести ручной mainnet User QA, reconciliation и custody-процедуры native TON withdrawal; не блокировать ими следующий кодовый шаг.
-7. После устойчивой активации запустить `software_creation` L1 и первые реальные системные задачи.
+7. Текущим кодовым шагом запустить `Skill Passport + software_creation` L1 и первые реальные system tasks после фиксации evidence/review contract.
 8. Раз в неделю вести короткий внутренний отчёт: activation, D1/D3/D7, external inflow, coverage, `Total Core`, принятые результаты и incident/abuse signals.
 
 Связанные документы: [OPEN_ABUNDANCE_MASTER_PLAN.md](OPEN_ABUNDANCE_MASTER_PLAN.md), [MASTER_KANBAN.md](MASTER_KANBAN.md), [WALLET_CRYPTO_RAILS_PLAN.md](WALLET_CRYPTO_RAILS_PLAN.md), [SKILLS_SYSTEM_PLAN.md](SKILLS_SYSTEM_PLAN.md), [FEED_POSTING_RECOMMENDATIONS_PLAN.md](FEED_POSTING_RECOMMENDATIONS_PLAN.md), [BLOGGER_OUTREACH_PLAN.md](BLOGGER_OUTREACH_PLAN.md).

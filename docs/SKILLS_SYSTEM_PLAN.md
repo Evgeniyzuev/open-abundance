@@ -1,6 +1,6 @@
 # Skills System Plan
 
-Статус: канонический продуктовый план системы навыков, 2026-08-01. Реализация не начата. Оперативный порядок задаёт только `MASTER_KANBAN.md`.
+Статус: канонический продуктовый план системы навыков, обновлён 2026-08-02. Локальная реализация `Skill Passport + software_creation L1` добавлена; migration подготовлена, remote apply и User QA ещё не подтверждены. Оперативный порядок задаёт только `MASTER_KANBAN.md`.
 
 ## 1. Продуктовый контракт
 
@@ -26,7 +26,7 @@
 | `mentoring` | Наставничество | подтверждённый прогресс человека, которому помогли |
 | `sales` | Продажи | завершённая выручка без возврата или открытого спора |
 
-`vibecoding` — начальный способ освоения `software_creation`, а не отдельный навык. В первом вертикальном срезе реализуются только `software_creation` L1 и `referral_acquisition` L1; остальные направления остаются каталогом развития.
+`vibecoding` — начальный способ освоения `software_creation`, а не отдельный навык. В первом skill-вертикальном срезе реализуется `software_creation` L1; `referral_acquisition` L1 идёт следующим отдельным slice, остальные направления остаются каталогом развития.
 
 ## 3. Уровни и доказательства
 
@@ -113,5 +113,17 @@ Review использует структурированную rubric: восп�
 - правила цены и возврата `peer_point`;
 - точный порог выручки для `sales` L1;
 - когда rubric или evidence устаревают и требуют повторного подтверждения.
+
+## 10. Decision-complete MVP slice — 2026-08-02
+
+До появления отдельного reviewer-пула закрытая когорта использует ручной bootstrap: founder/operator или пользователь с уже принятым равным/более высоким skill level может занять review slot. Review не оплачивается, `peer_point` не создаётся, а verdict нельзя купить.
+
+В реализацию входят: каталог `software_creation`, RPG-блок Skill Passport, одна L1 submission, immutable evidence, structured review request/decision, rework по critical issue и серверный расчёт `earned_skill_level`/`effective_skill_level`. Приёмка — три независимых review, минимум `2/3 pass`, отсутствие нерешённого critical issue.
+
+В реализацию не входят: сертификаты, peer-point ledger и рынок review, `referral_acquisition` L1, автоматические L2+, AI-matching, публичный Trust и автоматический Core/Wallet reward. Skill verdict и evidence остаются отдельными от финансового ledger.
+
+## 11. Current implementation status — 2026-08-02
+
+Локально добавлены catalog `software_creation`, RPG-блок Skill Passport в профиле, одна L1 submission с versioned immutable evidence, structured review queue/decision, rework и server-side расчёт `earned_skill_level`/`effective_skill_level`. Technical QA локально включает deterministic contract checks, TypeScript, lint и production build. Remote migration, reviewer bootstrap configuration и ручной User QA остаются внешними шагами.
 
 Связанные документы: `CHALLENGES_CATALOG.md`, `OPEN_ABUNDANCE_SYSTEM_GROWTH_PLAN.md`, `TRUST_RECIPROCITY_MARKET_PLAN.md`, `MASTER_KANBAN.md`.

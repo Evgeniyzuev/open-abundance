@@ -1,6 +1,10 @@
 # Wallet Crypto Rails Plan
 
-Статус: канонический продуктовый план внешних пополнений и выводов, 2026-08-01. Native TON deposit реализован первым срезом; вывод и дополнительные активы ещё не реализованы.
+Статус: канонический продуктовый план внешних пополнений и выводов, 2026-08-02. Native TON deposit реализован; ограниченный тестовый native TON withdrawal slice реализован локально, remote migration и ручной User QA ещё не выполнены.
+
+Текущий реализованный срез: только TON, mainnet по умолчанию, доступ только авторизованным пользователям, ввод суммы в TON, snapshot курса, `1%` service fee сверху, фиксированный network fee reserve, atomic Wallet reserve, idempotency, серверная подпись через `@ton/ton` и статусы `funds_reserved → broadcasting → broadcast`. При неопределённом результате отправки средства не возвращаются автоматически и запрос переводится в `manual_review`; reconciliation, `confirmed` worker, cooling/address history, coverage gate и production custody остаются следующим обязательным шагом.
+
+Для mainnet-проверки серверу нужны `TON_WITHDRAWAL_ENABLED=true`, `TON_WITHDRAWAL_NETWORK=mainnet`, `TON_WITHDRAWAL_MNEMONIC` и небольшой запас TON на derived operating wallet. Без allowlist любой авторизованный пользователь может создать вывод, поэтому до теста обязательны малый `TON_WITHDRAWAL_MAX_TON` и готовая emergency pause через `TON_WITHDRAWAL_ENABLED=false`. Необязательные настройки: `TON_WITHDRAWAL_SOURCE_ADDRESS`, `TON_WITHDRAWAL_TONCENTER_URL`, `TONCENTER_API_KEY`, `TON_WITHDRAWAL_MIN_TON`, `TON_WITHDRAWAL_MAX_TON`, `TON_WITHDRAWAL_NETWORK_FEE_ESTIMATE_TON`, `TON_WITHDRAWAL_NETWORK_FEE_FLOOR_TON`, `TON_WITHDRAWAL_SERVICE_FEE_PERCENT`.
 
 ## 1. Порядок развития
 

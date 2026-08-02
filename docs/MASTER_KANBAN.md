@@ -31,16 +31,17 @@
 
 ### Ограниченный native TON withdrawal
 
-- **Статус:** Сейчас — приоритет принят 2026-08-02; код не начат, этот шаг пока только отмечен в канбане.
+- **Статус:** Сейчас — приоритет принят 2026-08-02; ограниченный тестовый slice реализован локально 2026-08-02 и прошёл локальный Technical QA. Remote migration, environment setup и ручной User QA ещё не выполнены.
 - **Пользовательский результат:** пользователь из allowlist сможет безопасно вывести небольшой объём native TON из Wallet с понятным курсом, комиссиями, лимитами и статусом транзакции.
 - **Почему сейчас:** native TON deposit MVP уже существует; следующий реальный пользовательский контур — замкнуть ограниченный withdrawal loop до USDT Jetton и следующих сетей.
-- **Главное решение:** начать только с allowlist, малых лимитов, atomic Wallet reserve, rate snapshot, 1% service fee сверху, network fee reserve, reconciliation и emergency pause.
-- **Граница текущего шага:** в этой итерации только смена приоритета в канбане; код, миграции и remote/production изменения не выполняются.
+- **Главное решение:** начать с авторизованных пользователей, малых лимитов, atomic Wallet reserve, rate snapshot, 1% service fee сверху, network fee reserve, reconciliation и emergency pause. Allowlist убран по явному решению основателя 2026-08-02.
+- **Граница реализованного среза:** только TON, mainnet по умолчанию, сумма в TON, server-side signer, доступ любому авторизованному пользователю при включённом feature flag, atomic reserve и статусы до `broadcast`; `manual_review` сохраняет резерв при неопределённом результате. Reconciliation/confirmed worker, cooling, coverage gate и production custody остаются открытыми.
+
 - **Критерии следующего decision-complete плана:** success/duplicate/insufficient balance/bad address/timeout/final failure, idempotency, address confirmation/cooling, coverage gate, custody/operator boundary и возврат fee reserve.
-- **Технические проверки:** не запускались — реализация ещё не начата.
-- **Ручной UX-сценарий:** будет подготовлен после decision-complete плана и реализации allowlist slice.
+- **Технические проверки:** `pnpm exec tsc --noEmit`, `pnpm lint` и эскалированный `pnpm build` пройдены 2026-08-02; lint оставил только существующие предупреждения `<img>`. SQL migration подготовлена, но remote Supabase не изменялся.
+- **Ручной UX-сценарий:** после настройки mainnet signer, малого operating balance и allowlist: Wallet → Withdraw TON → ввести TON-адрес и сумму → проверить курс/1%/network reserve/итог → подтвердить → проверить debit в Wallet history и `broadcast`/`manual_review`; затем отдельно проверить insufficient balance, bad address и повтор idempotency key.
 - **Метрика:** доля успешных allowlist withdrawal без расхождения Wallet/chain, время до подтверждения и доля возвратов после final failure.
-- **Блокеры:** до реализации требуется зафиксировать лимиты, custody, операционного ответственного и coverage thresholds.
+- **Блокеры:** для User QA нужны mainnet signer с малым operating balance и применение migration; до расширения за тестовый срез нужны custody, операционный ответственный, coverage thresholds, reconciliation/confirmed worker и процедура возврата при final failure. Без allowlist emergency pause и малый max limit обязательны.
 - **Связанный документ:** docs/WALLET_CRYPTO_RAILS_PLAN.md.
 
 ## Завершённая карточка — Verified Reality Feed

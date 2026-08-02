@@ -5,7 +5,8 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "crypto_deposit";
+  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal";
+  direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
   gross_amount?: number;
@@ -18,6 +19,10 @@ type WalletHistoryRow = {
   rateProvider?: string;
   transactionHash?: string;
   invoiceStatus?: string;
+  serviceFeeUsd?: string;
+  networkFeeReserveUsd?: string;
+  destinationAddress?: string;
+  messageHash?: string;
   created_at: string;
 };
 
@@ -35,6 +40,8 @@ type CryptoDepositLedgerRow = {
   amount: number;
   created_at: string;
   metadata: Record<string, unknown>;
+  operation_type: "crypto_deposit" | "crypto_withdrawal";
+  direction: "credit" | "debit";
 };
 
 export const dynamic = "force-dynamic";
@@ -64,10 +71,9 @@ export async function GET(request: NextRequest) {
 
     const { data: cryptoLedger, error: cryptoError } = await supabase
       .from("wallet_ledger")
-      .select("id,amount,created_at,metadata")
+      .select("id,amount,created_at,metadata,operation_type,direction")
       .eq("user_id", user.id)
-      .eq("operation_type", "crypto_deposit")
-      .eq("direction", "credit")
+      .in("operation_type", ["crypto_deposit", "crypto_withdrawal"])
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -79,6 +85,7 @@ export async function GET(request: NextRequest) {
       id: `daily-core:${row.accrual_date}`,
       operation_date: row.accrual_date,
       kind: "daily_core_payout",
+      direction: "credit",
       amount: Number(row.wallet_amount),
       daily_rate: Number(row.daily_rate),
       gross_amount: Number(row.gross_amount),
@@ -89,19 +96,23 @@ export async function GET(request: NextRequest) {
     const cryptoRows: WalletHistoryRow[] = ((cryptoLedger ?? []) as CryptoDepositLedgerRow[]).map((row) => ({
       id: row.id,
       operation_date: dateOnly(row.created_at),
-      kind: "crypto_deposit",
+      kind: row.operation_type,
+      direction: row.direction,
       amount: Number(row.amount),
-      amountUsd: fixedDecimal(
-        metadataDecimal(row.metadata, "credited_usd_amount") ?? String(row.amount),
-        6
-      ),
+      amountUsd: row.operation_type === "crypto_deposit"
+        ? fixedDecimal(metadataDecimal(row.metadata, "credited_usd_amount") ?? String(row.amount), 6)
+        : fixedDecimal(metadataDecimal(row.metadata, "payout_wallet_amount") ?? "0", 6),
       network: metadataString(row.metadata, "network") ?? "mainnet",
       assetCode: metadataString(row.metadata, "asset_code") ?? "TON",
       assetAmount: baseUnitsToDecimal(metadataDecimal(row.metadata, "amount_nano"), 9),
       usdRate: metadataDecimal(row.metadata, "ton_usd_rate") ?? undefined,
       rateProvider: metadataString(row.metadata, "rate_provider") ?? undefined,
       transactionHash: metadataString(row.metadata, "transaction_hash") ?? undefined,
-      invoiceStatus: metadataString(row.metadata, "invoice_status") ?? undefined,
+      invoiceStatus: metadataString(row.metadata, row.operation_type === "crypto_withdrawal" ? "withdrawal_status" : "invoice_status") ?? undefined,
+      serviceFeeUsd: metadataDecimal(row.metadata, "service_fee_amount") ?? undefined,
+      networkFeeReserveUsd: metadataDecimal(row.metadata, "network_fee_reserve_amount") ?? undefined,
+      destinationAddress: metadataString(row.metadata, "destination_address") ?? undefined,
+      messageHash: metadataString(row.metadata, "message_hash") ?? undefined,
       created_at: row.created_at
     }));
 

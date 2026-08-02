@@ -2591,6 +2591,108 @@ export type Database = {
         }
         Relationships: []
       }
+      ton_withdrawals: {
+        Row: {
+          amount_nano: string
+          amount_ton: string
+          asset_code: string
+          broadcast_at: string | null
+          confirmed_at: string | null
+          created_at: string
+          destination_address: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          message_hash: string | null
+          network: string
+          network_fee_estimate_ton: string
+          network_fee_reserve_amount: string
+          network_fee_reserve_ton: string
+          normalized_destination_address: string
+          payout_wallet_amount: string
+          rate_provider: string
+          rate_source_timestamp: string | null
+          refunded_at: string | null
+          seqno: number | null
+          service_fee_amount: string
+          service_fee_percent: string
+          source_address: string | null
+          status: string
+          ton_usd_rate: string
+          total_reserved_amount: string
+          transaction_hash: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_nano: string
+          amount_ton: string
+          asset_code?: string
+          broadcast_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          destination_address: string
+          error_code?: string | null
+          error_message?: string | null
+          id: string
+          idempotency_key: string
+          message_hash?: string | null
+          network: string
+          network_fee_estimate_ton: string
+          network_fee_reserve_amount: string
+          network_fee_reserve_ton: string
+          normalized_destination_address: string
+          payout_wallet_amount: string
+          rate_provider: string
+          rate_source_timestamp?: string | null
+          refunded_at?: string | null
+          seqno?: number | null
+          service_fee_amount: string
+          service_fee_percent: string
+          source_address?: string | null
+          status?: string
+          ton_usd_rate: string
+          total_reserved_amount: string
+          transaction_hash?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_nano?: string
+          amount_ton?: string
+          asset_code?: string
+          broadcast_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          destination_address?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          message_hash?: string | null
+          network?: string
+          network_fee_estimate_ton?: string
+          network_fee_reserve_amount?: string
+          network_fee_reserve_ton?: string
+          normalized_destination_address?: string
+          payout_wallet_amount?: string
+          rate_provider?: string
+          rate_source_timestamp?: string | null
+          refunded_at?: string | null
+          seqno?: number | null
+          service_fee_amount?: string
+          service_fee_percent?: string
+          source_address?: string | null
+          status?: string
+          ton_usd_rate?: string
+          total_reserved_amount?: string
+          transaction_hash?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       wallet_accounts: {
         Row: {
           balance: number
@@ -2783,6 +2885,13 @@ export type Database = {
         }[]
       }
       calculate_core_level: { Args: { core_balance: number }; Returns: number }
+      begin_ton_withdrawal_broadcast: {
+        Args: { p_withdrawal_id: string }
+        Returns: {
+          claimed: boolean
+          withdrawal_status: string
+        }[]
+      }
       claim_ton_chain_scan: {
         Args: { p_deposit_address: string; p_network: string }
         Returns: string | null
@@ -2946,8 +3055,21 @@ export type Database = {
       }
       invoke_reflection_reminder_dispatch: { Args: never; Returns: undefined }
       invoke_reminder_dispatch: { Args: never; Returns: undefined }
+      complete_ton_withdrawal_broadcast: {
+        Args: {
+          p_message_hash: string
+          p_seqno: number
+          p_source_address: string
+          p_withdrawal_id: string
+        }
+        Returns: undefined
+      }
       mark_ton_deposit_rejected: {
         Args: { p_chain_event_id: string; p_reason: string }
+        Returns: undefined
+      }
+      mark_ton_withdrawal_manual_review: {
+        Args: { p_error_code: string; p_error_message: string; p_withdrawal_id: string }
         Returns: undefined
       }
       preview_team_distribution: {
@@ -3015,6 +3137,39 @@ export type Database = {
       run_ton_deposit_pipeline: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      refund_ton_withdrawal: {
+        Args: { p_error_code: string; p_error_message: string; p_withdrawal_id: string }
+        Returns: undefined
+      }
+      reserve_ton_withdrawal: {
+        Args: {
+          p_amount_nano: string
+          p_amount_ton: string
+          p_destination_address: string
+          p_idempotency_key: string
+          p_network: string
+          p_network_fee_estimate_ton: string
+          p_network_fee_reserve_amount: string
+          p_network_fee_reserve_ton: string
+          p_normalized_destination_address: string
+          p_payout_wallet_amount: string
+          p_rate_provider: string
+          p_rate_source_timestamp: string | null
+          p_service_fee_amount: string
+          p_service_fee_percent: string
+          p_ton_usd_rate: string
+          p_total_reserved_amount: string
+          p_user_id: string
+          p_withdrawal_id: string
+        }
+        Returns: {
+          is_new: boolean
+          total_reserved_amount: string
+          wallet_balance: string
+          withdrawal_id: string
+          withdrawal_status: string
+        }[]
       }
       schedule_ton_deposit_pipeline: {
         Args: Record<PropertyKey, never>

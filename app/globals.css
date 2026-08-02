@@ -831,6 +831,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .topup-modal-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .topup-error { color: var(--danger); font-size: 0.8125rem; text-align: center; }
 .ton-deposit-body { display: grid; gap: 12px; }
+.ton-withdraw-body { display: grid; gap: 12px; }
+.ton-withdraw-fees { display: grid; gap: 7px; border-radius: 12px; padding: 11px 12px; background: var(--surface-soft); }
+.ton-withdraw-fees > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 0.75rem; }
+.ton-withdraw-fees strong { color: var(--text); font-size: 0.8125rem; }
+.ton-withdraw-fees .ton-withdraw-total { margin-top: 3px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--text); font-weight: 850; }
 .ton-deposit-form { display: grid; gap: 14px; }
 .ton-deposit-form .finance-field input { font-size: 1rem; }
 .ton-deposit-asset-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

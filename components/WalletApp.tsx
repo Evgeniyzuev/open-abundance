@@ -34,7 +34,8 @@ type CoreAccrualRow = {
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "crypto_deposit";
+  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal";
+  direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
   gross_amount?: number;
@@ -47,6 +48,10 @@ type WalletHistoryRow = {
   rateProvider?: string;
   transactionHash?: string;
   invoiceStatus?: string;
+  serviceFeeUsd?: string;
+  networkFeeReserveUsd?: string;
+  destinationAddress?: string;
+  messageHash?: string;
   created_at: string;
 };
 type TonDepositInvoice = {
@@ -78,6 +83,36 @@ type DepositQuote = {
   provider: string | null;
   sourceTimestamp: string | null;
   depositEnabled: boolean;
+};
+type TonWithdrawalQuote = {
+  network: string;
+  assetCode: "TON";
+  serviceFeePercent: string;
+  networkFeeEstimateTon: string;
+  networkFeeReserveTon: string;
+  minAmountTon: string;
+  maxAmountTon: string;
+  usdRate: string;
+  rateProvider: string;
+  rateSourceTimestamp: string | null;
+};
+type TonWithdrawal = {
+  id: string;
+  status: string;
+  network: string;
+  destination_address: string;
+  amount_ton: string | null;
+  ton_usd_rate: string | null;
+  payout_wallet_amount: string | null;
+  service_fee_percent: string | null;
+  service_fee_amount: string | null;
+  network_fee_reserve_ton: string | null;
+  network_fee_reserve_amount: string | null;
+  total_reserved_amount: string | null;
+  source_address: string | null;
+  seqno: number | null;
+  message_hash: string | null;
+  error_message: string | null;
 };
 type ChallengeProgressResponse = {
   error?: string;
@@ -227,6 +262,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [targetCalculationTouched, setTargetCalculationTouched] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [marketListings, setMarketListings] = useState<MarketplaceListing[] | null>(null);
   const [marketListingLimit, setMarketListingLimit] = useState(1);
@@ -595,13 +631,13 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                   </div>
                   <span className="wallet-action-label">{t("wallet.deposit.title")}</span>
                 </button>
-                <button className="wallet-action-button" type="button" aria-label="Withdraw">
+                <button className="wallet-action-button" type="button" onClick={() => setWithdrawOpen(true)} aria-label={t("wallet.withdraw.title")}>
                   <div className="wallet-action-icon-wrap">
                     <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 5v14M19 12l-7 7-7-7" />
                     </svg>
                   </div>
-                  <span className="wallet-action-label">Withdraw</span>
+                  <span className="wallet-action-label">{t("wallet.withdraw.title")}</span>
                 </button>
               </div>
               <div className="px-4 mb-6" style={{ marginTop: 8 }}>
@@ -637,10 +673,14 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 <article className="payout-row" key={row.id}>
                   <div>
                     <strong>{formatDay(row.operation_date, locale)}</strong>
-                    <span>{row.kind === "crypto_deposit" ? t("wallet.history.cryptoDeposit") : t("wallet.history.dailyCorePayout")}</span>
+                    <span>{row.kind === "crypto_deposit"
+                      ? t("wallet.history.cryptoDeposit")
+                      : row.kind === "crypto_withdrawal"
+                        ? t("wallet.history.cryptoWithdrawal")
+                        : t("wallet.history.dailyCorePayout")}</span>
                   </div>
                   <div>
-                    <strong>+{row.kind === "crypto_deposit" && row.amountUsd
+                    <strong>{row.kind === "crypto_withdrawal" && row.direction === "debit" ? "-" : "+"}{row.kind === "crypto_deposit" && row.amountUsd
                       ? formatFixedUsd(row.amountUsd, locale)
                       : formatAdaptiveMoney(row.amount, locale)}</strong>
                     <span>{t("wallet.wallet")}</span>
@@ -648,6 +688,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                   <p>
                     {row.kind === "crypto_deposit"
                       ? formatCryptoDepositDetails(row, locale)
+                      : row.kind === "crypto_withdrawal"
+                        ? formatCryptoWithdrawalDetails(row, locale, t)
                       : `${t("wallet.dailyRate")} ${formatPercent((row.daily_rate ?? 0) * 100, locale)} · ${t("wallet.reinvest")} ${formatPercentCompact(row.reinvest_percent ?? 0, locale)}`}
                   </p>
                 </article>
@@ -793,6 +835,20 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           wallet={wallet}
           onClose={() => setDepositOpen(false)}
           onRefresh={onRefresh}
+        />
+      ) : null}
+
+      {withdrawOpen && wallet ? (
+        <TonWithdrawalModal
+          locale={locale}
+          t={t}
+          wallet={wallet}
+          onClose={() => setWithdrawOpen(false)}
+          onSuccess={async (newWallet) => {
+            applyServerData({ wallet: newWallet });
+            setWalletHistoryRows(null);
+            await onRefresh();
+          }}
         />
       ) : null}
 
@@ -1575,6 +1631,209 @@ function SellItemModal({
             <FinanceState title={t("market.noSellableTitle")} description={t("market.limitReached")} />
           )}
         </div>
+      </section>
+    </div>
+  );
+}
+
+function TonWithdrawalModal({
+  locale,
+  t,
+  wallet,
+  onClose,
+  onSuccess
+}: {
+  locale: AppLocale;
+  t: TFunction;
+  wallet: WalletRow;
+  onClose: () => void;
+  onSuccess: (newWallet: WalletRow) => Promise<void>;
+}) {
+  const [quote, setQuote] = useState<TonWithdrawalQuote | null>(null);
+  const [amountTon, setAmountTon] = useState("");
+  const [destinationAddress, setDestinationAddress] = useState("");
+  const [withdrawal, setWithdrawal] = useState<TonWithdrawal | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadQuote() {
+      setLoading(true);
+      try {
+        const token = await getAccessToken();
+        const response = await fetch(`/api/wallet/withdrawals/ton?ts=${Date.now()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+        });
+        const payload = (await response.json()) as { enabled?: boolean; quote?: TonWithdrawalQuote; error?: string };
+        if (!response.ok || payload.error) throw new Error(payload.error ?? t("wallet.withdraw.error.quote"));
+        if (!payload.enabled || !payload.quote) throw new Error(t("wallet.withdraw.unavailable"));
+        if (mounted) setQuote(payload.quote);
+      } catch (loadError) {
+        if (mounted) setError(loadError instanceof Error ? loadError.message : t("wallet.withdraw.error.quote"));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    void loadQuote();
+    return () => { mounted = false; };
+  }, [t]);
+
+  const normalizedAmount = amountTon.trim();
+  const amountNano = normalizedAmount ? tonAmountToNano(normalizedAmount) : null;
+  const amountValue = amountNano ? Number(nanoToTonAmount(amountNano) ?? "0") : 0;
+  const amountValid = Boolean(quote && amountNano && amountValue >= Number(quote.minAmountTon) && amountValue <= Number(quote.maxAmountTon));
+  const destinationValid = destinationAddress.trim().length >= 20;
+  const payoutUsd = quote && amountValid ? amountValue * Number(quote.usdRate) : 0;
+  const serviceFeeUsd = quote && amountValid ? payoutUsd * Number(quote.serviceFeePercent) / 100 : 0;
+  const networkFeeUsd = quote && amountValid ? Number(quote.networkFeeReserveTon) * Number(quote.usdRate) : 0;
+  const totalDebitUsd = payoutUsd + serviceFeeUsd + networkFeeUsd;
+  const balanceValid = totalDebitUsd > 0 && totalDebitUsd <= wallet.balance;
+  const withdrawalId = withdrawal?.id;
+  const withdrawalStatus = withdrawal?.status;
+
+  useEffect(() => {
+    if (!withdrawalId || !withdrawalStatus || !["funds_reserved", "broadcasting"].includes(withdrawalStatus)) return;
+    let mounted = true;
+    async function refreshWithdrawal() {
+      try {
+        const token = await getAccessToken();
+        const response = await fetch(`/api/wallet/withdrawals/ton/${withdrawalId}?ts=${Date.now()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+        });
+        const payload = (await response.json()) as { withdrawal?: TonWithdrawal; error?: string };
+        if (mounted && response.ok && payload.withdrawal) setWithdrawal(payload.withdrawal);
+      } catch {
+        // Keep the last status and retry on the next interval.
+      }
+    }
+    const interval = window.setInterval(() => { void refreshWithdrawal(); }, 15_000);
+    return () => { mounted = false; window.clearInterval(interval); };
+  }, [withdrawalId, withdrawalStatus]);
+
+  async function createWithdrawal() {
+    if (!amountValid) {
+      setError(t("wallet.withdraw.error.amount"));
+      return;
+    }
+    if (!destinationValid) {
+      setError(t("wallet.withdraw.error.address"));
+      return;
+    }
+    if (!balanceValid) {
+      setError(t("wallet.withdraw.error.insufficient"));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/wallet/withdrawals/ton", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          amountTon: normalizedAmount.replace(",", "."),
+          destinationAddress: destinationAddress.trim(),
+          idempotencyKey: crypto.randomUUID()
+        })
+      });
+      const payload = (await response.json()) as { withdrawal?: TonWithdrawal; wallet?: WalletRow; error?: string };
+      if (!response.ok || payload.error || !payload.withdrawal) {
+        throw new Error(payload.error ?? t("wallet.withdraw.error.create"));
+      }
+      setWithdrawal(payload.withdrawal);
+      if (payload.wallet) await onSuccess(payload.wallet);
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : t("wallet.withdraw.error.create"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.withdraw.title")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+          <h2>{t("wallet.withdraw.title")}</h2>
+          <span />
+        </div>
+
+        {loading ? <p className="transfer-muted">{t("app.common.loading")}</p> : null}
+        {error ? <p className="topup-error">{error}</p> : null}
+        {!loading && !withdrawal && quote ? (
+          <div className="ton-withdraw-body">
+            <div className="topup-balance-info">
+              <div className="topup-balance-card">
+                <span>{t("wallet.availableBalance")}</span>
+                <strong className="wallet-color">{formatAdaptiveMoney(wallet.balance, locale)}</strong>
+              </div>
+              <div className="topup-balance-card">
+                <span>{t("wallet.withdraw.rate")}</span>
+                <strong>{formatFixedUsd(quote.usdRate, locale)} / TON</strong>
+              </div>
+            </div>
+            <label className="finance-field">
+              <span>{t("wallet.withdraw.amount")}</span>
+              <input
+                inputMode="decimal"
+                value={amountTon}
+                onChange={(event) => { setAmountTon(event.target.value); setError(null); }}
+                placeholder={t("wallet.withdraw.amountPlaceholder")}
+              />
+            </label>
+            {normalizedAmount && (!amountNano || !amountValid) ? <p className="topup-error">{t("wallet.withdraw.error.amountRange", { min: quote.minAmountTon, max: quote.maxAmountTon })}</p> : null}
+            <label className="finance-field">
+              <span>{t("wallet.withdraw.address")}</span>
+              <input
+                type="text"
+                value={destinationAddress}
+                onChange={(event) => { setDestinationAddress(event.target.value); setError(null); }}
+                placeholder={t("wallet.withdraw.addressPlaceholder")}
+                autoComplete="off"
+              />
+            </label>
+            <div className="ton-withdraw-fees">
+              <div><span>{t("wallet.withdraw.payout")}</span><strong>{formatFixedUsd(String(payoutUsd), locale)}</strong></div>
+              <div><span>{t("wallet.withdraw.serviceFee", { percent: quote.serviceFeePercent })}</span><strong>{formatFixedUsd(String(serviceFeeUsd), locale)}</strong></div>
+              <div><span>{t("wallet.withdraw.networkFee")}</span><strong>{formatFixedUsd(String(networkFeeUsd), locale)}</strong></div>
+              <div className="ton-withdraw-total"><span>{t("wallet.withdraw.total")}</span><strong>{formatFixedUsd(String(totalDebitUsd), locale)}</strong></div>
+            </div>
+            <p className="transfer-muted">{t("wallet.withdraw.testNotice", { network: quote.network })}</p>
+            {destinationAddress.trim() && !destinationValid ? <p className="topup-error">{t("wallet.withdraw.error.address")}</p> : null}
+            {amountValid && !balanceValid ? <p className="topup-error">{t("wallet.withdraw.error.insufficient")}</p> : null}
+            <div className="topup-modal-actions">
+              <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+              <button className="challenge-primary-action" type="button" disabled={!amountValid || !destinationValid || !balanceValid || saving} onClick={() => void createWithdrawal()}>
+                {saving ? t("app.common.loading") : t("wallet.withdraw.confirm")}
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {withdrawal ? (
+          <div className="ton-withdraw-body">
+            <div className="ton-deposit-status">
+              <span>{t("wallet.withdraw.statusLabel")}</span>
+              <strong>{t(withdrawalStatusKey(withdrawal.status))}</strong>
+            </div>
+            <div className="ton-deposit-field"><span>{t("wallet.withdraw.amount")}</span><strong>{withdrawal.amount_ton ?? "—"} TON</strong></div>
+            <div className="ton-deposit-field"><span>{t("wallet.withdraw.address")}</span><code>{withdrawal.destination_address}</code></div>
+            <div className="ton-withdraw-fees">
+              <div><span>{t("wallet.withdraw.payout")}</span><strong>{formatFixedUsd(withdrawal.payout_wallet_amount ?? "0", locale)}</strong></div>
+              <div><span>{t("wallet.withdraw.serviceFee", { percent: withdrawal.service_fee_percent ?? "1" })}</span><strong>{formatFixedUsd(withdrawal.service_fee_amount ?? "0", locale)}</strong></div>
+              <div><span>{t("wallet.withdraw.networkFee")}</span><strong>{formatFixedUsd(withdrawal.network_fee_reserve_amount ?? "0", locale)}</strong></div>
+              <div className="ton-withdraw-total"><span>{t("wallet.withdraw.total")}</span><strong>{formatFixedUsd(withdrawal.total_reserved_amount ?? "0", locale)}</strong></div>
+            </div>
+            {withdrawal.message_hash ? <p className="transfer-muted">{t("wallet.withdraw.messageHash", { hash: withdrawal.message_hash })}</p> : null}
+            {withdrawal.error_message ? <p className="topup-error">{withdrawal.error_message}</p> : null}
+            <button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.done")}</button>
+          </div>
+        ) : null}
       </section>
     </div>
   );
@@ -2589,6 +2848,17 @@ function formatCryptoDepositDetails(row: WalletHistoryRow, locale: AppLocale): s
   return details.join(" · ");
 }
 
+function formatCryptoWithdrawalDetails(row: WalletHistoryRow, locale: AppLocale, t: TFunction): string {
+  const details: string[] = [];
+  if (row.assetAmount && row.assetCode) details.push(`${row.assetAmount} ${row.assetCode}`);
+  if (row.network) details.push(row.network);
+  if (row.serviceFeeUsd) details.push(`${t("wallet.withdraw.serviceFeeShort")} ${formatFixedUsd(row.serviceFeeUsd, locale)}`);
+  if (row.networkFeeReserveUsd) details.push(`${t("wallet.withdraw.networkFeeShort")} ${formatFixedUsd(row.networkFeeReserveUsd, locale)}`);
+  if (row.destinationAddress) details.push(shortHash(row.destinationAddress));
+  if (row.messageHash) details.push(shortHash(row.messageHash));
+  return `${t(withdrawalStatusKey(row.invoiceStatus ?? "funds_reserved"))}${details.length ? ` · ${details.join(" · ")}` : ""}`;
+}
+
 function isTonDepositTerminal(status: string): boolean {
   return ["credited", "credited_late", "credited_amount_mismatch", "rejected", "cancelled"].includes(status);
 }
@@ -2615,6 +2885,16 @@ function tonDepositStatusKey(status: string): MessageKey {
   if (status === "awaiting_rate") return "wallet.deposit.status.awaitingRate";
   if (status === "expired") return "wallet.deposit.status.expired";
   return "wallet.deposit.status.waiting";
+}
+
+function withdrawalStatusKey(status: string): MessageKey {
+  if (status === "broadcast") return "wallet.withdraw.status.broadcast";
+  if (status === "confirmed") return "wallet.withdraw.status.confirmed";
+  if (status === "manual_review") return "wallet.withdraw.status.manualReview";
+  if (status === "refunded") return "wallet.withdraw.status.refunded";
+  if (status === "failed") return "wallet.withdraw.status.failed";
+  if (status === "broadcasting") return "wallet.withdraw.status.broadcasting";
+  return "wallet.withdraw.status.reserved";
 }
 
 function parseNumber(value: string): number {

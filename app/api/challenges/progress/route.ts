@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose valid attention values before saving the scenario." }, { status: 400 });
   }
 
-  if (body.verificationLogic === "core_law_understood" && normalizeScore(body.score) < 3) {
-    return NextResponse.json({ error: "Pass all Core law questions before saving the result." }, { status: 400 });
+  if (body.verificationLogic === "core_law_understood" && normalizeScore(body.score) < 4) {
+    return NextResponse.json({ error: "Pass at least 4 of 5 Core law questions before saving the result." }, { status: 400 });
   }
 
   const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {

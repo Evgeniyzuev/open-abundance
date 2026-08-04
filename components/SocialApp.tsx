@@ -138,6 +138,26 @@ type PublicProfilePayload = {
   error?: string;
 };
 type FeedFilter = "all" | "stories" | "system" | "reviews";
+type FeedCacheEntry = {
+  payload: FeedPayload;
+  fetchedAt: number;
+  locale: AppLocale;
+};
+type FeedCache = Record<FeedFilter, FeedCacheEntry | null>;
+
+const FEED_CACHE_TTL_MS = 60_000;
+
+function createFeedCache(): FeedCache {
+  return { all: null, stories: null, system: null, reviews: null };
+}
+
+function createFeedCursors(): Record<FeedFilter, string | null> {
+  return { all: null, stories: null, system: null, reviews: null };
+}
+
+function createFeedRequestIds(): Record<FeedFilter, number> {
+  return { all: 0, stories: 0, system: 0, reviews: 0 };
+}
 type ReviewEditPayload = {
   body: string;
   overallRating: number;
@@ -285,8 +305,16 @@ export default function SocialApp({
   const [selectedSystemAccountKey, setSelectedSystemAccountKey] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
   const feedScrollPositionRef = useRef(0);
-  const feedCursorRef = useRef<string | null>(null);
+  const feedFilterRef = useRef<FeedFilter>("all");
+  const feedCacheRef = useRef<FeedCache>(createFeedCache());
+  const feedCursorRef = useRef<Record<FeedFilter, string | null>>(createFeedCursors());
+  const feedRequestIdsRef = useRef<Record<FeedFilter, number>>(createFeedRequestIds());
+  const systemDraftsLoadedRef = useRef(false);
+  const systemDraftsLoadingRef = useRef(false);
+  const systemDraftsLocaleRef = useRef<AppLocale | null>(null);
   const dailyDraftEnsuredRef = useRef(false);
+  const feedRefreshNonceRef = useRef(refreshNonce);
+  feedFilterRef.current = feedFilter;
 
   useEffect(() => {
     if (!openFeedDraftsNonce) return;
@@ -344,7 +372,12 @@ export default function SocialApp({
     setSelectedBlogAuthorId(null);
     setSelectedSystemAccountKey(null);
     setSelectedPost(null);
-    feedCursorRef.current = null;
+    feedCacheRef.current = createFeedCache();
+    feedCursorRef.current = createFeedCursors();
+    feedRequestIdsRef.current = createFeedRequestIds();
+    systemDraftsLoadedRef.current = false;
+    systemDraftsLoadingRef.current = false;
+    systemDraftsLocaleRef.current = null;
     dailyDraftEnsuredRef.current = false;
   }, [user?.id]);
 
@@ -473,18 +506,25 @@ export default function SocialApp({
   }, [loadContacts, loadOptionalTrustConfirmations, loadPeople]);
 
   const loadSystemDrafts = useCallback(async () => {
-    if (!user) return;
-    const token = await getAccessToken();
-    const params = new URLSearchParams({ scope: "blog", drafts: "system", locale, limit: "20", ts: String(Date.now()) });
-    const response = await fetch(`/api/social/feed?${params.toString()}`, {
-      cache: "no-store",
-      headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
-    });
-    const payload = (await response.json()) as FeedPayload;
-    if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load system drafts.");
-    const drafts = payload.posts ?? [];
-    setSystemDrafts(drafts);
-    setDailyDraft((current) => current ?? drafts.find((post) => post.post_type === "daily_progress" || post.post_type === "level_up") ?? null);
+    if (!user || systemDraftsLoadingRef.current) return;
+    systemDraftsLoadingRef.current = true;
+    try {
+      const token = await getAccessToken();
+      const params = new URLSearchParams({ scope: "blog", drafts: "system", locale, limit: "20", ts: String(Date.now()) });
+      const response = await fetch(`/api/social/feed?${params.toString()}`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+      });
+      const payload = (await response.json()) as FeedPayload;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load system drafts.");
+      const drafts = payload.posts ?? [];
+      setSystemDrafts(drafts);
+      setDailyDraft((current) => current ?? drafts.find((post) => post.post_type === "daily_progress" || post.post_type === "level_up") ?? null);
+      systemDraftsLoadedRef.current = true;
+      systemDraftsLocaleRef.current = locale;
+    } finally {
+      systemDraftsLoadingRef.current = false;
+    }
   }, [locale, user]);
 
   const ensureDailyDraft = useCallback(async () => {
@@ -506,19 +546,35 @@ export default function SocialApp({
     }
   }, [user]);
 
-  const loadFeed = useCallback(async (append = false) => {
+  const loadFeed = useCallback(async (append = false, force = false) => {
     if (!user) return;
+
+    const requestedFilter = feedFilter;
+    const cachedEntry = feedCacheRef.current[requestedFilter];
+    const hasUsableCache = cachedEntry?.locale === locale;
+    const cacheIsFresh = Boolean(cachedEntry && hasUsableCache && Date.now() - cachedEntry.fetchedAt < FEED_CACHE_TTL_MS);
+
     if (!append) {
       void ensureDailyDraft();
-      void loadSystemDrafts();
+      if (!systemDraftsLoadedRef.current || systemDraftsLocaleRef.current !== locale) void loadSystemDrafts();
+      if (hasUsableCache && cachedEntry && feedFilterRef.current === requestedFilter) {
+        setFeedPayload(cachedEntry.payload);
+      }
+      if (!force && cacheIsFresh) {
+        if (feedFilterRef.current === requestedFilter) setFeedLoading(false);
+        return;
+      }
     }
+
+    const requestId = feedRequestIdsRef.current[requestedFilter] + 1;
+    feedRequestIdsRef.current[requestedFilter] = requestId;
     if (append) setFeedLoadingMore(true);
     else setFeedLoading(true);
     try {
       const token = await getAccessToken();
       const params = new URLSearchParams({ scope: "feed", locale, limit: "20", ts: String(Date.now()) });
-      if (feedFilter !== "all") params.set("category", feedFilter);
-      if (append && feedCursorRef.current) params.set("cursor", feedCursorRef.current);
+      if (requestedFilter !== "all") params.set("category", requestedFilter);
+      if (append && feedCursorRef.current[requestedFilter]) params.set("cursor", feedCursorRef.current[requestedFilter]!);
       const response = await fetch(`/api/social/feed?${params.toString()}`, {
         cache: "no-store",
         headers: {
@@ -528,13 +584,20 @@ export default function SocialApp({
       });
       const payload = (await response.json()) as FeedPayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load feed.");
-      feedCursorRef.current = payload.nextCursor ?? null;
-      setFeedPayload((current) => append && current
-        ? { ...payload, posts: [...current.posts, ...payload.posts] }
-        : payload);
+      if (feedRequestIdsRef.current[requestedFilter] !== requestId) return;
+
+      const currentEntry = feedCacheRef.current[requestedFilter];
+      const currentPayload = currentEntry?.locale === locale ? currentEntry.payload : null;
+      const nextPayload = append && currentPayload
+        ? { ...payload, posts: [...currentPayload.posts, ...payload.posts] }
+        : payload;
+      feedCursorRef.current[requestedFilter] = payload.nextCursor ?? null;
+      feedCacheRef.current[requestedFilter] = { payload: nextPayload, fetchedAt: Date.now(), locale };
+      if (feedFilterRef.current === requestedFilter) setFeedPayload(nextPayload);
     } finally {
+      if (feedRequestIdsRef.current[requestedFilter] !== requestId) return;
       if (append) setFeedLoadingMore(false);
-      else setFeedLoading(false);
+      else if (feedFilterRef.current === requestedFilter) setFeedLoading(false);
     }
   }, [ensureDailyDraft, feedFilter, loadSystemDrafts, locale, user]);
 
@@ -606,8 +669,10 @@ export default function SocialApp({
       return;
     }
 
+    const forceFeedRefresh = activeTab === "feed" && refreshNonce !== feedRefreshNonceRef.current;
+    if (activeTab === "feed" && !selectedSystemAccountKey) feedRefreshNonceRef.current = refreshNonce;
     const load = activeTab === "feed"
-      ? selectedSystemAccountKey ? loadSystemProfile : loadFeed
+      ? selectedSystemAccountKey ? loadSystemProfile : () => loadFeed(false, forceFeedRefresh)
       : activeTab === "people" ? loadPeopleHub
       : activeTab === "blog" ? loadBlog
       : activeTab === "teams" ? loadTeamContext
@@ -623,6 +688,26 @@ export default function SocialApp({
   const handle = profile?.username ? `@${profile.username}` : user?.email ?? t("profile.localMode");
   const pendingIncomingConfirmations = trustConfirmations?.filter((item) => item.counterparty_user_id === user?.id && item.status === "pending").length ?? 0;
   const combinedError = error ?? socialError;
+
+  function updateCachedFeedPayloads(update: (payload: FeedPayload) => FeedPayload) {
+    const nextCache = { ...feedCacheRef.current };
+    (Object.keys(nextCache) as FeedFilter[]).forEach((filter) => {
+      const entry = nextCache[filter];
+      if (entry) nextCache[filter] = { ...entry, payload: update(entry.payload) };
+    });
+    feedCacheRef.current = nextCache;
+    const currentEntry = nextCache[feedFilterRef.current];
+    setFeedPayload(currentEntry?.locale === locale ? currentEntry.payload : null);
+  }
+
+  function invalidateFeedCache() {
+    const nextCache = { ...feedCacheRef.current };
+    (Object.keys(nextCache) as FeedFilter[]).forEach((filter) => {
+      const entry = nextCache[filter];
+      if (entry) nextCache[filter] = { ...entry, fetchedAt: 0 };
+    });
+    feedCacheRef.current = nextCache;
+  }
 
   async function copyReferralLink() {
     if (!referralLink) return;
@@ -782,7 +867,7 @@ export default function SocialApp({
               : item)
           }
         : current);
-    setFeedPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
+    updateCachedFeedPayloads((payload) => updateFeedWishCopyState(payload, wishId, copiedIncrement) ?? payload);
     setBlogPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setSystemPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setSelectedPost((current) => current ? updatePostWishCopyState(current, wishId, copiedIncrement) : current);
@@ -976,7 +1061,7 @@ export default function SocialApp({
       const payload = (await response.json()) as { post?: FeedPost; error?: string };
       if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to create daily draft.");
       setDailyDraft(payload.post);
-      await Promise.all([loadFeed(), loadBlog()]);
+      await Promise.all([loadFeed(false, true), loadBlog()]);
     } catch (draftError) {
       console.warn("Daily draft create failed", draftError);
       setSocialError(draftError instanceof Error ? draftError.message : "Failed to create daily draft.");
@@ -1004,7 +1089,7 @@ export default function SocialApp({
         createdPost = { ...createdPost, media: [media] };
       }
       setManualDraft(createdPost);
-      await Promise.all([loadFeed(), loadBlog()]);
+      await Promise.all([loadFeed(false, true), loadBlog()]);
     } catch (manualPostError) {
       console.warn("Manual post create failed", manualPostError);
       setSocialError(manualPostError instanceof Error ? manualPostError.message : "Failed to create manual post.");
@@ -1065,7 +1150,8 @@ export default function SocialApp({
       const payload = (await response.json()) as { post?: FeedPost; error?: string };
       if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to add external link.");
       setExternalLinkUrl("");
-      await Promise.all([loadFeed(), loadBlog()]);
+      invalidateFeedCache();
+      await Promise.all([loadFeed(false, true), loadBlog()]);
     } catch (linkError) {
       console.warn("External link post create failed", linkError);
       setSocialError(linkError instanceof Error ? linkError.message : "Failed to add external link.");
@@ -1079,7 +1165,7 @@ export default function SocialApp({
     setSystemDrafts((current) => current.map(update));
     setDailyDraft((current) => current ? update(current) : current);
     setManualDraft((current) => current ? update(current) : current);
-    setFeedPayload((current) => current ? { ...current, posts: current.posts.map(update) } : current);
+    updateCachedFeedPayloads((payload) => ({ ...payload, posts: payload.posts.map(update) }));
     setBlogPayload((current) => current ? { ...current, posts: current.posts.map(update) } : current);
     setSelectedPost((current) => current ? update(current) : current);
   }
@@ -1159,7 +1245,8 @@ export default function SocialApp({
       setDailyDraft((current) => current?.id === updatedPost.id ? updatedPost : current);
       setManualDraft((current) => current?.id === updatedPost.id ? null : current);
       setSelectedPost((current) => current?.id === updatedPost.id ? updatedPost : current);
-      await Promise.all([loadFeed(), loadBlog()]);
+      invalidateFeedCache();
+      await Promise.all([loadFeed(false, true), loadBlog()]);
       if (updatedPost.system_verified) onTabChange("feed");
     } catch (publishError) {
       console.warn("Feed post publish failed", publishError);
@@ -1190,10 +1277,10 @@ export default function SocialApp({
         ...payload.post,
         projectReview: payload.post.projectReview ?? post.projectReview
       };
-      setFeedPayload((current) => replaceFeedPost(current, updatedPost));
+      updateCachedFeedPayloads((current) => replaceFeedPost(current, updatedPost) ?? current);
       setBlogPayload((current) => replaceFeedPost(current, updatedPost));
       setSelectedPost(updatedPost);
-      await loadFeed();
+      await loadFeed(false, true);
     } catch (updateError) {
       console.warn("Project review update failed", updateError);
       setSocialError(updateError instanceof Error ? updateError.message : "Failed to update review.");
@@ -1220,7 +1307,8 @@ export default function SocialApp({
       setDailyDraft((current) => current?.id === post.id ? null : current);
       setManualDraft((current) => current?.id === post.id ? null : current);
       setSelectedPost((current) => current?.id === post.id ? null : current);
-      await Promise.all([loadFeed(), loadBlog()]);
+      invalidateFeedCache();
+      await Promise.all([loadFeed(false, true), loadBlog()]);
     } catch (deleteError) {
       console.warn("Feed post delete failed", deleteError);
       setSocialError(deleteError instanceof Error ? deleteError.message : "Failed to delete post.");
@@ -1368,8 +1456,10 @@ export default function SocialApp({
           onDraftBodyChangeForPost={updateSystemDraftBody}
           onExternalLinkUrlChange={setExternalLinkUrl}
           onFilterChange={(nextFilter) => {
-            feedCursorRef.current = null;
-            setFeedPayload(null);
+            if (nextFilter === feedFilter) return;
+            feedFilterRef.current = nextFilter;
+            const cachedEntry = feedCacheRef.current[nextFilter];
+            setFeedPayload(cachedEntry?.locale === locale ? cachedEntry.payload : null);
             setFeedFilter(nextFilter);
           }}
           onLoadMore={() => { void loadFeed(true); }}
@@ -1790,7 +1880,10 @@ export default function SocialApp({
           onUploadCover={uploadPostCover}
           onUpdateReview={updateProjectReview}
           onCopyWish={copyPublicWishToMine}
-          onReposted={() => { void Promise.all([loadFeed(), loadBlog()]); }}
+          onReposted={() => {
+            invalidateFeedCache();
+            void Promise.all([loadFeed(false, true), loadBlog()]);
+          }}
         />
       ) : null}
       {directTargetUserId ? (

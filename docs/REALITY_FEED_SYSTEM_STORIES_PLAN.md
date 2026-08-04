@@ -361,3 +361,5 @@ Abundance говорит человеку: «Я знаю успешные пут
 - В финале каждой истории вести к следующей главе серии, а не к покупке, регистрации или финансовому обещанию.
 
 Текущий статус 2026-08-01: fallback-иконки системных историй и сохраненная иконка `abundance_system` переведены на актуальный app icon.
+
+- 2026-08-04: feed filter payloads are kept in a client-side per-category cache; stale entries refresh in the background when the filter is revisited.

@@ -14,6 +14,9 @@ function assertIncludes(source, value, label) {
 assertIncludes(lib, "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs", "official master allowlist");
 assertIncludes(lib, "TON_USDT_DECIMALS = 6", "USDT decimals contract");
 assertIncludes(lib, "getWalletAddress", "master/token-wallet derivation");
+assertIncludes(lib, "normalizeTonCenterRestEndpoint", "Toncenter REST endpoint normalization");
+assertIncludes(lib, "normalizeTonCenterRpcEndpoint", "Toncenter JSON-RPC endpoint normalization");
+assertIncludes(lib, "endpoint: config.rpcEndpoint", "Toncenter JSON-RPC client endpoint");
 assertIncludes(lib, "0x0f8a7ea5", "jetton transfer opcode");
 assertIncludes(lib, ".storeCoins(1)", "positive transfer notification amount");
 assertIncludes(migration, "check (decimals = 6)", "database decimals guard");

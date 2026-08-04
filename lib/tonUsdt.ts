@@ -18,8 +18,10 @@ import { resolveTonPriceResolution, resolveUsdtPriceSnapshot, type TonNetwork, t
 
 export const TON_USDT_MASTER_ADDRESS = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs";
 export const TON_USDT_DECIMALS = 6;
-const DEFAULT_MAINNET_TONCENTER_URL = "https://toncenter.com/api/v2/jsonRPC";
-const DEFAULT_TESTNET_TONCENTER_URL = "https://testnet.toncenter.com/api/v2/jsonRPC";
+const DEFAULT_MAINNET_TONCENTER_REST_URL = "https://toncenter.com/api/v2";
+const DEFAULT_MAINNET_TONCENTER_RPC_URL = "https://toncenter.com/api/v2/jsonRPC";
+const DEFAULT_TESTNET_TONCENTER_REST_URL = "https://testnet.toncenter.com/api/v2";
+const DEFAULT_TESTNET_TONCENTER_RPC_URL = "https://testnet.toncenter.com/api/v2/jsonRPC";
 const PRICE_REQUEST_TIMEOUT_MS = 5_000;
 const DEFAULT_MAX_PROVIDER_DEVIATION_PERCENT = 2;
 
@@ -35,6 +37,7 @@ export type TonUsdtConfig = {
   depositJettonWalletAddress: string;
   decimals: number;
   endpoint: string;
+  rpcEndpoint: string;
   apiKey?: string;
   withdrawalEnabled: boolean;
   serviceFeePercent: string;
@@ -106,10 +109,19 @@ export async function loadTonUsdtConfig(supabase?: AnySupabaseClient): Promise<T
     dbConfig?.deposit_jetton_wallet_address || configuredEnvValue(process.env.TON_USDT_JETTON_WALLET_ADDRESS),
     network
   );
-  const endpoint = configuredEnvValue(dbConfig?.toncenter_api_url)
+  const configuredToncenterEndpoint = configuredEnvValue(dbConfig?.toncenter_api_url)
     || configuredEnvValue(process.env.TON_USDT_TONCENTER_URL)
-    || configuredEnvValue(process.env.TONCENTER_API_URL)
-    || (network === "mainnet" ? DEFAULT_MAINNET_TONCENTER_URL : DEFAULT_TESTNET_TONCENTER_URL);
+    || configuredEnvValue(process.env.TONCENTER_API_URL);
+  const endpoint = normalizeTonCenterRestEndpoint(
+    configuredToncenterEndpoint
+      || (network === "mainnet" ? DEFAULT_MAINNET_TONCENTER_REST_URL : DEFAULT_TESTNET_TONCENTER_REST_URL)
+  );
+  const rpcEndpoint = normalizeTonCenterRpcEndpoint(
+    configuredEnvValue(process.env.TON_USDT_TONCENTER_URL)
+      || configuredEnvValue(dbConfig?.toncenter_api_url)
+      || configuredEnvValue(process.env.TONCENTER_API_URL)
+      || (network === "mainnet" ? DEFAULT_MAINNET_TONCENTER_RPC_URL : DEFAULT_TESTNET_TONCENTER_RPC_URL)
+  );
   const masterIsAllowed = Boolean(masterAddress)
     && (network !== "mainnet" || masterAddress === normalizeTonAddress(TON_USDT_MASTER_ADDRESS, network));
   const configuredDecimals = Number(configuredEnvValue(process.env.TON_USDT_DECIMALS) || dbConfig?.decimals || TON_USDT_DECIMALS);
@@ -124,6 +136,7 @@ export async function loadTonUsdtConfig(supabase?: AnySupabaseClient): Promise<T
     depositJettonWalletAddress: configuredJettonWallet ?? "",
     decimals: configuredDecimals,
     endpoint,
+    rpcEndpoint,
     apiKey: configuredEnvValue(process.env.TONCENTER_API_KEY),
     withdrawalEnabled: configuredEnvValue(process.env.TON_USDT_WITHDRAWAL_ENABLED)?.toLowerCase() === "true",
     serviceFeePercent: positiveConfiguredDecimal(process.env.TON_USDT_SERVICE_FEE_PERCENT, "1"),
@@ -169,7 +182,7 @@ async function loadDatabaseConfig(supabase: AnySupabaseClient, network: TonNetwo
 export async function deriveTonUsdtJettonWallet(config: TonUsdtConfig): Promise<string | null> {
   try {
     if (!config.masterAddress || !config.depositOwnerAddress) return null;
-    const client = new TonClient({ endpoint: config.endpoint, apiKey: config.apiKey, timeout: 15_000 });
+    const client = new TonClient({ endpoint: config.rpcEndpoint, apiKey: config.apiKey, timeout: 15_000 });
     const master = client.open(JettonMaster.create(Address.parse(config.masterAddress)));
     const owner = Address.parse(config.depositOwnerAddress);
     return (await master.getWalletAddress(owner)).toRawString();
@@ -357,7 +370,7 @@ export async function broadcastTonUsdtWithdrawal({
     if (!destination) throw new Error("Enter a valid TON address.");
     const destinationAddressObject = Address.parse(destination.raw);
     if (destination.raw === wallet.address.toRawString()) throw new Error("Withdrawal address must differ from the operating wallet.");
-    const client = new TonClient({ endpoint: config.endpoint, apiKey: config.apiKey, timeout: 15_000 });
+    const client = new TonClient({ endpoint: config.rpcEndpoint, apiKey: config.apiKey, timeout: 15_000 });
     const master = client.open(JettonMaster.create(Address.parse(config.masterAddress)));
     const jettonWalletAddress = await master.getWalletAddress(wallet.address);
     if (config.depositJettonWalletAddress && jettonWalletAddress.toRawString() !== normalizeTonAddress(config.depositJettonWalletAddress, config.network)) {
@@ -392,6 +405,15 @@ export async function broadcastTonUsdtWithdrawal({
     throw new TonUsdtWithdrawalBroadcastError(error instanceof Error ? error.message : "TON USDT broadcast status is unknown.", "broadcast");
   }
   return { sourceAddress, seqno, messageHash: transfer.hash().toString("hex") };
+}
+
+function normalizeTonCenterRestEndpoint(value: string): string {
+  return value.replace(/\/+$/, "").replace(/\/jsonRPC$/i, "");
+}
+
+function normalizeTonCenterRpcEndpoint(value: string): string {
+  const normalized = value.replace(/\/+$/, "");
+  return /\/jsonRPC$/i.test(normalized) ? normalized : `${normalized}/jsonRPC`;
 }
 
 function normalizeTonAddress(value: unknown, network: TonNetwork): string | null {

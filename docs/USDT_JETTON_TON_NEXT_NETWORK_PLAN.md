@@ -101,6 +101,8 @@ TON_USDT_NETWORK_FEE_ESTIMATE_TON=0.02
 TON_USDT_NETWORK_FEE_FLOOR_TON=0.1
 ```
 
+`TON_USDT_TONCENTER_URL` может быть REST (`/api/v2`) или JSON-RPC (`/api/v2/jsonRPC`); если переменная не задана, `TONCENTER_API_URL` нормализуется для обоих клиентов.
+
 `TON_WITHDRAWAL_MNEMONIC` используется только server-side для withdrawal signer. Конфигурация из Supabase может хранить master/owner/derived wallet mapping, но не секреты.
 
 ## 6. Следующая сеть

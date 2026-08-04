@@ -48,7 +48,7 @@ async function scan(request: NextRequest) {
       return Boolean(lt && /^\d+$/.test(lt) && BigInt(lt) > BigInt(cursor.last_logical_time));
     }).sort(compareTransactionsAscending);
     if (!transactions.length) return jsonResponse({ network: config.network, assetCode: "USDT", scanned: 0, inserted: 0, skipped: true, reason: "no_new_transactions" });
-    const client = new TonClient({ endpoint: config.endpoint, apiKey: config.apiKey, timeout: 15_000 });
+    const client = new TonClient({ endpoint: config.rpcEndpoint, apiKey: config.apiKey, timeout: 15_000 });
     let inserted = 0;
     let ignored = 0;
     for (const transaction of transactions) {

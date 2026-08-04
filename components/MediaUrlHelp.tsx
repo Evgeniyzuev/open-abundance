@@ -26,6 +26,7 @@ export default function MediaUrlHelp({ t }: MediaUrlHelpProps) {
         <span className="media-url-help-popover" role="dialog" aria-label={t("media.urlHelp.title")}>
           <strong>{t("media.urlHelp.title")}</strong>
           <p>{t("media.urlHelp.intro")}</p>
+          <p>{t("media.urlHelp.heic")}</p>
           <ol>
             <li>{t("media.urlHelp.step1")}</li>
             <li>{t("media.urlHelp.step2")}</li>

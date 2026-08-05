@@ -7,6 +7,7 @@ import type { Tables } from "@/lib/database.types";
 import { capturePendingReferral, getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaimed } from "@/lib/guestIdentity";
 import { detectPreferredLocale, normalizeLocale, storeLocalePreference, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
 import { getOnboardingRegistrationLocale } from "@/lib/onboardingContent";
+import { captureAcquisitionContext, readAcquisitionContext } from "@/lib/acquisition";
 import {
   DEFAULT_COLOR_THEME,
   DEFAULT_UI_SCALE,
@@ -96,6 +97,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [colorTheme, uiScale]);
 
   useEffect(() => {
+    captureAcquisitionContext();
     const params = new URLSearchParams(window.location.search);
     const referralCode = params.get("ref");
     if (!referralCode) return;
@@ -221,7 +223,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       let claimedUserId = guest.claimedUserId;
 
       if (!claimedUserId) {
-        const claim = await claimRegistrationAfterAuth(getOnboardingRegistrationLocale());
+        const claim = await claimRegistrationAfterAuth(getOnboardingRegistrationLocale(), {
+          anonymousId: guest.guestId,
+          ...readAcquisitionContext(),
+          referralCode: guest.pendingReferral?.referralCode
+        });
         claimedUserId = claim.userId;
         await markLocalGuestClaimed(claim.userId);
       }

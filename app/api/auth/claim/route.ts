@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { normalizeLocale } from "@/lib/i18n";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
   const displayName = fullName ?? (googleName || user.email || null);
   const avatarUrl = textMetadata(user.user_metadata.avatar_url) ?? textMetadata(user.user_metadata.picture);
   const now = new Date().toISOString();
+  const anonymousId = cleanAttribution(body.anonymousId);
   const { data: existingProfile, error: existingProfileError } = await supabase
     .from("user_profiles")
     .select("default_locale,onboarding_state")
@@ -51,6 +53,8 @@ export async function POST(request: NextRequest) {
   if (existingProfileError) {
     return NextResponse.json({ error: existingProfileError.message }, { status: 500 });
   }
+
+  const isNewRegistration = !existingProfile;
 
   const { error: profileError } = await supabase.from("user_profiles").upsert(
     {
@@ -99,9 +103,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: walletError.message }, { status: 500 });
   }
 
+  if (anonymousId) {
+    await supabase
+      .from("product_events")
+      .update({ user_id: user.id })
+      .eq("anonymous_id", anonymousId)
+      .is("user_id", null);
+  }
+
   const registrationReward = await grantRegistrationReward(supabase, user.id);
   if (registrationReward.error) {
     return NextResponse.json({ error: registrationReward.error }, { status: 500 });
+  }
+
+  if (isNewRegistration) {
+    await recordProductEvent({
+      anonymousId,
+      eventName: "registration_completed",
+      source: "server",
+      userId: user.id,
+      properties: {
+        acquisition_source: cleanAttribution(body.acquisitionSource) ?? (body.referralCode ? "referral" : "direct"),
+        acquisition_medium: cleanAttribution(body.acquisitionMedium),
+        campaign: cleanAttribution(body.campaign),
+        cohort_id: cleanAttribution(body.cohortId),
+        has_referral: Boolean(cleanAttribution(body.referralCode))
+      }
+    });
   }
 
   return NextResponse.json({
@@ -187,11 +215,25 @@ function rewardLabelText(value: Database["public"]["Tables"]["challenges"]["Row"
   return "2$";
 }
 
-async function readJsonBody(request: NextRequest): Promise<{ defaultLocale?: unknown }> {
+async function readJsonBody(request: NextRequest): Promise<{
+  defaultLocale?: unknown;
+  anonymousId?: unknown;
+  acquisitionSource?: unknown;
+  acquisitionMedium?: unknown;
+  campaign?: unknown;
+  cohortId?: unknown;
+  referralCode?: unknown;
+}> {
   try {
     const body = await request.json();
     return body && typeof body === "object" ? body : {};
   } catch {
     return {};
   }
+}
+
+function cleanAttribution(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized ? normalized.slice(0, 100) : undefined;
 }

@@ -22,6 +22,15 @@ export type RegistrationClaimResult = {
   userId: string;
 };
 
+export type RegistrationAttribution = {
+  anonymousId?: string;
+  source?: string;
+  medium?: string;
+  campaign?: string;
+  cohortId?: string;
+  referralCode?: string;
+};
+
 let browserClient: SupabaseClient<Database> | undefined;
 
 export function getBrowserSupabaseClient(): SupabaseClient<Database> {
@@ -79,7 +88,10 @@ function getAuthCallbackUrl(method: AuthMethod): string {
   return callbackUrl.toString();
 }
 
-export async function claimRegistrationAfterAuth(locale: AppLocale = detectBrowserLocale()): Promise<RegistrationClaimResult> {
+export async function claimRegistrationAfterAuth(
+  locale: AppLocale = detectBrowserLocale(),
+  attribution: RegistrationAttribution = {}
+): Promise<RegistrationClaimResult> {
   const supabase = getBrowserSupabaseClient();
   const {
     data: { session },
@@ -95,7 +107,15 @@ export async function claimRegistrationAfterAuth(locale: AppLocale = detectBrows
       "Content-Type": "application/json",
       Authorization: `Bearer ${session.access_token}`
     },
-    body: JSON.stringify({ defaultLocale: normalizeLocale(locale) })
+    body: JSON.stringify({
+      defaultLocale: normalizeLocale(locale),
+      anonymousId: attribution.anonymousId,
+      acquisitionSource: attribution.source,
+      acquisitionMedium: attribution.medium,
+      campaign: attribution.campaign,
+      cohortId: attribution.cohortId,
+      referralCode: attribution.referralCode
+    })
   });
 
   const payload = (await response.json()) as Partial<RegistrationClaimResult> & { error?: string };

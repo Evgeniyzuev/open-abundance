@@ -164,11 +164,47 @@
     - Сначала честная статичная simulation с формулой, watermark и opt-in; face/video позже.
     - Стартует только после устойчивого workflow, калькулятора и подтверждённого D1/D3/D7.
     - Связанный документ: `docs/FUTURE_SIM_PLAN.md`.
+8. [ ] **Humanity confirmation onboarding challenge**
+
+    - Спроектировать заметный шаг «Подтверждение человечности» в onboarding и Today; не считать Google-вход или обычную активность подтверждением.
+    - Рассмотреть короткий phone liveness: лицо по центру и случайные повороты влево/вправо; усиленный вариант — случайные цифры вслух во время короткой видеозаписи. Полный оборот головы на 360° не требуется.
+    - Не хранить raw face/voice в обычной базе приложения: предпочтительны внешний provider/attestation, минимальный статус, версия проверки и timestamp; обязательны ручная доступная альтернатива и ограничение повторов.
+    - Сделать шаг ключевым через прогресс и открытие anti-abuse-sensitive функций, включая системные rewards и реферальные выплаты, но не блокировать базовый доступ и вывод собственных средств.
+    - Acceptance: согласованный UX, threat model replay/deepfake/injection/multiaccount, provider-vs-build решение, recovery flow и только после этого отдельная схема данных и реализация.
+    - До выполнения карточки `humanity_confirmed_accounts` отсутствует в текущем growth report и не выводится из регистраций.
+
+9. [ ] **Capital efficiency observability + Total Core capacity**
+
+    - Собрать детерминированный read model и сценарный калькулятор для `Total Core / Free Reserve`, `coverage`, `Net Wallet Settlement`, внешней доли расчётов и runway 7/30/90 дней.
+    - Отдельно считать максимум обязательств в стресс-сценарии: ставка `0.000633`, максимальная Wallet-доля, Green buffer `125%`, открытые claims и `breach_exit`; Wallet-to-Wallet перевод не считать погашением.
+    - Acceptance: воспроизводимые сценарии для `$1000` Free Reserve, идемпотентные daily snapshots, сверка с ledger, отсутствие balance writes из калькулятора и отчёт о причинах изменения коэффициента.
+    - Связанные документы: `docs/AI_COORDINATOR_SYSTEM_GROWTH_PLAN.md`, `docs/CORE_REINVEST_CALCULATOR_PLAN.md`.
+10. [ ] **System products + provider demand loop**
+
+    - Добавить consent-aware сбор планируемой цели вывода: категория, примерная сумма, срок и срочность; приватные детали не попадают в общий контекст.
+    - Превращать повторяющиеся цели в product/provider challenges: предложение → поставщик → выполнение → подтверждённый `Net Wallet Settlement`.
+    - Acceptance: события `withdrawal_intent → matched_offer → fulfilled → settled`, расчёт внешней выплаты поставщику, фактически сохранённый Wallet и ручной review первой когорты.
+    - Не входит: блокировка вывода, скрытое удержание средств, выдача Core за raw GMV или массовое подключение поставщиков до измерения качества.
+    - Связанные документы: `docs/AI_COORDINATOR_SYSTEM_GROWTH_PLAN.md`, `docs/MARKETPLACE_ESCROW_PLAN.md`.
+11. [ ] **Reinvest scenarios + internal-use challenge pilot**
+
+    - Расширить существующий калькулятор сценариями `50% / 75% / 100%` реинвеста на горизонтах 1/3/5/10 лет и показывать личную разницу без изменения баланса.
+    - Провести малый opt-in пилот челленджей: внутренняя замена запланированной покупки, создание полезного продукта, повторное использование поставщика и добровольный reinvest plan.
+    - Acceptance: proof полезного действия, измерение `reinvest → retention → Net Wallet Settlement`, capacity gate для Core reward; streak «без вывода» не использовать как единственный результат.
+    - Связанные документы: `docs/CORE_REINVEST_CALCULATOR_PLAN.md`, `docs/AI_COORDINATOR_SYSTEM_GROWTH_PLAN.md`, `docs/CHALLENGES_CATALOG.md`.
+12. [ ] **Internal purchase credit pilot**
+
+    - После закрытия Marketplace safety и наблюдаемости запустить только operator-approved пилот прямой оплаты поставщику: без свободного Wallet, cash-out, покупки Core и каскадного заимствования.
+    - Задать лимит от ожидаемого Wallet-потока 60–90 дней, срок, repayment schedule, reserve for credit losses, stop при просрочке и отдельные ledger-события.
+    - Acceptance: идемпотентная выдача, offset будущих начислений, полная прослеживаемость долга, default/arrears сценарии, ручной review и kill switch.
+    - Не включать в production-масштабирование до подтверждения внутреннего погашения, покрытия и качества поставщиков.
+    - Связанные документы: `docs/MUTUAL_CREDIT_MARKET_PLAN.md`, `docs/MARKETPLACE_ESCROW_PLAN.md`, `docs/AI_COORDINATOR_SYSTEM_GROWTH_PLAN.md`.
 
 ## Технически реализовано / нужен User QA
 
 ### Первый пользовательский маршрут
 
+- [X] **Growth analytics MVP:** добавлены first-touch attribution, `app_open + meaningful action` и operator-only report по activation, D1/D3/D7, рефералам, Wallet deposits и Wallet → Core. Report переиспользует `product_events`, `referral_edges` и `wallet_ledger`; новые финансовые ledger/snapshots, dashboard и подтверждение человечности отложены как избыточные для первой когорты. Проверка — `pnpm test:growth`; остаётся User QA.
 - [X] **Offline-first старт:** default navigation возвращен на `Goals → Notes`; Notes остаются local-first и доступны мгновенно без сети, Home сохраняется отдельной вкладкой.
 - [ ] Wishes: личные желания CRUD, рекомендации, копирование рекомендации и публичные желания.
 - [ ] Пирамида глубины желаний: продуктовая модель и рекомендуемый UX зафиксированы в `docs/WISH_PROGRESS_PYRAMID.md`; следующий шаг — прототип блока `Goals -> Wishes -> Моя пирамида желаний` без миграции данных.

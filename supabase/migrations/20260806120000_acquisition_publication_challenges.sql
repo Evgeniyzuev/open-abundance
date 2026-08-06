@@ -308,19 +308,19 @@ insert into public.challenges (
  '{"ru":"Доведи одну одобренную публикацию до 1 000 органических просмотров.","en":"Bring one approved publication to 1,000 organic views."}',
  '{"ru":"Выбери одобренный материал, приложи публичный счётчик или короткое видео нативной аналитики площадки. Покупка просмотров запрещена.","en":"Choose an approved piece and attach a public counter or a short recording of the platform analytics. Bought views are not allowed."}',
  '{"ru":"1 000 просмотров на одной одобренной публикации.","en":"1,000 views on one approved publication."}',
- '{"ru":"Core +1$","en":"Core +1$"}', 'social', 2, 30, 'community', 'acquisition_metric_views', 210, 'acquisition_quality_views', 1, null, 'people.blog', 'acquisition_quality_views', 1, 'views', 1000, 1, 'core'),
+ '{"ru":"Core +1$","en":"Core +1$"}', 'social', 2, 30, 'community', 'acquisition_metric_views', 210, 'acquisition_quality_views', 1, null, 'people.blog', 'acquisition_quality_views', 1000, 'views', 1, 'core'),
 ('55bb0d7b-ef78-46f8-9c02-c8ba42d01f12',
  '{"ru":"100 реакций","en":"100 reactions"}',
  '{"ru":"Получи 100 органических реакций на одну одобренную публикацию.","en":"Earn 100 organic reactions on one approved publication."}',
  '{"ru":"Приложи публичный счётчик реакций. Не используй ботов, покупку активности или взаимные накрутки.","en":"Attach a public reaction counter. Do not use bots, bought activity or engagement rings."}',
  '{"ru":"100 реакций на одной одобренной публикации.","en":"100 reactions on one approved publication."}',
- '{"ru":"Core +1$","en":"Core +1$"}', 'social', 2, 30, 'community', 'acquisition_metric_reactions', 211, 'acquisition_quality_reactions', 1, null, 'people.blog', 'acquisition_quality_reactions', 1, 'reactions', 100, 1, 'core'),
+ '{"ru":"Core +1$","en":"Core +1$"}', 'social', 2, 30, 'community', 'acquisition_metric_reactions', 211, 'acquisition_quality_reactions', 1, null, 'people.blog', 'acquisition_quality_reactions', 100, 'reactions', 1, 'core'),
 ('55bb0d7b-ef78-46f8-9c02-c8ba42d01f13',
  '{"ru":"10 содержательных комментариев","en":"10 meaningful comments"}',
  '{"ru":"Собери 10 содержательных комментариев от разных людей под одной публикацией.","en":"Collect 10 meaningful comments from different people under one publication."}',
  '{"ru":"Покажи публичную страницу с комментариями. Emoji-only, ответы автора и спам не считаются.","en":"Show the public comment page. Emoji-only comments, author replies and spam do not count."}',
  '{"ru":"10 содержательных комментариев от разных аккаунтов.","en":"10 meaningful comments from different accounts."}',
- '{"ru":"Core +1$","en":"Core +1$"}', 'social', 2, 30, 'community', 'acquisition_metric_comments', 212, 'acquisition_quality_comments', 1, null, 'people.blog', 'acquisition_quality_comments', 1, 'comments', 10, 1, 'core')
+ '{"ru":"Core +1$","en":"Core +1$"}', 'social', 2, 30, 'community', 'acquisition_metric_comments', 212, 'acquisition_quality_comments', 1, null, 'people.blog', 'acquisition_quality_comments', 10, 'comments', 1, 'core')
 on conflict (id) do update set
   title = excluded.title,
   description = excluded.description,

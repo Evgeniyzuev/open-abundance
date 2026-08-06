@@ -5,7 +5,7 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal";
+  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -23,6 +23,8 @@ type WalletHistoryRow = {
   networkFeeReserveUsd?: string;
   destinationAddress?: string;
   messageHash?: string;
+  counterpartyUserId?: string;
+  sourceId?: string;
   created_at: string;
 };
 
@@ -42,6 +44,8 @@ type CryptoDepositLedgerRow = {
   metadata: Record<string, unknown>;
   operation_type: "crypto_deposit" | "crypto_withdrawal";
   direction: "credit" | "debit";
+  counterparty_user_id?: string | null;
+  source_id?: string | null;
 };
 
 export const dynamic = "force-dynamic";
@@ -71,9 +75,9 @@ export async function GET(request: NextRequest) {
 
     const { data: cryptoLedger, error: cryptoError } = await supabase
       .from("wallet_ledger")
-      .select("id,amount,created_at,metadata,operation_type,direction")
+      .select("id,amount,created_at,metadata,operation_type,direction,counterparty_user_id,source_id")
       .eq("user_id", user.id)
-      .in("operation_type", ["crypto_deposit", "crypto_withdrawal"])
+      .in("operation_type", ["crypto_deposit", "crypto_withdrawal", "wallet_transfer", "marketplace_escrow_hold", "marketplace_payment", "marketplace_refund"])
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -113,6 +117,8 @@ export async function GET(request: NextRequest) {
       networkFeeReserveUsd: metadataDecimal(row.metadata, "network_fee_reserve_amount") ?? undefined,
       destinationAddress: metadataString(row.metadata, "destination_address") ?? undefined,
       messageHash: metadataString(row.metadata, "message_hash") ?? undefined,
+      counterpartyUserId: row.counterparty_user_id ?? undefined,
+      sourceId: row.source_id ?? undefined,
       created_at: row.created_at
     }));
 

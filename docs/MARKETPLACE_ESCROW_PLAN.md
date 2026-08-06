@@ -11,6 +11,16 @@
 
 ## Current Status
 
+2026-08-06 (current internal-only implementation):
+
+- `20260806120000_marketplace_internal_escrow.sql` adds listing kinds, nullable artifacts for services/physical goods, versioned terms, a minimal `marketplace_escrows` state table, reviews and idempotent hold/release/refund RPCs.
+- The current MVP deliberately does not create `marketplace_user_balances` or `marketplace_user_counterparties`. Mutual-credit statistics and ranking are deferred; Wallet truth remains in `wallet_accounts`/`wallet_ledger`.
+- `marketplace_escrows` stores only the one-per-deal lifecycle and idempotency keys. Participants, amount and currency are read from the immutable deal snapshot; there is no zero-only `fee_amount` column.
+- `/api/marketplace/listings` now supports detail/edit; `/api/marketplace/deals` supports required idempotency and explicit accept/cancel/deliver/confirm/dispute/review actions plus protected timer/operator endpoints.
+- Wallet-to-Wallet requires a stable idempotency key and returns a canonical receipt with both ledger records and post-transfer balances. Transfers remain fee-free and have no amount/daily limits beyond positive amount, OA$ precision and sufficient balance.
+- Remote REST schema for the existing marketplace deals/listings is available; no deals or relevant ledger operations were present during the read-only check. The new migration is prepared but not applied remotely; buyer/seller User QA is still pending.
+- This card is DB-only. TON contracts, on-chain escrow, audits and blockchain settlement are explicitly deferred.
+
 2026-06-12:
 
 - Phase 1 database foundation added and applied:
@@ -31,18 +41,18 @@
 - Added first Market UI as the third Wallet top tab: active listing grid, sell item modal, own-listing cancel action.
 - Updated Market creation flow: user can create a product/service/skill card directly; the server creates a transferable `user_artifacts` row and active listing together.
 - Added MVP listing limit: open listing cards per user cannot exceed the user's current Core level.
-- Planned marketplace quality layer: sales count, buyer rating, buyer reviews and mutual market balance ranking signals.
+- Current listing quality layer: sales count, buyer rating and buyer reviews. Mutual market balance ranking signals remain deferred until the read-model phase.
 - Regenerated `lib/database.types.ts`.
 - На эту дату оставались Phase 3 deals/escrow и atomic completion.
 
-2026-07-24 / проверено по коду 2026-08-01:
+2026-07-24 / проверено по коду 2026-08-01 (historical snapshot; superseded by the 2026-08-06 implementation above):
 
 - migration `20260724230000_marketplace_deals_phase3_4.sql` добавляет `marketplace_deals`, events и RPC create/accept/complete/cancel;
 - `/api/marketplace/deals` и `/api/marketplace/deals/[dealId]` дают deal lifecycle;
 - listing и artifact резервируются, а completion в одной DB transaction проверяет Wallet, списывает/зачисляет баланс и передаёт artifact;
-- buyer Wallet funds при create/accept ещё не резервируются и не переводятся в escrow; достаточность проверяется только в момент completion;
-- automated expire, refund, dispute, idempotent completion key, `deal_completed` Trust event и reviews не реализованы;
-- migration/environment apply и ручной User QA не подтверждены, поэтому это partial Phase 3/4 foundation, а не готовый escrow.
+- buyer Wallet funds при create/accept ещё не резервировались и не переводились в escrow;
+- automated expire, refund, dispute, idempotent completion key и reviews отсутствовали;
+- этот snapshot больше не описывает текущий код; remote apply и ручной User QA новой migration остаются отдельными gate.
 
 ## Принципы
 
@@ -67,7 +77,7 @@
 - атомарный transfer Wallet + item ownership;
 - cancel/expire/refund;
 - audit log событий сделки;
-- `trust_events` с `event_type = deal_completed` после успешной сделки.
+- Trust event для завершённой сделки не входит в текущий safety MVP; он остаётся отдельным Phase 5 шагом.
 
 Не входит:
 
@@ -192,11 +202,11 @@ Rules:
 - Moderation may hide review text, but aggregates must be recalculated consistently.
 - Reviews do not mutate Wallet ledger or deal completion; they are a separate quality/trust layer.
 
-### `marketplace_user_balances`
+### Deferred: user-level mutual market projection
 
-Denormalized market mutual balance for ranking and discovery.
+`marketplace_user_balances` and `marketplace_user_counterparties` are intentionally not part of the internal MVP migration. They are derived ranking/read-model data, not Wallet or settlement state.
 
-Fields:
+Planned later fields:
 
 - `user_id`
 - `spent_amount`
@@ -215,6 +225,8 @@ Rules:
 - Use it as a capped ranking boost: users who spend/support the market get softer promotion for their own cards.
 - Negative balance can reduce boost, but must not hard-hide cards by itself.
 - High-risk categories can use stricter caps or manual review.
+
+Implementation decision: after buyer/seller QA, prefer a view or a single materialized `marketplace_user_market_stats` projection. Do not add two writable source tables unless query volume proves that a separately maintained counterparty projection is necessary.
 
 ### `marketplace_deals`
 
@@ -297,7 +309,7 @@ Rules:
 5. сменить `user_artifacts.user_id` на покупателя;
 6. очистить `locked_by_deal_id`;
 7. поставить listing `sold`, deal `completed`;
-8. записать wallet ledger, marketplace event и `trust_events deal_completed`.
+8. записать wallet ledger и marketplace event. `trust_events deal_completed` остаётся отдельным Phase 5 шагом.
 
 Если любой шаг падает, вся транзакция откатывается.
 
@@ -438,17 +450,17 @@ Additional quality anti-abuse:
 
 ### Phase 3. Deals And Escrow
 
-- Done in code: `marketplace_deals`, `marketplace_deal_events`, buyer create и seller accept.
-- Done in code: listing/artifact lock на активную сделку.
-- Pending: atomic buyer Wallet reserve/escrow при accept, отдельные hold ledger rows и idempotency contract.
-- Pending: migration apply и User QA.
+- Done in code: `marketplace_deals`, `marketplace_deal_events`, `marketplace_escrows`, buyer create и seller accept.
+- Done in code: listing/artifact lock, buyer Wallet hold, отдельные hold ledger rows и обязательный idempotency contract.
+- Pending: remote migration apply, REST schema verification and buyer/seller User QA.
 
 ### Phase 4. Atomic Completion
 
 - Done in code: private completion RPC, Wallet debit/credit, artifact transfer, listing `sold` и deal event в одной transaction.
-- Done in code: manual cancel освобождает artifact/listing до completion.
-- Pending: automatic expire, true refund после hold, dispute и retry/idempotency proof.
-- Pending: `sales_count`, `marketplace_user_balances`, Trust event и no-store end-to-end QA.
+- Done in code: cancel/refund before seller acceptance, 24h expiry worker, 72h auto-release, dispute resolution and idempotent retries.
+- Done in code: one immutable buyer review per completed deal and server-maintained listing quality counters.
+- Deferred: user-level spent/earned balances, unique-counterparty projection and discovery ranking until after remote apply, technical checks and buyer/seller User QA.
+- Pending: remote apply, SQL/API integration checks and no-store buyer/seller User QA.
 
 ### Phase 5. Trust And Challenges
 
@@ -461,8 +473,8 @@ Additional quality anti-abuse:
 - `marketplace_reviews`.
 - Buyer review API and listing reviews API.
 - Recalculate listing rating/review counters.
-- Maintain `marketplace_user_balances` from completed deals.
-- Apply capped mutual market balance, rating and sales count to listing ranking.
+- Build a rolling 90-day mutual-market read model from completed deals only; use `spent - earned`, minimum two unique counterparties and cap `+10%`.
+- Run the model in shadow mode first; enable ranking only for closed beta after a separate founder decision and anti-abuse review.
 
 ## Acceptance Criteria
 
@@ -473,21 +485,20 @@ Additional quality anti-abuse:
 - Wallet покупателя уменьшается, Wallet продавца увеличивается, предмет меняет владельца.
 - Невозможно продать один предмет дважды.
 - Отмена/истечение возвращает зарезервированные средства.
-- Успешная сделка создает audit log и Trust event.
+- Успешная сделка создает audit log; Trust event подключается отдельным Phase 5 шагом.
 
 Additional quality criteria:
 
 - Completed deals increment listing sales count.
 - Buyer can leave one rating/review after completion.
 - Listing cards show sales count and smoothed rating/review count.
-- Marketplace ranking uses capped mutual market balance without exposing it as a public numeric reputation.
+- Future Marketplace ranking will use capped mutual market balance without exposing it as a public numeric reputation; ranking is not part of the current MVP acceptance gate.
 
 ## Next Step
 
-Не включать mutual credit, reviews или Trust v2 поверх текущего partial foundation. Сначала закрыть safety gap:
+Закрыть текущий внутренний safety gate:
 
-1. применить migration в целевом окружении и пройти create → accept → complete/cancel User QA;
-2. атомарно резервировать buyer Wallet при принятии сделки и писать hold ledger;
-3. реализовать idempotent expire/refund и сценарий insufficient balance/retry;
-4. добавить dispute/manual review и `deal_completed` event;
-5. только затем reviews, mutual credit discovery и Trust v2.
+1. подтвердить remote migration apply и проверить REST schema;
+2. прогнать SQL/API сценарии hold, completion, cancellation, expiry, refund, dispute, concurrent buyers, duplicate requests и insufficient balance;
+3. пройти buyer/seller User QA на двух реальных аккаунтах: Wallet transfer → listing → buy → accept/deliver/confirm → refund → dispute;
+4. после подтверждения основателя перенести Marketplace в `Подтверждено`, затем включить только shadow-mode mutual discovery для закрытой beta.

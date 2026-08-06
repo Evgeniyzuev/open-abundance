@@ -197,7 +197,7 @@ Wallet пользователя уменьшается
 - Trust-lite;
 - AI chat;
 - Open Projects foundation;
-- marketplace artifacts/listings и partial deal lifecycle с atomic completion; buyer funds escrow, expire/refund, dispute и User QA отсутствуют.
+- marketplace artifacts/listings и internal DB-only deal lifecycle с atomic completion; buyer funds escrow, expire/refund, dispute и immutable reviews реализованы в локальном migration slice, remote apply и buyer/seller User QA остаются открытыми.
 
 Большинство контуров технически реализованы, но не прошли связный User QA. Единственный существующий e2e smoke-тест устарел относительно гостевого onboarding.
 
@@ -284,7 +284,7 @@ Wallet пользователя уменьшается
 Зафиксировано предложение для блогеров в `docs/BLOGGER_OUTREACH_PLAN.md`. Основной стимул: реферальная ссылка → команда → 10% от роста Core участников. Ключевые недостающие элементы: панель команды (UI), личный чат лид→участник, задачи от лида, публичный профиль лида.
 
 ### 15.3. Mutual Credit / Внутренние продажи
-Зафиксирована механика в `docs/MUTUAL_CREDIT_MARKET_PLAN.md`. Принцип: rolling `settled_spent - settled_earned` → мягкий capped boost в выдаче. Deal lifecycle и atomic completion появились технически, но funds reserve, expire/refund, dispute, reviews и User QA всё ещё блокируют включение алгоритма.
+Зафиксирована механика в `docs/MUTUAL_CREDIT_MARKET_PLAN.md`. Принцип: rolling `settled_spent - settled_earned` → мягкий capped boost в выдаче. Deal lifecycle, funds reserve, expire/refund, dispute и reviews реализованы локально; user-level balance/counterparty projections отложены до buyer/seller QA и будут read model, а не источником финансовой истины.
 
 ### 15.4. Открытые вопросы по новым направлениям
 - Кто разрабатывает учебные материалы для программы лидеров?
@@ -312,7 +312,7 @@ Wallet пользователя уменьшается
 
 - пользовательское желание использовать один TON address сохранено только для закрытого ограниченного hot-wallet MVP; основной reserve отделяется до существенного объёма;
 - cancelled/zero order может влиять на Trust только после доказанного двустороннего взаимодействия, а не по одной заявке;
-- Marketplace Phase 3/4 признан partial foundation: atomic completion есть, настоящего buyer funds escrow и expire/refund/dispute ещё нет;
+- Marketplace Phase 3/4 был partial foundation; 2026-08-06 internal DB-only migration добавила минимальный buyer funds escrow, expire/refund/dispute и reviews. `marketplace_user_balances`/`marketplace_user_counterparties` сознательно отложены до read-model этапа. Remote apply и buyer/seller QA остаются открытыми gates;
 - `X × 365 × N` является линейной иллюстрацией, не обещанием пожизненного начисления;
 - публичный Trust является целевым решением, но текущий Trust-lite остаётся непубличным до калибровки v2.
 

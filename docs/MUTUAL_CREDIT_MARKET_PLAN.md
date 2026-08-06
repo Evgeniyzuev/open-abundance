@@ -1,6 +1,6 @@
 # Mutual Credit & Internal Market Plan
 
-Статус: канонический план mutual credit discovery, 2026-08-01. Алгоритм не реализован и не включается до безопасного settlement/review слоя Marketplace.
+Статус: канонический план mutual credit discovery, обновлён 2026-08-06. Settlement/review foundation реализован в коде внутреннего DB-only Marketplace; discovery остаётся отложенной read-model задачей и не влияет на выдачу до buyer/seller QA и отдельного допуска закрытой beta.
 
 ## 1. Концепция
 
@@ -65,25 +65,24 @@ listing_score =
 
 - Phase 1: `user_artifacts`, `wallet_ledger`, Wallet-to-Wallet и Wallet → Core;
 - Phase 2: `marketplace_listings`, create/list/cancel и Market UI;
-- partial Phase 3/4: deal/events, create/accept/cancel routes и atomic Wallet + artifact completion в migration `20260724230000_marketplace_deals_phase3_4.sql`.
+- internal Phase 3/4: минимальный `marketplace_escrows` (только lifecycle/key state), hold/release/refund, delivery/confirm/dispute timers и immutable buyer reviews в migration `20260806120000_marketplace_internal_escrow.sql`.
+- Отложено: `marketplace_user_balances`, `marketplace_user_counterparties` и отдельные writable ranking counters. Они не нужны для settlement и будут заменены view/materialized read model после QA.
 
-Критические gaps текущего Marketplace:
+Оставшиеся gates текущего Marketplace:
 
-- buyer Wallet не резервируется при accept;
-- automatic expire/refund, dispute и idempotent retry не завершены;
-- `deal_completed` Trust event, reviews и User QA отсутствуют;
-- `marketplace_user_balances` и mutual ranking не реализованы.
+- remote migration apply и REST schema verification;
+- SQL/API concurrency/invariant checks и buyer/seller User QA;
+- buyer review UI и окончательное включение ranking после QA.
 
-Поэтому mutual credit пока является только принятым алгоритмическим направлением.
+Mutual credit считается в shadow mode: окно 90 дней, минимум два уникальных контрагента, только положительный `spent - earned`, cap `+10%`, без отрицательного штрафа. До закрытой beta ranking не изменяет выдачу.
 
 ## 6. Порядок реализации
 
-1. Закрыть funds reserve, expire/refund, dispute и User QA Marketplace.
-2. Добавить buyer reviews и quality confidence, не доверяя сырой средней оценке.
-3. Материализовать `spent`, `earned`, eligible amount и unique counterparties по rolling windows.
-4. Считать boost в shadow mode и сравнить с выдачей без него.
-5. Провести A/B или ограниченный pilot с cap и kill switch.
-6. Включить только если растут legitimate completions/GMV без роста returns, disputes и concentration.
+1. Подтвердить remote migration и пройти Marketplace buyer/seller User QA.
+2. Построить один rolling 90-day read model по completed deals: `spent`, `earned`, eligible amount и unique counterparties; не создавать отдельные source tables без доказанной необходимости.
+3. Считать boost в shadow mode и сравнить с выдачей без него.
+4. Провести ограниченный closed-beta pilot с cap и kill switch.
+5. Включить ranking только если растут legitimate completions/GMV без роста returns, disputes и concentration.
 
 ## 7. Decision gates и метрики
 

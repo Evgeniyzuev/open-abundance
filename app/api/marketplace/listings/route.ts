@@ -1,20 +1,23 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Tables, TablesInsert } from "@/lib/database.types";
+import type { Database, Tables } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 type ListingPostBody = {
   artifactType?: unknown;
   artifactId?: unknown;
+  listingKind?: unknown;
+  category?: unknown;
+  fulfillmentDays?: unknown;
   description?: unknown;
   imageUrl?: unknown;
   priceAmount?: unknown;
   title?: unknown;
 };
 
-type MarketplaceListingRow = Tables<"marketplace_listings">;
+type MarketplaceListingRow = Tables<"marketplace_listings"> & Record<string, any>;
 type UserArtifactRow = Tables<"user_artifacts">;
 type UserProfileRow = Pick<Tables<"user_profiles">, "avatar_url" | "display_name" | "level" | "user_id" | "username">;
 
@@ -76,7 +79,7 @@ export async function GET(request: NextRequest) {
     }
 
     const listingLimit = listingLimitForCoreLevel(core?.level);
-    const artifacts = await loadArtifacts(supabase, listings.map((listing) => listing.artifact_id));
+    const artifacts = await loadArtifacts(supabase, listings.map((listing) => listing.artifact_id).filter((id): id is string => Boolean(id)));
     const profiles = await loadProfiles(supabase, listings.map((listing) => listing.seller_user_id));
     const openArtifactIds = new Set(listings.filter((listing) => listing.seller_user_id === user.id).map((listing) => listing.artifact_id));
 
@@ -106,6 +109,7 @@ export async function POST(request: NextRequest) {
 
     const body = await readJsonBody(request);
     const artifactId = normalizeUuid(body.artifactId);
+    const listingKind = normalizeListingKind(body.listingKind);
     const priceAmount = normalizeAmount(body.priceAmount);
     const cardTitle = normalizeRequiredText(body.title, 120);
 
@@ -139,6 +143,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Listing limit reached for your level (${listingLimit}).` }, { status: 403, headers: NO_STORE_HEADERS });
     }
 
+    if (artifactId && listingKind !== "digital_asset") {
+      return NextResponse.json({ error: "Only digital asset listings can reference an artifact." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+
     const existingArtifact = artifactId ? await loadSellableArtifact(supabase, user.id, artifactId) : null;
     if (existingArtifact?.error) {
       return NextResponse.json({ error: existingArtifact.error }, { status: existingArtifact.status, headers: NO_STORE_HEADERS });
@@ -149,19 +157,21 @@ export async function POST(request: NextRequest) {
     }
 
     let createdArtifactId: string | null = null;
-    const artifact = existingArtifact?.artifact ?? await createManualArtifact(supabase, {
-      artifactType: normalizeText(body.artifactType, 40) ?? "market_item",
-      description: normalizeText(body.description, 1000),
-      imageUrl: normalizeUrl(body.imageUrl),
-      title: cardTitle ?? "Market item",
-      userId: user.id
-    });
+    const artifact = listingKind === "digital_asset"
+      ? existingArtifact?.artifact ?? await createManualArtifact(supabase, {
+          artifactType: normalizeText(body.artifactType, 40) ?? "market_item",
+          description: normalizeText(body.description, 1000),
+          imageUrl: normalizeUrl(body.imageUrl),
+          title: cardTitle ?? "Market item",
+          userId: user.id
+        })
+      : null;
 
-    if (!existingArtifact?.artifact) {
+    if (artifact && !existingArtifact?.artifact) {
       createdArtifactId = artifact.id;
     }
 
-    const existingListing = await findOpenArtifactListing(supabase, artifact.id);
+    const existingListing = artifact ? await findOpenArtifactListing(supabase, artifact.id) : { error: undefined, listing: null };
     if (existingListing.error) {
       if (createdArtifactId) await cleanupCreatedArtifact(supabase, createdArtifactId);
       return NextResponse.json({ error: existingListing.error }, { status: 500, headers: NO_STORE_HEADERS });
@@ -172,21 +182,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "This item already has an open listing." }, { status: 409, headers: NO_STORE_HEADERS });
     }
 
-    const title = cardTitle ?? artifact.title;
-    const description = normalizeText(body.description, 1000) ?? artifact.description;
-    const terms = buildTerms({ artifact, description, priceAmount, title });
+    const title = cardTitle ?? artifact?.title ?? "Market offer";
+    const description = normalizeText(body.description, 1000) ?? artifact?.description ?? null;
+    const imageUrl = normalizeUrl(body.imageUrl) ?? artifact?.image_url ?? null;
+    const fulfillmentDays = normalizeFulfillmentDays(body.fulfillmentDays);
+    const category = normalizeText(body.category, 80);
+    const terms = buildTerms({ artifact, description, priceAmount, title, listingKind, fulfillmentDays, category });
 
-    const row: TablesInsert<"marketplace_listings"> = {
-      artifact_id: artifact.id,
+    const row = {
+      artifact_id: artifact?.id ?? null,
       currency_code: "OA$",
       description,
+      image_url: imageUrl,
+      listing_kind: listingKind,
+      category,
+      fulfillment_days: listingKind === "digital_asset" ? null : fulfillmentDays,
       price_amount: priceAmount,
       seller_user_id: user.id,
       status: "active",
       terms_hash: hashTerms(terms),
       terms_json: terms,
+      terms_version: 1,
       title
-    };
+    } as any;
 
     const { data: listing, error: insertError } = await supabase
       .from("marketplace_listings")
@@ -286,6 +304,7 @@ async function findOpenArtifactListing(supabase: SupabaseClient<Database>, artif
 function serializeListing(listing: MarketplaceListingRow, artifact: UserArtifactRow | null, sellerProfile: UserProfileRow | null) {
   return {
     ...listing,
+    image_url: (listing as any).image_url ?? artifact?.image_url ?? null,
     artifact: artifact
       ? {
           artifact_type: artifact.artifact_type,
@@ -334,16 +353,28 @@ async function readJsonBody(request: NextRequest): Promise<ListingPostBody> {
   }
 }
 
-function buildTerms({ artifact, description, priceAmount, title }: { artifact: UserArtifactRow; description: string | null; priceAmount: number; title: string }) {
+function buildTerms({ artifact, description, priceAmount, title, listingKind, fulfillmentDays, category }: { artifact: UserArtifactRow | null; description: string | null; priceAmount: number; title: string; listingKind: "digital_asset" | "service" | "physical_good"; fulfillmentDays: number | null; category: string | null }) {
   return {
-    artifactId: artifact.id,
-    artifactTitle: artifact.title,
+    artifactId: artifact?.id ?? null,
+    artifactTitle: artifact?.title ?? null,
+    category,
     currencyCode: "OA$",
     description,
+    fulfillmentDays,
+    listingKind,
     priceAmount,
     title,
     version: 1
   };
+}
+
+function normalizeListingKind(value: unknown): "digital_asset" | "service" | "physical_good" {
+  return value === "service" || value === "physical_good" ? value : "digital_asset";
+}
+
+function normalizeFulfillmentDays(value: unknown): number | null {
+  const numeric = Number(value);
+  return [1, 3, 7, 14].includes(numeric) ? numeric : 7;
 }
 
 function hashTerms(value: unknown): string {

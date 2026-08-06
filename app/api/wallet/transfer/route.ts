@@ -16,7 +16,11 @@ type TransferResponse = {
     amount: number;
     recipientUserId: string;
     senderWalletLedgerId: string | null;
+    recipientWalletLedgerId: string | null;
     sourceId: string;
+    idempotencyKey: string;
+    sender: { userId: string; ledgerId: string | null; balanceAfter: number | null };
+    recipient: { userId: string; username: string | null; displayName: string | null; level: number; ledgerId: string | null; balanceAfter: number | null };
   };
   wallet: WalletRow;
 };
@@ -43,7 +47,9 @@ function transferErrorStatus(message: string) {
     || message === "Insufficient wallet balance."
     || message === "Missing wallet transfer user id."
     || message === "Unsupported wallet transfer source type."
+    || message === "Amount exceeds OA$ precision."
     || message === "Wallet transfer idempotency state is incomplete."
+    || message === "Idempotency key is required."
   ) {
     return 400;
   }
@@ -75,6 +81,9 @@ export async function POST(request: NextRequest) {
   if (!Number.isFinite(amount) || amount <= 0) {
     return jsonResponse({ error: "Amount must be greater than 0." }, { status: 400 });
   }
+  if (!hasWalletPrecision(body.amount)) {
+    return jsonResponse({ error: "Amount exceeds OA$ precision." }, { status: 400 });
+  }
 
   const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: {
@@ -92,12 +101,24 @@ export async function POST(request: NextRequest) {
     return jsonResponse({ error: "Session expired. Sign in again." }, { status: 401 });
   }
 
+  const idempotencyKey = normalizeIdempotencyKey(body.idempotencyKey, user.id);
+  if (!idempotencyKey) {
+    return jsonResponse({ error: "Idempotency key is required." }, { status: 400 });
+  }
+
   if (recipientUserId === user.id) {
     return jsonResponse({ error: "Cannot transfer Wallet to yourself." }, { status: 400 });
   }
 
+  const { data: recipientProfile, error: recipientProfileError } = await supabase
+    .from("user_profiles")
+    .select("user_id,username,display_name,level")
+    .eq("user_id", recipientUserId)
+    .maybeSingle();
+  if (recipientProfileError) return jsonResponse({ error: recipientProfileError.message }, { status: 500 });
+  if (!recipientProfile) return jsonResponse({ error: "Recipient profile not found." }, { status: 404 });
+
   const sourceId = crypto.randomUUID();
-  const idempotencyKey = normalizeIdempotencyKey(body.idempotencyKey, user.id);
   const { data: transferRows, error: transferError } = await supabase.rpc("wallet_transfer", {
     p_amount: amount,
     p_idempotency_key: idempotencyKey ?? undefined,
@@ -126,13 +147,40 @@ export async function POST(request: NextRequest) {
     return jsonResponse({ error: "Sender Wallet is not created yet." }, { status: 404 });
   }
 
+  const { data: recipientWallet, error: recipientWalletError } = await supabase
+    .from("wallet_accounts")
+    .select("*")
+    .eq("user_id", recipientUserId)
+    .maybeSingle();
+  if (recipientWalletError) return jsonResponse({ error: recipientWalletError.message }, { status: 500 });
+  if (!recipientWallet) return jsonResponse({ error: "Recipient Wallet is not created yet." }, { status: 404 });
+
   const transferRow = transferRows?.[0];
+  const ledgerIds = [transferRow?.sender_wallet_ledger_id, transferRow?.recipient_wallet_ledger_id].filter(Boolean);
+  const { data: ledgerRows, error: ledgerError } = ledgerIds.length
+    ? await supabase.from("wallet_ledger").select("id,source_id,user_id,balance_after").in("id", ledgerIds)
+    : { data: [], error: null };
+  if (ledgerError) return jsonResponse({ error: ledgerError.message }, { status: 500 });
+  const canonicalSourceId = ledgerRows?.find((row) => row.id === transferRow?.sender_wallet_ledger_id)?.source_id ?? sourceId;
+  const senderLedger = ledgerRows?.find((row) => row.id === transferRow?.sender_wallet_ledger_id);
+  const recipientLedger = ledgerRows?.find((row) => row.id === transferRow?.recipient_wallet_ledger_id);
   const response: TransferResponse = {
     transfer: {
       amount,
       recipientUserId,
       senderWalletLedgerId: transferRow?.sender_wallet_ledger_id ?? null,
-      sourceId
+      recipientWalletLedgerId: transferRow?.recipient_wallet_ledger_id ?? null,
+      sourceId: canonicalSourceId,
+      idempotencyKey,
+      sender: { userId: user.id, ledgerId: transferRow?.sender_wallet_ledger_id ?? null, balanceAfter: senderLedger?.balance_after ?? null },
+      recipient: {
+        userId: recipientUserId,
+        username: recipientProfile.username,
+        displayName: recipientProfile.display_name,
+        level: recipientProfile.level,
+        ledgerId: transferRow?.recipient_wallet_ledger_id ?? null,
+        balanceAfter: recipientLedger?.balance_after ?? null
+      }
     },
     wallet
   };
@@ -144,6 +192,12 @@ function normalizeIdempotencyKey(value: unknown, userId: string): string | null 
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length > 0 ? `wallet_transfer:${userId}:${normalized}`.slice(0, 200) : null;
+}
+
+function hasWalletPrecision(value: unknown): boolean {
+  const text = typeof value === "number" ? value.toString() : typeof value === "string" ? value.trim().replace(",", ".") : "";
+  const fraction = text.split(".")[1] ?? "";
+  return fraction.length <= 12;
 }
 
 function isUuid(value: string): boolean {

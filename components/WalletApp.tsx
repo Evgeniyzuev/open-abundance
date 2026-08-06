@@ -36,7 +36,7 @@ type CoreAccrualRow = {
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal";
+  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -54,6 +54,8 @@ type WalletHistoryRow = {
   networkFeeReserveUsd?: string;
   destinationAddress?: string;
   messageHash?: string;
+  counterpartyUserId?: string;
+  sourceId?: string;
   created_at: string;
 };
 type TonDepositInvoice = {
@@ -154,8 +156,20 @@ type WalletTransferContact = {
     user_id: string;
   } | null;
 };
+type WalletRecipient = {
+  avatar_url: string | null;
+  display_name: string | null;
+  level: number;
+  user_id: string;
+  username: string | null;
+};
 type MarketplaceArtifact = Tables<"user_artifacts">;
 type MarketplaceListing = Tables<"marketplace_listings"> & {
+  listing_kind?: "digital_asset" | "service" | "physical_good";
+  image_url?: string | null;
+  category?: string | null;
+  fulfillment_days?: number | null;
+  terms_version?: number;
   artifact: {
     artifact_type: string;
     id: string;
@@ -181,10 +195,40 @@ type MarketplaceResponse = {
 type MarketplaceListingInput = {
   artifactId?: string;
   artifactType?: string;
+  listingKind?: "digital_asset" | "service" | "physical_good";
+  category?: string;
+  fulfillmentDays?: number;
   description: string;
   imageUrl?: string;
   priceAmount: number;
   title: string;
+};
+type MarketplaceDeal = {
+  id: string;
+  listing_id: string;
+  seller_user_id: string;
+  buyer_user_id: string;
+  price_amount: number | string;
+  status: string;
+  expires_at: string | null;
+  delivery_due_at?: string | null;
+  delivered_at?: string | null;
+  disputed_at?: string | null;
+  events?: MarketplaceDealEvent[];
+};
+type MarketplaceDealEvent = {
+  id: string;
+  event_type: string;
+  actor_type?: string;
+  created_at: string;
+  metadata?: Record<string, unknown> | null;
+};
+type WalletTransferReceipt = {
+  amount: number;
+  sourceId: string;
+  idempotencyKey: string;
+  sender: { balanceAfter: number | null };
+  recipient: { balanceAfter: number | null };
 };
 
 const HALF_YEAR_DAYS = 365.25 / 2;
@@ -276,7 +320,11 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
   const [sellModalOpen, setSellModalOpen] = useState(false);
+  const [marketDetailListing, setMarketDetailListing] = useState<MarketplaceListing | null>(null);
+  const [marketEditListing, setMarketEditListing] = useState<MarketplaceListing | null>(null);
   const [marketSavingId, setMarketSavingId] = useState<string | null>(null);
+  const [marketDeals, setMarketDeals] = useState<MarketplaceDeal[]>([]);
+  const [marketDealSavingId, setMarketDealSavingId] = useState<string | null>(null);
   const calculatorRequestNonce = calculatorRequest?.nonce;
   const calculatorRequestDailyAdditions = calculatorRequest?.dailyAdditions;
   const calculatorRequestTargetCore = calculatorRequest?.targetCore;
@@ -376,11 +424,12 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
       setMarketError(null);
       setMarketLoading(true);
       try {
-        const payload = await loadMarketplaceData();
+        const [payload, deals] = await Promise.all([loadMarketplaceData(), loadMarketplaceDeals()]);
         if (!mounted) return;
         setMarketListings(payload.listings ?? []);
         setMarketListingLimit(payload.listingLimit);
         setMarketOpenListingCount(payload.openListingCount);
+        setMarketDeals(deals);
       } catch (loadError) {
         console.warn("Marketplace listings load failed", loadError);
         if (mounted) setMarketError(loadError instanceof Error ? loadError.message : "Failed to load marketplace.");
@@ -594,6 +643,65 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     }
   }
 
+  async function handleBuyListing(listingId: string) {
+    setMarketDealSavingId(listingId);
+    setMarketError(null);
+    try {
+      await createMarketplaceDeal(listingId);
+      const [payload, deals] = await Promise.all([loadMarketplaceData(), loadMarketplaceDeals()]);
+      setMarketListings(payload.listings ?? []);
+      setMarketOpenListingCount(payload.openListingCount);
+      setMarketDeals(deals);
+      await onRefresh();
+    } catch (buyError) {
+      setMarketError(buyError instanceof Error ? buyError.message : "Failed to create marketplace deal.");
+    } finally {
+      setMarketDealSavingId(null);
+    }
+  }
+
+  async function handleViewListing(listingId: string) {
+    try {
+      setMarketDetailListing(await loadMarketplaceListing(listingId));
+    } catch (detailError) {
+      setMarketError(detailError instanceof Error ? detailError.message : "Failed to load listing details.");
+    }
+  }
+
+  async function handleDealAction(dealId: string, action: "accept" | "cancel" | "deliver" | "confirm" | "dispute") {
+    setMarketDealSavingId(dealId);
+    setMarketError(null);
+    try {
+      const reason = action === "dispute" ? window.prompt(t("market.disputePrompt")) ?? "" : undefined;
+      await marketplaceDealAction(dealId, action, reason);
+      setMarketDeals(await loadMarketplaceDeals());
+      const payload = await loadMarketplaceData();
+      setMarketListings(payload.listings ?? []);
+      setMarketOpenListingCount(payload.openListingCount);
+      await onRefresh();
+    } catch (dealError) {
+      setMarketError(dealError instanceof Error ? dealError.message : "Failed to update marketplace deal.");
+    } finally {
+      setMarketDealSavingId(null);
+    }
+  }
+
+  async function handleReviewDeal(dealId: string) {
+    const rating = Number(window.prompt(t("market.reviewPrompt"), "5"));
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return;
+    const reviewText = window.prompt(t("market.reviewTextPrompt"), "") ?? "";
+    setMarketDealSavingId(dealId);
+    setMarketError(null);
+    try {
+      await marketplaceDealAction(dealId, "review", undefined, { rating, reviewText });
+      setMarketDeals(await loadMarketplaceDeals());
+    } catch (reviewError) {
+      setMarketError(reviewError instanceof Error ? reviewError.message : "Failed to save review.");
+    } finally {
+      setMarketDealSavingId(null);
+    }
+  }
+
   return (
     <section className="finance-screen">
       {!user && !loading && activeTab !== "core" ? (
@@ -679,20 +787,32 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 <article className="payout-row" key={row.id}>
                   <div>
                     <strong>{formatDay(row.operation_date, locale)}</strong>
-                    <span>{row.kind === "crypto_deposit"
+                    <span>{row.kind === "wallet_transfer"
+                      ? t("wallet.history.transfer")
+                      : row.kind === "marketplace_escrow_hold"
+                        ? t("wallet.history.marketplaceHold")
+                        : row.kind === "marketplace_payment"
+                          ? t("wallet.history.marketplacePayment")
+                          : row.kind === "marketplace_refund"
+                            ? t("wallet.history.marketplaceRefund")
+                            : row.kind === "crypto_deposit"
                       ? row.assetCode === "USDT" ? t("wallet.history.usdtDeposit") : t("wallet.history.cryptoDeposit")
                       : row.kind === "crypto_withdrawal"
                         ? row.assetCode === "USDT" ? t("wallet.history.usdtWithdrawal") : t("wallet.history.cryptoWithdrawal")
                         : t("wallet.history.dailyCorePayout")}</span>
                   </div>
                   <div>
-                    <strong>{row.kind === "crypto_withdrawal" && row.direction === "debit" ? "-" : "+"}{row.kind === "crypto_deposit" && row.amountUsd
+                    <strong>{row.direction === "debit" ? "-" : "+"}{row.kind === "crypto_deposit" && row.amountUsd
                       ? formatFixedUsd(row.amountUsd, locale)
                       : formatAdaptiveMoney(row.amount, locale)}</strong>
                     <span>{t("wallet.wallet")}</span>
                   </div>
                   <p>
-                    {row.kind === "crypto_deposit"
+                    {row.kind === "wallet_transfer"
+                      ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.source")}: ${shortId(row.sourceId)}` : ""}`
+                      : row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund"
+                        ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.deal")}: ${shortId(row.sourceId)}` : ""}`
+                    : row.kind === "crypto_deposit"
                       ? formatCryptoDepositDetails(row, locale)
                       : row.kind === "crypto_withdrawal"
                         ? formatCryptoWithdrawalDetails(row, locale, t)
@@ -816,7 +936,13 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           t={t}
           userId={user.id}
           savingId={marketSavingId}
+          deals={marketDeals}
+          dealSavingId={marketDealSavingId}
           onCancel={(listingId) => { void handleCancelListing(listingId); }}
+          onBuy={(listingId) => { void handleBuyListing(listingId); }}
+          onView={(listingId) => { void handleViewListing(listingId); }}
+          onDealAction={(dealId, action) => { void handleDealAction(dealId, action); }}
+          onReview={(dealId) => { void handleReviewDeal(dealId); }}
           onSell={() => setSellModalOpen(true)}
         />
       ) : null}
@@ -906,6 +1032,32 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           t={t}
           onClose={() => setSellModalOpen(false)}
           onCreate={handleCreateListing}
+        />
+      ) : null}
+      {marketDetailListing ? (
+        <MarketplaceListingDetailModal
+          listing={marketDetailListing}
+          locale={locale}
+          t={t}
+          own={marketDetailListing.seller_user_id === user?.id}
+          onClose={() => setMarketDetailListing(null)}
+          onEdit={() => {
+            setMarketEditListing(marketDetailListing);
+            setMarketDetailListing(null);
+          }}
+        />
+      ) : null}
+      {marketEditListing ? (
+        <MarketplaceEditModal
+          listing={marketEditListing}
+          locale={locale}
+          t={t}
+          onClose={() => setMarketEditListing(null)}
+          onSave={async (input) => {
+            const updated = await updateMarketplaceListing(marketEditListing.id, input);
+            setMarketListings((current) => (current ?? []).map((item) => item.id === updated.id ? { ...item, ...updated } : item));
+            setMarketEditListing(null);
+          }}
         />
       ) : null}
     </section>
@@ -1311,6 +1463,17 @@ async function loadWalletTransferContacts(): Promise<WalletTransferContact[]> {
   return payload.contacts ?? [];
 }
 
+async function loadWalletRecipient(userId: string): Promise<WalletRecipient> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/wallet/recipients/${userId}?ts=${Date.now()}`, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const payload = (await response.json()) as { recipient?: WalletRecipient; error?: string };
+  if (!response.ok || payload.error || !payload.recipient) throw new Error(payload.error ?? "Recipient profile not found.");
+  return payload.recipient;
+}
+
 async function loadMarketplaceData(): Promise<Required<Pick<MarketplaceResponse, "listingLimit" | "listings" | "openListingCount" | "sellableArtifacts">>> {
   const token = await getAccessToken();
   const response = await fetch(`/api/marketplace/listings?ts=${Date.now()}`, {
@@ -1328,6 +1491,59 @@ async function loadMarketplaceData(): Promise<Required<Pick<MarketplaceResponse,
     openListingCount: payload.openListingCount ?? 0,
     sellableArtifacts: payload.sellableArtifacts ?? []
   };
+}
+
+async function loadMarketplaceDeals(): Promise<MarketplaceDeal[]> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/marketplace/deals?ts=${Date.now()}`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
+  const payload = (await response.json()) as { deals?: MarketplaceDeal[]; error?: string };
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load marketplace deals.");
+  return payload.deals ?? [];
+}
+
+async function loadMarketplaceListing(listingId: string): Promise<MarketplaceListing> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/marketplace/listings/${listingId}?ts=${Date.now()}`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
+  const payload = (await response.json()) as { listing?: MarketplaceListing; error?: string };
+  if (!response.ok || payload.error || !payload.listing) throw new Error(payload.error ?? "Failed to load listing details.");
+  return payload.listing;
+}
+
+async function updateMarketplaceListing(listingId: string, input: MarketplaceListingInput): Promise<MarketplaceListing> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/marketplace/listings/${listingId}`, {
+    method: "PATCH",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input)
+  });
+  const payload = (await response.json()) as { listing?: MarketplaceListing; error?: string };
+  if (!response.ok || payload.error || !payload.listing) throw new Error(payload.error ?? "Failed to update listing.");
+  return payload.listing;
+}
+
+async function createMarketplaceDeal(listingId: string): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch("/api/marketplace/deals", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ listingId, idempotencyKey: crypto.randomUUID() })
+  });
+  const payload = (await response.json()) as { deal?: MarketplaceDeal; error?: string };
+  if (!response.ok || payload.error || !payload.deal) throw new Error(payload.error ?? "Failed to create marketplace deal.");
+}
+
+async function marketplaceDealAction(dealId: string, action: "accept" | "cancel" | "deliver" | "confirm" | "dispute" | "review", reason?: string, review?: { rating: number; reviewText: string }): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/marketplace/deals/${dealId}/${action}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(action === "review" ? { rating: review?.rating, reviewText: review?.reviewText } : reason ? { reason } : {})
+  });
+  const payload = (await response.json()) as { error?: string };
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to update marketplace deal.");
 }
 
 async function createMarketplaceListing(input: MarketplaceListingInput): Promise<MarketplaceListing> {
@@ -1462,7 +1678,13 @@ function MarketplacePanel({
   t,
   userId,
   savingId,
+  deals,
+  dealSavingId,
   onCancel,
+  onBuy,
+  onView,
+  onDealAction,
+  onReview,
   onSell
 }: {
   listings: MarketplaceListing[];
@@ -1474,7 +1696,13 @@ function MarketplacePanel({
   t: TFunction;
   userId: string;
   savingId: string | null;
+  deals: MarketplaceDeal[];
+  dealSavingId: string | null;
   onCancel: (listingId: string) => void;
+  onBuy: (listingId: string) => void;
+  onView: (listingId: string) => void;
+  onDealAction: (dealId: string, action: "accept" | "cancel" | "deliver" | "confirm" | "dispute") => void;
+  onReview: (dealId: string) => void;
   onSell: () => void;
 }) {
   const canCreate = openListingCount < listingLimit;
@@ -1501,9 +1729,9 @@ function MarketplacePanel({
             return (
               <article className="market-card" key={listing.id}>
                 <div className="market-card-image">
-                  {listing.artifact?.image_url ? (
+                  {listing.image_url ?? listing.artifact?.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={listing.artifact.image_url} alt="" />
+                    <img src={listing.image_url ?? listing.artifact?.image_url ?? ""} alt="" />
                   ) : (
                     <span>{artifactInitial(listing)}</span>
                   )}
@@ -1514,6 +1742,7 @@ function MarketplacePanel({
                   {listing.description ? <p>{listing.description}</p> : null}
                   <div className="market-card-meta">
                     <span>{formatAdaptiveMoney(Number(listing.price_amount), locale)}</span>
+                    <small>{listing.sales_count ?? 0} · ★ {listing.rating_count ? (Number(listing.rating_sum ?? 0) / Number(listing.rating_count)).toFixed(1) : "—"}</small>
                     <small>
                       {own ? t("market.yours") : (
                         <UserNameWithLevel
@@ -1526,13 +1755,19 @@ function MarketplacePanel({
                     </small>
                   </div>
                   {own ? (
-                    <button className="text-button danger" type="button" disabled={savingId === listing.id} onClick={() => onCancel(listing.id)}>
-                      {savingId === listing.id ? t("app.common.loading") : t("market.cancel")}
-                    </button>
+                    <div className="market-card-actions">
+                      <button className="text-button" type="button" onClick={() => onView(listing.id)}>{t("market.details")}</button>
+                      <button className="text-button danger" type="button" disabled={savingId === listing.id} onClick={() => onCancel(listing.id)}>
+                        {savingId === listing.id ? t("app.common.loading") : t("market.cancel")}
+                      </button>
+                    </div>
                   ) : (
-                    <button className="text-button" type="button" disabled>
-                      {t("market.dealsLater")}
-                    </button>
+                    <div className="market-card-actions">
+                      <button className="text-button" type="button" onClick={() => onView(listing.id)}>{t("market.details")}</button>
+                      <button className="text-button" type="button" disabled={dealSavingId === listing.id} onClick={() => onBuy(listing.id)}>
+                        {dealSavingId === listing.id ? t("app.common.loading") : t("market.buy")}
+                      </button>
+                    </div>
                   )}
                 </div>
               </article>
@@ -1540,7 +1775,154 @@ function MarketplacePanel({
           })}
         </div>
       ) : null}
+      {deals.length > 0 ? (
+        <div className="market-deals">
+          <strong>{t("market.myDeals")}</strong>
+          {deals.map((deal) => {
+            const buying = deal.buyer_user_id === userId;
+            return (
+              <article className="market-card" key={deal.id}>
+                <div className="market-card-body">
+                  <strong>{t("market.dealStatus", { status: deal.status })}</strong>
+                  <span>{formatAdaptiveMoney(Number(deal.price_amount), locale)}</span>
+                  {deal.status === "awaiting_seller" && deal.expires_at ? <small>{t("market.timer")}: {new Date(deal.expires_at).toLocaleString(locale === "ru" ? "ru-RU" : "en-US")}</small> : null}
+                  {deal.status === "accepted" && deal.delivery_due_at ? <small>{t("market.timer")}: {new Date(deal.delivery_due_at).toLocaleString(locale === "ru" ? "ru-RU" : "en-US")}</small> : null}
+                  {deal.status === "delivered" && deal.delivered_at ? <small>{t("market.timer")}: {new Date(deal.delivered_at).toLocaleString(locale === "ru" ? "ru-RU" : "en-US")}</small> : null}
+                  <div className="market-card-actions">
+                    {deal.status === "awaiting_seller" && !buying ? <button className="text-button" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "accept")}>{t("market.accept")}</button> : null}
+                    {deal.status === "accepted" && !buying ? <button className="text-button" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "deliver")}>{t("market.deliver")}</button> : null}
+                    {deal.status === "delivered" && buying ? <button className="text-button" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "confirm")}>{t("market.confirm")}</button> : null}
+                    {deal.status === "completed" && buying ? <button className="text-button" type="button" disabled={dealSavingId === deal.id} onClick={() => onReview(deal.id)}>{t("market.review")}</button> : null}
+                    {(deal.status === "accepted" || deal.status === "delivered") ? <button className="text-button danger" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "dispute")}>{t("market.dispute")}</button> : null}
+                    {deal.status === "awaiting_seller" ? <button className="text-button danger" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "cancel")}>{t("market.cancelDeal")}</button> : null}
+                  </div>
+                  {deal.events?.length ? (
+                    <details className="market-deal-events">
+                      <summary>{t("market.events")}</summary>
+                      <ol>
+                        {deal.events.map((event) => (
+                          <li key={event.id}>
+                            <span>{event.event_type}</span>
+                            <small>{new Date(event.created_at).toLocaleString(locale === "ru" ? "ru-RU" : "en-US")}</small>
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function MarketplaceListingDetailModal({
+  listing,
+  locale,
+  t,
+  own,
+  onClose,
+  onEdit
+}: {
+  listing: MarketplaceListing;
+  locale: AppLocale;
+  t: TFunction;
+  own: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const kind = listing.listing_kind ?? "digital_asset";
+  const kindLabel = kind === "physical_good" ? t("market.kind.physical") : t(`market.kind.${kind}` as MessageKey);
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("market.details")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+          <h2>{t("market.details")}</h2>
+          {own ? <button className="text-button" type="button" onClick={onEdit}>{t("market.edit")}</button> : <span />}
+        </div>
+        <div className="sell-modal-body">
+          <strong>{listing.title}</strong>
+          {listing.description ? <p>{listing.description}</p> : null}
+          <p>{formatAdaptiveMoney(Number(listing.price_amount), locale)} · {kindLabel}</p>
+          {listing.category ? <p>{t("market.category")}: {listing.category}</p> : null}
+          {listing.fulfillment_days ? <p>{t("market.fulfillment")}: {listing.fulfillment_days} {locale === "ru" ? "дн." : "days"}</p> : null}
+          <small>{t("market.termsVersion")}: {listing.terms_version ?? 1}</small>
+          {listing.terms_hash ? <small>{t("market.termsHash")}: {listing.terms_hash.slice(0, 18)}…</small> : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MarketplaceEditModal({
+  listing,
+  locale,
+  t,
+  onClose,
+  onSave
+}: {
+  listing: MarketplaceListing;
+  locale: AppLocale;
+  t: TFunction;
+  onClose: () => void;
+  onSave: (input: MarketplaceListingInput) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(listing.title);
+  const [description, setDescription] = useState(listing.description ?? "");
+  const [imageUrl, setImageUrl] = useState(listing.image_url ?? "");
+  const [category, setCategory] = useState(listing.category ?? "");
+  const [fulfillmentDays, setFulfillmentDays] = useState(String(listing.fulfillment_days ?? 7));
+  const [price, setPrice] = useState(String(listing.price_amount));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const parsedPrice = parseNumber(price);
+  const valid = title.trim().length > 0 && Number.isFinite(parsedPrice) && parsedPrice > 0;
+
+  async function save() {
+    if (!valid) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave({
+        category,
+        description,
+        fulfillmentDays: Number(fulfillmentDays),
+        imageUrl,
+        listingKind: listing.listing_kind ?? "digital_asset",
+        priceAmount: Math.round(parsedPrice * 100) / 100,
+        title
+      });
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Failed to update listing.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("market.edit")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+          <h2>{t("market.edit")}</h2>
+          <button className="text-button" type="button" disabled={!valid || saving} onClick={() => { void save(); }}>{saving ? t("app.common.loading") : t("market.save")}</button>
+        </div>
+        <div className="sell-modal-body">
+          <label className="finance-field"><span>{t("market.item")}</span><input value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} /></label>
+          <label className="finance-field"><span>{t("market.description")}</span><textarea value={description} maxLength={1000} onChange={(event) => setDescription(event.target.value)} /></label>
+          <label className="finance-field"><span>{t("market.image")}</span><input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} /></label>
+          <label className="finance-field"><span>{t("market.category")}</span><input value={category} maxLength={80} onChange={(event) => setCategory(event.target.value)} /></label>
+          {listing.listing_kind !== "digital_asset" ? <label className="finance-field"><span>{t("market.fulfillment")}</span><select value={fulfillmentDays} onChange={(event) => setFulfillmentDays(event.target.value)}><option value="1">1</option><option value="3">3</option><option value="7">7</option><option value="14">14</option></select></label> : null}
+          <label className="finance-field"><span>{t("market.price")}</span><input inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+          {error ? <p className="finance-error">{error}</p> : null}
+          <small>{t("market.termsVersion")}: {(listing.terms_version ?? 1) + 1}</small>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1562,6 +1944,9 @@ function SellItemModal({
   const [title, setTitle] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [artifactType, setArtifactType] = useState("market_item");
+  const [listingKind, setListingKind] = useState<"digital_asset" | "service" | "physical_good">("digital_asset");
+  const [category, setCategory] = useState("");
+  const [fulfillmentDays, setFulfillmentDays] = useState("7");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1578,6 +1963,9 @@ function SellItemModal({
     try {
       await onCreate({
         artifactType,
+        listingKind,
+        category,
+        fulfillmentDays: Number(fulfillmentDays),
         description,
         imageUrl,
         priceAmount: Math.round(parsedPrice * 100) / 100,
@@ -1631,6 +2019,29 @@ function SellItemModal({
                   <option value="skill">{t("market.type.skill")}</option>
                 </select>
               </label>
+              <label className="finance-field">
+                <span>{t("market.kind")}</span>
+                <select value={listingKind} onChange={(event) => setListingKind(event.target.value as typeof listingKind)}>
+                  <option value="digital_asset">{t("market.kind.digital")}</option>
+                  <option value="service">{t("market.kind.service")}</option>
+                  <option value="physical_good">{t("market.kind.physical")}</option>
+                </select>
+              </label>
+              <label className="finance-field">
+                <span>{t("market.category")}</span>
+                <input value={category} maxLength={80} onChange={(event) => setCategory(event.target.value)} />
+              </label>
+              {listingKind !== "digital_asset" ? (
+                <label className="finance-field">
+                  <span>{t("market.fulfillment")}</span>
+                  <select value={fulfillmentDays} onChange={(event) => setFulfillmentDays(event.target.value)}>
+                    <option value="1">1</option>
+                    <option value="3">3</option>
+                    <option value="7">7</option>
+                    <option value="14">14</option>
+                  </select>
+                </label>
+              ) : null}
               <label className="topup-field">
                 <span>{t("market.price")}</span>
                 <input
@@ -2331,8 +2742,12 @@ function WalletTransferModal({
   const [contacts, setContacts] = useState<WalletTransferContact[] | null>(null);
   const [contactsError, setContactsError] = useState<string | null>(null);
   const [recipientUserId, setRecipientUserId] = useState("");
+  const [recipientPreview, setRecipientPreview] = useState<WalletRecipient | null>(null);
+  const [recipientResolving, setRecipientResolving] = useState(false);
+  const [transferKey, setTransferKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<WalletTransferReceipt | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -2343,7 +2758,10 @@ function WalletTransferModal({
         const rows = await loadWalletTransferContacts();
         if (!mounted) return;
         setContacts(rows);
-        if (rows[0]?.contact_user_id) setRecipientUserId(rows[0].contact_user_id);
+        if (rows[0]?.contact_user_id) {
+          setRecipientUserId(rows[0].contact_user_id);
+          setRecipientPreview(rows[0].profile);
+        }
       } catch (loadError) {
         console.warn("Wallet transfer contacts load failed", loadError);
         if (mounted) {
@@ -2361,8 +2779,25 @@ function WalletTransferModal({
 
   const parsedAmount = parseNumber(amount);
   const validRecipient = isUuid(recipientUserId.trim());
-  const isValid = validRecipient && Number.isFinite(parsedAmount) && parsedAmount > 0 && parsedAmount <= wallet.balance;
   const selectedContact = (contacts ?? []).find((contact) => contact.contact_user_id === recipientUserId);
+  const recipientResolved = Boolean(selectedContact?.profile || recipientPreview?.user_id === recipientUserId.trim());
+  const isValid = validRecipient && recipientResolved && Number.isFinite(parsedAmount) && parsedAmount > 0 && parsedAmount <= wallet.balance;
+
+  async function resolveRecipient() {
+    const value = recipientUserId.trim();
+    if (!isUuid(value) || selectedContact?.profile) return;
+    setRecipientResolving(true);
+    setError(null);
+    try {
+      const recipient = await loadWalletRecipient(value);
+      setRecipientPreview(recipient);
+    } catch (resolveError) {
+      setRecipientPreview(null);
+      setError(resolveError instanceof Error ? resolveError.message : "Recipient profile not found.");
+    } finally {
+      setRecipientResolving(false);
+    }
+  }
 
   async function handleConfirm() {
     if (!isValid) return;
@@ -2372,6 +2807,8 @@ function WalletTransferModal({
 
     try {
       const token = await getAccessToken();
+      const stableTransferKey = transferKey ?? crypto.randomUUID();
+      if (!transferKey) setTransferKey(stableTransferKey);
       const response = await fetch("/api/wallet/transfer", {
         method: "POST",
         cache: "no-store",
@@ -2381,18 +2818,18 @@ function WalletTransferModal({
         },
         body: JSON.stringify({
           amount: parsedAmount,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: stableTransferKey,
           recipientUserId: recipientUserId.trim()
         })
       });
-      const payload = (await response.json()) as { wallet?: Tables<"wallet_accounts">; error?: string };
+      const payload = (await response.json()) as { wallet?: Tables<"wallet_accounts">; transfer?: WalletTransferReceipt; error?: string };
 
-      if (!response.ok || payload.error || !payload.wallet) {
+      if (!response.ok || payload.error || !payload.wallet || !payload.transfer) {
         throw new Error(payload.error ?? "Failed to transfer Wallet.");
       }
 
       await onSuccess(payload.wallet);
-      onClose();
+      setReceipt(payload.transfer);
     } catch (transferError) {
       setError(transferError instanceof Error ? transferError.message : "Failed to transfer Wallet.");
     } finally {
@@ -2408,7 +2845,16 @@ function WalletTransferModal({
           <h2>{t("wallet.transfer.title")}</h2>
           <span />
         </div>
-        <div className="transfer-modal-body">
+          <div className="transfer-modal-body">
+          {receipt ? (
+            <div className="transfer-receipt">
+              <strong>{t("wallet.transfer.receipt")}</strong>
+              <span>{formatAdaptiveMoney(receipt.amount, locale)} · {recipientPreview?.display_name || recipientPreview?.username || shortId(recipientUserId)}</span>
+              <small>{t("wallet.transfer.receiptSource")}: {receipt.sourceId}</small>
+              <small>{t("wallet.transfer.receiptBalances", { sender: formatAdaptiveMoney(receipt.sender.balanceAfter ?? 0, locale), recipient: formatAdaptiveMoney(receipt.recipient.balanceAfter ?? 0, locale) })}</small>
+              <button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.close")}</button>
+            </div>
+          ) : null}
           <div className="topup-balance-info">
             <div className="topup-balance-card">
               <span>{t("wallet.availableBalance")}</span>
@@ -2429,6 +2875,7 @@ function WalletTransferModal({
                     type="button"
                     onClick={() => {
                       setRecipientUserId(contact.contact_user_id);
+                      setRecipientPreview(contact.profile);
                       setError(null);
                     }}
                   >
@@ -2453,8 +2900,10 @@ function WalletTransferModal({
               value={recipientUserId}
               onChange={(event) => {
                 setRecipientUserId(event.target.value);
+                setRecipientPreview(null);
                 setError(null);
               }}
+              onBlur={() => { void resolveRecipient(); }}
               placeholder={t("wallet.transfer.recipientPlaceholder")}
             />
           </div>
@@ -2476,21 +2925,23 @@ function WalletTransferModal({
             />
           </div>
 
-          {selectedContact ? (
+          {recipientPreview ? (
             <p className="transfer-summary">
-              {t("wallet.transfer.summary", { amount: formatAdaptiveMoney(parsedAmount, locale), recipient: contactName(selectedContact) })}
-              {selectedContact.profile ? (
+              {t("wallet.transfer.summary", { amount: formatAdaptiveMoney(parsedAmount, locale), recipient: recipientPreview.display_name || recipientPreview.username || shortId(recipientPreview.user_id) })}
+              {recipientPreview ? (
                 <>
                   {" "}
                   <UserLevelBadge
-                    label={t("profile.levelBadge", { level: selectedContact.profile.level })}
-                    level={selectedContact.profile.level}
+                    label={t("profile.levelBadge", { level: recipientPreview.level })}
+                    level={recipientPreview.level}
                   />
                 </>
               ) : null}
             </p>
           ) : null}
           {!validRecipient && recipientUserId.trim() ? <p className="topup-error">{t("wallet.transfer.error.recipient")}</p> : null}
+          {validRecipient && !recipientResolved && !recipientResolving ? <p className="topup-error">{t("wallet.transfer.error.resolveRecipient")}</p> : null}
+          {recipientResolving ? <p className="transfer-muted">{t("app.common.loading")}</p> : null}
           {error ? <p className="topup-error">{error}</p> : null}
           <div className="topup-modal-actions">
             <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>

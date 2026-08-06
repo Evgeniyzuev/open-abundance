@@ -10,6 +10,7 @@
     "test:ai": "node scripts/verify-ai-contract.mjs && node scripts/verify-ai-usage-contract.mjs",
     "test:skills": "node scripts/verify-skills-contract.mjs",
     "test:usdt": "node scripts/verify-ton-usdt-contract.mjs",
+    "test:marketplace": "node scripts/verify-marketplace-contract.mjs",
     "test:growth": "node scripts/verify-growth-analytics-contract.mjs",
     "test:e2e": "playwright test",
     "db:link": "pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi",

@@ -106,12 +106,12 @@ rater_delta = 0.10 × target_delta
 - Added Wallet transfer modal with contact selection/manual recipient id fallback and server refresh after successful transfer.
 - Added and applied Marketplace listings Phase 2: `marketplace_listings`, create/list/cancel API and Wallet -> Market listing grid.
 - Updated Marketplace listings UI/API so users can create product/service/skill cards directly; open cards are limited by current Core level.
-- Planned marketplace quality/discovery layer in `docs/MARKETPLACE_ESCROW_PLAN.md`: sales count, buyer reviews, seller rating and private `mutual_market_balance = spent - earned` ranking signal.
+- Marketplace quality layer is specified in `docs/MARKETPLACE_ESCROW_PLAN.md`: listing sales/review counters and buyer reviews are part of the internal MVP; private `mutual_market_balance = spent - earned` discovery remains a deferred read model after buyer/seller QA.
 
 2026-08-01:
 
 - Trust v2 accepted as a future public numeric summary, without changing the current Trust-lite implementation.
-- Marketplace deal lifecycle and atomic completion code now exist, but funds reserve, expire/refund, disputes, reviews and User QA remain prerequisites for Trust v2.
+- Marketplace deal lifecycle, funds reserve, expire/refund, disputes and reviews exist in the local DB-only implementation; remote apply and buyer/seller User QA remain prerequisites for Trust v2 and any mutual ranking.
 - Exact Trust scale and constants remain decision gates; no Trust v2 tables or scoring worker are implemented.
 
 ## Core Entities

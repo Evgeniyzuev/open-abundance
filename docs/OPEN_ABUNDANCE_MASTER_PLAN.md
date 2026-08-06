@@ -143,7 +143,7 @@ coverage_ratio =
 - Прогнозируемый GMV не считается резервом.
 - Нельзя давать награды за валовый оборот.
 - Коммерческие рекомендации маркируются и ранжируются прежде всего по соответствию желанию, качеству и подтвержденным результатам.
-- Технический фундамент deals и atomic Wallet/item completion подготовлен, но это ещё не полный escrow: buyer funds reserve, automated expire/refund, dispute и User QA остаются обязательными до экономического запуска.
+- Внутренний DB-only Marketplace теперь имеет buyer Wallet hold, atomic item/payment settlement, refund/expiry/dispute RPC и reviews. User-level settled balance/counterparty projection и ranking read model отложены до отдельного этапа после QA; remote migration apply и buyer/seller User QA остаются обязательными до экономического запуска. TON smart contracts и blockchain settlement не входят в этот этап.
 - Mutual credit учитывает только legitimate settled deals без возврата/спора. `spent - earned` даёт ограниченный мягкий boost, но релевантность и качество доминируют; отрицательного штрафа и прямой награды за оборот нет.
 - Цель алгоритма — балансировать возможность взаимного продвижения и увеличивать полезный GMV, а не создавать искусственный оборот. Self-deals, связанные аккаунты, круговые сделки и дробление исключаются.
 
@@ -163,7 +163,7 @@ coverage_ratio =
 
 ## 9. Порядок разработки
 
-Уже созданный фундамент: onboarding, Home/Today, первая Core-награда и receipt, Reality Feed foundation, native TON deposit, Marketplace listings/deal lifecycle и atomic completion. Фактический QA-статус каждой части хранится только в Kanban.
+Уже созданный фундамент: onboarding, Home/Today, первая Core-награда и receipt, Reality Feed foundation, native TON deposit, Wallet-to-Wallet и внутренний Marketplace listings/deal lifecycle с минимальным escrow hold/refund/review. Производные mutual-ranking таблицы намеренно отложены; фактический QA-статус каждой части хранится только в Kanban.
 
 Следующий порядок зависимостей:
 
@@ -171,11 +171,11 @@ coverage_ratio =
 2. Собрать короткий Day 0/Day 1 activation loop, закрыть события воронки и начать управляемую когорту 20–50 человек.
 3. Пользовательский content loop: ручной media-post, like, простые комментарии, canonical repost и outbound share package; Daily Progress входит в этот контур и является текущим кодовым шагом. Кодовый MVP и remote migration реализованы 2026-08-02; User QA остаётся впереди.
 4. Отдельно завершить ручной User QA и операционные процедуры ограниченного native TON withdrawal; кодовый срез уже реализован и не блокирует Content Loop.
-5. **Текущая кодовая карточка:** Skill Passport foundation и automatic L1 checks для referral, public content и team membership.
+5. **Текущая кодовая карточка:** внутренний Marketplace safety completion: listing → Wallet reserve → delivery → settlement/refund → review. TON contracts и blockchain settlement отложены.
 6. Team/referral/leader loop: dashboard, помощь новичку, лидерские челленджи и приглашение после результата.
-7. Довести Marketplace до funds reserve, expire/refund, dispute и reviews; затем включить mutual credit discovery.
+7. Mutual credit discovery после Marketplace QA: один 90-day read model по completed deals, минимум два контрагента, cap `+10%`, без отрицательного штрафа; ranking только для закрытой beta. `marketplace_user_balances` и `marketplace_user_counterparties` не создаются до этого этапа.
 8. Trust v2: shadow calculation, private summary и только после калибровки публичный pilot.
-9. USDT Jetton в TON; затем одна следующая сеть по спросу.
+9. USDT Jetton в TON и следующая сеть — после отдельного blockchain-аудита и операционного допуска.
 10. Future Sim после устойчивого workflow, финансового калькулятора и подтверждённого D1/D3/D7.
 
 Одновременно реализуется только один главный шаг. Путь карточки: `Очередь -> Сейчас -> Technical QA -> User QA -> Подтверждено`.
@@ -194,6 +194,7 @@ coverage_ratio =
 ## 11. Отложено
 
 - Полный Marketplace dispute/arbitration, сложные рейтинги и uncapped discovery.
+- User-level mutual balance/counterparty projections и ranking read model; сначала только shadow calculation после buyer/seller QA.
 - Расширенный project participation loop.
 - Trust v2 остаётся в очереди после marketplace reviews/disputes; публичный запуск не выполняется раньше shadow/private фаз.
 - Afterburn.

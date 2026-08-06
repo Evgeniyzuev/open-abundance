@@ -29,19 +29,19 @@
 
 ## Сейчас
 
-### USDT Jetton в TON и следующая сеть
+### Marketplace safety completion + Internal Market
 
-- **Статус:** Сейчас — кодовый срез реализован 2026-08-02, remote migration применена и REST schema check вернул HTTP 200; testnet/mainnet User QA ещё впереди.
-- **Пользовательский результат:** пользователь выбирает USDT в сети TON, получает проверяемый invoice, отправляет настоящий Jetton, видит финальность и зачисление USD-эквивалента в Wallet; вывод проходит через тот же reserve/idempotency/manual-review контур.
-- **Почему сейчас:** native TON deposit/ограниченный withdrawal уже проверены; следующий риск — подключить самый востребованный TON-актив без принятия fake Jetton и без смешивания token units с USD Wallet ledger.
-- **Главное решение:** отдельные USDT tables/RPC и adapter поверх TON signer; принимается только allowlisted master `EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs`, его детерминированный token wallet, `transfer_notification`, `decimals = 6` и свежий price snapshot.
-- **Граница шага:** полный TON USDT deposit/withdrawal loop, idempotent settlement, duplicate/unknown/fake-Jetton guards, Wallet UI и техническая готовность к следующей паре. Bridge, swap, несколько сетей одновременно, user-specific custody и массовый payout не входят.
-- **Decision-complete план:** `docs/USDT_JETTON_TON_NEXT_NETWORK_PLAN.md`; следующая сеть выбирается только после User QA и операционного review USDT.
-- **Технические проверки:** `pnpm test:skills`, `pnpm test:usdt`, `pnpm exec tsc --noEmit`, `pnpm lint` и эскалированный `pnpm build` пройдены; remote migration `20260802140000_ton_usdt_jetton_rail.sql` применена, REST schema check — HTTP 200. Единственный bounded local HTTP smoke-check не стартовал из-за известного Windows `spawn EPERM`; in-app browser недоступен в текущем окружении.
-- **Ручной UX-сценарий:** Wallet → USDT · TON ↑ → invoice и QR → тестовый перевод USDT с comment → дождаться `credited`; затем USDT ↓ → адрес → fee preview → confirm → on-chain status.
-- **Метрика:** доля USDT deposits, корректно найденных с первого scan; duplicate/unknown/fake-Jetton rejection rate; время `transfer_notification → credit`; успешный withdrawal и доля manual review.
-- **Блокеры:** User QA полного loop, testnet/mainnet success и failure-сценариев остаётся впереди; mainnet withdrawal flag выключен, seed/mnemonic не попадает в клиент, логи или миграции.
-- **Связанный документ:** `docs/USDT_JETTON_TON_NEXT_NETWORK_PLAN.md`.
+- **Статус:** Сейчас — внутренний DB-only контур реализируется; remote marketplace schema доступна, но сделок и buyer/seller User QA ещё не было. Юридический gate закрытой beta отмечен пройденным по подтверждению основателя.
+- **Пользовательский результат:** объявление → резерв Wallet без комиссии → принятие/выполнение → атомарный settlement или refund → receipt, история и review.
+- **Почему сейчас:** существующий foundation показывал объявления, но не резервировал оплату из UI; запуск mutual economy без hold создавал риск недостаточного баланса, двойной продажи и зависших сделок.
+- **Главное решение:** одна идемпотентная RPC-транзакция для hold/lock, минимальный отдельный `marketplace_escrows` только для состояния hold/release/refund и ключей повторов, явные deal actions, 24-часовой seller acceptance, 72-часовой auto-release, dispute с двумя исходами и immutable terms versions.
+- **Граница шага:** только внутренние Wallet/DB операции. TON contracts, on-chain escrow, аудит smart contracts и blockchain settlement — отдельный отложенный этап.
+- **Изменения:** listing kinds `digital_asset/service/physical_good`, detail/edit, image/category/fulfillment/terms hash; Wallet-to-Wallet receipt и обязательный idempotency key; immutable buyer reviews и server-maintained listing counters. User-level mutual balances, counterparties и ranking отложены до отдельного этапа после QA.
+- **Упрощение MVP:** Wallet truth остаётся в `wallet_accounts`/`wallet_ledger`; текущая миграция не создаёт `marketplace_user_balances` или `marketplace_user_counterparties`, а `fee_amount` не хранится до появления комиссии.
+- **Технические проверки:** `node scripts/verify-marketplace-contract.mjs`, `pnpm exec tsc --noEmit`, `pnpm lint`; remote migration apply и REST schema verification остаются следующим подтверждаемым шагом.
+- **Ручной UX-сценарий после deployment:** buyer Wallet transfer → seller listing → покупка → seller accept/deliver → buyer confirm → refund/cancel → dispute/operator resolution.
+- **Критерий завершения:** технические проверки, remote schema check и buyer/seller User QA на двух реальных аккаунтах; после подтверждения основателя карточка переносится в `Подтверждено`, следующей активной становится Team/Referral.
+- **Связанные документы:** `docs/MARKETPLACE_ESCROW_PLAN.md`, `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
 
 ## Завершённая карточка — Skill Passport
 
@@ -58,7 +58,7 @@
 
 ### User Content Growth Loop
 
-- **Статус:** Сейчас — кодовый срез и remote migration реализованы 2026-08-02; ручной User QA и bounded HTTP smoke остаются отдельными шагами.
+- **Статус:** Технически реализовано / нужен User QA — кодовый срез и remote migration реализованы 2026-08-02; ручной User QA и bounded HTTP smoke остаются отдельными шагами.
 - **Пользовательский результат:** пользователь публикует собственное фото/короткое видео о результате, получает простую реакцию и комментарий, а затем может безопасно переиспользовать историю в каноническом repost и внешнем share package.
 - **Почему сейчас:** Verified Reality Feed уже подтверждён пользователем; следующий риск — лента остаётся в основном server-backed/demo-контуром без простого first-party action-loop.
 - **Главное решение:** начать с ручного поста, одной реакции `like`, простых комментариев и canonical repost без копирования media; Daily Progress и outbound share package остаются частью одного короткого loop.
@@ -146,25 +146,21 @@
     - Team dashboard, помощь новичку, лидерские челленджи и базовая коммуникация.
     - Invite challenge считает регистрацию; высокий уровень навыка привлечения — активацию и удержание.
     - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
-4. [ ] **Marketplace safety completion + Mutual Credit**
+4. [ ] **Mutual Credit discovery pilot**
 
-    - Buyer funds reserve, expire/refund, dispute, reviews и ручной UX QA.
-    - Затем rolling `spent - earned` как capped discovery boost только по legitimate settled deals.
+    - После закрытия внутреннего Marketplace и buyer/seller QA: rolling `spent - earned` как capped discovery boost только по legitimate settled deals.
+    - Сначала shadow mode; ranking включается только для закрытой beta после отдельного подтверждения.
 5. [ ] **Trust v2**
 
     - Rating `0.0–5.0`, amount smoothing, level-based pair cap, `10%` signed rater effect и calendar-year `×0.9` summary.
     - Порядок: shadow calculation → private summary → calibrated public pilot.
     - Связанный документ: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
-6. [ ] **USDT Jetton в TON и следующая сеть**
-
-    - Сначала полный deposit/withdrawal loop USDT Jetton, затем одна пара `asset + network` по спросу.
-    - Несколько сетей одновременно, bridge и swap не входят.
-7. [ ] **Future Sim**
+6. [ ] **Future Sim**
 
     - Сначала честная статичная simulation с формулой, watermark и opt-in; face/video позже.
     - Стартует только после устойчивого workflow, калькулятора и подтверждённого D1/D3/D7.
     - Связанный документ: `docs/FUTURE_SIM_PLAN.md`.
-8. [ ] **Humanity confirmation onboarding challenge**
+7. [ ] **Humanity confirmation onboarding challenge**
 
     - Спроектировать заметный шаг «Подтверждение человечности» в onboarding и Today; не считать Google-вход или обычную активность подтверждением.
     - Рассмотреть короткий phone liveness: лицо по центру и случайные повороты влево/вправо; усиленный вариант — случайные цифры вслух во время короткой видеозаписи. Полный оборот головы на 360° не требуется.
@@ -244,7 +240,7 @@
 ### Поздние контуры, уже имеющие технический фундамент
 
 - [ ] Open Projects: каталог, заявки и project tasks без завершенного participation loop.
-- [X] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Migration `20260724230000_marketplace_deals_phase3_4.sql` и routes требуют environment apply/User QA; деньги покупателя пока не резервируются, expire/refund/dispute отсутствуют, поэтому escrow не считается завершённым.
+- [X] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Remote schema существующей deals-модели доступна; новая internal escrow migration и routes добавляют hold/refund/dispute/reviews, но remote apply и buyer/seller User QA ещё впереди.
 - [X] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; ограниченный withdrawal подтверждён ручным mainnet User QA, полный статус и границы — `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
 
 ## Подтверждено пользователями
@@ -258,6 +254,7 @@
 - [X] Первая цепочка Core-челленджей: пользователь подтвердил 2026-07-13, что текущую карточку переносим в подтвержденные; цепочка остается без жестких prerequisite-блокировок, completed не возвращаются в доступные, accepted раскрывается списком, `Give up` возвращает accepted-челлендж в доступные, `Turn On Core Growth` заменен на Today Core target.
 - [X] **Verified Reality Feed:** пользователь подтвердил 2026-08-02 draft-first сценарий Core challenge → Открыть черновик → Blog → Drafts → опубликовать → People → Feed → обновить; verified/demo/system badges убраны с плиток-обложек и остаются только внутри detail.
 - [X] **Skill Passport + automatic skill levels:** пользователь подтвердил 2026-08-02 ручной сценарий refresh после referral/public post/team fact; текущий automatic-checks-first срез закрыт.
+- [X] **USDT Jetton в TON:** основатель подтвердил 2026-08-06, что User QA пройден; дальнейшие аудиты TON mainnet и blockchain hardening остаются отдельным отложенным этапом.
 
 ## Заблокировано
 

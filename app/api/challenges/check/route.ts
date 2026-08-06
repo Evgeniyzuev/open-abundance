@@ -60,6 +60,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
   }
 
+  if (challenge.verification_logic === "peer_reviews") {
+    return NextResponse.json({ error: "Peer reviews are settled by review submissions." }, { status: 409 });
+  }
+
   if (challenge.verification_logic !== "signup") {
     const { data: userChallenge, error: userChallengeError } = await supabase
       .from("user_challenges")
@@ -102,11 +106,12 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const rewardAmount = getRewardAmount(challenge.reward_label);
+  const rewardAmount = Number((challenge as any).reward_amount ?? getRewardAmount(challenge.reward_label));
+  const rewardAccount = String((challenge as any).reward_account ?? "core");
   const { data: completion, error: completionError } = await supabase.rpc("complete_user_challenge", {
     p_user_id: user.id,
     p_challenge_id: challenge.id,
-    p_reward_account: "core",
+    p_reward_account: rewardAccount,
     p_reward_amount: rewardAmount
   });
 
@@ -189,7 +194,7 @@ export async function POST(request: NextRequest) {
     wallet: walletResult.data,
     rewardClaimed: Boolean(result?.reward_claimed),
     feedPostId,
-    rewardAccount: result?.rewarded_account ?? "core",
+    rewardAccount: result?.rewarded_account ?? rewardAccount,
     rewardAmount: Number(result?.rewarded_amount ?? rewardAmount)
   });
 }
@@ -199,6 +204,19 @@ async function verifyChallenge(
   userId: string,
   challenge: ChallengeRow
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const db = supabase as any;
+  const acquisitionTarget = Number((challenge as any).acquisition_target ?? 0);
+  if (challenge.verification_logic === "acquisition_publications_milestone") {
+    const { count, error } = await db.from("acquisition_submissions").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("submission_type", "publication").eq("status", "approved");
+    if (error) return { ok: false, reason: "Could not check publication submissions. Try again." };
+    return Number(count ?? 0) >= acquisitionTarget ? { ok: true } : { ok: false, reason: "Submit and pass review for " + acquisitionTarget + " publication(s)." };
+  }
+  if (challenge.verification_logic?.startsWith("acquisition_metric_")) {
+    const metricKey = String((challenge as any).acquisition_metric_key ?? challenge.verification_logic.slice("acquisition_metric_".length));
+    const { data, error } = await db.from("acquisition_submissions").select("id").eq("user_id", userId).eq("challenge_id", challenge.id).eq("submission_type", "metric").eq("metric_key", metricKey).eq("status", "approved").gte("metric_value", acquisitionTarget).limit(1);
+    if (error) return { ok: false, reason: "Could not check quality evidence. Try again." };
+    return (data ?? []).length > 0 ? { ok: true } : { ok: false, reason: "Submit quality evidence and pass peer review first." };
+  }
   if (challenge.verification_logic === "signup") {
     const [profile, core, wallet] = await Promise.all([
       supabase.from("user_profiles").select("user_id").eq("user_id", userId).maybeSingle(),

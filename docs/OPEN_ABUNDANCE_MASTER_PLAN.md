@@ -173,7 +173,7 @@ coverage_ratio =
 4. Отдельно завершить ручной User QA и операционные процедуры ограниченного native TON withdrawal; кодовый срез уже реализован и не блокирует Content Loop.
 5. **Текущая кодовая карточка:** внутренний Marketplace safety completion: listing → Wallet reserve → delivery → settlement/refund → review. TON contracts и blockchain settlement отложены.
 6. Team/referral/leader loop: dashboard, помощь новичку, лидерские челленджи и приглашение после результата.
-7. Mutual credit discovery после Marketplace QA: один 90-day read model по completed deals, минимум два контрагента, cap `+10%`, без отрицательного штрафа; ranking только для закрытой beta. `marketplace_user_balances` и `marketplace_user_counterparties` не создаются до этого этапа.
+7. User economy metrics после Marketplace QA: один `user_economy_metrics` read model для `day/month/year/lifetime`, затем private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross`. Rolling 90-day eligible signal и cap проверяются позже в shadow mode; ranking только для закрытой beta после отдельного решения. `marketplace_user_balances` и `marketplace_user_counterparties` не создаются.
 8. Trust v2: shadow calculation, private summary и только после калибровки публичный pilot.
 9. USDT Jetton в TON и следующая сеть — после отдельного blockchain-аудита и операционного допуска.
 10. Future Sim после устойчивого workflow, финансового калькулятора и подтверждённого D1/D3/D7.
@@ -213,7 +213,7 @@ coverage_ratio =
 - Навыки и automatic checks: docs/SKILLS_SYSTEM_PLAN.md.
 - Crypto deposit/withdrawal и новые сети: `docs/WALLET_CRYPTO_RAILS_PLAN.md`; реализация native TON deposit — `docs/TON_DEPOSIT_MVP_PLAN.md`.
 - Trust-lite и Trust v2: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
-- Сделки и escrow: `docs/MARKETPLACE_ESCROW_PLAN.md`; mutual credit ranking: `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
+- Сделки и escrow: `docs/MARKETPLACE_ESCROW_PLAN.md`; user economy metrics и private participation shadow: `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
 - Лента, media и внешние соцсети: `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`.
 - Future Sim: `docs/FUTURE_SIM_PLAN.md`.
 - Правила разработки: `docs/DEVELOPMENT_RULES.md`.

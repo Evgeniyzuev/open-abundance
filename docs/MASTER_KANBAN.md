@@ -36,7 +36,7 @@
 - **Почему сейчас:** существующий foundation показывал объявления, но не резервировал оплату из UI; запуск mutual economy без hold создавал риск недостаточного баланса, двойной продажи и зависших сделок.
 - **Главное решение:** одна идемпотентная RPC-транзакция для hold/lock, минимальный отдельный `marketplace_escrows` только для состояния hold/release/refund и ключей повторов, явные deal actions, 24-часовой seller acceptance, 72-часовой auto-release, dispute с двумя исходами и immutable terms versions.
 - **Граница шага:** только внутренние Wallet/DB операции. TON contracts, on-chain escrow, аудит smart contracts и blockchain settlement — отдельный отложенный этап.
-- **Изменения:** listing kinds `digital_asset/service/physical_good`, detail/edit, image/category/fulfillment/terms hash; Wallet-to-Wallet receipt и обязательный idempotency key; immutable buyer reviews и server-maintained listing counters. User-level mutual balances, counterparties и ranking отложены до отдельного этапа после QA.
+- **Изменения:** listing kinds `digital_asset/service/physical_good`, detail/edit, image/category/fulfillment/terms hash; Wallet-to-Wallet receipt и обязательный idempotency key; immutable buyer reviews и server-maintained listing counters. `user_economy_metrics`, `participation_balance` и ranking отложены до отдельного этапа после QA.
 - **Упрощение MVP:** Wallet truth остаётся в `wallet_accounts`/`wallet_ledger`; текущая миграция не создаёт `marketplace_user_balances` или `marketplace_user_counterparties`, а `fee_amount` не хранится до появления комиссии.
 - **Технические проверки:** `node scripts/verify-marketplace-contract.mjs`, `pnpm exec tsc --noEmit`, `pnpm lint`; remote migration apply и REST schema verification остаются следующим подтверждаемым шагом.
 - **Ручной UX-сценарий после deployment:** buyer Wallet transfer → seller listing → покупка → seller accept/deliver → buyer confirm → refund/cancel → dispute/operator resolution.
@@ -146,10 +146,14 @@
     - Team dashboard, помощь новичку, лидерские челленджи и базовая коммуникация.
     - Invite challenge считает регистрацию; высокий уровень навыка привлечения — активацию и удержание.
     - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
-4. [ ] **Mutual Credit discovery pilot**
+4. [ ] **User economy metrics + participation shadow**
 
-    - После закрытия внутреннего Marketplace и buyer/seller QA: rolling `spent - earned` как capped discovery boost только по legitimate settled deals.
-    - Сначала shadow mode; ranking включается только для закрытой beta после отдельного подтверждения.
+    - Local implementation is complete: challenge reward normalization, rebuildable `user_economy_metrics`, reconciliation/RLS, private APIs, Wallet UI and safe opt-in aggregates. Remote migration apply, reconciliation run and buyer/seller QA remain the gate.
+
+    - После закрытия внутреннего Marketplace и buyer/seller QA: нормализовать reward sources и построить один `user_economy_metrics` для `day/month/year/lifetime`.
+    - `participation_balance = marketplace_purchases_gross - marketplace_sales_gross`; Wallet transfers и внешние flows его не меняют.
+    - Только после private metrics и reconciliation считать rolling 90-day eligible signal в shadow mode; ranking включается лишь для закрытой beta после отдельного подтверждения.
+    - Связанный документ: `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
 5. [ ] **Trust v2**
 
     - Rating `0.0–5.0`, amount smoothing, level-based pair cap, `10%` signed rater effect и calendar-year `×0.9` summary.

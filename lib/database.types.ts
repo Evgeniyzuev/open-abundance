@@ -2007,6 +2007,10 @@ export type Database = {
           challenge_id: string
           created_at: string
           id: string
+          reward_account: string | null
+          reward_amount: number | null
+          reward_idempotency_key: string | null
+          reward_settled_at: string | null
           status: string
           updated_at: string
           user_id: string
@@ -2016,6 +2020,10 @@ export type Database = {
           challenge_id: string
           created_at?: string
           id?: string
+          reward_account?: string | null
+          reward_amount?: number | null
+          reward_idempotency_key?: string | null
+          reward_settled_at?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -2025,6 +2033,10 @@ export type Database = {
           challenge_id?: string
           created_at?: string
           id?: string
+          reward_account?: string | null
+          reward_amount?: number | null
+          reward_idempotency_key?: string | null
+          reward_settled_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -2115,6 +2127,161 @@ export type Database = {
           target_value?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_economy_metric_visibility: {
+        Row: {
+          is_public: boolean
+          metric_key: string
+          period_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          is_public?: boolean
+          metric_key: string
+          period_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          is_public?: boolean
+          metric_key?: string
+          period_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_economy_metrics: {
+        Row: {
+          core_accrual_gross: number
+          core_balance_end: number
+          core_balance_start: number
+          core_growth_challenge_rewards: number
+          core_growth_leader_bonus: number
+          core_growth_other_system: number
+          core_growth_reinvest: number
+          core_growth_total: number
+          core_growth_wallet_topups: number
+          core_level_end: number
+          created_at: string
+          currency_code: string
+          external_deposit_count: number
+          external_inflows_total: number
+          external_outflows_total: number
+          external_withdrawal_count: number
+          is_reconciled: boolean
+          last_reconciled_at: string | null
+          marketplace_completed_purchase_count: number
+          marketplace_completed_sales_count: number
+          marketplace_platform_fees_paid: number
+          marketplace_purchases_gross: number
+          marketplace_refunds_total: number
+          marketplace_sales_gross: number
+          marketplace_sales_net: number
+          marketplace_unique_counterparties_count: number
+          participation_balance: number
+          period_key: string
+          period_type: string
+          schema_version: number
+          source_watermark: string
+          updated_at: string
+          user_id: string
+          wallet_challenge_rewards: number
+          wallet_core_topups: number
+          wallet_inflows_total: number
+          wallet_outflows_total: number
+          wallet_payout_from_core: number
+          wallet_refunds_in: number
+          wallet_transfer_in: number
+          wallet_transfer_out: number
+        }
+        Insert: {
+          core_accrual_gross?: number
+          core_balance_end?: number
+          core_balance_start?: number
+          core_growth_challenge_rewards?: number
+          core_growth_leader_bonus?: number
+          core_growth_other_system?: number
+          core_growth_reinvest?: number
+          core_growth_total?: number
+          core_growth_wallet_topups?: number
+          core_level_end?: number
+          created_at?: string
+          currency_code?: string
+          external_deposit_count?: number
+          external_inflows_total?: number
+          external_outflows_total?: number
+          external_withdrawal_count?: number
+          is_reconciled?: boolean
+          last_reconciled_at?: string | null
+          marketplace_completed_purchase_count?: number
+          marketplace_completed_sales_count?: number
+          marketplace_platform_fees_paid?: number
+          marketplace_purchases_gross?: number
+          marketplace_refunds_total?: number
+          marketplace_sales_gross?: number
+          marketplace_sales_net?: number
+          marketplace_unique_counterparties_count?: number
+          period_key: string
+          period_type: string
+          schema_version?: number
+          source_watermark?: string
+          updated_at?: string
+          user_id: string
+          wallet_challenge_rewards?: number
+          wallet_core_topups?: number
+          wallet_inflows_total?: number
+          wallet_outflows_total?: number
+          wallet_payout_from_core?: number
+          wallet_refunds_in?: number
+          wallet_transfer_in?: number
+          wallet_transfer_out?: number
+        }
+        Update: {
+          core_accrual_gross?: number
+          core_balance_end?: number
+          core_balance_start?: number
+          core_growth_challenge_rewards?: number
+          core_growth_leader_bonus?: number
+          core_growth_other_system?: number
+          core_growth_reinvest?: number
+          core_growth_total?: number
+          core_growth_wallet_topups?: number
+          core_level_end?: number
+          created_at?: string
+          currency_code?: string
+          external_deposit_count?: number
+          external_inflows_total?: number
+          external_outflows_total?: number
+          external_withdrawal_count?: number
+          is_reconciled?: boolean
+          last_reconciled_at?: string | null
+          marketplace_completed_purchase_count?: number
+          marketplace_completed_sales_count?: number
+          marketplace_platform_fees_paid?: number
+          marketplace_purchases_gross?: number
+          marketplace_refunds_total?: number
+          marketplace_sales_gross?: number
+          marketplace_sales_net?: number
+          marketplace_unique_counterparties_count?: number
+          participation_balance?: number
+          period_key?: string
+          period_type?: string
+          schema_version?: number
+          source_watermark?: string
+          updated_at?: string
+          user_id?: string
+          wallet_challenge_rewards?: number
+          wallet_core_topups?: number
+          wallet_inflows_total?: number
+          wallet_outflows_total?: number
+          wallet_payout_from_core?: number
+          wallet_refunds_in?: number
+          wallet_transfer_in?: number
+          wallet_transfer_out?: number
         }
         Relationships: []
       }
@@ -3068,6 +3235,18 @@ export type Database = {
           rewarded_account: string
           rewarded_amount: number
         }[]
+      }
+      rebuild_user_economy_metrics: {
+        Args: {
+          p_from_date?: string | null
+          p_to_date?: string | null
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      reconcile_user_economy_metrics: {
+        Args: { p_user_id: string }
+        Returns: Json
       }
       create_marketplace_deal: {
         Args: { p_buyer_user_id: string; p_listing_id: string }

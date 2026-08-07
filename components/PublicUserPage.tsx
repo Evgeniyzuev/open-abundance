@@ -8,7 +8,8 @@ import FeedPostGallery from "@/components/FeedPostGallery";
 import { PostDetailModal } from "@/components/SocialApp";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";
-import type { MessageKey } from "@/lib/i18n";
+import type { AppLocale, MessageKey } from "@/lib/i18n";
+import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import type { FeedPayload, FeedPost } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
@@ -26,6 +27,7 @@ type PublicProfilePayload = {
   };
   links: Array<{ id: string; label: string | null; url: string }>;
   publicWishes: Array<{ id: string; title: string; description: string; image_url: string | null; difficulty_level: number; copied_count: number }>;
+  economyMetrics?: Array<Record<string, string | number>>;
   relation: { isSelf: boolean; isContact: boolean; isTeam: boolean; isFollower: boolean };
   visibleBlocks: Record<string, boolean>;
   error?: string;
@@ -148,7 +150,7 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
             {pageError ? <p className="finance-error">{pageError}</p> : null}
             {pageLoading && !profilePayload ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
             {view === "profile" && profilePayload ? (
-              <PublicProfileView payload={profilePayload} t={t} />
+              <PublicProfileView locale={locale} payload={profilePayload} t={t} />
             ) : null}
             {view === "blog" ? (
               <PublicBlogView loading={pageLoading} payload={feedPayload} t={t} onOpenPost={setSelectedPost} />
@@ -181,9 +183,11 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
 
 function PublicProfileView({
   payload,
+  locale,
   t
 }: {
   payload: PublicProfilePayload;
+  locale: AppLocale;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
 }) {
   return (
@@ -198,6 +202,35 @@ function PublicProfileView({
             </a>
           ))}
         </div>
+      ) : null}
+      {payload.economyMetrics?.length ? (
+        <section className="economy-metrics-panel public-economy-panel">
+          <div className="economy-metrics-header"><div><h2>{t("wallet.economy.title")}</h2><p>{t("wallet.economy.explainer")}</p></div></div>
+          {payload.economyMetrics.map((metric) => {
+            const periodType = String(metric.periodType ?? "lifetime") as "day" | "month" | "year" | "lifetime";
+            const periodKey = String(metric.periodKey ?? "lifetime");
+            const labels: Record<string, MessageKey> = {
+              wallet_inflows_total: "wallet.economy.inflows",
+              wallet_outflows_total: "wallet.economy.outflows",
+              marketplace_sales_gross: "wallet.economy.marketplaceSales",
+              marketplace_purchases_gross: "wallet.economy.marketplacePurchases",
+              marketplace_completed_sales_count: "wallet.economy.marketplaceSales",
+              marketplace_completed_purchase_count: "wallet.economy.marketplacePurchases",
+              core_growth_total: "wallet.economy.coreGrowth",
+              core_level_end: "wallet.core"
+            };
+            return (
+              <div key={`${periodType}:${periodKey}`}>
+                <small>{t(`wallet.economy.period.${periodType}` as MessageKey)} · {periodKey}</small>
+                <div className="economy-metrics-grid">
+                  {Object.entries(metric).filter(([key]) => key !== "periodType" && key !== "periodKey" && labels[key]).map(([key, value]) => (
+                    <div className="economy-metric-card" key={key}><span>{t(labels[key])}</span><strong>{key === "core_level_end" ? String(value) : `${formatAdaptiveMoney(Number(value), locale)} OA$`}</strong></div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </section>
       ) : null}
       {payload.publicWishes.length ? (
         <section className="public-wishes-panel">

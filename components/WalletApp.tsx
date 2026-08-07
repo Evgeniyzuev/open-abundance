@@ -280,6 +280,21 @@ const BENCHMARKS: MarketBenchmark[] = [
 ];
 
 type WalletRow = Tables<"wallet_accounts">;
+type EconomyPeriodType = "day" | "month" | "year" | "lifetime";
+type EconomyMetricKey = "wallet_inflows_total" | "wallet_outflows_total" | "marketplace_sales_gross" | "marketplace_purchases_gross" | "marketplace_completed_sales_count" | "marketplace_completed_purchase_count" | "core_growth_total" | "core_level_end";
+type EconomyVisibilityRow = { metric_key: EconomyMetricKey; period_type: EconomyPeriodType; is_public: boolean };
+type EconomyMetricRow = Pick<Tables<"user_economy_metrics">,
+  | "period_type"
+  | "period_key"
+  | "currency_code"
+  | "marketplace_sales_gross"
+  | "marketplace_purchases_gross"
+  | "participation_balance"
+  | "wallet_inflows_total"
+  | "wallet_outflows_total"
+  | "core_growth_total"
+  | "is_reconciled"
+>;
 
 export default function WalletApp({ active, activeTab, calculatorRequest, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; calculatorRequest?: WalletCalculatorRequest | null; refreshNonce: number; onRefresh: () => Promise<void> }) {
   const { core, wallet, user, loading, error, locale, applyServerData, t } = useUserContext();
@@ -291,6 +306,12 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [walletHistoryRows, setWalletHistoryRows] = useState<WalletHistoryRow[] | null>(null);
   const [walletHistoryLoading, setWalletHistoryLoading] = useState(false);
   const [walletHistoryError, setWalletHistoryError] = useState<string | null>(null);
+  const [economyPeriodType, setEconomyPeriodType] = useState<EconomyPeriodType>("month");
+  const [economyMetric, setEconomyMetric] = useState<EconomyMetricRow | null>(null);
+  const [economyLoading, setEconomyLoading] = useState(false);
+  const [economyError, setEconomyError] = useState<string | null>(null);
+  const [economyPublic, setEconomyPublic] = useState(false);
+  const [economyPublicSaving, setEconomyPublicSaving] = useState(false);
   const [reinvestValue, setReinvestValue] = useState("0");
   const [reinvestSaving, setReinvestSaving] = useState(false);
   const [reinvestError, setReinvestError] = useState<string | null>(null);
@@ -341,7 +362,79 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     setWalletHistoryRows(null);
     setWalletHistoryLoading(false);
     setWalletHistoryError(null);
+    setEconomyMetric(null);
+    setEconomyLoading(false);
+    setEconomyError(null);
   }, [user?.id]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadEconomyMetrics() {
+      if (!active || activeTab !== "wallet" || !user) return;
+      setEconomyError(null);
+      setEconomyLoading(true);
+      try {
+        const token = await getAccessToken();
+        const response = await fetch(`/api/economy/metrics?periodType=${economyPeriodType}&ts=${Date.now()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const payload = (await response.json()) as { metric?: EconomyMetricRow | null; error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Failed to load economy metrics.");
+        if (mounted) setEconomyMetric(payload.metric ?? null);
+      } catch (loadError) {
+        if (mounted) setEconomyError(loadError instanceof Error ? loadError.message : "Failed to load economy metrics.");
+      } finally {
+        if (mounted) setEconomyLoading(false);
+      }
+    }
+
+    loadEconomyMetrics();
+    return () => {
+      mounted = false;
+    };
+  }, [active, activeTab, economyPeriodType, refreshNonce, user]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadEconomyVisibility() {
+      if (!active || activeTab !== "wallet" || !user) return;
+      try {
+        const token = await getAccessToken();
+        const response = await fetch("/api/economy/visibility", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
+        const payload = (await response.json()) as { visibility?: EconomyVisibilityRow[] };
+        if (!response.ok || !mounted) return;
+        setEconomyPublic((payload.visibility ?? []).some((row) => row.period_type === economyPeriodType && row.is_public));
+      } catch {
+        if (mounted) setEconomyPublic(false);
+      }
+    }
+    loadEconomyVisibility();
+    return () => { mounted = false; };
+  }, [active, activeTab, economyPeriodType, refreshNonce, user]);
+
+  async function toggleEconomyPublic() {
+    if (!user || economyPublicSaving) return;
+    const nextValue = !economyPublic;
+    setEconomyPublicSaving(true);
+    try {
+      const token = await getAccessToken();
+      const keys: EconomyMetricKey[] = ["wallet_inflows_total", "wallet_outflows_total", "marketplace_sales_gross", "marketplace_purchases_gross", "marketplace_completed_sales_count", "marketplace_completed_purchase_count", "core_growth_total", "core_level_end"];
+      const responses = await Promise.all(keys.map((metricKey) => fetch("/api/economy/visibility", {
+        method: "PATCH",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ metricKey, periodType: economyPeriodType, isPublic: nextValue })
+      })));
+      if (responses.some((response) => !response.ok)) throw new Error("Failed to save economy visibility.");
+      setEconomyPublic(nextValue);
+    } catch (toggleError) {
+      setEconomyError(toggleError instanceof Error ? toggleError.message : "Failed to save economy visibility.");
+    } finally {
+      setEconomyPublicSaving(false);
+    }
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -772,6 +865,18 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               </div>
             </>
           ) : null}
+          <EconomyMetricsPanel
+            metric={economyMetric}
+            periodType={economyPeriodType}
+            loading={economyLoading}
+            error={economyError}
+            publicEnabled={economyPublic}
+            publicSaving={economyPublicSaving}
+            locale={locale}
+            t={t}
+            onPeriodChange={setEconomyPeriodType}
+            onTogglePublic={toggleEconomyPublic}
+          />
           <HistoryPanel
             title={t("wallet.history.wallet")}
             open={walletHistoryOpen}
@@ -1061,6 +1166,86 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
         />
       ) : null}
     </section>
+  );
+}
+
+function EconomyMetricsPanel({
+  metric,
+  periodType,
+  loading,
+  error,
+  publicEnabled,
+  publicSaving,
+  locale,
+  t,
+  onPeriodChange,
+  onTogglePublic
+}: {
+  metric: EconomyMetricRow | null;
+  periodType: EconomyPeriodType;
+  loading: boolean;
+  error: string | null;
+  publicEnabled: boolean;
+  publicSaving: boolean;
+  locale: AppLocale;
+  t: TFunction;
+  onPeriodChange: (periodType: EconomyPeriodType) => void;
+  onTogglePublic: () => void;
+}) {
+  const periods: EconomyPeriodType[] = ["day", "month", "year", "lifetime"];
+  const value = (amount: number | null | undefined) => formatAdaptiveMoney(Number(amount ?? 0), locale);
+
+  return (
+    <section className="economy-metrics-panel" aria-labelledby="economy-metrics-title">
+      <div className="economy-metrics-header">
+        <div>
+          <h2 id="economy-metrics-title">{t("wallet.economy.title")}</h2>
+          <p>{t("wallet.economy.explainer")}</p>
+        </div>
+        <span className={metric?.is_reconciled ? "economy-status is-verified" : "economy-status"}>
+          {metric?.is_reconciled ? t("wallet.economy.verified") : t("wallet.economy.stale")}
+        </span>
+      </div>
+      <div className="economy-period-switcher" role="group" aria-label={t("wallet.economy.title")}>
+        {periods.map((period) => (
+          <button
+            className={period === periodType ? "is-active" : ""}
+            key={period}
+            type="button"
+            aria-pressed={period === periodType}
+            onClick={() => onPeriodChange(period)}
+          >
+            {t(`wallet.economy.period.${period}` as MessageKey)}
+          </button>
+        ))}
+      </div>
+      <label className="economy-public-toggle">
+        <input type="checkbox" checked={publicEnabled} disabled={publicSaving} onChange={onTogglePublic} />
+        <span>{t("wallet.economy.publicToggle")}</span>
+        <small>{publicSaving ? t("wallet.economy.publicSaving") : publicEnabled ? t("wallet.economy.publicOn") : t("wallet.economy.publicOff")}</small>
+      </label>
+      {loading && !metric ? <p className="economy-metrics-state">{t("wallet.economy.loading")}</p> : null}
+      {error ? <p className="economy-metrics-state is-error">{t("wallet.economy.error")}</p> : null}
+      {metric ? (
+        <div className="economy-metrics-grid">
+          <EconomyMetricCard label={t("wallet.economy.inflows")} value={value(metric.wallet_inflows_total)} />
+          <EconomyMetricCard label={t("wallet.economy.outflows")} value={value(metric.wallet_outflows_total)} />
+          <EconomyMetricCard label={t("wallet.economy.marketplacePurchases")} value={value(metric.marketplace_purchases_gross)} />
+          <EconomyMetricCard label={t("wallet.economy.marketplaceSales")} value={value(metric.marketplace_sales_gross)} />
+          <EconomyMetricCard label={t("wallet.economy.participation")} value={value(metric.participation_balance)} />
+          <EconomyMetricCard label={t("wallet.economy.coreGrowth")} value={value(metric.core_growth_total)} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function EconomyMetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="economy-metric-card">
+      <span>{label}</span>
+      <strong>{value} OA$</strong>
+    </div>
   );
 }
 

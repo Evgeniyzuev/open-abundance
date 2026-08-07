@@ -11,6 +11,7 @@
     "test:skills": "node scripts/verify-skills-contract.mjs",
     "test:usdt": "node scripts/verify-ton-usdt-contract.mjs",
     "test:marketplace": "node scripts/verify-marketplace-contract.mjs",
+    "test:economy": "node scripts/verify-economy-contract.mjs",
     "test:growth": "node scripts/verify-growth-analytics-contract.mjs",
     "test:e2e": "playwright test",
     "db:link": "pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi",

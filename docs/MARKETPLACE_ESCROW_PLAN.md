@@ -11,15 +11,16 @@
 
 ## Current Status
 
-2026-08-06 (current internal-only implementation):
+2026-08-07 (current internal-only implementation):
 
 - `20260806120000_marketplace_internal_escrow.sql` adds listing kinds, nullable artifacts for services/physical goods, versioned terms, a minimal `marketplace_escrows` state table, reviews and idempotent hold/release/refund RPCs.
-- The current MVP deliberately does not create `marketplace_user_balances` or `marketplace_user_counterparties`. Mutual-credit statistics and ranking are deferred; Wallet truth remains in `wallet_accounts`/`wallet_ledger`.
+- The current MVP deliberately does not create `marketplace_user_balances` or `marketplace_user_counterparties`. The generalized `user_economy_metrics` period read model is now implemented as a rebuildable projection; ranking remains deferred and Wallet truth remains in `wallet_accounts`/`wallet_ledger`.
 - `marketplace_escrows` stores only the one-per-deal lifecycle and idempotency keys. Participants, amount and currency are read from the immutable deal snapshot; there is no zero-only `fee_amount` column.
 - `/api/marketplace/listings` now supports detail/edit; `/api/marketplace/deals` supports required idempotency and explicit accept/cancel/deliver/confirm/dispute/review actions plus protected timer/operator endpoints.
 - Wallet-to-Wallet requires a stable idempotency key and returns a canonical receipt with both ledger records and post-transfer balances. Transfers remain fee-free and have no amount/daily limits beyond positive amount, OA$ precision and sufficient balance.
 - Remote REST schema for the existing marketplace deals/listings is available; no deals or relevant ledger operations were present during the read-only check. The new migration is prepared but not applied remotely; buyer/seller User QA is still pending.
 - This card is DB-only. TON contracts, on-chain escrow, audits and blockchain settlement are explicitly deferred.
+- `20260807120000_user_economy_metrics.sql` adds immutable challenge reward settlement fields, the `user_economy_metrics`/visibility tables, rebuild/reconciliation functions, RLS and deterministic auth-user backfill. Its remote apply and buyer/seller QA remain open gates.
 
 2026-06-12:
 
@@ -202,31 +203,83 @@ Rules:
 - Moderation may hide review text, but aggregates must be recalculated consistently.
 - Reviews do not mutate Wallet ledger or deal completion; they are a separate quality/trust layer.
 
-### Deferred: user-level mutual market projection
+### Deferred: `user_economy_metrics` period read model
 
-`marketplace_user_balances` and `marketplace_user_counterparties` are intentionally not part of the internal MVP migration. They are derived ranking/read-model data, not Wallet or settlement state.
+`user_economy_metrics` is one denormalized, server-maintained read model for Wallet/Profile display. It is not a second ledger and never replaces the authoritative source tables. It should be rebuildable from those sources, so a lost aggregate cannot lose money or Core.
 
-Planned later fields:
+Do not create separate `marketplace_user_balances`, `marketplace_user_counterparties` or `marketplace_user_market_stats` tables. Keep the needed marketplace and economy counters in this single aggregate; derive counterparties as a count, not as a writable relationship table.
+
+#### Row grain and periods
 
 - `user_id`
-- `spent_amount`
-- `earned_amount`
-- `mutual_market_balance` = `spent_amount - earned_amount`
-- `completed_buy_count`
-- `completed_sell_count`
-- `review_count`
-- `average_seller_rating`
-- `updated_at`
+- `period_type` - `day`, `month`, `year`, `lifetime`
+- `period_key` - UTC day/month/year key, or `lifetime`
+- `currency_code` - `OA$` for the current Wallet and Marketplace; Core fields are non-currency balance units
+- `schema_version`, `source_watermark`, `is_reconciled`, `updated_at`, `last_reconciled_at`
 
-Rules:
+Use the actual posting/settlement time. For Marketplace, only the final seller-credit or buyer-refund outcome counts; listing views, clicks, holds, acceptance and pending escrows do not. Store UTC periods and convert to the viewer's timezone only when rendering.
 
-- Count only completed marketplace deals.
-- Do not expose this as public numeric reputation.
-- Use it as a capped ranking boost: users who spend/support the market get softer promotion for their own cards.
-- Negative balance can reduce boost, but must not hard-hide cards by itself.
-- High-risk categories can use stricter caps or manual review.
+#### Marketplace indicators
 
-Implementation decision: after buyer/seller QA, prefer a view or a single materialized `marketplace_user_market_stats` projection. Do not add two writable source tables unless query volume proves that a separately maintained counterparty projection is necessary.
+- `marketplace_sales_gross` - completed Marketplace sale amount before any platform fee
+- `marketplace_purchases_gross` - completed Marketplace purchase amount before any platform fee
+- `marketplace_sales_net` - seller credit after the fee, when a fee is enabled
+- `marketplace_platform_fees_paid` - fee charged to the buyer/seller according to the final fee policy; keep it separate even when the current internal MVP fee is zero
+- `marketplace_refunds_total` - finalized buyer refunds, not a sale or purchase
+- `marketplace_completed_sales_count`, `marketplace_completed_purchase_count`
+- `marketplace_unique_counterparties_count`
+- `participation_balance` is generated/derived as `marketplace_purchases_gross - marketplace_sales_gross` and is never written independently. It is a marketplace signal only; Wallet-to-Wallet transfers and external flows must not change it.
+
+The same gross amount is used for the buyer's purchase and the seller's sale, so the two metrics remain comparable. A disputed deal contributes nothing until final resolution: release to the seller counts as completion, while refund to the buyer does not. A later correction must be an idempotent correction event rather than an in-place rewrite of history.
+
+#### Wallet flows
+
+- `wallet_inflows_total` - all finalized Wallet credits, including Marketplace proceeds, internal transfers, rewards, refunds, Core accrual payouts and external deposits
+- `wallet_outflows_total` - all actually posted Wallet debits, including Marketplace escrow holds, internal transfers, Core top-ups, fees and external withdrawal reservations; final Marketplace purchases and external withdrawals remain separate business-outcome metrics
+- `wallet_transfer_in`, `wallet_transfer_out` - fee-free internal Wallet-to-Wallet movement, kept separate because it can be repeated without representing Marketplace participation
+- `wallet_challenge_rewards` - challenge rewards paid to Wallet
+- `wallet_refunds_in` - Marketplace or other refunds credited back to Wallet
+- `wallet_payout_from_core` - the Wallet part of daily Core accrual (`daily_core_accruals.wallet_amount`)
+- `wallet_core_topups` - Wallet amount moved into Core; this is a Wallet debit and also a Core-growth component, not external income
+- `external_inflows_total`, `external_outflows_total` - finalized external deposits and withdrawals only; pending reservations, failed attempts and internal transfers are excluded
+- `external_deposit_count`, `external_withdrawal_count`
+
+At the ledger layer use the neutral labels `зачисления` and `списания`. Do not add generic `income/expense` totals to this table: economic income/expense depends on classification and would double-count sales, transfers, rewards and withdrawals. If finance reporting is needed later, expose a separately documented derived view.
+
+#### Core growth indicators
+
+- `core_growth_total`
+- `core_growth_wallet_topups` - Wallet -> Core via `wallet_core_topup`
+- `core_growth_challenge_rewards` - challenge rewards issued directly to Core
+- `core_growth_reinvest` - `daily_core_accruals.core_amount` from the daily reinvest percentage
+- `core_growth_leader_bonus` - `team_core_growth_rewards.reward_amount`; this increases the leader's Core, not Wallet
+- `core_growth_other_system` - explicit, separately labelled system/manual adjustments only
+- `core_accrual_gross` - the full daily accrual before it is split between Core and Wallet
+- `core_balance_start`, `core_balance_end`, `core_level_end` - period snapshots, not flow metrics
+
+The invariant is `core_growth_total = core_growth_wallet_topups + core_growth_challenge_rewards + core_growth_reinvest + core_growth_leader_bonus + core_growth_other_system`. A change in `core_after - core_before` must not replace source attribution; an unexplained difference is a reconciliation failure and must not be hidden in `core_growth_other_system`.
+
+#### Existing period statistics and canonical sources
+
+- `wallet_ledger` already records Wallet movements and has no day/month/year/lifetime aggregate. It is the source for Wallet flow categories and the `wallet_core_topup` debit.
+- `daily_core_accruals` is the canonical daily source for `gross_amount`, `core_amount` (reinvest) and `wallet_amount`.
+- `team_core_growth_rewards` is the canonical dated source for leader bonuses (`bonus_date`, `settlement_kind`, `reward_amount`).
+- `user_challenges` currently records completion status, while `complete_user_challenge` updates Core/Wallet directly. Before metrics are built, extend this existing row with immutable `reward_account`, `reward_amount`, `reward_settled_at` and an idempotency marker; Wallet rewards must also write `wallet_ledger` with `operation_type = 'challenge_reward'`. This avoids introducing a separate challenge-reward table.
+- `progress_snapshots` repeats daily accrual data for the social feed. It is a display projection, not a financial source and must not be aggregated a second time.
+- `core_accrual_obligations` contains expected/safety values, not settled user growth; `today_progress_events` is progress telemetry, not accounting.
+- `crypto_deposit`/`crypto_withdrawal` metrics count only final rail settlements; pending reservations and failed attempts are excluded. TON implementation remains outside this internal-only card.
+- No general user-level day/month/year/lifetime economy aggregate was found. `user_economy_metrics` is therefore a new read model, not a duplicate of an existing period table.
+
+#### Update, reconciliation and visibility
+
+- Maintain one row per `(user_id, period_type, period_key, currency_code)`; do not create one table per period.
+- Recompute affected rows deterministically from authoritative facts after settlement/jobs and provide periodic reconciliation; repeated rebuilds must produce the same result.
+- Expose read-only aggregates in Wallet and Profile. A user may opt only whitelisted indicators and periods into the public profile; show the period, currency and “verified by system”, never raw ledger rows, counterparties or `participation_balance`.
+- `user_economy_metrics` supplies ranking inputs only. It does not store a recommendation score or boost.
+
+### Deferred separately: Marketplace recommendations
+
+After buyer/seller QA, a separate recommendations plan may use `participation_balance`, completion counts, sales and listing quality. Any ranking boost must be explicitly capped (the existing `+10%` is only a provisional example), must not hard-hide a listing by itself and must be tested in shadow mode before closed-beta enablement. No ranking algorithm is implemented as part of the current marketplace or metrics work.
 
 ### `marketplace_deals`
 
@@ -318,30 +371,31 @@ Implementation decision: after buyer/seller QA, prefer a view or a single materi
 1. After a deal becomes `completed`, the buyer sees a lightweight review prompt.
 2. Buyer can leave rating 1..5 and optional review text.
 3. Server verifies buyer/deal/listing ownership and writes exactly one `marketplace_reviews` row per deal.
-4. Server recalculates listing counters and seller market balance summary.
+4. Server recalculates listing rating/review counters only; `user_economy_metrics` remains a later read-model step.
 5. Review does not change the completed deal, Wallet ledger or item ownership.
 
 ## Discovery And Ranking
 
-Marketplace ordering should combine product quality, market participation and freshness:
+Marketplace ordering may eventually combine product quality, market participation and freshness. This section is a future recommendation contract, not an implementation requirement for the internal MVP:
 
 ```text
 listing_score =
   freshness
   + smoothed_rating_boost
   + log(1 + sales_count) * sales_weight
-  + capped_mutual_balance_boost
+  + capped_participation_boost
   - risk_or_report_penalty
 ```
 
 Rules:
 
-- `mutual_market_balance = spent_amount - earned_amount` is marketplace-specific and private/system-facing.
-- Positive balance means the user has supported other sellers more than they earned; it can softly boost their own cards.
-- Negative balance can reduce the boost, but should not hard-hide cards by itself.
-- Apply caps so one large purchase or one high-value sale cannot dominate discovery.
+- `participation_balance = marketplace_purchases_gross - marketplace_sales_gross` is marketplace-specific and private/system-facing.
+- Positive balance means the user has supported other sellers more than they earned; it may softly boost their own cards.
+- Negative balance may reduce the boost, but must not hard-hide cards by itself.
+- Apply a strict cap (the existing `+10%` is provisional) so one large purchase or one high-value sale cannot dominate discovery.
 - Always mix in freshness and category diversity so new sellers still get surface area.
-- Public UI can show listing-level sales and rating, but should not expose `mutual_market_balance` as a public numeric reputation.
+- Public UI can show listing-level sales and rating, but should not expose `participation_balance` as a public numeric reputation.
+- Implement the algorithm later in a separate recommendations plan; no ranking score is stored in `user_economy_metrics` now.
 
 ## API Plan
 
@@ -459,7 +513,7 @@ Additional quality anti-abuse:
 - Done in code: private completion RPC, Wallet debit/credit, artifact transfer, listing `sold` и deal event в одной transaction.
 - Done in code: cancel/refund before seller acceptance, 24h expiry worker, 72h auto-release, dispute resolution and idempotent retries.
 - Done in code: one immutable buyer review per completed deal and server-maintained listing quality counters.
-- Deferred: user-level spent/earned balances, unique-counterparty projection and discovery ranking until after remote apply, technical checks and buyer/seller User QA.
+- Implemented locally: `user_economy_metrics` period read model, unique-counterparty count, challenge reward normalization, reconciliation and private Wallet/Profile APIs; remote apply and buyer/seller User QA remain pending.
 - Pending: remote apply, SQL/API integration checks and no-store buyer/seller User QA.
 
 ### Phase 5. Trust And Challenges
@@ -468,13 +522,21 @@ Additional quality anti-abuse:
 - Автопроверка `trust_event_confirmed:deal_completed`.
 - Челленджи `Complete Marketplace Deal` и `Earn from Your Skill` только после ручной UX проверки MVP.
 
-### Phase 6. Reviews, Ratings And Discovery
+### Phase 6. Reviews, Ratings And Economy Metrics
 
 - `marketplace_reviews`.
 - Buyer review API and listing reviews API.
 - Recalculate listing rating/review counters.
-- Build a rolling 90-day mutual-market read model from completed deals only; use `spent - earned`, minimum two unique counterparties and cap `+10%`.
-- Run the model in shadow mode first; enable ranking only for closed beta after a separate founder decision and anti-abuse review.
+- Build the single `user_economy_metrics` read model with `day`, `month`, `year` and `lifetime` rows from the canonical sources listed above.
+- Backfill Marketplace sales/purchases only from final settlement, add Wallet inflow/outflow categories, and add the named Core-growth components plus the reconciliation invariant.
+- Close the challenge-reward accounting gap before counting challenge rewards; do not add a second reward table.
+- Add read-only Wallet/Profile display and opt-in public visibility of selected metrics.
+
+### Phase 7. Recommendations (separate future plan)
+
+- Define the ranking formula and the maximum boost after the metrics read model and buyer/seller QA are trusted.
+- Run any recommendation signal in shadow mode first; closed-beta enablement requires a separate founder decision.
+- The present card does not implement ranking, recommendation scores or boost calculations.
 
 ## Acceptance Criteria
 
@@ -492,13 +554,15 @@ Additional quality criteria:
 - Completed deals increment listing sales count.
 - Buyer can leave one rating/review after completion.
 - Listing cards show sales count and smoothed rating/review count.
-- Future Marketplace ranking will use capped mutual market balance without exposing it as a public numeric reputation; ranking is not part of the current MVP acceptance gate.
+- Future Marketplace recommendations may use a capped `participation_balance` signal without exposing it as a public numeric reputation; ranking is not part of the current MVP acceptance gate.
 
 ## Next Step
+
+The local `user_economy_metrics` implementation is complete; the remaining gate is remote migration apply, reconciliation verification and buyer/seller QA. Ranking and boost stay out of this gate.
 
 Закрыть текущий внутренний safety gate:
 
 1. подтвердить remote migration apply и проверить REST schema;
 2. прогнать SQL/API сценарии hold, completion, cancellation, expiry, refund, dispute, concurrent buyers, duplicate requests и insufficient balance;
 3. пройти buyer/seller User QA на двух реальных аккаунтах: Wallet transfer → listing → buy → accept/deliver/confirm → refund → dispute;
-4. после подтверждения основателя перенести Marketplace в `Подтверждено`, затем включить только shadow-mode mutual discovery для закрытой beta.
+4. после подтверждения основателя перенести Marketplace в `Подтверждено`; затем выполнять `MUTUAL_CREDIT_MARKET_PLAN.md` как отдельный metrics/read-model этап, не включая ranking/boost в текущий gate.

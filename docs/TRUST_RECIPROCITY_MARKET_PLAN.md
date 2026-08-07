@@ -106,7 +106,7 @@ rater_delta = 0.10 × target_delta
 - Added Wallet transfer modal with contact selection/manual recipient id fallback and server refresh after successful transfer.
 - Added and applied Marketplace listings Phase 2: `marketplace_listings`, create/list/cancel API and Wallet -> Market listing grid.
 - Updated Marketplace listings UI/API so users can create product/service/skill cards directly; open cards are limited by current Core level.
-- Marketplace quality layer is specified in `docs/MARKETPLACE_ESCROW_PLAN.md`: listing sales/review counters and buyer reviews are part of the internal MVP; private `mutual_market_balance = spent - earned` discovery remains a deferred read model after buyer/seller QA.
+- Marketplace quality layer is specified in `docs/MARKETPLACE_ESCROW_PLAN.md`: listing sales/review counters and buyer reviews are part of the internal MVP; private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross` belongs to the deferred `user_economy_metrics` stage after buyer/seller QA.
 
 2026-08-01:
 

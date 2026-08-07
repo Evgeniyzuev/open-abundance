@@ -9,12 +9,15 @@ import { detectPreferredLocale, normalizeLocale, storeLocalePreference, translat
 import { getOnboardingRegistrationLocale } from "@/lib/onboardingContent";
 import { captureAcquisitionContext, readAcquisitionContext } from "@/lib/acquisition";
 import {
+  DEFAULT_ACCENT_THEME,
   DEFAULT_COLOR_THEME,
   DEFAULT_UI_SCALE,
   applyAppearancePreference,
   detectAppearancePreference,
+  storeAccentTheme,
   storeColorTheme,
   storeUiScale,
+  type AccentTheme,
   type ColorTheme,
   type UiScale
 } from "@/lib/appearance";
@@ -37,11 +40,13 @@ type UserContextValue = {
   locale: AppLocale;
   uiScale: UiScale;
   colorTheme: ColorTheme;
+  accentTheme: AccentTheme;
   refreshUserData: () => Promise<void>;
   applyServerData: (data: Partial<UserContextResponse>) => void;
   setLocale: (nextLocale: AppLocale) => Promise<void>;
   setUiScale: (nextScale: UiScale) => void;
   setColorTheme: (nextTheme: ColorTheme) => void;
+  setAccentTheme: (nextTheme: AccentTheme) => void;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
 };
 
@@ -70,6 +75,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [guestLocale, setGuestLocale] = useState<AppLocale>("en");
   const [uiScale, setUiScaleState] = useState<UiScale>(DEFAULT_UI_SCALE);
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(DEFAULT_COLOR_THEME);
+  const [accentTheme, setAccentThemeState] = useState<AccentTheme>(DEFAULT_ACCENT_THEME);
+  const [appearanceHydrated, setAppearanceHydrated] = useState(false);
   const refreshRequestIdRef = useRef(0);
   const serverDataVersionRef = useRef(0);
   const currentUserIdRef = useRef<string | null>(null);
@@ -84,17 +91,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const appearance = detectAppearancePreference();
     setUiScaleState(appearance.uiScale);
     setColorThemeState(appearance.colorTheme);
+    setAccentThemeState(appearance.accentTheme);
+    setAppearanceHydrated(true);
   }, []);
 
   useEffect(() => {
-    applyAppearancePreference(uiScale, colorTheme);
+    if (!appearanceHydrated) return;
+    applyAppearancePreference(uiScale, colorTheme, accentTheme);
     if (colorTheme !== "system") return;
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleSystemThemeChange = () => applyAppearancePreference(uiScale, colorTheme);
+    const handleSystemThemeChange = () => applyAppearancePreference(uiScale, colorTheme, accentTheme);
     media.addEventListener("change", handleSystemThemeChange);
     return () => media.removeEventListener("change", handleSystemThemeChange);
-  }, [colorTheme, uiScale]);
+  }, [accentTheme, appearanceHydrated, colorTheme, uiScale]);
 
   useEffect(() => {
     captureAcquisitionContext();
@@ -433,6 +443,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setColorThemeState(nextTheme);
   }, []);
 
+  const setAccentTheme = useCallback((nextTheme: AccentTheme) => {
+    storeAccentTheme(nextTheme);
+    setAccentThemeState(nextTheme);
+  }, []);
+
   const t = useCallback(
     (key: MessageKey, values?: Record<string, string | number>) => translate(locale, key, values),
     [locale]
@@ -451,14 +466,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
       locale,
       uiScale,
       colorTheme,
+      accentTheme,
       refreshUserData,
       applyServerData,
       setLocale,
       setUiScale,
       setColorTheme,
+      setAccentTheme,
       t
     }),
-    [applyServerData, authResolved, colorTheme, core, error, loading, locale, profile, refreshUserData, refreshing, setColorTheme, setLocale, setUiScale, t, uiScale, user, wallet]
+    [accentTheme, applyServerData, authResolved, colorTheme, core, error, loading, locale, profile, refreshUserData, refreshing, setAccentTheme, setColorTheme, setLocale, setUiScale, t, uiScale, user, wallet]
   );
 
   return (

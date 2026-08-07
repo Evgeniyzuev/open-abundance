@@ -16,7 +16,7 @@ import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
 import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
-import { COLOR_THEMES, UI_SCALES, type ColorTheme, type UiScale } from "@/lib/appearance";
+import { ACCENT_THEMES, COLOR_THEMES, UI_SCALES, type AccentTheme, type ColorTheme, type UiScale } from "@/lib/appearance";
 import { APP_TESTING_ATTITUDES, APP_TESTING_USEFUL_AREAS } from "@/lib/appTestingFeedback";
 
 type SocialTab = "feed" | "people" | "blog" | "profile" | "teams";
@@ -246,9 +246,11 @@ export default function SocialApp({
     locale,
     uiScale,
     colorTheme,
+    accentTheme,
     setLocale,
     setUiScale,
     setColorTheme,
+    setAccentTheme,
     t,
     applyServerData
   } = useUserContext();
@@ -1759,6 +1761,7 @@ export default function SocialApp({
       ) : null}
       {profileAction === "settings" ? (
         <AppearanceDialog
+          accentTheme={accentTheme}
           colorTheme={colorTheme}
           locale={locale}
           t={t}
@@ -1767,6 +1770,7 @@ export default function SocialApp({
           onLocale={(value) => { void setLocale(value); }}
           onScale={(value) => setUiScale(value)}
           onTheme={(value) => setColorTheme(value)}
+          onAccent={(value) => setAccentTheme(value)}
         />
       ) : null}
       {profileAction === "skills" ? (
@@ -2071,7 +2075,7 @@ function parseAvatarPosition(value: string): [number, number] {
   return [Math.min(Math.max(Number(match[1]), 0), 100), Math.min(Math.max(Number(match[2]), 0), 100)];
 }
 
-function AppearanceDialog({ colorTheme, locale, t, uiScale, onClose, onLocale, onScale, onTheme }: { colorTheme: ColorTheme; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; uiScale: UiScale; onClose: () => void; onLocale: (locale: AppLocale) => void; onScale: (scale: UiScale) => void; onTheme: (theme: ColorTheme) => void }) {
+function AppearanceDialog({ accentTheme, colorTheme, locale, t, uiScale, onAccent, onClose, onLocale, onScale, onTheme }: { accentTheme: AccentTheme; colorTheme: ColorTheme; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; uiScale: UiScale; onAccent: (theme: AccentTheme) => void; onClose: () => void; onLocale: (locale: AppLocale) => void; onScale: (scale: UiScale) => void; onTheme: (theme: ColorTheme) => void }) {
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section className="modal-sheet profile-action-modal" role="dialog" aria-modal="true" aria-labelledby="appearance-title" onClick={(event) => event.stopPropagation()}>
@@ -2081,6 +2085,7 @@ function AppearanceDialog({ colorTheme, locale, t, uiScale, onClose, onLocale, o
           <div className="appearance-setting-row"><span>{t("profile.language")}</span><div className="appearance-options" role="group" aria-label={t("profile.language")}>{(["ru", "en"] as AppLocale[]).map((item) => <button className={locale === item ? "active" : ""} type="button" aria-pressed={locale === item} key={item} onClick={() => onLocale(item)}>{item === "ru" ? t("profile.language.ru") : t("profile.language.en")}</button>)}</div></div>
           <div className="appearance-setting-row"><span>{t("profile.appearance.scale")}</span><div className="appearance-options" role="group" aria-label={t("profile.appearance.scale")}>{UI_SCALES.map((scale) => <button className={uiScale === scale ? "active" : ""} type="button" aria-pressed={uiScale === scale} key={scale} onClick={() => onScale(scale)}>{scale}%</button>)}</div></div>
           <div className="appearance-setting-row"><span>{t("profile.appearance.theme")}</span><div className="appearance-options" role="group" aria-label={t("profile.appearance.theme")}>{COLOR_THEMES.map((theme) => <button className={colorTheme === theme ? "active" : ""} type="button" aria-pressed={colorTheme === theme} key={theme} onClick={() => onTheme(theme)}>{t(`profile.appearance.theme.${theme}` as MessageKey)}</button>)}</div></div>
+          <div className="appearance-setting-row"><span>{t("profile.appearance.color")}</span><div className="appearance-options appearance-color-options" role="group" aria-label={t("profile.appearance.color")}>{ACCENT_THEMES.map((theme) => <button className={accentTheme === theme ? "active" : ""} type="button" aria-pressed={accentTheme === theme} key={theme} onClick={() => onAccent(theme)}><i className={`appearance-color-swatch ${theme}`} aria-hidden="true" /><span>{t(`profile.appearance.color.${theme}` as MessageKey)}</span></button>)}</div></div>
         </div>
       </section>
     </div>

@@ -36,20 +36,33 @@ const appearanceBootstrapScript = `
     const colorTheme = ["system", "light", "dark"].includes(localStorage.getItem("openAbundanceColorTheme"))
       ? localStorage.getItem("openAbundanceColorTheme")
       : "system";
+    const accentTheme = ["gray", "blue", "green", "violet", "amber", "teal"].includes(localStorage.getItem("openAbundanceAccentTheme"))
+      ? localStorage.getItem("openAbundanceAccentTheme")
+      : "gray";
     const resolvedTheme = colorTheme === "system"
       ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
       : colorTheme;
+    const themeColors = {
+      gray: { light: "#f2f2f7", dark: "#111318" },
+      blue: { light: "#eef5fb", dark: "#0e151c" },
+      green: { light: "#edf6f0", dark: "#101713" },
+      violet: { light: "#f3f0fa", dark: "#14121b" },
+      amber: { light: "#faf5ea", dark: "#19150f" },
+      teal: { light: "#edf7f7", dark: "#0e1718" }
+    };
 
     root.dataset.uiScale = uiScale;
     root.dataset.theme = colorTheme;
+    root.dataset.accent = accentTheme;
     root.style.colorScheme = resolvedTheme;
 
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
-      meta.setAttribute("content", resolvedTheme === "dark" ? "#111318" : "#f2f2f7");
+      meta.setAttribute("content", themeColors[accentTheme][resolvedTheme]);
     });
   } catch {
     document.documentElement.dataset.uiScale = "100";
     document.documentElement.dataset.theme = "system";
+    document.documentElement.dataset.accent = "gray";
   }
 })();
 `;
@@ -60,7 +73,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="notranslate" data-ui-scale="100" data-theme="system" suppressHydrationWarning translate="no">
+    <html lang="en" className="notranslate" data-accent="gray" data-ui-scale="100" data-theme="system" suppressHydrationWarning translate="no">
       <head>
         <meta name="google" content="notranslate" />
         <script dangerouslySetInnerHTML={{ __html: appearanceBootstrapScript }} />

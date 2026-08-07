@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, CheckSquare, FileText, Heart, House, Landmark, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Smile, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Smile, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
@@ -16,6 +16,7 @@ import NotesApp from "@/components/NotesApp";
 import { useUserContext } from "@/components/UserProvider";
 import WalletApp from "@/components/WalletApp";
 import WishesApp from "@/components/WishesApp";
+import CoreSeedIcon from "@/components/icons/CoreSeedIcon";
 import { markChallengesViewed, markTodayViewed, readDailyUnreadState } from "@/lib/dailyUnread";
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
@@ -77,7 +78,7 @@ const goalTabs: GoalTab[] = [
 
 const walletTabs: TopTab[] = [
   { id: "wallet", titleKey: "app.nav.wallet", icon: Wallet },
-  { id: "core", titleKey: "wallet.core", icon: Landmark },
+  { id: "core", titleKey: "wallet.core", icon: CoreSeedIcon },
   { id: "market", titleKey: "app.nav.market", icon: ShoppingBag }
 ];
 

@@ -11,6 +11,7 @@ const MAX_LEVEL = 20;
 export default function ResultsApp() {
   const { locale, t } = useUserContext();
   const [introOpen, setIntroOpen] = useState(false);
+  const targetLabel = formatAdaptiveMoney(TARGET_CORE, locale);
 
   return (
     <section className="results-screen">
@@ -28,7 +29,7 @@ export default function ResultsApp() {
 
       {introOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setIntroOpen(false)}>
-          <section className="modal-sheet results-detail-modal" role="dialog" aria-modal="true" aria-label={t("results.title")} onClick={(event) => event.stopPropagation()}>
+          <section className="modal-sheet results-detail-modal" role="dialog" aria-modal="true" aria-label={t("results.title", { target: targetLabel })} onClick={(event) => event.stopPropagation()}>
             <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={() => setIntroOpen(false)}>
               <X size={18} />
             </button>
@@ -37,7 +38,7 @@ export default function ResultsApp() {
               <span>{t("results.intro.cardTitle")}</span>
             </div>
             <div className="results-detail-body">
-              <h1>{t("results.title")}</h1>
+              <h1>{t("results.title", { target: targetLabel })}</h1>
               <p>{t("results.offer")}</p>
               <div className="results-detail-metrics" aria-label={t("results.metrics.aria")}>
                 <span>

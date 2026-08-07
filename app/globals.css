@@ -930,7 +930,9 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .profile-appearance { width: 100%; display: grid; gap: 11px; margin-top: 4px; border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--surface-soft); text-align: left; }
 .appearance-setting-row { min-width: 0; display: grid; gap: 6px; }
 .appearance-setting-row > span { color: var(--muted); font-size: 0.8125rem; font-weight: 850; }
+.appearance-setting-row > .appearance-setting-label { display: inline-flex; align-items: center; gap: 5px; }
 .appearance-options { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; border-radius: 12px; padding: 4px; background: var(--surface-muted); }
+.appearance-currency-options { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .appearance-options button { min-width: 0; min-height: 40px; border-radius: 9px; padding: 5px 6px; background: transparent; color: var(--muted); font-size: 0.8125rem; font-weight: 900; line-height: 1.15; overflow-wrap: anywhere; }
 .appearance-options button.active { background: var(--surface); color: var(--blue); box-shadow: 0 5px 12px rgba(25,25,35,0.08); }
 .appearance-color-options button { display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: 6px; text-align: left; }

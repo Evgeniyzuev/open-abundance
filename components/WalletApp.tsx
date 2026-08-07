@@ -11,7 +11,7 @@ import { WalletCryptoMethodModal, type WalletCryptoMethod } from "@/components/W
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
 import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
-import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
+import { formatAdaptiveMoney, formatMoney, formatRateMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
@@ -2841,7 +2841,7 @@ function TonDepositResult({
     if (chainEvent) {
       const details = [`${nanoToTonAmount(chainEvent.amount_nano) ?? "0"} TON`];
       if (chainEvent.ton_usd_rate) {
-        details.push(`× ${formatQuoteRate(Number(chainEvent.ton_usd_rate), locale)} USD`);
+        details.push(`× ${formatRateMoney(Number(chainEvent.ton_usd_rate), locale)}`);
       }
       if (chainEvent.transaction_hash) details.push(shortHash(chainEvent.transaction_hash));
       description = details.join(" · ");
@@ -2894,7 +2894,7 @@ function DepositAssetCard({
         {quoteLoading
           ? t("app.common.loading")
           : rate
-            ? t("wallet.deposit.rate", { asset: assetCode, rate: formatQuoteRate(rate, locale) })
+            ? t("wallet.deposit.rate", { asset: assetCode, rate: formatRateMoney(rate, locale) })
             : t("wallet.deposit.rateUnavailable")}
       </p>
       <small>
@@ -3493,11 +3493,7 @@ function shortHash(value: string): string {
 }
 
 function formatFixedUsd(value: string, locale: AppLocale): string {
-  const numericValue = Number(value);
-  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
-    minimumFractionDigits: 6,
-    maximumFractionDigits: 6
-  }).format(Number.isFinite(numericValue) ? numericValue : 0)} USD`;
+  return formatRateMoney(Number(value), locale);
 }
 
 function formatQuoteRate(value: number, locale: AppLocale): string {
@@ -3517,7 +3513,7 @@ function formatAssetAmount(value: number, locale: AppLocale): string {
 function formatCryptoDepositDetails(row: WalletHistoryRow, locale: AppLocale): string {
   const details: string[] = [];
   if (row.assetAmount && row.assetCode && row.usdRate) {
-    details.push(`${row.assetAmount} ${row.assetCode} × ${formatQuoteRate(Number(row.usdRate), locale)} USD`);
+    details.push(`${row.assetAmount} ${row.assetCode} × ${formatRateMoney(Number(row.usdRate), locale)}`);
   } else {
     details.push(`${row.assetCode ?? "TON"} · ${row.network ?? "mainnet"}`);
   }

@@ -146,11 +146,11 @@ export const onboardingContent: OnboardingContent = {
       hi: "आपका मार्ग"
     },
     title: {
-      ru: "20 уровней до 1 000 000 $",
-      en: "20 levels to $1,000,000",
-      zh: "20 个等级，直到 1,000,000 美元",
-      es: "20 niveles hasta 1.000.000 $",
-      hi: "1,000,000 डॉलर तक 20 स्तर"
+      ru: "20 уровней до {target}",
+      en: "20 levels to {target}",
+      zh: "20 个等级，直到 {target}",
+      es: "20 niveles hasta {target}",
+      hi: "{target} तक 20 स्तर"
     },
     body: {
       ru: "Выполняй простые задания, развивай навыки и получай денежные награды. Чем выше уровень — тем больше возможностей и доход.",

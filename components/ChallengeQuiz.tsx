@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { MessageKey } from "@/lib/i18n";
+import { useMoneyFormatter } from "@/components/UserProvider";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -11,7 +12,9 @@ export type ChallengeQuizQuestion = {
   imageAltKey?: MessageKey;
   imageUrl?: string;
   optionKeys: MessageKey[];
+  optionMoneyValues?: Array<Record<string, number> | undefined>;
   questionKey: MessageKey;
+  questionMoneyValues?: Record<string, number>;
 };
 
 type ChallengeQuizProps = {
@@ -26,6 +29,7 @@ type ChallengeQuizProps = {
 };
 
 export default function ChallengeQuiz({ descriptionKey = "challenges.quiz.description", passScore, passRuleKey = "challenges.quiz.passRule", questions, t, onError, onPass, onPassedChange }: ChallengeQuizProps) {
+  const money = useMoneyFormatter();
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [passed, setPassed] = useState(false);
@@ -121,7 +125,7 @@ export default function ChallengeQuiz({ descriptionKey = "challenges.quiz.descri
         <fieldset className="challenge-quiz-question">
           <legend>
             <span>{t("challenges.quiz.step", { current: currentIndex + 1, total: questions.length })}</span>
-            {t(currentQuestion.questionKey)}
+            {t(currentQuestion.questionKey, formatMoneyValues(currentQuestion.questionMoneyValues, money.formatRounded))}
           </legend>
 
           {currentQuestion.imageUrl ? (
@@ -142,7 +146,7 @@ export default function ChallengeQuiz({ descriptionKey = "challenges.quiz.descri
                   type="radio"
                   onChange={() => selectAnswer(answerIndex)}
                 />
-                <span>{t(option)}</span>
+                <span>{t(option, formatMoneyValues(currentQuestion.optionMoneyValues?.[answerIndex], money.formatRounded))}</span>
               </label>
             ))}
           </div>
@@ -174,6 +178,11 @@ export default function ChallengeQuiz({ descriptionKey = "challenges.quiz.descri
       </div>
     </section>
   );
+}
+
+function formatMoneyValues(values: Record<string, number> | undefined, format: (value: number) => string): Record<string, string> | undefined {
+  if (!values) return undefined;
+  return Object.fromEntries(Object.entries(values).map(([key, value]) => [key, format(value)]));
 }
 
 function getQuizScore(questions: ChallengeQuizQuestion[], answers: Record<number, number>): number {

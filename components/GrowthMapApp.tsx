@@ -262,7 +262,7 @@ export default function GrowthMapApp({ active, refreshNonce }: GrowthMapAppProps
             {selectedWishes.length > 0 ? selectedWishes.map((wish) => (
               <div className="growth-map-wish" key={wish.id}>
                 <Heart size={17} />
-                <span><strong>{wish.title}</strong><small>{wish.target_amount ? `${formatAdaptiveMoney(wish.target_amount, locale)} ${wish.target_currency}` : t("map.wishNoAmount")}</small></span>
+                <span><strong>{wish.title}</strong><small>{wish.target_amount ? formatWishAmount(wish.target_amount, wish.target_currency, locale) : t("map.wishNoAmount")}</small></span>
               </div>
             )) : <p>{t("map.noWishes")}</p>}
           </div>
@@ -282,6 +282,11 @@ function MapHeader({ t }: { t: (key: MessageKey, values?: Record<string, string 
       <Compass size={28} aria-hidden="true" />
     </header>
   );
+}
+
+function formatWishAmount(amount: number, currency: string, locale: "ru" | "en"): string {
+  if (currency === "USD") return formatAdaptiveMoney(amount, locale);
+  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 2 }).format(amount)} ${currency}`;
 }
 
 function getBiome(level: number): { icon: string; nameKey: MessageKey; tone: string } {

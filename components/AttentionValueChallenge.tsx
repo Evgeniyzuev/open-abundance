@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { calculateFutureCore } from "@/lib/coreCalculator";
+import { useMoneyFormatter } from "@/components/UserProvider";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -14,6 +15,7 @@ type AttentionValueChallengeProps = {
 };
 
 export default function AttentionValueChallenge({ locale, t, onProof, onPassedChange }: AttentionValueChallengeProps) {
+  const money = useMoneyFormatter();
   const [minutesPerDay, setMinutesPerDay] = useState(60);
   const [hourlyValueUsd, setHourlyValueUsd] = useState(10);
   const [saving, setSaving] = useState(false);
@@ -83,26 +85,26 @@ export default function AttentionValueChallenge({ locale, t, onProof, onPassedCh
             className="challenge-number-input"
             id="attention-hourly-value"
             inputMode="decimal"
-            max={1000}
-            min={1}
-            step={1}
+            max={roundInputAmount(1000 * money.rate)}
+            min={roundInputAmount(money.rate)}
+            step={Math.max(0.01, roundInputAmount(money.rate))}
             type="number"
-            value={hourlyValueUsd}
+            value={roundInputAmount(hourlyValueUsd * money.rate)}
             onChange={(event) => {
               setSaved(false);
               onPassedChange?.(false);
-              setHourlyValueUsd(Math.min(1000, Math.max(1, Number(event.target.value) || 1)));
+              setHourlyValueUsd(Math.min(1000, Math.max(1, (Number(event.target.value) || money.rate) / money.rate)));
             }}
           />
-          <span>$ / {t("challenges.attention.hourUnit")}</span>
+          <span>{money.symbol} / {t("challenges.attention.hourUnit")}</span>
         </div>
       </label>
 
       <div className="attention-results">
         <div><span>{t("challenges.attention.yearHours")}</span><strong>{formatNumber(values.yearHours, locale)}</strong></div>
-        <div><span>{t("challenges.attention.yearEstimate")}</span><strong>{formatMoney(values.yearValue, locale)}</strong></div>
-        <div><span>{t("challenges.attention.tenYearEstimate")}</span><strong>{formatMoney(values.tenYearValue, locale)}</strong></div>
-        <div><span>{t("challenges.attention.compoundScenario")}</span><strong>{formatMoney(values.compoundScenario, locale)}</strong></div>
+        <div><span>{t("challenges.attention.yearEstimate")}</span><strong>{money.formatRounded(values.yearValue)}</strong></div>
+        <div><span>{t("challenges.attention.tenYearEstimate")}</span><strong>{money.formatRounded(values.tenYearValue)}</strong></div>
+        <div><span>{t("challenges.attention.compoundScenario")}</span><strong>{money.formatRounded(values.compoundScenario)}</strong></div>
       </div>
 
       <p className="challenge-note">{t("challenges.attention.disclaimer")}</p>
@@ -118,6 +120,6 @@ function formatNumber(value: number, locale: AppLocale): string {
   return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 0 }).format(value);
 }
 
-function formatMoney(value: number, locale: AppLocale): string {
-  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 0 }).format(value)} $`;
+function roundInputAmount(value: number): number {
+  return Math.round(value * 100) / 100;
 }

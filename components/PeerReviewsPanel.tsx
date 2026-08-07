@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, ShieldCheck } from "lucide-react";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { translate, type AppLocale, type MessageKey } from "@/lib/i18n";
+import { formatRoundedMoney } from "@/lib/moneyFormat";
 
 type Challenge = { id: string };
 type Source = {
@@ -85,7 +86,7 @@ export default function PeerReviewsPanel({ challenge, locale }: { challenge: Cha
       setCurrent(payload.current ?? null);
       if (payload.progress) setProgress(payload.progress);
       if (body.action === "submit") {
-        setMessage(payload.rewardStatus === "paid" ? t("peerReviews.reward", { amount: Number(payload.reward).toFixed(2) }) : payload.rewardStatus === "withheld" ? t("peerReviews.withheld") : t("peerReviews.submitted"));
+        setMessage(payload.rewardStatus === "paid" ? t("peerReviews.reward", { amount: formatRoundedMoney(Number(payload.reward), locale) }) : payload.rewardStatus === "withheld" ? t("peerReviews.withheld", { penalty: formatRoundedMoney(0.35, locale), reward: formatRoundedMoney(0.35, locale) }) : t("peerReviews.submitted"));
         setChecklist({});
         setVerdict("");
         setNotes("");
@@ -110,9 +111,9 @@ export default function PeerReviewsPanel({ challenge, locale }: { challenge: Cha
       <div className="peer-reviews-progress">
         <ShieldCheck aria-hidden="true" size={18} />
         <span>{progressText}</span>
-        <strong>{t("peerReviews.reward", { amount: "0.35" })}</strong>
+        <strong>{t("peerReviews.reward", { amount: formatRoundedMoney(0.35, locale) })}</strong>
       </div>
-      {progress.nextRewardBlocked ? <p className="challenge-note">{t("peerReviews.rewardBlocked")}</p> : null}
+      {progress.nextRewardBlocked ? <p className="challenge-note">{t("peerReviews.rewardBlocked", { reward: formatRoundedMoney(0.35, locale) })}</p> : null}
 
       {!current ? (
         <div className="peer-reviews-empty">

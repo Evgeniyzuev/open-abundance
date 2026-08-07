@@ -6,6 +6,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import type { Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { parseTonUsdtUnits, tonUsdtUnitsToDecimal } from "@/lib/tonUsdtAmount";
+import { formatRateMoney } from "@/lib/moneyFormat";
 
 type WalletRow = Tables<"wallet_accounts">;
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -160,6 +161,6 @@ function usdtWithdrawalAvailabilityError(reason: string | undefined, diagnostics
 }function ValueRow({ label, value, onCopy, copied, t }: { label: string; value: string; onCopy?: () => void; copied?: boolean; t?: TFunction }) { return <div className="ton-deposit-field"><span>{label}</span><code>{value}</code>{onCopy && t ? <button className="text-button" type="button" onClick={onCopy}>{copied ? t("wallet.usdt.deposit.copied") : t("wallet.usdt.deposit.copy")}</button> : null}</div>; }
 async function loadJson<T>(path: string, options?: { method?: string; body?: string }): Promise<T & { error?: string; events?: DepositEvent[] }> { const token = await getAccessToken(); const response = await fetch(`${path}${path.includes("?") ? "&" : "?"}ts=${Date.now()}`, { method: options?.method ?? "GET", cache: "no-store", headers: { Authorization: `Bearer ${token}`, ...(options?.body ? { "Content-Type": "application/json" } : {}) }, body: options?.body }); const payload = (await response.json().catch(() => ({}))) as T & { error?: string }; if (!response.ok || payload.error) throw new Error(payload.error ?? "Request failed."); return payload; }
 async function getAccessToken(): Promise<string> { const supabase = getBrowserSupabaseClient(); const { data: { session }, error } = await supabase.auth.getSession(); if (error) throw error; if (!session?.access_token) throw new Error("Supabase session is missing."); return session.access_token; }
-function formatUsd(value: string, locale: AppLocale): string { const number = Number(value); return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(Number.isFinite(number) ? number : 0)} USD`; }
+function formatUsd(value: string, locale: AppLocale): string { return formatRateMoney(Number(value), locale); }
 function usdtDepositStatus(status: string, t: TFunction): string { const key = `wallet.usdt.deposit.status.${status}` as MessageKey; return t(key); }
 function usdtWithdrawalStatus(status: string, t: TFunction): string { const key = `wallet.usdt.withdraw.status.${status}` as MessageKey; return t(key); }

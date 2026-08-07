@@ -170,6 +170,7 @@ function OnboardingApp({
   onEmailOtpVerify: (email: string, token: string) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
 }) {
+  const { money } = useUserContext();
   const [step, setStep] = useState<StepId>(initialStep);
   const [activeAuthMethod, setActiveAuthMethod] = useState<AuthMethod | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -380,7 +381,7 @@ function OnboardingApp({
             />
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.program.eyebrow, locale)}</span>
-              <h1>{onboardingText(onboardingContent.program.title, locale)}</h1>
+              <h1>{onboardingText(onboardingContent.program.title, locale).replace("{target}", money.formatRounded(1_000_000))}</h1>
               <p>{onboardingText(onboardingContent.program.body, locale)}</p>
               <p className="onboarding-program-prompt">{onboardingText(onboardingContent.program.prompt, locale)}</p>
             </div>
@@ -568,6 +569,7 @@ function FirstRewardModal({
   t: ReturnType<typeof useUserContext>["t"];
   onClose: () => void;
 }) {
+  const { money } = useUserContext();
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="first-reward-title">
@@ -577,12 +579,12 @@ function FirstRewardModal({
         <div className="challenge-receipt">
           <div className="challenge-receipt-row emphasis">
             <span>{t("onboarding.reward.added")}</span>
-            <strong>+{formatReward(reward.amount)}$</strong>
+            <strong>+{money.formatRounded(reward.amount)}</strong>
           </div>
           {typeof reward.balanceAfter === "number" ? (
             <div className="challenge-receipt-row">
               <span>{t("onboarding.reward.balance")}</span>
-              <strong>{formatReward(reward.balanceAfter)}$</strong>
+              <strong>{money.formatRounded(reward.balanceAfter)}</strong>
             </div>
           ) : null}
         </div>
@@ -688,8 +690,4 @@ function openFeedAfterAuth() {
   url.searchParams.set("view", "people");
   url.searchParams.delete("auth");
   window.history.replaceState({ view: "people" }, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-function formatReward(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.00$/, "");
 }

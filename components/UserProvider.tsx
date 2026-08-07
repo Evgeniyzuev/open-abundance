@@ -21,6 +21,20 @@ import {
   type ColorTheme,
   type UiScale
 } from "@/lib/appearance";
+import {
+  DEFAULT_DISPLAY_CURRENCY,
+  areExchangeRatesFresh,
+  detectDisplayCurrencyPreference,
+  exchangeRateFor,
+  normalizeDisplayCurrency,
+  normalizeExchangeRatesSnapshot,
+  readCachedExchangeRates,
+  storeCachedExchangeRates,
+  storeDisplayCurrencyPreference,
+  type DisplayCurrency,
+  type ExchangeRatesSnapshot
+} from "@/lib/displayCurrency";
+import { createMoneyFormatter, type MoneyFormatter } from "@/lib/moneyFormat";
 
 export type UserProfile = Tables<"user_profiles">;
 export type CoreAccount = Tables<"core_accounts"> & {
@@ -38,12 +52,20 @@ type UserContextValue = {
   refreshing: boolean;
   error: string | null;
   locale: AppLocale;
+  displayCurrency: DisplayCurrency;
+  effectiveDisplayCurrency: DisplayCurrency;
+  exchangeRates: ExchangeRatesSnapshot | null;
+  exchangeRatesError: string | null;
+  exchangeRatesLoading: boolean;
+  exchangeRatesStale: boolean;
+  money: MoneyFormatter;
   uiScale: UiScale;
   colorTheme: ColorTheme;
   accentTheme: AccentTheme;
   refreshUserData: () => Promise<void>;
   applyServerData: (data: Partial<UserContextResponse>) => void;
   setLocale: (nextLocale: AppLocale) => Promise<void>;
+  setDisplayCurrency: (nextCurrency: DisplayCurrency) => void;
   setUiScale: (nextScale: UiScale) => void;
   setColorTheme: (nextTheme: ColorTheme) => void;
   setAccentTheme: (nextTheme: AccentTheme) => void;
@@ -73,6 +95,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [pendingLevelUps, setPendingLevelUps] = useState<number[]>([]);
   const [guestLocale, setGuestLocale] = useState<AppLocale>("en");
+  const [displayCurrency, setDisplayCurrencyState] = useState<DisplayCurrency>(DEFAULT_DISPLAY_CURRENCY);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRatesSnapshot | null>(null);
+  const [exchangeRatesError, setExchangeRatesError] = useState<string | null>(null);
+  const [exchangeRatesLoading, setExchangeRatesLoading] = useState(false);
+  const [currencyPreferenceHydrated, setCurrencyPreferenceHydrated] = useState(false);
   const [uiScale, setUiScaleState] = useState<UiScale>(DEFAULT_UI_SCALE);
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(DEFAULT_COLOR_THEME);
   const [accentTheme, setAccentThemeState] = useState<AccentTheme>(DEFAULT_ACCENT_THEME);
@@ -82,9 +109,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const currentUserIdRef = useRef<string | null>(null);
   const currentLocaleRef = useRef<AppLocale>("en");
   const claimInFlightRef = useRef<Promise<void> | null>(null);
+  const exchangeRatesInFlightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     setGuestLocale(detectPreferredLocale());
+  }, []);
+
+  useEffect(() => {
+    setDisplayCurrencyState(detectDisplayCurrencyPreference());
+    setExchangeRates(readCachedExchangeRates());
+    setCurrencyPreferenceHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -126,6 +160,45 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const locale = normalizeLocale(profile?.default_locale ?? guestLocale);
   currentLocaleRef.current = locale;
+
+  const refreshExchangeRates = useCallback(async () => {
+    if (exchangeRatesInFlightRef.current) return exchangeRatesInFlightRef.current;
+
+    exchangeRatesInFlightRef.current = (async () => {
+      setExchangeRatesLoading(true);
+      setExchangeRatesError(null);
+      try {
+        const response = await fetch("/api/exchange-rates", { headers: { Accept: "application/json" } });
+        const payload = normalizeExchangeRatesSnapshot(await response.json().catch(() => null));
+        if (!response.ok || !payload) throw new Error("Exchange rates are temporarily unavailable.");
+        storeCachedExchangeRates(payload);
+        setExchangeRates(payload);
+      } catch (rateError) {
+        setExchangeRatesError(rateError instanceof Error ? rateError.message : "Exchange rates are temporarily unavailable.");
+      } finally {
+        setExchangeRatesLoading(false);
+      }
+    })().finally(() => {
+      exchangeRatesInFlightRef.current = null;
+    });
+
+    return exchangeRatesInFlightRef.current;
+  }, []);
+
+  useEffect(() => {
+    if (!currencyPreferenceHydrated || displayCurrency === "USD") return;
+
+    const refreshIfStale = () => {
+      if (!areExchangeRatesFresh(exchangeRates)) void refreshExchangeRates();
+    };
+    refreshIfStale();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshIfStale();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [currencyPreferenceHydrated, displayCurrency, exchangeRates, refreshExchangeRates]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -433,6 +506,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [profile, refreshUserData, user]);
 
+  const setDisplayCurrency = useCallback((nextCurrency: DisplayCurrency) => {
+    const normalizedCurrency = normalizeDisplayCurrency(nextCurrency);
+    storeDisplayCurrencyPreference(normalizedCurrency);
+    setDisplayCurrencyState(normalizedCurrency);
+  }, []);
+
   const setUiScale = useCallback((nextScale: UiScale) => {
     storeUiScale(nextScale);
     setUiScaleState(nextScale);
@@ -453,6 +532,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     [locale]
   );
 
+  const displayRate = exchangeRateFor(exchangeRates, displayCurrency);
+  const effectiveDisplayCurrency = displayRate ? displayCurrency : DEFAULT_DISPLAY_CURRENCY;
+  const money = useMemo(
+    () => createMoneyFormatter(locale, effectiveDisplayCurrency, displayRate ?? 1),
+    [displayRate, effectiveDisplayCurrency, locale]
+  );
+  const exchangeRatesStale = Boolean(exchangeRates) && !areExchangeRatesFresh(exchangeRates);
+
   const value = useMemo(
     () => ({
       user,
@@ -464,18 +551,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
       refreshing,
       error,
       locale,
+      displayCurrency,
+      effectiveDisplayCurrency,
+      exchangeRates,
+      exchangeRatesError,
+      exchangeRatesLoading,
+      exchangeRatesStale,
+      money,
       uiScale,
       colorTheme,
       accentTheme,
       refreshUserData,
       applyServerData,
       setLocale,
+      setDisplayCurrency,
       setUiScale,
       setColorTheme,
       setAccentTheme,
       t
     }),
-    [accentTheme, applyServerData, authResolved, colorTheme, core, error, loading, locale, profile, refreshUserData, refreshing, setAccentTheme, setColorTheme, setLocale, setUiScale, t, uiScale, user, wallet]
+    [accentTheme, applyServerData, authResolved, colorTheme, core, displayCurrency, effectiveDisplayCurrency, error, exchangeRates, exchangeRatesError, exchangeRatesLoading, exchangeRatesStale, loading, locale, money, profile, refreshUserData, refreshing, setAccentTheme, setColorTheme, setDisplayCurrency, setLocale, setUiScale, t, uiScale, user, wallet]
   );
 
   return (
@@ -496,6 +591,10 @@ export function useUserContext(): UserContextValue {
   const value = useContext(UserContext);
   if (!value) throw new Error("useUserContext must be used inside UserProvider.");
   return value;
+}
+
+export function useMoneyFormatter(): MoneyFormatter {
+  return useUserContext().money;
 }
 
 function isOffline(): boolean {

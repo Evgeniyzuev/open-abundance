@@ -7,6 +7,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { AppLocale } from "@/lib/i18n";
+import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -516,8 +517,8 @@ function WishDetailModal({
           {category ? <strong>{category}</strong> : null}
           {description ? <p>{description}</p> : null}
           <div className="wish-meta">
-            {isPersonal && selectedWish.wish.target_amount ? <span>{formatAmount(selectedWish.wish.target_amount, selectedWish.wish.target_currency)}</span> : null}
-            {!isPersonal && selectedWish.wish.estimated_cost ? <span>{selectedWish.wish.estimated_cost}</span> : null}
+            {isPersonal && selectedWish.wish.target_amount ? <span>{formatAmount(selectedWish.wish.target_amount, selectedWish.wish.target_currency, locale)}</span> : null}
+            {!isPersonal && selectedWish.wish.estimated_cost ? <span>{formatAdaptiveMoney(Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)), locale)}</span> : null}
             <span>{t("wishes.level", { level: selectedWish.wish.difficulty_level })}</span>
             {isPersonal ? <span>{visibilityLabel(selectedWish.wish.visibility, t)}</span> : null}
           </div>
@@ -746,8 +747,9 @@ function text(value: LocaleText, locale: AppLocale): string {
   return "";
 }
 
-function formatAmount(amount: number, currency: string): string {
-  return `${amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currency}`;
+function formatAmount(amount: number, currency: string, locale: AppLocale): string {
+  if (currency === "USD") return formatAdaptiveMoney(amount, locale);
+  return `${amount.toLocaleString(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 2 })} ${currency}`;
 }
 
 function visibilityLabel(visibility: WishVisibility, t: ReturnType<typeof useUserContext>["t"]): string {

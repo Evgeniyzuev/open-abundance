@@ -24,6 +24,7 @@ import {
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { formatRoundedMoney } from "@/lib/moneyFormat";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 export type AppTestingNavigationTarget = "home.home" | "goals.notes" | "spark" | "wallet.core" | "people.feed";
@@ -52,6 +53,7 @@ export default function AppTestingSurvey({
   onNavigate: (target: AppTestingNavigationTarget) => void;
   onRefresh: () => Promise<void>;
 }) {
+  const rewardLabel = formatRoundedMoney(3, locale);
   const [draft, setDraft] = useState<AppTestingDraft>(() => createEmptyAppTestingDraft());
   const [status, setStatus] = useState<"loading" | "ready" | "saving" | "submitting" | "submitted">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -309,7 +311,7 @@ export default function AppTestingSurvey({
             : t("appTesting.choose")
         })}</p>
         <blockquote>{draft.publicReview || t("appTesting.previewPlaceholder")}</blockquote>
-        <small>{t("social.review.rewarded")}</small>
+        <small>{t("social.review.rewarded", { reward: rewardLabel })}</small>
       </section>
 
       <label className="app-testing-consent">
@@ -318,12 +320,12 @@ export default function AppTestingSurvey({
           checked={draft.publicConsent}
           onChange={(event) => setDraft((current) => ({ ...current, publicConsent: event.target.checked }))}
         />
-        <span>{t("appTesting.consent")}</span>
+        <span>{t("appTesting.consent", { reward: rewardLabel })}</span>
       </label>
 
       {error ? <p className="challenge-error">{error}</p> : null}
       <button className="challenge-primary-action" type="button" disabled={status === "submitting"} onClick={() => { void submitFeedback(); }}>
-        {status === "submitting" ? t("appTesting.submitting") : t("appTesting.submit")}
+        {status === "submitting" ? t("appTesting.submitting") : t("appTesting.submit", { reward: rewardLabel })}
       </button>
     </section>
   );

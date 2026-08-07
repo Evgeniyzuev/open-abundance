@@ -12,6 +12,7 @@ import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
+import { formatRoundedMoney } from "@/lib/moneyFormat";
 
 type LocaleText = Record<string, string> | null;
 type RewardLabel = LocaleText | string | number | null;
@@ -144,19 +145,24 @@ const COMPOUND_QUIZ_QUESTIONS: ChallengeQuizQuestion[] = [
     answerIndex: 0,
     id: "thirty-year-core",
     optionKeys: ["challenges.quiz.q1.a", "challenges.quiz.q1.b", "challenges.quiz.q1.c"],
-    questionKey: "challenges.quiz.q1"
+    optionMoneyValues: [{ amount: 1000000 }, { amount: 26000 }, { amount: 10000 }],
+    questionKey: "challenges.quiz.q1",
+    questionMoneyValues: { start: 1000 }
   },
   {
     answerIndex: 1,
     id: "daily-ten",
     optionKeys: ["challenges.quiz.q2.a", "challenges.quiz.q2.b", "challenges.quiz.q2.c"],
-    questionKey: "challenges.quiz.q2"
+    optionMoneyValues: [{ amount: 110000 }, { amount: 17000000 }, { amount: 1000000 }],
+    questionKey: "challenges.quiz.q2",
+    questionMoneyValues: { daily: 10, start: 1000 }
   },
   {
     answerIndex: 1,
     id: "daily-twenty-target",
     optionKeys: ["challenges.quiz.q3.a", "challenges.quiz.q3.b", "challenges.quiz.q3.c"],
-    questionKey: "challenges.quiz.q3"
+    questionKey: "challenges.quiz.q3",
+    questionMoneyValues: { daily: 20, target: 500000 }
   },
   {
     answerIndex: 2,
@@ -925,8 +931,8 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
         {project.image_url ? <img alt="" src={project.image_url} loading="lazy" /> : <Rocket size={24} />}
       </span>
       <span className="challenge-row-body">
-        <span className="challenge-row-title">{text(project.title, t("projects.project"), locale)}</span>
-        <small>{text(project.description, "", locale)}</small>
+        <span className="challenge-row-title">{displayText(project.title, t("projects.project"), locale)}</span>
+        <small>{displayText(project.description, "", locale)}</small>
         <span className="challenge-meta">
           <span>{participantsText(project)}</span>
           <span>{t("app.common.level")} {project.level}</span>
@@ -967,8 +973,8 @@ function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: 
     <button className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
       <ChallengeVisual challenge={challenge} mode="thumb" />
       <span className="challenge-row-body">
-        <span className="challenge-row-title">{text(challenge.title, t("challenges.challenge"), locale)}</span>
-        <small>{completed ? t("challenges.completed") : text(challenge.description, "", locale)}</small>
+        <span className="challenge-row-title">{displayText(challenge.title, t("challenges.challenge"), locale)}</span>
+        <small>{completed ? t("challenges.completed") : displayText(challenge.description, "", locale)}</small>
         <span className="challenge-meta">
           <span>{rewardText(challenge.reward_label, locale)}</span>
           <span className={locked ? "challenge-level locked-level" : "challenge-level"}>Lvl {challenge.difficulty_level}</span>
@@ -1196,8 +1202,8 @@ function ChallengeDetailModal({
         <div className="challenge-modal-body">
           <div>
             <strong>{challenge.category}</strong>
-            <h3>{text(challenge.title, t("challenges.challenge"), locale)}</h3>
-            <p>{text(challenge.description, "", locale)}</p>
+            <h3>{displayText(challenge.title, t("challenges.challenge"), locale)}</h3>
+            <p>{displayText(challenge.description, "", locale)}</p>
           </div>
 
           <div className="challenge-detail-grid">
@@ -1217,17 +1223,17 @@ function ChallengeDetailModal({
             ) : null}
           </div>
 
-          {text(challenge.requirements, "", locale) ? (
+          {displayText(challenge.requirements, "", locale) ? (
             <section>
               <h4>{t("challenges.requirements")}</h4>
-              <p>{text(challenge.requirements, "", locale)}</p>
+              <p>{displayText(challenge.requirements, "", locale)}</p>
             </section>
           ) : null}
 
-          {text(challenge.instructions, "", locale) ? (
+          {displayText(challenge.instructions, "", locale) ? (
             <section>
               <h4>{t("challenges.instructions")}</h4>
-              <p>{text(challenge.instructions, "", locale)}</p>
+              <p>{displayText(challenge.instructions, "", locale)}</p>
             </section>
           ) : null}
 
@@ -1379,8 +1385,8 @@ function ProjectDetailModal({
         <div className="challenge-modal-body">
           <div>
             <strong>{project.category}</strong>
-            <h3>{text(project.title, t("projects.project"), locale)}</h3>
-            <p>{text(project.description, "", locale)}</p>
+            <h3>{displayText(project.title, t("projects.project"), locale)}</h3>
+            <p>{displayText(project.description, "", locale)}</p>
           </div>
 
           <div className="challenge-detail-grid">
@@ -1398,17 +1404,17 @@ function ProjectDetailModal({
             </span>
           </div>
 
-          {text(project.requirements, "", locale) ? (
+          {displayText(project.requirements, "", locale) ? (
             <section>
               <h4>{t("challenges.requirements")}</h4>
-              <p>{text(project.requirements, "", locale)}</p>
+              <p>{displayText(project.requirements, "", locale)}</p>
             </section>
           ) : null}
 
-          {text(project.instructions, "", locale) ? (
+          {displayText(project.instructions, "", locale) ? (
             <section>
               <h4>{t("challenges.instructions")}</h4>
-              <p>{text(project.instructions, "", locale)}</p>
+              <p>{displayText(project.instructions, "", locale)}</p>
             </section>
           ) : null}
 
@@ -1420,8 +1426,8 @@ function ProjectDetailModal({
               <div className="project-task-list">
                 {project.project_tasks.map((task) => (
                   <article className="project-task" key={task.id}>
-                    <strong>{text(task.title, t("tasks.task"), locale)}</strong>
-                    <p>{text(task.description, "", locale)}</p>
+                    <strong>{displayText(task.title, t("tasks.task"), locale)}</strong>
+                    <p>{displayText(task.description, "", locale)}</p>
                     <span>{rewardText(task.reward_label, locale)} - {getVerificationLabel(task.verification_type, t)}</span>
                   </article>
                 ))}
@@ -1470,11 +1476,11 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
       <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="challenge-receipt-title">
         <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
-        <p>{reward.claimed ? t("challenges.rewardClaimed", { amount: reward.amount, account: reward.account === "core" ? "Core" : "Wallet" }) : t("challenges.rewardAlreadyClaimed")}</p>
+        <p>{reward.claimed ? t("challenges.rewardClaimed", { amount: formatTodayMoney(reward.amount, locale), account: reward.account === "core" ? "Core" : "Wallet" }) : t("challenges.rewardAlreadyClaimed")}</p>
         <div className="challenge-receipt">
           <div className="challenge-receipt-row">
             <span>{t("challenges.receipt.challenge")}</span>
-            <strong>{text(challenge.title, t("challenges.challenge"), locale)}</strong>
+            <strong>{displayText(challenge.title, t("challenges.challenge"), locale)}</strong>
           </div>
           <div className="challenge-receipt-row">
             <span>{t("challenges.receipt.verification")}</span>
@@ -1517,16 +1523,32 @@ function text(value: LocaleText, fallback: string, locale: AppLocale): string {
   return value?.[locale] ?? value?.en ?? fallback;
 }
 
+function displayText(value: LocaleText, fallback: string, locale: AppLocale): string {
+  return replaceUsdAmounts(text(value, fallback, locale), locale);
+}
+
+function replaceUsdAmounts(value: string, locale: AppLocale): string {
+  const prefixConverted = value.replace(/\$(\d[\d\s,]*(?:\.\d+)?)/g, (_match, raw: string) => formatRoundedMoney(parseUsdTextAmount(raw), locale));
+  return prefixConverted.replace(/(\d[\d\s,]*(?:\.\d+)?)\s*\$/g, (_match, raw: string) => formatRoundedMoney(parseUsdTextAmount(raw), locale));
+}
+
+function parseUsdTextAmount(value: string): number {
+  const compact = value.replace(/\s/g, "");
+  const commaCount = (compact.match(/,/g) ?? []).length;
+  const normalized = commaCount > 1 || /,\d{3}$/.test(compact)
+    ? compact.replace(/,/g, "")
+    : compact.replace(",", ".");
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
 function rewardText(value: RewardLabel, locale: AppLocale): string {
   const amount = rewardAmount(value, locale);
-  return amount ? `${amount}$` : "1$";
+  return formatTodayMoney(amount || 1, locale);
 }
 
 function formatTodayMoney(value: number, locale: AppLocale): string {
-  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: Math.abs(value) < 10 && value % 1 !== 0 ? 2 : 0
-  }).format(Number.isFinite(value) ? value : 0)}$`;
+  return formatRoundedMoney(value, locale);
 }
 
 function rewardAmount(value: RewardLabel, locale: AppLocale): number {

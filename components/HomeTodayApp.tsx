@@ -7,6 +7,7 @@ import { ONBOARDING_DRAFT_STORAGE_KEY } from "@/lib/onboardingContent";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { getNotes, isReflectionDue, NOTES_CHANGED_EVENT } from "@/lib/notesStore";
+import { formatRoundedMoney } from "@/lib/moneyFormat";
 import {
   enableDailyPush,
   getDailyReminderSettings,
@@ -416,8 +417,5 @@ function text(value: LocaleText, fallback: string, locale: AppLocale): string {
 }
 
 function formatMoney(value: number, locale: AppLocale): string {
-  const amount = Number.isFinite(value) ? value : 0;
-  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
-    maximumFractionDigits: Math.abs(amount) < 10 && amount % 1 !== 0 ? 2 : 0
-  }).format(amount)}$`;
+  return formatRoundedMoney(value, locale);
 }

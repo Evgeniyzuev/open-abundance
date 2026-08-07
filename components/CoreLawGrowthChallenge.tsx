@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import { calculateFutureCore, DAILY_CORE_RATE } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
+import { formatRoundedMoney } from "@/lib/moneyFormat";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -28,7 +29,9 @@ const QUESTIONS: ChallengeQuizQuestion[] = [
     answerIndex: 1,
     id: "one-dollar-fifty-years",
     optionKeys: ["challenges.coreQuiz.q2.a", "challenges.coreQuiz.q2.b", "challenges.coreQuiz.q2.c"],
-    questionKey: "challenges.coreQuiz.q2"
+    optionMoneyValues: [{ amount: 365 }, { amount: 18250 }, { amount: 1000000 }],
+    questionKey: "challenges.coreQuiz.q2",
+    questionMoneyValues: { daily: 1 }
   },
   {
     answerIndex: 1,
@@ -40,7 +43,9 @@ const QUESTIONS: ChallengeQuizQuestion[] = [
     answerIndex: 2,
     id: "thirty-year-core",
     optionKeys: ["challenges.coreQuiz.q4.a", "challenges.coreQuiz.q4.b", "challenges.coreQuiz.q4.c"],
-    questionKey: "challenges.coreQuiz.q4"
+    optionMoneyValues: [{ amount: 10000 }, { amount: 100000 }, { amount: 1000000 }],
+    questionKey: "challenges.coreQuiz.q4",
+    questionMoneyValues: { start: 1000 }
   },
   {
     answerIndex: 0,
@@ -103,12 +108,12 @@ export default function CoreLawGrowthChallenge({ locale, t, onProof, onPassedCha
             <span>{t("challenges.coreGrowth.screen2.eyebrow")}</span>
             <strong>{t("challenges.coreGrowth.screen2.title")}</strong>
           </div>
-          <p className="core-growth-lead">{t("challenges.coreGrowth.screen2.body")}</p>
+          <p className="core-growth-lead">{t("challenges.coreGrowth.screen2.body", { daily: formatMoney(1, locale) })}</p>
           <div className="core-growth-dollar-card">
             <div><span>{t("challenges.coreGrowth.screen2.oneYear")}</span><strong>{formatMoney(365, locale)}</strong></div>
             <div><span>{t("challenges.coreGrowth.screen2.fiftyYears")}</span><strong>{formatMoney(18250, locale)}</strong></div>
           </div>
-          <p className="challenge-note">{t("challenges.coreGrowth.screen2.note")}</p>
+          <p className="challenge-note">{t("challenges.coreGrowth.screen2.note", { daily: formatMoney(1, locale), year: formatMoney(365, locale), total: formatMoney(18250, locale) })}</p>
           <ScreenActions backLabel={t("challenges.quiz.previous")} onBack={previousScreen} onNext={nextScreen} nextLabel={t("challenges.coreGrowth.screen2.next")} />
         </>
       ) : null}
@@ -117,17 +122,17 @@ export default function CoreLawGrowthChallenge({ locale, t, onProof, onPassedCha
         <>
           <div className="core-growth-screen-heading">
             <span>{t("challenges.coreGrowth.screen3.eyebrow")}</span>
-            <strong>{t("challenges.coreGrowth.screen3.title")}</strong>
+            <strong>{t("challenges.coreGrowth.screen3.title", { start: formatMoney(1000, locale), daily: formatMoney(10, locale) })}</strong>
           </div>
-          <p className="core-growth-lead">{t("challenges.coreGrowth.screen3.body")}</p>
+          <p className="core-growth-lead">{t("challenges.coreGrowth.screen3.body", { start: formatMoney(1000, locale), daily: formatMoney(10, locale) })}</p>
           <svg className="core-growth-chart" role="img" aria-label={t("challenges.coreGrowth.chartAria")} viewBox="0 0 300 170">
             <line className="core-growth-axis" x1="14" x2="286" y1="154" y2="154" />
             <polyline className="core-growth-line" points={chartLines.map((point) => `${point.x},${point.baseY}`).join(" ")} />
             <polyline className="core-growth-line core-growth-line-secondary" points={chartLines.map((point) => `${point.x},${point.challengeY}`).join(" ")} />
           </svg>
           <div className="core-growth-legend">
-            <span><i className="core-growth-legend-dot" />{t("challenges.coreGrowth.legend.base")}</span>
-            <span><i className="core-growth-legend-dot secondary" />{t("challenges.coreGrowth.legend.challenge")}</span>
+            <span><i className="core-growth-legend-dot" />{t("challenges.coreGrowth.legend.base", { start: formatMoney(1000, locale) })}</span>
+            <span><i className="core-growth-legend-dot secondary" />{t("challenges.coreGrowth.legend.challenge", { start: formatMoney(1000, locale), daily: formatMoney(10, locale) })}</span>
           </div>
           <div className="core-growth-table-wrap">
             <table className="core-growth-table">
@@ -135,7 +140,7 @@ export default function CoreLawGrowthChallenge({ locale, t, onProof, onPassedCha
                 <tr>
                   <th>{t("challenges.coreGrowth.table.year")}</th>
                   <th>{t("challenges.coreGrowth.table.base")}</th>
-                  <th>{t("challenges.coreGrowth.table.challenge")}</th>
+                  <th>{t("challenges.coreGrowth.table.challenge", { daily: formatMoney(10, locale) })}</th>
                 </tr>
               </thead>
               <tbody>
@@ -149,7 +154,7 @@ export default function CoreLawGrowthChallenge({ locale, t, onProof, onPassedCha
               </tbody>
             </table>
           </div>
-          <p className="challenge-note">{t("challenges.coreGrowth.screen3.note", { rate: `${(DAILY_CORE_RATE * 100).toFixed(4)}%` })}</p>
+          <p className="challenge-note">{t("challenges.coreGrowth.screen3.note", { daily: formatMoney(10, locale), rate: `${(DAILY_CORE_RATE * 100).toFixed(4)}%` })}</p>
           <ScreenActions backLabel={t("challenges.quiz.previous")} onBack={previousScreen} onNext={nextScreen} nextLabel={t("challenges.coreGrowth.screen3.next")} />
         </>
       ) : null}
@@ -194,5 +199,5 @@ function ScreenActions({ backLabel, onBack, onNext, nextLabel }: ScreenActionsPr
 }
 
 function formatMoney(value: number, locale: AppLocale): string {
-  return `${new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 0 }).format(value)} $`;
+  return formatRoundedMoney(value, locale);
 }

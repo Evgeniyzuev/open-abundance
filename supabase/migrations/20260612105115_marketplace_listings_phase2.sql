@@ -5,7 +5,7 @@ create table if not exists public.marketplace_listings (
   title text not null check (char_length(trim(title)) between 1 and 120),
   description text,
   price_amount numeric(30, 12) not null check (price_amount > 0),
-  currency_code text not null default 'OA$',
+  currency_code text not null default '$',
   status text not null default 'active' check (status in ('draft', 'active', 'reserved', 'sold', 'cancelled', 'expired')),
   terms_json jsonb not null default '{}'::jsonb,
   terms_hash text not null,

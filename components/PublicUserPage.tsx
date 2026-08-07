@@ -224,7 +224,7 @@ function PublicProfileView({
                 <small>{t(`wallet.economy.period.${periodType}` as MessageKey)} · {periodKey}</small>
                 <div className="economy-metrics-grid">
                   {Object.entries(metric).filter(([key]) => key !== "periodType" && key !== "periodKey" && labels[key]).map(([key, value]) => (
-                    <div className="economy-metric-card" key={key}><span>{t(labels[key])}</span><strong>{key === "core_level_end" ? String(value) : `${formatAdaptiveMoney(Number(value), locale)} OA$`}</strong></div>
+                    <div className="economy-metric-card" key={key}><span>{t(labels[key])}</span><strong>{key === "core_level_end" ? String(value) : formatAdaptiveMoney(Number(value), locale)}</strong></div>
                   ))}
                 </div>
               </div>

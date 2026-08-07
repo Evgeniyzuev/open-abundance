@@ -1,0 +1,2313 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Модель экономики Abundance</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-2: #eef2f8;
+      --text: #172033;
+      --muted: #667085;
+      --line: #d7deea;
+      --primary: #2867d8;
+      --primary-soft: #e8f0ff;
+      --positive: #18864b;
+      --warning: #a75b00;
+      --danger: #b42318;
+      --series-1: #2867d8;
+      --series-2: #18864b;
+      --series-3: #9b51e0;
+      --series-4: #e07a24;
+      --series-5: #d33973;
+      --series-6: #147d92;
+      --shadow: 0 12px 30px rgba(28, 39, 64, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111722;
+        --surface: #182131;
+        --surface-2: #222d3f;
+        --text: #edf2fa;
+        --muted: #a8b3c7;
+        --line: #344158;
+        --primary: #7da8ff;
+        --primary-soft: #21365b;
+        --positive: #58ca86;
+        --warning: #f0ae57;
+        --danger: #ff8178;
+        --series-1: #7da8ff;
+        --series-2: #58ca86;
+        --series-3: #c68cff;
+        --series-4: #f0ae57;
+        --series-5: #f27faa;
+        --series-6: #55bdce;
+        --shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; min-width: 320px; background: var(--bg); color: var(--text); }
+    button, input, select { font: inherit; font-size: 16px; }
+    button, input, select { border: 1px solid var(--line); border-radius: 10px; }
+    button { min-height: 42px; padding: 8px 13px; background: var(--surface); color: var(--text); cursor: pointer; }
+    button:hover { border-color: var(--primary); }
+    button.primary { border-color: var(--primary); background: var(--primary); color: var(--surface); }
+    button.ghost { background: transparent; }
+    button.danger { color: var(--danger); }
+    button:disabled { cursor: not-allowed; opacity: 0.5; }
+    input, select { min-height: 42px; width: 100%; padding: 8px 10px; background: var(--surface); color: var(--text); }
+    input[type="checkbox"] { min-height: auto; width: 18px; height: 18px; accent-color: var(--primary); }
+    input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 34%, transparent); outline-offset: 2px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 8px; font-size: clamp(1.65rem, 5vw, 2.6rem); line-height: 1.08; }
+    h2 { margin-bottom: 14px; font-size: 1.25rem; }
+    h3 { margin-bottom: 10px; font-size: 1rem; }
+    small, .muted { color: var(--muted); }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .app { width: min(1500px, 100%); margin: 0 auto; padding: 24px clamp(14px, 3vw, 34px) 50px; }
+    .hero { display: grid; gap: 16px; margin-bottom: 20px; }
+    .hero-line { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 14px; }
+    .hero-copy { max-width: 760px; }
+    .hero-copy p { margin-bottom: 0; color: var(--muted); line-height: 1.5; }
+    .notice { border-left: 4px solid var(--warning); padding: 11px 14px; background: color-mix(in srgb, var(--warning) 9%, var(--surface)); line-height: 1.45; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+    .toolbar .field { min-width: min(230px, 100%); }
+    .file-button { position: relative; display: inline-flex; align-items: center; min-height: 42px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 13px; background: var(--surface); cursor: pointer; }
+    .file-button:hover { border-color: var(--primary); }
+    .file-button input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+    .compare-box { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 0; }
+    .compare-option { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); align-items: start; gap: 20px; }
+    .sidebar { display: grid; gap: 14px; }
+    .panel, .stat { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
+    .panel { padding: 17px; }
+    .stat { min-width: 0; padding: 15px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .stat-label { color: var(--muted); font-size: 0.78rem; }
+    .stat-value { margin-top: 6px; overflow-wrap: anywhere; font-size: clamp(1.25rem, 3vw, 1.85rem); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stat-context { margin-top: 4px; color: var(--muted); font-size: 0.77rem; line-height: 1.35; }
+    .status-good { color: var(--positive); }
+    .status-warning { color: var(--warning); }
+    .status-danger { color: var(--danger); }
+    details.panel { padding: 0; }
+    details.panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 17px; cursor: pointer; font-weight: 600; }
+    details.panel > summary::marker { color: var(--primary); }
+    details.panel[open] > summary { border-bottom: 1px solid var(--line); }
+    .details-body { padding: 16px 17px 18px; }
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .field { display: grid; gap: 5px; min-width: 0; }
+    .field > span { color: var(--muted); font-size: 0.78rem; line-height: 1.25; }
+    .field em { color: var(--text); font-style: normal; }
+    .field-wide { grid-column: 1 / -1; }
+    .section-note { margin: 0 0 13px; color: var(--muted); font-size: 0.8rem; line-height: 1.45; }
+    .cohort-list { display: grid; gap: 12px; }
+    .cohort-card { border-top: 1px solid var(--line); padding-top: 13px; }
+    .cohort-card:first-child { border-top: 0; padding-top: 0; }
+    .cohort-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .cohort-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cohort-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .main { min-width: 0; }
+    .warnings { display: grid; gap: 8px; margin-bottom: 14px; }
+    .warning-row { border-left: 4px solid var(--warning); padding: 9px 12px; background: color-mix(in srgb, var(--warning) 8%, var(--surface)); color: var(--text); font-size: 0.82rem; line-height: 1.4; }
+    .warning-row.error { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
+    .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .chart-panel { min-width: 0; border-bottom: 1px solid var(--line); padding: 15px 0; }
+    .chart-panel.wide { grid-column: 1 / -1; }
+    .chart-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .chart-head h2 { margin: 0; font-size: 1rem; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 13px; color: var(--muted); font-size: 0.75rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 999px; background: var(--dot); }
+    .chart { min-height: 250px; width: 100%; overflow: hidden; }
+    .chart svg { display: block; width: 100%; height: auto; min-height: 240px; }
+    .chart .grid-line { stroke: var(--line); stroke-width: 1; }
+    .chart .axis-label { fill: var(--muted); font-size: 11px; }
+    .chart .series-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .chart .threshold { stroke: var(--warning); stroke-width: 1.5; stroke-dasharray: 5 5; }
+    .chart .bar-segment { shape-rendering: geometricPrecision; }
+    .chart-empty { display: grid; min-height: 240px; place-items: center; color: var(--muted); }
+    .metrics-panel { margin-top: 16px; }
+    .metrics-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    .table-wrap { max-width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th, td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    td { font-variant-numeric: tabular-nums; }
+    .cohort-summary { margin-top: 14px; }
+    .optimizer-grid { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; }
+    .optimizer-controls { display: grid; gap: 12px; }
+    .weights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .optimizer-result { min-width: 0; }
+    .best-result { border-left: 4px solid var(--primary); padding: 11px 13px; background: var(--primary-soft); line-height: 1.45; }
+    .heatmap-wrap { margin-top: 12px; overflow-x: auto; }
+    .heatmap { border-collapse: separate; border-spacing: 3px; width: auto; min-width: 100%; }
+    .heatmap th, .heatmap td { border: 0; padding: 0; text-align: center; }
+    .heatmap th { max-width: 86px; padding: 4px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+    .heat-cell { width: 30px; min-width: 30px; height: 30px; min-height: 30px; border: 0; border-radius: 5px; padding: 0; background: var(--surface-2); }
+    .heat-0 { background: var(--surface-2); }
+    .heat-1 { background: color-mix(in srgb, var(--primary) 18%, var(--surface)); }
+    .heat-2 { background: color-mix(in srgb, var(--primary) 34%, var(--surface)); }
+    .heat-3 { background: color-mix(in srgb, var(--primary) 50%, var(--surface)); }
+    .heat-4 { background: color-mix(in srgb, var(--primary) 67%, var(--surface)); }
+    .heat-5 { background: color-mix(in srgb, var(--primary) 84%, var(--surface)); }
+    .heat-infeasible { background: color-mix(in srgb, var(--danger) 30%, var(--surface)); }
+    .heat-cell.selected { outline: 3px solid var(--text); outline-offset: 1px; }
+    .optimizer-detail { margin-top: 8px; min-height: 22px; color: var(--muted); font-size: 0.8rem; }
+    .top-results { margin-top: 12px; }
+    .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 22px; color: var(--muted); font-size: 0.78rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 1050px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .sidebar > :first-child, .sidebar > :nth-child(2), .sidebar > :last-child { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 760px) {
+      .app { padding-top: 16px; }
+      .sidebar, .summary-grid, .chart-grid, .optimizer-grid { grid-template-columns: 1fr; }
+      .chart-panel.wide { grid-column: auto; }
+      .field-grid, .cohort-fields { grid-template-columns: 1fr; }
+      .field-wide { grid-column: auto; }
+      .summary-grid { gap: 8px; }
+      .toolbar > *, .toolbar .field, .file-button { width: 100%; }
+      .weights { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      :root { color-scheme: light; }
+      body { background: #fff; }
+      .sidebar, .toolbar, .compare-box, .optimizer-controls, .file-button, button { display: none !important; }
+      .layout { display: block; }
+      .panel, .stat { box-shadow: none; break-inside: avoid; }
+      .chart-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="abundance-economy-model">
+    <header class="hero">
+      <div class="hero-line">
+        <div class="hero-copy">
+          <h1>Модель экономики Abundance</h1>
+          <p>Сценарный прогноз Treasury, Wallet, Core, вознаграждений и внутреннего рынка. Предустановленные значения демонстрационные; все параметры изменяемы, расчёт выполняется локально.</p>
+        </div>
+        <div class="toolbar" aria-label="Управление данными">
+          <button type="button" id="export-json">Экспорт JSON</button>
+          <label class="file-button">Импорт JSON<input id="import-json" type="file" accept=".json,application/json"></label>
+          <button type="button" id="print-model">Печать</button>
+        </div>
+      </div>
+      <div class="notice"><strong>Важно:</strong> это сценарная модель, а не гарантия дохода, внешней ликвидности или возможности вывода. Core — внутренняя невыводимая величина; прогноз Wallet-выплат служит для планирования резерва.</div>
+      <div class="panel">
+        <div class="toolbar" aria-label="Сценарии">
+          <label class="field"><span>Активный сценарий</span><select id="scenario-select"></select></label>
+          <button type="button" id="duplicate-scenario">Создать копию</button>
+          <button type="button" id="rename-scenario">Переименовать</button>
+          <button type="button" class="danger" id="delete-scenario">Удалить</button>
+        </div>
+        <div class="compare-box" id="compare-options" aria-label="Сценарии для сравнения"></div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" aria-label="Параметры модели">
+        <details class="panel" open>
+          <summary>Период и резерв</summary>
+          <div class="details-body">
+            <div class="field-grid" id="basic-fields"></div>
+            <p class="section-note">Текущее покрытие = Treasury / Wallet. Покрытие с будущими выплатами дополнительно включает прогноз Wallet-выплат от существующего Core. «Доп. Core в резерве» показывает только запас планового Wallet-резерва, а не разрешённую награду.</p>
+          </div>
+        </details>
+
+        <details class="panel" open>
+          <summary>Ликвидность и расходы</summary>
+          <div class="details-body">
+            <p class="section-note">Один знаковый поток задаёт среднюю динамику: плюс пополняет Treasury и Wallet 1:1, минус создаёт запрос на вывод. Постоянные внутренние услуги и комиссии сжигают Wallet, но сами по себе не уменьшают Treasury.</p>
+            <div class="field-grid" id="liquidity-fields"></div>
+            <p class="section-note" id="liquidity-derived"></p>
+          </div>
+        </details>
+
+        <details class="panel" open>
+          <summary>Core и вознаграждения</summary>
+          <div class="details-body">
+            <p class="section-note">Ставка и лидерский бонус соответствуют текущей модели. Реферальная награда и комиссии Wallet → Core — экспериментальные, по умолчанию нулевые.</p>
+            <div class="field-grid" id="reward-fields"></div>
+          </div>
+        </details>
+
+        <details class="panel">
+          <summary>Marketplace</summary>
+          <div class="details-body">
+            <p class="section-note">Marketplace — отдельный оборотный контур. Покупки и продажи перераспределяют Wallet между участниками; на совокупное обеспечение влияют только сожжённые комиссии.</p>
+            <div class="field-grid" id="market-fields"></div>
+          </div>
+        </details>
+
+        <details class="panel" open>
+          <summary>Когорты</summary>
+          <div class="details-body">
+            <div class="cohort-list" id="cohort-list"></div>
+            <button type="button" id="add-cohort">Добавить когорту</button>
+          </div>
+        </details>
+      </aside>
+
+      <section class="main" aria-label="Результаты модели">
+        <div class="summary-grid" id="summary-grid"></div>
+        <div class="warnings" id="warnings" aria-live="polite"></div>
+
+        <div class="panel">
+          <div class="chart-grid">
+            <section class="chart-panel wide">
+              <div class="chart-head"><h2>Системные балансы</h2><div class="legend" id="balance-legend"></div></div>
+              <div class="chart" id="balance-chart"></div>
+            </section>
+            <section class="chart-panel">
+              <div class="chart-head"><h2>Покрытие обязательств</h2><div class="legend" id="coverage-legend"></div></div>
+              <div class="chart" id="coverage-chart"></div>
+            </section>
+            <section class="chart-panel">
+              <div class="chart-head"><h2>Источники роста Core</h2><div class="legend" id="core-legend"></div></div>
+              <div class="chart" id="core-chart"></div>
+            </section>
+          </div>
+        </div>
+
+        <section class="panel metrics-panel">
+          <div class="metrics-head">
+            <div><h2>Помесячный прогноз</h2><p class="section-note">Денежные значения показаны в $ / долларовом эквиваленте сценария.</p></div>
+            <button type="button" id="export-csv">Экспорт CSV</button>
+          </div>
+          <div class="table-wrap"><table id="period-table"></table></div>
+          <div class="cohort-summary" id="cohort-summary"></div>
+        </section>
+
+        <section class="panel metrics-panel">
+          <div class="metrics-head">
+            <div><h2>Marketplace — отдельный оборотный контур</h2><p class="section-note">GMV — стоимость завершённых сделок, а не доход и не внешняя ликвидность. Без комиссий торговля не меняет совокупные Wallet и Treasury.</p></div>
+          </div>
+          <div class="chart-head"><h3>Подтверждённый GMV по месяцам</h3><div class="legend" id="market-legend"></div></div>
+          <div class="chart" id="market-chart"></div>
+          <div class="cohort-summary" id="marketplace-scenario-summary"></div>
+          <div class="table-wrap"><table id="marketplace-table"></table></div>
+          <div class="cohort-summary" id="marketplace-cohort-summary"></div>
+        </section>
+
+        <section class="panel metrics-panel">
+          <h2>Оптимизация и чувствительность</h2>
+          <p class="section-note">Перебор меняет только два выбранных параметра и отбрасывает точки, где Treasury отрицателен или покрытие ниже нормы хотя бы в одном периоде.</p>
+          <div class="optimizer-grid">
+            <div class="optimizer-controls" id="optimizer-controls"></div>
+            <div class="optimizer-result" id="optimizer-result">
+              <div class="muted">Задайте диапазоны и запустите расчёт.</div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </div>
+
+    <footer class="footer">
+      <span id="self-test-status">Самопроверка модели…</span>
+      <span>Схема данных v1 · расчёт без внешних запросов</span>
+    </footer>
+  </main>
+
+  <script>
+  "use strict";
+
+  (function () {
+    var SCHEMA_VERSION = 1;
+    var STORAGE_KEY = "abundance-economy-model.v1";
+    var MAX_VALUE = 1e18;
+    var COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-5)", "var(--series-6)"];
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function uid(prefix) {
+      return prefix + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    }
+
+    function number(value, fallback) {
+      var result = typeof value === "number" ? value : Number(value);
+      return Number.isFinite(result) ? result : (fallback || 0);
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, number(value, min)));
+    }
+
+    function capped(value, runtimeWarnings, label) {
+      if (!Number.isFinite(value) || Math.abs(value) > MAX_VALUE) {
+        if (runtimeWarnings && runtimeWarnings.indexOf(label) === -1) runtimeWarnings.push(label);
+        return value < 0 ? -MAX_VALUE : MAX_VALUE;
+      }
+      return value;
+    }
+
+    function pct(value) {
+      return clamp(value, 0, 100) / 100;
+    }
+
+    function monthDailyRate(percentValue, days) {
+      var monthly = pct(percentValue);
+      if (monthly >= 1) return 1;
+      if (monthly <= 0 || days <= 0) return 0;
+      return 1 - Math.pow(1 - monthly, 1 / days);
+    }
+
+    function daysInMonth(monthKey) {
+      var parts = String(monthKey).split("-");
+      var year = Number(parts[0]);
+      var month = Number(parts[1]);
+      return new Date(Date.UTC(year, month, 0)).getUTCDate();
+    }
+
+    function addMonths(monthKey, amount) {
+      var parts = String(monthKey).split("-");
+      var date = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1 + amount, 1));
+      return date.getUTCFullYear() + "-" + String(date.getUTCMonth() + 1).padStart(2, "0");
+    }
+
+    function defaultConfig() {
+      return {
+        schemaVersion: SCHEMA_VERSION,
+        name: "Базовый сценарий",
+        startMonth: "2026-08",
+        horizonMonths: 36,
+        reserveNormPct: 100,
+        forwardMonths: 12,
+        dailyRatePct: 0.0633,
+        initialTreasury: 20000,
+        initialWithdrawalQueue: 0,
+        externalWalletFlowPerUserDay: 0.26,
+        walletFlowGrowthPct: 0,
+        permanentWalletBurnDailyPct: 0.08,
+        nonLiabilityFundingMonthly: 0,
+        fundingGrowthPct: 0,
+        withdrawalServiceFeePct: 1,
+        withdrawalNetworkCostPct: 0,
+        newUsersMonthly: 0,
+        newUsersGrowthPct: 0,
+        challengeVerificationPct: 80,
+        challengeReward: 1,
+        referralActivationPct: 50,
+        referralReward: 0,
+        otherCoreRewardsMonthly: 0,
+        leaderBonusPct: 10,
+        leaderCoveragePct: 50,
+        cascadeDepth: 3,
+        walletToCoreFeePct: 0,
+        averageOrder: 25,
+        marketMatchPct: 70,
+        marketCompletionPct: 90,
+        marketRefundPct: 100,
+        marketplaceFeePct: 0,
+        marketplaceFeeBurnPct: 100,
+        walletVelocityCap: 2,
+        cohorts: [
+          {
+            id: "cohort-main",
+            name: "Все участники",
+            users: 100,
+            wallet: 10000,
+            core: 10000,
+            reinvestPct: 50,
+            challengesPerUser: 0.5,
+            walletToCorePct: 5,
+            buyerPct: 25,
+            ordersPerBuyer: 0.5,
+            sellerPct: 20,
+            salesCapacity: 0.8,
+            growthPct: 0,
+            churnPct: 0
+          }
+        ]
+      };
+    }
+
+    var FIELD_GROUPS = {
+      basic: [
+        ["startMonth", "Начальный месяц", "month", 0, 0, 1],
+        ["horizonMonths", "Горизонт, месяцев", "number", 1, 120, 1],
+        ["initialTreasury", "Treasury на старте", "number", 0, MAX_VALUE, 100],
+        ["initialWithdrawalQueue", "Очередь выводов на старте", "number", 0, MAX_VALUE, 100],
+        ["reserveNormPct", "Норма резервирования Wallet, %", "number", 0, 300, 1],
+        ["forwardMonths", "Горизонт будущих выплат, мес.", "number", 1, 120, 1]
+      ],
+      liquidity: [
+        ["externalWalletFlowPerUserDay", "Чистый внешний поток Wallet, $ / чел. / день", "number", -MAX_VALUE, MAX_VALUE, 0.01],
+        ["walletFlowGrowthPct", "Изменение модуля потока в месяц, %", "number", -100, 1000, 0.1],
+        ["permanentWalletBurnDailyPct", "Постоянно сгорает Wallet в день, %", "number", 0, 100, 0.001],
+        ["nonLiabilityFundingMonthly", "Финансирование без Wallet-обязательств", "number", 0, MAX_VALUE, 100],
+        ["fundingGrowthPct", "Рост финансирования в месяц, %", "number", -100, 1000, 0.1],
+        ["withdrawalServiceFeePct", "Сервисная комиссия вывода, %", "number", 0, 100, 0.1],
+        ["withdrawalNetworkCostPct", "Внешние сетевые расходы от payout, %", "number", 0, 100, 0.1],
+        ["newUsersMonthly", "Новые участники в 1-й месяц", "number", 0, MAX_VALUE, 1],
+        ["newUsersGrowthPct", "Рост новых участников в месяц, %", "number", -100, 1000, 0.1]
+      ],
+      rewards: [
+        ["dailyRatePct", "Суточная ставка Core, %", "number", 0, 10, 0.0001],
+        ["challengeVerificationPct", "Подтверждено челленджей, %", "number", 0, 100, 1],
+        ["challengeReward", "Награда за 1 подтверждённый челлендж, Core", "number", 0, MAX_VALUE, 0.1],
+        ["referralActivationPct", "Активация новых рефералов, %", "number", 0, 100, 1],
+        ["referralReward", "Реферальная награда, Core", "number", 0, MAX_VALUE, 0.1],
+        ["otherCoreRewardsMonthly", "Другие Core-награды в месяц", "number", 0, MAX_VALUE, 10],
+        ["leaderBonusPct", "Лидерский бонус, %", "number", 0, 100, 0.1],
+        ["leaderCoveragePct", "Участники с активным лидом, %", "number", 0, 100, 1],
+        ["cascadeDepth", "Средняя глубина каскада", "number", 0, 20, 1],
+        ["walletToCoreFeePct", "Комиссия Wallet → Core, %", "number", 0, 100, 0.1]
+      ],
+      market: [
+        ["averageOrder", "Средний чек", "number", 0.01, MAX_VALUE, 1],
+        ["marketMatchPct", "Совпадение спроса и предложения, %", "number", 0, 100, 1],
+        ["marketCompletionPct", "Завершение сделок, %", "number", 0, 100, 1],
+        ["marketRefundPct", "Возврат незавершённых escrow, %", "number", 0, 100, 1],
+        ["marketplaceFeePct", "Комиссия Marketplace, %", "number", 0, 100, 0.1],
+        ["marketplaceFeeBurnPct", "Сгорающая доля комиссии, %", "number", 0, 100, 1],
+        ["walletVelocityCap", "Максимальная скорость Wallet за месяц", "number", 0, 100, 0.1]
+      ]
+    };
+
+    var COHORT_FIELDS = [
+      ["name", "Название", "text", 0, 0, 0],
+      ["users", "Участники", "number", 0, MAX_VALUE, 1],
+      ["wallet", "Wallet", "number", 0, MAX_VALUE, 100],
+      ["core", "Core", "number", 0, MAX_VALUE, 100],
+      ["reinvestPct", "Core reinvest, %", "number", 0, 100, 1],
+      ["challengesPerUser", "Челленджей / человека / месяц", "number", 0, 1000, 0.1],
+      ["walletToCorePct", "Wallet → Core / мес., %", "number", 0, 100, 0.1],
+      ["buyerPct", "Покупатели, %", "number", 0, 100, 1],
+      ["ordersPerBuyer", "Покупок / покупателя", "number", 0, 1000, 0.1],
+      ["sellerPct", "Продавцы, %", "number", 0, 100, 1],
+      ["salesCapacity", "Продаж / продавца", "number", 0, 1000, 0.1],
+      ["growthPct", "Органический рост / мес., %", "number", -100, 1000, 0.1],
+      ["churnPct", "Отток / мес., %", "number", 0, 100, 0.1]
+    ];
+
+    var FIELD_LOOKUP = {};
+    Object.keys(FIELD_GROUPS).forEach(function (group) {
+      FIELD_GROUPS[group].forEach(function (field) { FIELD_LOOKUP[field[0]] = field; });
+    });
+
+    function sanitizeConfig(input) {
+      var base = defaultConfig();
+      var source = input && typeof input === "object" ? input : {};
+      Object.keys(base).forEach(function (key) {
+        if (key !== "cohorts" && source[key] !== undefined) base[key] = source[key];
+      });
+      if (source.externalWalletFlowPerUserDay === undefined
+        && (source.userDepositsMonthly !== undefined || source.withdrawalRatePct !== undefined)) {
+        var legacyCohorts = Array.isArray(source.cohorts) ? source.cohorts : base.cohorts;
+        var legacyUsers = legacyCohorts.reduce(function (sum, cohort) { return sum + Math.max(0, number(cohort && cohort.users, 0)); }, 0);
+        var legacyWallet = legacyCohorts.reduce(function (sum, cohort) { return sum + Math.max(0, number(cohort && cohort.wallet, 0)); }, 0);
+        var legacyNetMonthly = Math.max(0, number(source.userDepositsMonthly, 0))
+          - legacyWallet * Math.max(0, number(source.withdrawalRatePct, 0)) / 100;
+        base.externalWalletFlowPerUserDay = legacyUsers > 0 ? legacyNetMonthly / legacyUsers / (365.2425 / 12) : 0;
+        base.walletFlowGrowthPct = number(source.depositGrowthPct, 0);
+      }
+      if (source.permanentWalletBurnDailyPct === undefined && source.operatingCostsMonthly !== undefined) {
+        var legacyWalletForBurn = (Array.isArray(source.cohorts) ? source.cohorts : base.cohorts).reduce(function (sum, cohort) {
+          return sum + Math.max(0, number(cohort && cohort.wallet, 0));
+        }, 0);
+        base.permanentWalletBurnDailyPct = legacyWalletForBurn > 0
+          ? Math.max(0, number(source.operatingCostsMonthly, 0)) / legacyWalletForBurn / (365.2425 / 12) * 100
+          : 0;
+      }
+      base.schemaVersion = SCHEMA_VERSION;
+      base.name = String(base.name || "Сценарий").slice(0, 80);
+      base.startMonth = /^\d{4}-\d{2}$/.test(String(base.startMonth)) ? String(base.startMonth) : "2026-08";
+      base.horizonMonths = Math.round(clamp(base.horizonMonths, 1, 120));
+      base.initialTreasury = clamp(base.initialTreasury, 0, MAX_VALUE);
+      base.initialWithdrawalQueue = clamp(base.initialWithdrawalQueue, 0, MAX_VALUE);
+      base.reserveNormPct = clamp(base.reserveNormPct, 0, 300);
+      base.forwardMonths = Math.round(clamp(base.forwardMonths, 1, 120));
+      Object.keys(FIELD_LOOKUP).forEach(function (key) {
+        if (["startMonth", "horizonMonths", "initialTreasury", "initialWithdrawalQueue", "reserveNormPct", "forwardMonths"].indexOf(key) >= 0) return;
+        var def = FIELD_LOOKUP[key];
+        base[key] = clamp(base[key], def[3], def[4]);
+      });
+      var incomingCohorts = Array.isArray(source.cohorts) && source.cohorts.length ? source.cohorts.slice(0, 12) : base.cohorts;
+      base.cohorts = incomingCohorts.map(function (item, index) {
+        var fallback = defaultConfig().cohorts[0];
+        var cohort = {};
+        COHORT_FIELDS.forEach(function (field) {
+          var key = field[0];
+          if (field[2] === "text") {
+            cohort[key] = String(item && item[key] !== undefined ? item[key] : (index ? "Когорта " + (index + 1) : fallback.name)).slice(0, 60);
+          } else {
+            cohort[key] = clamp(item && item[key] !== undefined ? item[key] : fallback[key], field[3], field[4]);
+          }
+        });
+        cohort.id = item && typeof item.id === "string" && /^[A-Za-z0-9_-]+$/.test(item.id)
+          ? item.id.slice(0, 80)
+          : uid("cohort");
+        return cohort;
+      });
+      return base;
+    }
+
+    function validate(input) {
+      var errors = [];
+      var warnings = [];
+      if (!input || typeof input !== "object") return { valid: false, errors: ["Конфигурация должна быть объектом."], warnings: [] };
+      if (number(input.schemaVersion, SCHEMA_VERSION) !== SCHEMA_VERSION) errors.push("Поддерживается только schemaVersion 1.");
+      if (!/^\d{4}-\d{2}$/.test(String(input.startMonth || ""))) errors.push("Начальный месяц должен иметь формат YYYY-MM.");
+      if (number(input.horizonMonths, 0) < 1 || number(input.horizonMonths, 0) > 120) errors.push("Горизонт должен быть от 1 до 120 месяцев.");
+      if (!Array.isArray(input.cohorts) || !input.cohorts.length) errors.push("Нужна хотя бы одна когорта.");
+      if (Array.isArray(input.cohorts)) {
+        var ids = {};
+        input.cohorts.forEach(function (cohort, index) {
+          if (!cohort || typeof cohort !== "object") errors.push("Когорта " + (index + 1) + " имеет неверный формат.");
+          else if (!String(cohort.name || "").trim()) errors.push("У когорты " + (index + 1) + " нет названия.");
+          if (cohort && ids[cohort.id]) errors.push("Идентификаторы когорт должны быть уникальны.");
+          if (cohort) ids[cohort.id] = true;
+        });
+      }
+      var config = sanitizeConfig(input);
+      if (config.dailyRatePct !== number(input.dailyRatePct, config.dailyRatePct)) warnings.push("Суточная ставка ограничена допустимым диапазоном.");
+      if (config.referralReward > 0) warnings.push("Реферальная Core-награда — экспериментальный параметр, а не текущее правило.");
+      if (config.marketplaceFeePct > 0) warnings.push("Комиссия Marketplace — экспериментальный параметр; текущий внутренний MVP fee-free.");
+      if (config.walletToCoreFeePct > 0) warnings.push("Комиссия Wallet → Core — экспериментальный параметр; текущая операция 1:1.");
+      return { valid: errors.length === 0, errors: errors, warnings: warnings };
+    }
+
+    function walletPayoutFactorPerCore(dailyRate, reinvestShare, dayCount) {
+      var d = Math.max(0, number(dailyRate, 0));
+      var r = clamp(reinvestShare, 0, 1);
+      var days = Math.max(0, number(dayCount, 0));
+      if (d === 0 || days === 0 || r >= 1) return 0;
+      if (r === 0) return d * days;
+      var q = d * r;
+      return d * (1 - r) * ((Math.pow(1 + q, days) - 1) / q);
+    }
+
+    function forwardIndicators(state, config) {
+      var days = Math.round(config.forwardMonths * 365.2425 / 12);
+      var totalUsers = state.cohorts.reduce(function (sum, cohort) { return sum + cohort.users; }, 0);
+      var forward = 0;
+      var recipientFactor = 0;
+      state.cohorts.forEach(function (cohort) {
+        var factor = walletPayoutFactorPerCore(config.dailyRatePct / 100, pct(cohort.reinvestPct), days);
+        forward += cohort.core * factor;
+        recipientFactor += factor * (totalUsers > 0 ? cohort.users / totalUsers : 1 / state.cohorts.length);
+      });
+      var wallet = totalWallet(state);
+      var currentCoverage = wallet > 0 ? state.treasury / wallet : Infinity;
+      var planningLiability = wallet + forward;
+      var planningCoverage = planningLiability > 0 ? state.treasury / planningLiability : Infinity;
+      var norm = config.reserveNormPct / 100;
+      var safeCoreBudget;
+      if (norm <= 0 || recipientFactor <= 0) {
+        safeCoreBudget = Infinity;
+      } else {
+        safeCoreBudget = Math.max(0, (state.treasury / norm - wallet - forward) / recipientFactor);
+      }
+      return {
+        forwardWalletPayout: forward,
+        planningLiability: planningLiability,
+        currentCoverage: currentCoverage,
+        planningCoverage: planningCoverage,
+        currentReserveRequired: wallet * norm,
+        planningReserveRequired: planningLiability * norm,
+        freeReserve: state.treasury - planningLiability * norm,
+        safeCoreBudget: safeCoreBudget,
+        payoutFactorPerNewCore: recipientFactor
+      };
+    }
+
+    function totalWallet(state) {
+      return state.platformWallet + state.cohorts.reduce(function (sum, cohort) { return sum + cohort.wallet; }, 0);
+    }
+
+    function totalCore(state) {
+      return state.cohorts.reduce(function (sum, cohort) { return sum + cohort.core; }, 0);
+    }
+
+    function aggregateReinvestShare(state) {
+      var core = totalCore(state);
+      if (core <= 0) return 0;
+      return state.cohorts.reduce(function (sum, cohort) {
+        return sum + cohort.core * pct(cohort.reinvestPct);
+      }, 0) / core;
+    }
+
+    function totalUsers(state) {
+      return state.cohorts.reduce(function (sum, cohort) { return sum + cohort.users; }, 0);
+    }
+
+    function allocateByUsers(state, amount, field) {
+      if (amount <= 0 || !state.cohorts.length) return;
+      var users = totalUsers(state);
+      state.cohorts.forEach(function (cohort) {
+        var share = users > 0 ? cohort.users / users : 1 / state.cohorts.length;
+        cohort[field] = capped(cohort[field] + amount * share, state.runtimeWarnings, "Числовой предел превышен.");
+      });
+    }
+
+    function debitWalletProportionally(state, amount) {
+      var remaining = Math.max(0, amount);
+      var available = totalWallet(state);
+      if (available <= 0 || remaining <= 0) return 0;
+      var actual = Math.min(available, remaining);
+      var cohortWallet = state.cohorts.reduce(function (sum, cohort) { return sum + cohort.wallet; }, 0);
+      state.cohorts.forEach(function (cohort) {
+        var share = cohortWallet > 0 ? cohort.wallet / cohortWallet : 0;
+        cohort.wallet = Math.max(0, cohort.wallet - actual * share);
+      });
+      var paidFromCohorts = Math.min(actual, cohortWallet);
+      var platformDebit = actual - paidFromCohorts;
+      if (platformDebit > 0) state.platformWallet = Math.max(0, state.platformWallet - platformDebit);
+      return actual;
+    }
+
+    function leaderCascadeFactor(config) {
+      var step = pct(config.leaderBonusPct) * pct(config.leaderCoveragePct);
+      var factor = 0;
+      for (var level = 1; level <= Math.round(config.cascadeDepth); level += 1) factor += Math.pow(step, level);
+      return factor;
+    }
+
+    function processMarketplace(state, config, flow, averageUsersByCohort) {
+      var order = Math.max(0.01, config.averageOrder);
+      var demand = [];
+      var supply = [];
+      var totalDemand = 0;
+      var totalSupply = 0;
+      state.cohorts.forEach(function (cohort) {
+        var marketUsers = averageUsersByCohort && averageUsersByCohort[cohort.id] !== undefined
+          ? averageUsersByCohort[cohort.id]
+          : cohort.users;
+        var buyerDemand = marketUsers * pct(cohort.buyerPct) * cohort.ordersPerBuyer * order;
+        var sellerSupply = marketUsers * pct(cohort.sellerPct) * cohort.salesCapacity * order;
+        demand.push(buyerDemand);
+        supply.push(sellerSupply);
+        totalDemand += buyerDemand;
+        totalSupply += sellerSupply;
+      });
+      var walletCapacity = totalWallet(state) * Math.max(0, config.walletVelocityCap);
+      var matched = Math.min(totalDemand, totalSupply, walletCapacity) * pct(config.marketMatchPct);
+      var completionRate = pct(config.marketCompletionPct);
+      var gmv = matched * completionRate;
+      var refund = matched * (1 - completionRate) * pct(config.marketRefundPct);
+      flow.marketplaceDemand += totalDemand;
+      flow.marketplaceSupply += totalSupply;
+      if (gmv <= 0 || totalDemand <= 0 || totalSupply <= 0) {
+        flow.marketplaceRefunds += refund;
+        return;
+      }
+      var feeRate = pct(config.marketplaceFeePct);
+      var maxByCohortWallet = Infinity;
+      state.cohorts.forEach(function (cohort, index) {
+        var purchaseShare = demand[index] / totalDemand;
+        var saleShare = supply[index] / totalSupply;
+        var netPerGmv = saleShare * (1 - feeRate) - purchaseShare;
+        if (netPerGmv < 0) maxByCohortWallet = Math.min(maxByCohortWallet, cohort.wallet / -netPerGmv);
+      });
+      if (Number.isFinite(maxByCohortWallet)) gmv = Math.min(gmv, Math.max(0, maxByCohortWallet));
+      if (completionRate > 0 && gmv < matched * completionRate) {
+        matched = gmv / completionRate;
+        refund = matched * (1 - completionRate) * pct(config.marketRefundPct);
+      }
+      var totalFee = gmv * feeRate;
+      var burned = totalFee * pct(config.marketplaceFeeBurnPct);
+      var retained = totalFee - burned;
+      state.cohorts.forEach(function (cohort, index) {
+        var purchase = gmv * demand[index] / totalDemand;
+        var sale = gmv * supply[index] / totalSupply;
+        var sellerFee = sale * feeRate;
+        cohort.wallet = Math.max(0, cohort.wallet + sale - sellerFee - purchase);
+        cohort.periodPurchases += purchase;
+        cohort.periodSales += sale;
+        cohort.cumulativePurchases += purchase;
+        cohort.cumulativeSales += sale;
+      });
+      state.platformWallet += retained;
+      flow.marketplaceGmv += gmv;
+      flow.marketplaceSales += gmv;
+      flow.marketplacePurchases += gmv;
+      flow.marketplaceDeals += gmv / order;
+      flow.marketplaceFees += totalFee;
+      flow.marketplaceFeesBurned += burned;
+      flow.marketplaceRefunds += refund;
+    }
+
+    function canPayWithdrawal(state, config, payout) {
+      var fee = payout * pct(config.withdrawalServiceFeePct);
+      var network = payout * pct(config.withdrawalNetworkCostPct);
+      var walletAfter = totalWallet(state) - payout - fee;
+      var treasuryAfter = state.treasury - payout - network;
+      var norm = config.reserveNormPct / 100;
+      return walletAfter >= -0.000001 && treasuryAfter >= -0.000001 && (norm <= 0 || treasuryAfter + 0.000001 >= walletAfter * norm);
+    }
+
+    function maximumWithdrawalPayout(state, config, requested) {
+      var wallet = totalWallet(state);
+      var feeMultiplier = 1 + pct(config.withdrawalServiceFeePct);
+      var networkMultiplier = 1 + pct(config.withdrawalNetworkCostPct);
+      var ceiling = Math.min(requested, wallet / feeMultiplier, Math.max(0, state.treasury) / networkMultiplier);
+      if (ceiling <= 0) return 0;
+      var norm = config.reserveNormPct / 100;
+      var currentCoverage = wallet > 0 ? state.treasury / wallet : Infinity;
+      if (norm > 0 && currentCoverage + 1e-12 < norm) return 0;
+      if (canPayWithdrawal(state, config, ceiling)) return ceiling;
+      var low = 0;
+      var high = ceiling;
+      for (var i = 0; i < 48; i += 1) {
+        var mid = (low + high) / 2;
+        if (canPayWithdrawal(state, config, mid)) low = mid;
+        else high = mid;
+      }
+      return low;
+    }
+
+    function emptyFlow() {
+      return {
+        externalDeposits: 0,
+        externalWalletNet: 0,
+        nonLiabilityFunding: 0,
+        withdrawalRequested: 0,
+        withdrawalPaid: 0,
+        withdrawalFees: 0,
+        withdrawalNetworkCosts: 0,
+        permanentWalletBurn: 0,
+        participantDays: 0,
+        walletToCore: 0,
+        walletToCoreFees: 0,
+        coreReinvest: 0,
+        walletPayoutFromCore: 0,
+        coreAccrualGross: 0,
+        challengeRewards: 0,
+        referralRewards: 0,
+        leaderRewards: 0,
+        otherCoreRewards: 0,
+        verifiedResults: 0,
+        marketplaceGmv: 0,
+        marketplaceSales: 0,
+        marketplacePurchases: 0,
+        marketplaceDeals: 0,
+        marketplaceRefunds: 0,
+        marketplaceFees: 0,
+        marketplaceFeesBurned: 0,
+        marketplaceDemand: 0,
+        marketplaceSupply: 0,
+        newUsers: 0
+      };
+    }
+
+    function initialState(config) {
+      return {
+        treasury: config.initialTreasury,
+        platformWallet: 0,
+        withdrawalQueue: config.initialWithdrawalQueue,
+        runtimeWarnings: [],
+        cohorts: config.cohorts.map(function (cohort) {
+          return {
+            id: cohort.id,
+            name: cohort.name,
+            users: cohort.users,
+            wallet: cohort.wallet,
+            core: cohort.core,
+            reinvestPct: cohort.reinvestPct,
+            challengesPerUser: cohort.challengesPerUser,
+            walletToCorePct: cohort.walletToCorePct,
+            buyerPct: cohort.buyerPct,
+            ordersPerBuyer: cohort.ordersPerBuyer,
+            sellerPct: cohort.sellerPct,
+            salesCapacity: cohort.salesCapacity,
+            growthPct: cohort.growthPct,
+            churnPct: cohort.churnPct,
+            periodPurchases: 0,
+            periodSales: 0,
+            cumulativePurchases: 0,
+            cumulativeSales: 0
+          };
+        })
+      };
+    }
+
+    function simulate(input) {
+      var config = sanitizeConfig(input);
+      var state = initialState(config);
+      var periods = [];
+      var totals = emptyFlow();
+      var plannedCoreRewards = 0;
+      var initialCore = totalCore(state);
+      var initialWallet = totalWallet(state);
+      var initialUsers = totalUsers(state);
+      var initialReinvestShare = aggregateReinvestShare(state);
+      var initialForward = forwardIndicators(state, config);
+      var minTreasury = state.treasury;
+      var minCurrentCoverage = initialForward.currentCoverage;
+      var minPlanningCoverage = initialForward.planningCoverage;
+
+      for (var monthIndex = 0; monthIndex < config.horizonMonths; monthIndex += 1) {
+        var monthKey = addMonths(config.startMonth, monthIndex);
+        var days = daysInMonth(monthKey);
+        var flow = emptyFlow();
+        state.cohorts.forEach(function (cohort) {
+          cohort.periodPurchases = 0;
+          cohort.periodSales = 0;
+        });
+
+        var newUsers = config.newUsersMonthly * Math.pow(Math.max(0, 1 + config.newUsersGrowthPct / 100), monthIndex);
+        flow.newUsers = newUsers;
+        var startingUsers = totalUsers(state);
+        var userPaths = {};
+        var averageUsersByCohort = {};
+        state.cohorts.forEach(function (cohort) {
+          var startUsers = cohort.users;
+          var organicTarget = Math.max(0, startUsers * (1 + cohort.growthPct / 100) * (1 - pct(cohort.churnPct)));
+          var newUserShare = startingUsers > 0 ? startUsers / startingUsers : 1 / state.cohorts.length;
+          var targetUsers = organicTarget + newUsers * newUserShare;
+          userPaths[cohort.id] = { start: startUsers, target: targetUsers };
+          averageUsersByCohort[cohort.id] = (startUsers + targetUsers) / 2;
+        });
+
+        var externalFlowPerUserDay = config.externalWalletFlowPerUserDay
+          * Math.pow(Math.max(0, 1 + config.walletFlowGrowthPct / 100), monthIndex);
+        var monthlyFunding = config.nonLiabilityFundingMonthly * Math.pow(Math.max(0, 1 + config.fundingGrowthPct / 100), monthIndex);
+        var monthlyReferralReward = newUsers * pct(config.referralActivationPct) * config.referralReward;
+        var monthlyOtherReward = config.otherCoreRewardsMonthly;
+
+        for (var day = 0; day < days; day += 1) {
+          state.cohorts.forEach(function (cohort) {
+            var path = userPaths[cohort.id];
+            cohort.users = path.start + (path.target - path.start) * (day + 0.5) / days;
+          });
+          var usersToday = totalUsers(state);
+          flow.participantDays += usersToday;
+
+          var funding = monthlyFunding / days;
+          state.treasury = capped(state.treasury + funding, state.runtimeWarnings, "Treasury превысила числовой предел.");
+          flow.nonLiabilityFunding += funding;
+
+          var signedExternalFlow = externalFlowPerUserDay * usersToday;
+          if (signedExternalFlow > 0) {
+            state.treasury = capped(state.treasury + signedExternalFlow, state.runtimeWarnings, "Treasury превысила числовой предел.");
+            allocateByUsers(state, signedExternalFlow, "wallet");
+            flow.externalDeposits += signedExternalFlow;
+            flow.externalWalletNet += signedExternalFlow;
+          } else if (signedExternalFlow < 0) {
+            var withdrawalRequest = -signedExternalFlow;
+            state.withdrawalQueue += withdrawalRequest;
+            flow.withdrawalRequested += withdrawalRequest;
+          }
+
+          var payout = maximumWithdrawalPayout(state, config, state.withdrawalQueue);
+          if (payout > 0) {
+            var serviceFee = payout * pct(config.withdrawalServiceFeePct);
+            var networkCost = payout * pct(config.withdrawalNetworkCostPct);
+            debitWalletProportionally(state, payout + serviceFee);
+            state.treasury -= payout + networkCost;
+            state.withdrawalQueue = Math.max(0, state.withdrawalQueue - payout);
+            flow.withdrawalPaid += payout;
+            flow.withdrawalFees += serviceFee;
+            flow.withdrawalNetworkCosts += networkCost;
+            flow.externalWalletNet -= payout;
+          }
+
+          var permanentBurn = debitWalletProportionally(state, totalWallet(state) * pct(config.permanentWalletBurnDailyPct));
+          flow.permanentWalletBurn += permanentBurn;
+
+          var dayWalletToCore = 0;
+          var dayWalletToCoreFees = 0;
+          state.cohorts.forEach(function (cohort) {
+            var conversionRate = monthDailyRate(cohort.walletToCorePct, days);
+            var debit = cohort.wallet * conversionRate;
+            var fee = debit * pct(config.walletToCoreFeePct);
+            var coreCredit = debit - fee;
+            cohort.wallet = Math.max(0, cohort.wallet - debit);
+            cohort.core = capped(cohort.core + coreCredit, state.runtimeWarnings, "Core превысил числовой предел.");
+            dayWalletToCore += coreCredit;
+            dayWalletToCoreFees += fee;
+          });
+          flow.walletToCore += dayWalletToCore;
+          flow.walletToCoreFees += dayWalletToCoreFees;
+
+          var dayChallenges = 0;
+          var dayVerified = 0;
+          state.cohorts.forEach(function (cohort) {
+            var verified = cohort.users * cohort.challengesPerUser / days * pct(config.challengeVerificationPct);
+            var reward = verified * config.challengeReward;
+            cohort.core = capped(cohort.core + reward, state.runtimeWarnings, "Core превысил числовой предел.");
+            dayVerified += verified;
+            dayChallenges += reward;
+          });
+          var dayReferral = monthlyReferralReward / days;
+          var dayOther = monthlyOtherReward / days;
+          allocateByUsers(state, dayReferral + dayOther, "core");
+          flow.verifiedResults += dayVerified;
+          flow.challengeRewards += dayChallenges;
+          flow.referralRewards += dayReferral;
+          flow.otherCoreRewards += dayOther;
+
+          var dayReinvest = 0;
+          var dayWalletPayout = 0;
+          var dayGross = 0;
+          state.cohorts.forEach(function (cohort) {
+            var gross = cohort.core * (config.dailyRatePct / 100);
+            var reinvest = gross * pct(cohort.reinvestPct);
+            var walletPayout = gross - reinvest;
+            cohort.core = capped(cohort.core + reinvest, state.runtimeWarnings, "Core превысил числовой предел.");
+            cohort.wallet = capped(cohort.wallet + walletPayout, state.runtimeWarnings, "Wallet превысил числовой предел.");
+            dayGross += gross;
+            dayReinvest += reinvest;
+            dayWalletPayout += walletPayout;
+          });
+          flow.coreAccrualGross += dayGross;
+          flow.coreReinvest += dayReinvest;
+          flow.walletPayoutFromCore += dayWalletPayout;
+
+          var leaderBase = dayWalletToCore + dayChallenges + dayReferral + dayOther + dayReinvest;
+          var leaderReward = leaderBase * leaderCascadeFactor(config);
+          allocateByUsers(state, leaderReward, "core");
+          flow.leaderRewards += leaderReward;
+        }
+
+        state.cohorts.forEach(function (cohort) { cohort.users = userPaths[cohort.id].target; });
+        processMarketplace(state, config, flow, averageUsersByCohort);
+        var indicators = forwardIndicators(state, config);
+        var coreNow = totalCore(state);
+        var walletNow = totalWallet(state);
+        var usersNow = totalUsers(state);
+        var monthlyCoreRewards = flow.challengeRewards + flow.referralRewards + flow.leaderRewards + flow.otherCoreRewards;
+        plannedCoreRewards += monthlyCoreRewards;
+        Object.keys(totals).forEach(function (key) { totals[key] += flow[key]; });
+        minTreasury = Math.min(minTreasury, state.treasury);
+        minCurrentCoverage = Math.min(minCurrentCoverage, indicators.currentCoverage);
+        minPlanningCoverage = Math.min(minPlanningCoverage, indicators.planningCoverage);
+        var netTreasuryFlow = flow.externalDeposits + flow.nonLiabilityFunding - flow.withdrawalPaid - flow.withdrawalNetworkCosts;
+        var runway = netTreasuryFlow < 0 ? Math.max(0, state.treasury / -netTreasuryFlow) : Infinity;
+        periods.push({
+          month: monthKey,
+          users: usersNow,
+          averageUsers: flow.participantDays > 0 ? flow.participantDays / days : 0,
+          treasury: state.treasury,
+          walletLiability: walletNow,
+          totalCore: coreNow,
+          corePerUser: usersNow > 0 ? coreNow / usersNow : 0,
+          aggregateReinvestShare: aggregateReinvestShare(state),
+          externalWalletFlowPerUserDay: flow.participantDays > 0 ? flow.externalWalletNet / flow.participantDays : 0,
+          permanentWalletBurnPerUserDay: flow.participantDays > 0 ? flow.permanentWalletBurn / flow.participantDays : 0,
+          withdrawalQueue: state.withdrawalQueue,
+          currentCoverage: indicators.currentCoverage,
+          planningCoverage: indicators.planningCoverage,
+          planningReserveRequired: indicators.planningReserveRequired,
+          reserveSurplus: indicators.freeReserve,
+          forwardWalletPayout: indicators.forwardWalletPayout,
+          safeCoreBudget: indicators.safeCoreBudget,
+          plannedCoreRewards: monthlyCoreRewards,
+          rewardBudgetExcess: Number.isFinite(indicators.safeCoreBudget) ? Math.max(0, monthlyCoreRewards - indicators.safeCoreBudget) : 0,
+          runwayMonths: runway,
+          flow: flow,
+          cohorts: state.cohorts.map(function (cohort) {
+            return {
+              id: cohort.id,
+              name: cohort.name,
+              users: cohort.users,
+              wallet: cohort.wallet,
+              core: cohort.core,
+              reinvestPct: cohort.reinvestPct,
+              purchases: cohort.periodPurchases,
+              sales: cohort.periodSales,
+              participationBalance: cohort.periodPurchases - cohort.periodSales,
+              cumulativeParticipationBalance: cohort.cumulativePurchases - cohort.cumulativeSales
+            };
+          })
+        });
+      }
+
+      var final = periods[periods.length - 1];
+      var validation = validate(input);
+      var warnings = validation.warnings.slice();
+      if (minTreasury < 0) warnings.push("Treasury становится отрицательной в прогнозе.");
+      if (minCurrentCoverage < config.reserveNormPct / 100) warnings.push("Текущее покрытие хотя бы раз опускается ниже нормы.");
+      if (minPlanningCoverage < config.reserveNormPct / 100) warnings.push("Покрытие с учётом будущих Wallet-выплат опускается ниже нормы.");
+      if (final && final.withdrawalQueue > 0.005) warnings.push("К концу сценария остаётся очередь необеспеченных выводов.");
+      if (periods.some(function (row) { return row.rewardBudgetExcess > 0.005; })) warnings.push("Core-награды хотя бы раз превышают дополнительный выпуск, помещающийся в плановый Wallet-резерв.");
+      state.runtimeWarnings.forEach(function (message) { if (warnings.indexOf(message) === -1) warnings.push(message); });
+
+      return {
+        schemaVersion: SCHEMA_VERSION,
+        config: config,
+        periods: periods,
+        totals: totals,
+        initial: {
+          users: initialUsers,
+          treasury: config.initialTreasury,
+          walletLiability: initialWallet,
+          totalCore: initialCore,
+          currentCoverage: initialForward.currentCoverage,
+          planningCoverage: initialForward.planningCoverage,
+          forwardWalletPayout: initialForward.forwardWalletPayout,
+          aggregateReinvestShare: initialReinvestShare
+        },
+        final: final,
+        plannedCoreRewards: plannedCoreRewards,
+        minTreasury: minTreasury,
+        minCurrentCoverage: minCurrentCoverage,
+        minPlanningCoverage: minPlanningCoverage,
+        feasible: minTreasury >= -0.000001
+          && minCurrentCoverage + 0.000001 >= config.reserveNormPct / 100
+          && minPlanningCoverage + 0.000001 >= config.reserveNormPct / 100,
+        warnings: warnings,
+        errors: validation.errors
+      };
+    }
+
+    function setParameter(config, parameterId, value) {
+      if (parameterId.indexOf("cohort.") === 0) {
+        var parts = parameterId.split(".");
+        var cohort = config.cohorts.find(function (item) { return item.id === parts[1]; });
+        if (cohort && parts[2]) cohort[parts[2]] = value;
+      } else if (FIELD_LOOKUP[parameterId]) {
+        config[parameterId] = value;
+      }
+      return config;
+    }
+
+    function getParameter(config, parameterId) {
+      if (parameterId.indexOf("cohort.") === 0) {
+        var parts = parameterId.split(".");
+        var cohort = config.cohorts.find(function (item) { return item.id === parts[1]; });
+        return cohort ? number(cohort[parts[2]], 0) : 0;
+      }
+      return number(config[parameterId], 0);
+    }
+
+    function optimizerParameters(config) {
+      var definitions = [
+        ["externalWalletFlowPerUserDay", "Чистый поток Wallet, $ / чел. / день", -2, 2],
+        ["walletFlowGrowthPct", "Изменение модуля потока, % / мес.", -10, 20],
+        ["permanentWalletBurnDailyPct", "Постоянное сжигание Wallet, % / день", 0, 0.5],
+        ["reserveNormPct", "Норма резервирования, %", 50, 200],
+        ["forwardMonths", "Горизонт обязательств, мес.", 3, 36],
+        ["challengeReward", "Награда за подтверждённый челлендж, Core", 0, 10],
+        ["referralReward", "Реферальная награда, Core", 0, 10],
+        ["leaderBonusPct", "Лидерский бонус, %", 0, 20],
+        ["marketplaceFeePct", "Комиссия Marketplace, %", 0, 10],
+        ["marketMatchPct", "Market match, %", 20, 100],
+        ["walletVelocityCap", "Скорость Wallet", 0.25, 5],
+        ["averageOrder", "Средний чек", 1, 250]
+      ].map(function (item) {
+        return { id: item[0], label: item[1], min: item[2], max: item[3] };
+      });
+      config.cohorts.forEach(function (cohort) {
+        [
+          ["reinvestPct", "Reinvest", 0, 100],
+          ["walletToCorePct", "Wallet → Core / мес.", 0, 40],
+          ["buyerPct", "Покупатели", 0, 100],
+          ["ordersPerBuyer", "Покупок / покупателя", 0, 10],
+          ["sellerPct", "Продавцы", 0, 100],
+          ["salesCapacity", "Продаж / продавца", 0, 10],
+          ["challengesPerUser", "Челленджей / человека", 0, 10],
+          ["growthPct", "Рост пользователей", -10, 30],
+          ["churnPct", "Отток", 0, 30]
+        ].forEach(function (item) {
+          definitions.push({
+            id: "cohort." + cohort.id + "." + item[0],
+            label: cohort.name + ": " + item[1],
+            min: item[2],
+            max: item[3]
+          });
+        });
+      });
+      return definitions;
+    }
+
+    function rangeValues(minValue, maxValue, steps) {
+      var min = number(minValue, 0);
+      var max = number(maxValue, min);
+      var count = Math.round(clamp(steps, 2, 21));
+      var values = [];
+      if (max < min) {
+        var swap = max;
+        max = min;
+        min = swap;
+      }
+      for (var i = 0; i < count; i += 1) values.push(min + (max - min) * i / (count - 1));
+      return values;
+    }
+
+    function optimizationSeverity(result) {
+      var norm = result.config.reserveNormPct / 100;
+      var treasuryScale = Math.max(1, result.initial.treasury);
+      return Math.max(0, -result.minTreasury) / treasuryScale
+        + Math.max(0, norm - result.minCurrentCoverage) * 10
+        + Math.max(0, norm - result.minPlanningCoverage) * 10;
+    }
+
+    function optimize(input, options) {
+      var config = sanitizeConfig(input);
+      var opts = options || {};
+      var parameters = optimizerParameters(config);
+      var ids = parameters.map(function (item) { return item.id; });
+      var xParam = ids.indexOf(opts.xParam) >= 0 ? opts.xParam : parameters[0].id;
+      var yParam = ids.indexOf(opts.yParam) >= 0 ? opts.yParam : parameters[1].id;
+      if (xParam === yParam) yParam = parameters.find(function (item) { return item.id !== xParam; }).id;
+      var xDef = parameters.find(function (item) { return item.id === xParam; });
+      var yDef = parameters.find(function (item) { return item.id === yParam; });
+      var xValues = rangeValues(opts.xMin !== undefined ? opts.xMin : xDef.min, opts.xMax !== undefined ? opts.xMax : xDef.max, opts.steps || 11);
+      var yValues = rangeValues(opts.yMin !== undefined ? opts.yMin : yDef.min, opts.yMax !== undefined ? opts.yMax : yDef.max, opts.steps || 11);
+      var objective = ["core", "gmv", "balanced"].indexOf(opts.objective) >= 0 ? opts.objective : "balanced";
+      var weights = {
+        core: Math.max(0, number(opts.coreWeight, 50)),
+        gmv: Math.max(0, number(opts.gmvWeight, 30)),
+        reserve: Math.max(0, number(opts.reserveWeight, 20))
+      };
+      var cells = [];
+      yValues.forEach(function (yValue, yIndex) {
+        xValues.forEach(function (xValue, xIndex) {
+          var candidate = clone(config);
+          setParameter(candidate, xParam, xValue);
+          setParameter(candidate, yParam, yValue);
+          var result = simulate(candidate);
+          cells.push({
+            xIndex: xIndex,
+            yIndex: yIndex,
+            xValue: xValue,
+            yValue: yValue,
+            result: result,
+            feasible: result.feasible,
+            severity: optimizationSeverity(result),
+            coreValue: result.final ? result.final.totalCore : 0,
+            gmvValue: result.totals.marketplaceGmv,
+            reserveValue: result.final ? result.final.reserveSurplus : -MAX_VALUE,
+            score: 0
+          });
+        });
+      });
+
+      var feasible = cells.filter(function (cell) { return cell.feasible; });
+      var scoringPool = feasible.length ? feasible : cells;
+      function extent(key) {
+        var values = scoringPool.map(function (cell) { return cell[key]; }).filter(Number.isFinite);
+        return { min: Math.min.apply(null, values), max: Math.max.apply(null, values) };
+      }
+      var coreExtent = extent("coreValue");
+      var gmvExtent = extent("gmvValue");
+      var reserveExtent = extent("reserveValue");
+      function normalize(value, limits) {
+        if (!Number.isFinite(value)) return 0;
+        if (limits.max <= limits.min) return 1;
+        return (value - limits.min) / (limits.max - limits.min);
+      }
+      cells.forEach(function (cell) {
+        if (!cell.feasible && feasible.length) {
+          cell.score = -Infinity;
+          return;
+        }
+        if (objective === "core") cell.score = cell.coreValue;
+        else if (objective === "gmv") cell.score = cell.gmvValue;
+        else {
+          var weightSum = weights.core + weights.gmv + weights.reserve || 1;
+          cell.score = (
+            normalize(cell.coreValue, coreExtent) * weights.core
+            + normalize(cell.gmvValue, gmvExtent) * weights.gmv
+            + normalize(cell.reserveValue, reserveExtent) * weights.reserve
+          ) / weightSum;
+        }
+        if (!feasible.length) cell.score = -cell.severity;
+      });
+      var ranked = cells.slice().sort(function (a, b) {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.severity - b.severity;
+      });
+      return {
+        objective: objective,
+        xParam: xParam,
+        yParam: yParam,
+        xValues: xValues,
+        yValues: yValues,
+        cells: cells,
+        feasibleCount: feasible.length,
+        best: ranked[0] || null,
+        top: ranked.slice(0, 5),
+        hasFeasible: feasible.length > 0,
+        weights: weights
+      };
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function formatMoney(value, compact) {
+      if (!Number.isFinite(value)) return "∞";
+      var absolute = Math.abs(value);
+      var options = compact && absolute >= 1000
+        ? { notation: "compact", maximumFractionDigits: 2 }
+        : { minimumFractionDigits: absolute > 0 && absolute < 0.01 ? 4 : 0, maximumFractionDigits: absolute < 100 ? 2 : 0 };
+      return (value < 0 ? "−" : "") + "$" + new Intl.NumberFormat("ru-RU", options).format(Math.abs(value));
+    }
+
+    function formatNumber(value, digits) {
+      if (!Number.isFinite(value)) return "∞";
+      return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: digits === undefined ? 2 : digits }).format(value);
+    }
+
+    function formatPercent(value) {
+      if (!Number.isFinite(value)) return "∞";
+      return formatNumber(value * 100, 1) + "%";
+    }
+
+    function compactAxis(value) {
+      if (!Number.isFinite(value)) return "∞";
+      return new Intl.NumberFormat("ru-RU", {
+        notation: Math.abs(value) >= 1000 ? "compact" : "standard",
+        maximumFractionDigits: 1
+      }).format(value);
+    }
+
+    function makeDefaultStore() {
+      var config = defaultConfig();
+      return {
+        schemaVersion: SCHEMA_VERSION,
+        activeId: "scenario-base",
+        compareIds: ["scenario-base"],
+        scenarios: [{ id: "scenario-base", name: config.name, config: config }]
+      };
+    }
+
+    function normalizeStore(input) {
+      if (!input || typeof input !== "object" || !Array.isArray(input.scenarios) || !input.scenarios.length) return makeDefaultStore();
+      var seen = {};
+      var scenarios = input.scenarios.slice(0, 20).map(function (scenario, index) {
+        var id = scenario && typeof scenario.id === "string" && /^[A-Za-z0-9_-]+$/.test(scenario.id)
+          ? scenario.id
+          : uid("scenario");
+        if (seen[id]) id = uid("scenario");
+        seen[id] = true;
+        var config = sanitizeConfig(scenario && scenario.config ? scenario.config : scenario);
+        var name = String(scenario && scenario.name ? scenario.name : config.name || "Сценарий " + (index + 1)).slice(0, 80);
+        config.name = name;
+        return { id: id, name: name, config: config };
+      });
+      var activeId = scenarios.some(function (scenario) { return scenario.id === input.activeId; }) ? input.activeId : scenarios[0].id;
+      var compareIds = Array.isArray(input.compareIds)
+        ? input.compareIds.filter(function (id) { return scenarios.some(function (scenario) { return scenario.id === id; }); }).slice(0, 3)
+        : [activeId];
+      if (compareIds.indexOf(activeId) === -1 && compareIds.length < 3) compareIds.unshift(activeId);
+      return { schemaVersion: SCHEMA_VERSION, activeId: activeId, compareIds: compareIds, scenarios: scenarios };
+    }
+
+    function loadStore() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? normalizeStore(JSON.parse(raw)) : makeDefaultStore();
+      } catch (error) {
+        return makeDefaultStore();
+      }
+    }
+
+    function saveStore() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      } catch (error) {
+        transientMessage("Не удалось сохранить сценарии в localStorage.", true);
+      }
+    }
+
+    function activeScenario() {
+      return store.scenarios.find(function (scenario) { return scenario.id === store.activeId; }) || store.scenarios[0];
+    }
+
+    var store = loadStore();
+    var activeResult = null;
+    var comparisonResults = [];
+    var optimizerState = {
+      xParam: "challengeReward",
+      yParam: "externalWalletFlowPerUserDay",
+      objective: "balanced",
+      steps: 11,
+      coreWeight: 50,
+      gmvWeight: 30,
+      reserveWeight: 20
+    };
+    var lastOptimization = null;
+    var recomputeQueued = false;
+
+    function transientMessage(message, isError) {
+      var warnings = document.getElementById("warnings");
+      if (!warnings) return;
+      var row = document.createElement("div");
+      row.className = "warning-row" + (isError ? " error" : "");
+      row.textContent = message;
+      warnings.prepend(row);
+      window.setTimeout(function () { if (row.parentNode) row.parentNode.removeChild(row); }, 5000);
+    }
+
+    function fieldMarkup(definition, value, dataAttributes) {
+      var key = definition[0];
+      var label = definition[1];
+      var type = definition[2];
+      var min = definition[3];
+      var max = definition[4];
+      var step = definition[5];
+      var attrs = dataAttributes || "data-config-key=\"" + escapeHtml(key) + "\"";
+      var bounds = type === "number"
+        ? " min=\"" + min + "\" max=\"" + max + "\" step=\"" + step + "\" inputmode=\"decimal\""
+        : "";
+      return "<label class=\"field\"><span>" + escapeHtml(label) + "</span><input type=\"" + type + "\" value=\""
+        + escapeHtml(value) + "\" " + attrs + bounds + "></label>";
+    }
+
+    function renderFieldGroup(targetId, definitions, config) {
+      document.getElementById(targetId).innerHTML = definitions.map(function (definition) {
+        return fieldMarkup(definition, config[definition[0]]);
+      }).join("");
+    }
+
+    function renderCohorts(config) {
+      var target = document.getElementById("cohort-list");
+      target.innerHTML = config.cohorts.map(function (cohort, index) {
+        var fields = COHORT_FIELDS.map(function (definition) {
+          var attrs = "data-cohort-id=\"" + escapeHtml(cohort.id) + "\" data-cohort-key=\"" + escapeHtml(definition[0]) + "\"";
+          return fieldMarkup(definition, cohort[definition[0]], attrs);
+        }).join("");
+        return "<article class=\"cohort-card\"><div class=\"cohort-head\"><strong>"
+          + escapeHtml(cohort.name || "Когорта " + (index + 1))
+          + "</strong><button type=\"button\" class=\"ghost danger\" data-remove-cohort=\"" + escapeHtml(cohort.id)
+          + "\"" + (config.cohorts.length <= 1 ? " disabled" : "") + ">Удалить</button></div><div class=\"cohort-fields\">"
+          + fields + "</div></article>";
+      }).join("");
+    }
+
+    function renderScenarioManager() {
+      var select = document.getElementById("scenario-select");
+      select.innerHTML = store.scenarios.map(function (scenario) {
+        return "<option value=\"" + escapeHtml(scenario.id) + "\"" + (scenario.id === store.activeId ? " selected" : "") + ">"
+          + escapeHtml(scenario.name) + "</option>";
+      }).join("");
+      document.getElementById("delete-scenario").disabled = store.scenarios.length <= 1;
+      document.getElementById("compare-options").innerHTML = "<span class=\"muted\">Сравнить:</span>" + store.scenarios.map(function (scenario) {
+        var checked = store.compareIds.indexOf(scenario.id) >= 0;
+        var disabled = !checked && store.compareIds.length >= 3;
+        return "<label class=\"compare-option\"><input type=\"checkbox\" data-compare-id=\"" + escapeHtml(scenario.id)
+          + "\"" + (checked ? " checked" : "") + (disabled ? " disabled" : "") + "><span>"
+          + escapeHtml(scenario.name) + "</span></label>";
+      }).join("");
+    }
+
+    function renderConfig() {
+      var config = activeScenario().config;
+      renderFieldGroup("basic-fields", FIELD_GROUPS.basic, config);
+      renderFieldGroup("liquidity-fields", FIELD_GROUPS.liquidity, config);
+      renderFieldGroup("reward-fields", FIELD_GROUPS.rewards, config);
+      renderFieldGroup("market-fields", FIELD_GROUPS.market, config);
+      renderCohorts(config);
+      renderOptimizerControls(config, true);
+    }
+
+    function scheduleRecompute() {
+      if (recomputeQueued) return;
+      recomputeQueued = true;
+      window.requestAnimationFrame(function () {
+        recomputeQueued = false;
+        recompute();
+      });
+    }
+
+    function renderSummary(result) {
+      var final = result.final;
+      if (!final) {
+        document.getElementById("summary-grid").innerHTML = "";
+        return;
+      }
+      var norm = result.config.reserveNormPct / 100;
+      var currentClass = final.currentCoverage >= norm ? "status-good" : "status-danger";
+      var planningClass = final.planningCoverage >= norm ? "status-good" : "status-danger";
+      var safeText = Number.isFinite(final.safeCoreBudget) ? formatMoney(final.safeCoreBudget, true) : "не ограничен резервом";
+      var metrics = [
+        ["Treasury", formatMoney(final.treasury, true), "Изменение: " + formatMoney(final.treasury - result.initial.treasury, true), final.treasury >= 0 ? "" : "status-danger"],
+        ["Wallet liabilities", formatMoney(final.walletLiability, true), "Сожжено за месяц: " + formatMoney(final.flow.permanentWalletBurn + final.flow.withdrawalFees + final.flow.walletToCoreFees + final.flow.marketplaceFeesBurned, true), ""],
+        ["Total Core", formatMoney(final.totalCore, true), formatMoney(final.corePerUser, true) + " на участника", ""],
+        ["Совокупный Core reinvest", formatPercent(final.aggregateReinvestShare), "Средневзвешено по Core всех когорт", ""],
+        ["Текущее покрытие", formatPercent(final.currentCoverage), "Норма: " + formatNumber(result.config.reserveNormPct, 1) + "%", currentClass],
+        ["Покрытие + будущие выплаты", formatPercent(final.planningCoverage), "Wallet + прогноз выплат: " + formatMoney(final.walletLiability + final.forwardWalletPayout, true), planningClass],
+        ["Доп. Core в плановом резерве", safeText, "В последнем месяце наград: " + formatMoney(final.plannedCoreRewards, true), final.rewardBudgetExcess > 0 ? "status-warning" : ""],
+        ["Чистый внешний поток", formatMoney(final.flow.externalWalletNet, true), formatMoney(final.externalWalletFlowPerUserDay) + " / чел. / день", ""],
+        ["Постоянно сожжено Wallet", formatMoney(final.flow.permanentWalletBurn, true), formatMoney(final.permanentWalletBurnPerUserDay) + " / чел. / день", ""]
+      ];
+      document.getElementById("summary-grid").innerHTML = metrics.map(function (metric) {
+        return "<article class=\"stat\"><div class=\"stat-label\">" + escapeHtml(metric[0]) + "</div><div class=\"stat-value "
+          + metric[3] + "\">" + escapeHtml(metric[1]) + "</div><div class=\"stat-context\">" + escapeHtml(metric[2]) + "</div></article>";
+      }).join("");
+    }
+
+    function renderLiquidityDerived(result) {
+      var target = document.getElementById("liquidity-derived");
+      var final = result.final;
+      if (!target || !final) return;
+      target.textContent = "Последний месяц: фактический чистый поток "
+        + formatMoney(final.externalWalletFlowPerUserDay) + " / чел. / день; постоянное сжигание "
+        + formatMoney(final.permanentWalletBurnPerUserDay) + " / чел. / день. Отрицательный поток создаёт очередь вывода, если выплатить его нельзя.";
+    }
+
+    function renderWarnings(result) {
+      var rows = [];
+      result.errors.forEach(function (message) { rows.push({ message: message, error: true }); });
+      result.warnings.forEach(function (message) { rows.push({ message: message, error: false }); });
+      if (!rows.length) rows.push({ message: "Сценарий соблюдает заданные ограничения во всех расчётных периодах.", good: true });
+      document.getElementById("warnings").innerHTML = rows.map(function (row) {
+        if (row.good) return "<div class=\"warning-row\" style=\"border-left-color:var(--positive)\">" + escapeHtml(row.message) + "</div>";
+        return "<div class=\"warning-row" + (row.error ? " error" : "") + "\">" + escapeHtml(row.message) + "</div>";
+      }).join("");
+    }
+
+    function renderLegend(targetId, items) {
+      document.getElementById(targetId).innerHTML = items.map(function (item) {
+        return "<span class=\"legend-item\"><span class=\"legend-dot\" style=\"--dot:" + item.color + "\"></span>"
+          + escapeHtml(item.label) + (item.value !== undefined ? " · " + escapeHtml(item.value) : "") + "</span>";
+      }).join("");
+    }
+
+    function linePath(values, xFor, yFor) {
+      var path = "";
+      var drawing = false;
+      values.forEach(function (value, index) {
+        if (!Number.isFinite(value)) {
+          drawing = false;
+          return;
+        }
+        path += (drawing ? " L " : " M ") + xFor(index).toFixed(2) + " " + yFor(value).toFixed(2);
+        drawing = true;
+      });
+      return path.trim();
+    }
+
+    function renderLineChart(targetId, periods, series, options) {
+      var target = document.getElementById(targetId);
+      if (!periods.length) {
+        target.innerHTML = "<div class=\"chart-empty\">Нет данных</div>";
+        return;
+      }
+      var opts = options || {};
+      var width = 900;
+      var height = 270;
+      var margin = { left: 68, right: 18, top: 18, bottom: 38 };
+      var plotWidth = width - margin.left - margin.right;
+      var plotHeight = height - margin.top - margin.bottom;
+      var allValues = [];
+      series.forEach(function (item) {
+        item.values.forEach(function (value) { if (Number.isFinite(value)) allValues.push(value); });
+      });
+      if (Number.isFinite(opts.threshold)) allValues.push(opts.threshold);
+      var min = opts.zeroBased === false ? Math.min.apply(null, allValues) : 0;
+      var max = Math.max.apply(null, allValues);
+      if (!Number.isFinite(min)) min = 0;
+      if (!Number.isFinite(max) || max <= min) max = min + 1;
+      var padding = (max - min) * 0.08;
+      max += padding;
+      if (opts.zeroBased === false) min -= padding;
+      var xFor = function (index) { return margin.left + (periods.length <= 1 ? plotWidth / 2 : index * plotWidth / (periods.length - 1)); };
+      var yFor = function (value) { return margin.top + (max - value) / (max - min) * plotHeight; };
+      var svg = "<svg viewBox=\"0 0 " + width + " " + height + "\" role=\"img\" aria-label=\"" + escapeHtml(opts.ariaLabel || "График") + "\">";
+      svg += "<title>" + escapeHtml(opts.ariaLabel || "График") + "</title>";
+      for (var tick = 0; tick <= 4; tick += 1) {
+        var tickValue = min + (max - min) * (4 - tick) / 4;
+        var y = margin.top + plotHeight * tick / 4;
+        svg += "<line class=\"grid-line\" x1=\"" + margin.left + "\" y1=\"" + y + "\" x2=\"" + (width - margin.right) + "\" y2=\"" + y + "\"></line>";
+        svg += "<text class=\"axis-label\" x=\"" + (margin.left - 9) + "\" y=\"" + (y + 4) + "\" text-anchor=\"end\">"
+          + escapeHtml(opts.percent ? formatNumber(tickValue * 100, 0) + "%" : compactAxis(tickValue)) + "</text>";
+      }
+      var xTicks = Math.min(6, periods.length);
+      for (var xTick = 0; xTick < xTicks; xTick += 1) {
+        var index = xTicks <= 1 ? 0 : Math.round(xTick * (periods.length - 1) / (xTicks - 1));
+        svg += "<text class=\"axis-label\" x=\"" + xFor(index) + "\" y=\"" + (height - 10) + "\" text-anchor=\"middle\">"
+          + escapeHtml(periods[index].month) + "</text>";
+      }
+      if (Number.isFinite(opts.threshold)) {
+        var thresholdY = yFor(opts.threshold);
+        svg += "<line class=\"threshold\" x1=\"" + margin.left + "\" y1=\"" + thresholdY + "\" x2=\"" + (width - margin.right)
+          + "\" y2=\"" + thresholdY + "\"></line>";
+      }
+      series.forEach(function (item) {
+        svg += "<path class=\"series-line\" d=\"" + linePath(item.values, xFor, yFor) + "\" stroke=\"" + item.color
+          + "\"" + (item.dashed ? " stroke-dasharray=\"7 5\"" : "") + "></path>";
+      });
+      svg += "</svg>";
+      target.innerHTML = svg;
+    }
+
+    function renderStackedCoreChart(result) {
+      var periods = result.periods;
+      var target = document.getElementById("core-chart");
+      if (!periods.length) {
+        target.innerHTML = "<div class=\"chart-empty\">Нет данных</div>";
+        return;
+      }
+      var definitions = [
+        ["walletToCore", "Wallet → Core", COLORS[0]],
+        ["coreReinvest", "Reinvest", COLORS[1]],
+        ["challengeRewards", "Челленджи", COLORS[2]],
+        ["referralRewards", "Рефералы", COLORS[3]],
+        ["leaderRewards", "Лидеры", COLORS[4]],
+        ["otherCoreRewards", "Другие", COLORS[5]]
+      ];
+      var totals = periods.map(function (period) {
+        return definitions.reduce(function (sum, definition) { return sum + period.flow[definition[0]]; }, 0);
+      });
+      var max = Math.max.apply(null, totals.concat([1]));
+      var width = 900;
+      var height = 270;
+      var margin = { left: 68, right: 18, top: 18, bottom: 38 };
+      var plotWidth = width - margin.left - margin.right;
+      var plotHeight = height - margin.top - margin.bottom;
+      var slot = plotWidth / periods.length;
+      var barWidth = Math.max(1, Math.min(22, slot * 0.72));
+      var svg = "<svg viewBox=\"0 0 " + width + " " + height + "\" role=\"img\" aria-label=\"Источники ежемесячного роста Core\">";
+      svg += "<title>Источники ежемесячного роста Core</title>";
+      for (var tick = 0; tick <= 4; tick += 1) {
+        var value = max * (4 - tick) / 4;
+        var y = margin.top + plotHeight * tick / 4;
+        svg += "<line class=\"grid-line\" x1=\"" + margin.left + "\" y1=\"" + y + "\" x2=\"" + (width - margin.right) + "\" y2=\"" + y + "\"></line>";
+        svg += "<text class=\"axis-label\" x=\"" + (margin.left - 9) + "\" y=\"" + (y + 4) + "\" text-anchor=\"end\">" + escapeHtml(compactAxis(value)) + "</text>";
+      }
+      periods.forEach(function (period, index) {
+        var x = margin.left + slot * index + (slot - barWidth) / 2;
+        var usedHeight = 0;
+        definitions.forEach(function (definition) {
+          var value = period.flow[definition[0]];
+          var segmentHeight = value / max * plotHeight;
+          var y = margin.top + plotHeight - usedHeight - segmentHeight;
+          svg += "<rect class=\"bar-segment\" x=\"" + x.toFixed(2) + "\" y=\"" + y.toFixed(2) + "\" width=\"" + barWidth.toFixed(2)
+            + "\" height=\"" + Math.max(0, segmentHeight).toFixed(2) + "\" fill=\"" + definition[2] + "\"></rect>";
+          usedHeight += segmentHeight;
+        });
+      });
+      var xTicks = Math.min(6, periods.length);
+      for (var xTick = 0; xTick < xTicks; xTick += 1) {
+        var idx = xTicks <= 1 ? 0 : Math.round(xTick * (periods.length - 1) / (xTicks - 1));
+        var labelX = margin.left + slot * idx + slot / 2;
+        svg += "<text class=\"axis-label\" x=\"" + labelX + "\" y=\"" + (height - 10) + "\" text-anchor=\"middle\">"
+          + escapeHtml(periods[idx].month) + "</text>";
+      }
+      svg += "</svg>";
+      target.innerHTML = svg;
+      renderLegend("core-legend", definitions.map(function (definition) {
+        return { label: definition[1], color: definition[2] };
+      }));
+    }
+
+    function renderCharts(result, comparisons) {
+      var periods = result.periods;
+      var final = result.final;
+      var balanceSeries = [
+        { label: "Treasury", color: COLORS[0], values: periods.map(function (row) { return row.treasury; }) },
+        { label: "Wallet", color: COLORS[1], values: periods.map(function (row) { return row.walletLiability; }) },
+        { label: "Total Core", color: COLORS[2], values: periods.map(function (row) { return row.totalCore; }) },
+        { label: "Резерв Wallet + будущие выплаты", color: COLORS[3], values: periods.map(function (row) { return row.planningReserveRequired; }), dashed: true }
+      ];
+      renderLineChart("balance-chart", periods, balanceSeries, { ariaLabel: "Treasury, Wallet, Total Core и резерв с учётом будущих выплат", zeroBased: true });
+      renderLegend("balance-legend", balanceSeries.map(function (item) {
+        return { label: item.label, color: item.color, value: formatMoney(item.values[item.values.length - 1], true) };
+      }));
+
+      var coverageSeries = [
+        { label: "Текущее", color: COLORS[0], values: periods.map(function (row) { return row.currentCoverage; }) },
+        { label: "С будущими выплатами", color: COLORS[1], values: periods.map(function (row) { return row.planningCoverage; }) }
+      ];
+      comparisons.forEach(function (comparison, index) {
+        if (comparison.scenario.id === store.activeId) return;
+        coverageSeries.push({
+          label: comparison.scenario.name,
+          color: COLORS[(index + 2) % COLORS.length],
+          dashed: true,
+          values: periods.map(function (row, rowIndex) {
+            return comparison.result.periods[rowIndex] ? comparison.result.periods[rowIndex].planningCoverage : NaN;
+          })
+        });
+      });
+      renderLineChart("coverage-chart", periods, coverageSeries, {
+        ariaLabel: "Текущее покрытие и покрытие с учётом будущих Wallet-выплат",
+        zeroBased: true,
+        percent: true,
+        threshold: result.config.reserveNormPct / 100
+      });
+      renderLegend("coverage-legend", coverageSeries.map(function (item) {
+        return { label: item.label, color: item.color, value: formatPercent(item.values[item.values.length - 1]) };
+      }));
+
+      renderStackedCoreChart(result);
+    }
+
+    function renderPeriodTable(result) {
+      var header = ["Месяц", "Участники", "Treasury", "Wallet", "Чистый внешний поток", "Постоянно сожжено", "Total Core", "Совокупный reinvest", "Текущее покрытие", "Покрытие + будущие выплаты", "Будущие выплаты", "Доп. Core в резерве", "Очередь"];
+      var html = "<thead><tr>" + header.map(function (item) { return "<th>" + escapeHtml(item) + "</th>"; }).join("") + "</tr></thead><tbody>";
+      result.periods.forEach(function (row) {
+        html += "<tr><td>" + escapeHtml(row.month) + "</td><td>" + formatNumber(row.users, 0) + "</td><td>"
+          + formatMoney(row.treasury) + "</td><td>" + formatMoney(row.walletLiability) + "</td><td>" + formatMoney(row.flow.externalWalletNet)
+          + "</td><td>" + formatMoney(row.flow.permanentWalletBurn) + "</td><td>" + formatMoney(row.totalCore)
+          + "</td><td>" + formatPercent(row.aggregateReinvestShare) + "</td><td>" + formatPercent(row.currentCoverage) + "</td><td>" + formatPercent(row.planningCoverage)
+          + "</td><td>" + formatMoney(row.forwardWalletPayout) + "</td><td>" + formatMoney(row.safeCoreBudget)
+          + "</td><td>" + formatMoney(row.withdrawalQueue) + "</td></tr>";
+      });
+      document.getElementById("period-table").innerHTML = html + "</tbody>";
+    }
+
+    function renderCohortSummary(result) {
+      var final = result.final;
+      if (!final) {
+        document.getElementById("cohort-summary").innerHTML = "";
+        return;
+      }
+      var comparisonRows = store.compareIds.map(function (id) {
+        var item = comparisonResults.find(function (comparison) { return comparison.scenario.id === id; });
+        if (!item || !item.result.final) return "";
+        return "<tr><td>" + escapeHtml(item.scenario.name) + "</td><td>" + formatMoney(item.result.final.totalCore)
+          + "</td><td>" + formatMoney(item.result.final.treasury) + "</td><td>" + formatPercent(item.result.final.planningCoverage)
+          + "</td><td>" + formatPercent(item.result.final.aggregateReinvestShare) + "</td></tr>";
+      }).join("");
+      var cohortRows = final.cohorts.map(function (cohort) {
+        return "<tr><td>" + escapeHtml(cohort.name) + "</td><td>" + formatNumber(cohort.users, 0) + "</td><td>"
+          + formatMoney(cohort.wallet) + "</td><td>" + formatMoney(cohort.core) + "</td><td>"
+          + formatNumber(cohort.reinvestPct, 1) + "%</td></tr>";
+      }).join("");
+      document.getElementById("cohort-summary").innerHTML =
+        "<h3>Сравнение сценариев</h3><div class=\"table-wrap\"><table><thead><tr><th>Сценарий</th><th>Core</th><th>Treasury</th><th>Покрытие + будущие выплаты</th><th>Совокупный reinvest</th></tr></thead><tbody>"
+        + comparisonRows + "</tbody></table></div><h3 style=\"margin-top:18px\">Когорты в конце сценария</h3><div class=\"table-wrap\"><table><thead><tr><th>Когорта</th><th>Участники</th><th>Wallet</th><th>Core</th><th>Core reinvest</th></tr></thead><tbody>"
+        + cohortRows + "</tbody></table></div>";
+    }
+
+    function renderMarketplace(result, comparisons) {
+      var periods = result.periods;
+      var marketSeries = [
+        { label: activeScenario().name, color: COLORS[0], values: periods.map(function (row) { return row.flow.marketplaceGmv; }) }
+      ];
+      comparisons.forEach(function (comparison, index) {
+        if (comparison.scenario.id === store.activeId) return;
+        marketSeries.push({
+          label: comparison.scenario.name,
+          color: COLORS[(index + 1) % COLORS.length],
+          dashed: true,
+          values: periods.map(function (row, rowIndex) {
+            return comparison.result.periods[rowIndex] ? comparison.result.periods[rowIndex].flow.marketplaceGmv : NaN;
+          })
+        });
+      });
+      renderLineChart("market-chart", periods, marketSeries, { ariaLabel: "Ежемесячный подтверждённый Marketplace GMV", zeroBased: true });
+      renderLegend("market-legend", marketSeries.map(function (item) {
+        return { label: item.label, color: item.color, value: formatMoney(item.values[item.values.length - 1], true) };
+      }));
+
+      var scenarioRows = comparisons.map(function (comparison) {
+        var totals = comparison.result.totals;
+        return "<tr><td>" + escapeHtml(comparison.scenario.name) + "</td><td>" + formatMoney(totals.marketplaceGmv)
+          + "</td><td>" + formatNumber(totals.marketplaceDeals, 0) + "</td><td>" + formatMoney(totals.marketplaceRefunds)
+          + "</td><td>" + formatMoney(totals.marketplaceFees) + "</td><td>" + formatMoney(totals.marketplaceFeesBurned) + "</td></tr>";
+      }).join("");
+      document.getElementById("marketplace-scenario-summary").innerHTML =
+        "<h3>Итоги сценариев</h3><div class=\"table-wrap\"><table><thead><tr><th>Сценарий</th><th>GMV</th><th>Сделки</th><th>Возвраты</th><th>Комиссии</th><th>Сожжено комиссий</th></tr></thead><tbody>"
+        + scenarioRows + "</tbody></table></div>";
+
+      var header = ["Месяц", "Спрос", "Предложение", "GMV", "Сделки", "Возвраты", "Комиссии", "Сожжено комиссий", "Изменение общего Wallet"];
+      var table = "<thead><tr>" + header.map(function (item) { return "<th>" + escapeHtml(item) + "</th>"; }).join("") + "</tr></thead><tbody>";
+      periods.forEach(function (row) {
+        table += "<tr><td>" + escapeHtml(row.month) + "</td><td>" + formatMoney(row.flow.marketplaceDemand)
+          + "</td><td>" + formatMoney(row.flow.marketplaceSupply) + "</td><td>" + formatMoney(row.flow.marketplaceGmv)
+          + "</td><td>" + formatNumber(row.flow.marketplaceDeals, 0) + "</td><td>" + formatMoney(row.flow.marketplaceRefunds)
+          + "</td><td>" + formatMoney(row.flow.marketplaceFees) + "</td><td>" + formatMoney(row.flow.marketplaceFeesBurned)
+          + "</td><td>" + formatMoney(-row.flow.marketplaceFeesBurned) + "</td></tr>";
+      });
+      document.getElementById("marketplace-table").innerHTML = table + "</tbody>";
+
+      var final = result.final;
+      var cohortRows = final ? final.cohorts.map(function (cohort) {
+        return "<tr><td>" + escapeHtml(cohort.name) + "</td><td>" + formatMoney(cohort.purchases)
+          + "</td><td>" + formatMoney(cohort.sales) + "</td><td>" + formatMoney(cohort.participationBalance)
+          + "</td><td>" + formatMoney(cohort.cumulativeParticipationBalance) + "</td></tr>";
+      }).join("") : "";
+      document.getElementById("marketplace-cohort-summary").innerHTML =
+        "<h3>Участие когорт</h3><div class=\"table-wrap\"><table><thead><tr><th>Когорта</th><th>Покупки за месяц</th><th>Продажи за месяц</th><th>Покупки − продажи</th><th>Баланс за весь период</th></tr></thead><tbody>"
+        + cohortRows + "</tbody></table></div>";
+    }
+
+    function recompute() {
+      var scenario = activeScenario();
+      scenario.config = sanitizeConfig(scenario.config);
+      scenario.name = scenario.config.name = scenario.name;
+      activeResult = simulate(scenario.config);
+      comparisonResults = store.compareIds.map(function (id) {
+        var comparedScenario = store.scenarios.find(function (item) { return item.id === id; });
+        return comparedScenario ? { scenario: comparedScenario, result: simulate(comparedScenario.config) } : null;
+      }).filter(Boolean);
+      if (!comparisonResults.some(function (item) { return item.scenario.id === scenario.id; })) {
+        comparisonResults.unshift({ scenario: scenario, result: activeResult });
+      }
+      renderSummary(activeResult);
+      renderLiquidityDerived(activeResult);
+      renderWarnings(activeResult);
+      renderCharts(activeResult, comparisonResults);
+      renderPeriodTable(activeResult);
+      renderCohortSummary(activeResult);
+      renderMarketplace(activeResult, comparisonResults);
+      saveStore();
+    }
+
+    function optimizerOptionMarkup(parameters, selectedId) {
+      return parameters.map(function (parameter) {
+        return "<option value=\"" + escapeHtml(parameter.id) + "\"" + (parameter.id === selectedId ? " selected" : "") + ">"
+          + escapeHtml(parameter.label) + "</option>";
+      }).join("");
+    }
+
+    function renderOptimizerControls(config, resetRanges) {
+      var parameters = optimizerParameters(config);
+      if (!parameters.some(function (item) { return item.id === optimizerState.xParam; })) optimizerState.xParam = parameters[0].id;
+      if (!parameters.some(function (item) { return item.id === optimizerState.yParam; }) || optimizerState.yParam === optimizerState.xParam) optimizerState.yParam = parameters[1].id;
+      var xDef = parameters.find(function (item) { return item.id === optimizerState.xParam; });
+      var yDef = parameters.find(function (item) { return item.id === optimizerState.yParam; });
+      if (resetRanges || optimizerState.xMin === undefined) {
+        optimizerState.xMin = xDef.min;
+        optimizerState.xMax = xDef.max;
+        optimizerState.yMin = yDef.min;
+        optimizerState.yMax = yDef.max;
+      }
+      var html = "<label class=\"field\"><span>Параметр X</span><select id=\"opt-x-param\">" + optimizerOptionMarkup(parameters, optimizerState.xParam)
+        + "</select></label><div class=\"field-grid\"><label class=\"field\"><span>X от</span><input id=\"opt-x-min\" type=\"number\" value=\""
+        + escapeHtml(optimizerState.xMin) + "\" step=\"any\"></label><label class=\"field\"><span>X до</span><input id=\"opt-x-max\" type=\"number\" value=\""
+        + escapeHtml(optimizerState.xMax) + "\" step=\"any\"></label></div><label class=\"field\"><span>Параметр Y</span><select id=\"opt-y-param\">"
+        + optimizerOptionMarkup(parameters, optimizerState.yParam)
+        + "</select></label><div class=\"field-grid\"><label class=\"field\"><span>Y от</span><input id=\"opt-y-min\" type=\"number\" value=\""
+        + escapeHtml(optimizerState.yMin) + "\" step=\"any\"></label><label class=\"field\"><span>Y до</span><input id=\"opt-y-max\" type=\"number\" value=\""
+        + escapeHtml(optimizerState.yMax) + "\" step=\"any\"></label></div><label class=\"field\"><span>Целевая функция</span><select id=\"opt-objective\">"
+        + "<option value=\"balanced\"" + (optimizerState.objective === "balanced" ? " selected" : "") + ">Сбалансированный рост</option>"
+        + "<option value=\"core\"" + (optimizerState.objective === "core" ? " selected" : "") + ">Максимальный безопасный Core</option>"
+        + "<option value=\"gmv\"" + (optimizerState.objective === "gmv" ? " selected" : "") + ">Максимальный подтверждённый GMV</option></select></label>"
+        + "<label class=\"field\"><span>Размер сетки по каждой оси, 2–21</span><input id=\"opt-steps\" type=\"number\" min=\"2\" max=\"21\" step=\"1\" value=\""
+        + escapeHtml(optimizerState.steps) + "\"></label><div class=\"weights\"><label class=\"field\"><span>Вес Core</span><input id=\"opt-weight-core\" type=\"number\" min=\"0\" value=\""
+        + escapeHtml(optimizerState.coreWeight) + "\"></label><label class=\"field\"><span>Вес GMV</span><input id=\"opt-weight-gmv\" type=\"number\" min=\"0\" value=\""
+        + escapeHtml(optimizerState.gmvWeight) + "\"></label><label class=\"field\"><span>Вес резерва</span><input id=\"opt-weight-reserve\" type=\"number\" min=\"0\" value=\""
+        + escapeHtml(optimizerState.reserveWeight) + "\"></label></div><button class=\"primary\" type=\"button\" id=\"run-optimizer\">Запустить перебор</button>";
+      document.getElementById("optimizer-controls").innerHTML = html;
+    }
+
+    function readOptimizerState() {
+      optimizerState.xParam = document.getElementById("opt-x-param").value;
+      optimizerState.yParam = document.getElementById("opt-y-param").value;
+      optimizerState.xMin = number(document.getElementById("opt-x-min").value, 0);
+      optimizerState.xMax = number(document.getElementById("opt-x-max").value, 0);
+      optimizerState.yMin = number(document.getElementById("opt-y-min").value, 0);
+      optimizerState.yMax = number(document.getElementById("opt-y-max").value, 0);
+      optimizerState.objective = document.getElementById("opt-objective").value;
+      optimizerState.steps = Math.round(clamp(document.getElementById("opt-steps").value, 2, 21));
+      optimizerState.coreWeight = Math.max(0, number(document.getElementById("opt-weight-core").value, 0));
+      optimizerState.gmvWeight = Math.max(0, number(document.getElementById("opt-weight-gmv").value, 0));
+      optimizerState.reserveWeight = Math.max(0, number(document.getElementById("opt-weight-reserve").value, 0));
+      return optimizerState;
+    }
+
+    function objectiveLabel(value) {
+      if (value === "core") return "максимальный безопасный Total Core";
+      if (value === "gmv") return "максимальный подтверждённый GMV";
+      return "сбалансированный рост";
+    }
+
+    function renderOptimization(optimization) {
+      var target = document.getElementById("optimizer-result");
+      if (!optimization.best) {
+        target.innerHTML = "<div class=\"warning-row error\">Перебор не дал результатов.</div>";
+        return;
+      }
+      var xDef = optimizerParameters(activeScenario().config).find(function (item) { return item.id === optimization.xParam; });
+      var yDef = optimizerParameters(activeScenario().config).find(function (item) { return item.id === optimization.yParam; });
+      var best = optimization.best;
+      var statusText = optimization.hasFeasible
+        ? "Найдена допустимая точка для цели «" + objectiveLabel(optimization.objective) + "»."
+        : "Допустимых точек нет. Показан вариант с наименьшим нарушением ограничений; он не является оптимальным.";
+      var bestHtml = "<div class=\"best-result\"><strong>" + escapeHtml(statusText) + "</strong><br>"
+        + escapeHtml(xDef.label) + ": " + formatNumber(best.xValue, 3) + " · " + escapeHtml(yDef.label) + ": " + formatNumber(best.yValue, 3)
+        + "<br>Total Core: " + formatMoney(best.coreValue, true) + " · GMV: " + formatMoney(best.gmvValue, true)
+        + " · Свободный резерв: " + formatMoney(best.reserveValue, true) + "</div>";
+      var finiteScores = optimization.cells.filter(function (cell) { return Number.isFinite(cell.score); }).map(function (cell) { return cell.score; });
+      var scoreMin = Math.min.apply(null, finiteScores);
+      var scoreMax = Math.max.apply(null, finiteScores);
+      function heatClass(cell) {
+        if (!cell.feasible && optimization.hasFeasible) return "heat-infeasible";
+        if (!Number.isFinite(cell.score) || scoreMax <= scoreMin) return "heat-3";
+        return "heat-" + Math.round((cell.score - scoreMin) / (scoreMax - scoreMin) * 5);
+      }
+      var table = "<div class=\"heatmap-wrap\"><table class=\"heatmap\"><thead><tr><th>Y \\ X</th>"
+        + optimization.xValues.map(function (value) { return "<th>" + formatNumber(value, 2) + "</th>"; }).join("")
+        + "</tr></thead><tbody>";
+      optimization.yValues.forEach(function (yValue, yIndex) {
+        table += "<tr><th>" + formatNumber(yValue, 2) + "</th>";
+        optimization.xValues.forEach(function (xValue, xIndex) {
+          var cell = optimization.cells.find(function (item) { return item.xIndex === xIndex && item.yIndex === yIndex; });
+          var selected = cell === best ? " selected" : "";
+          var aria = xDef.label + " " + formatNumber(xValue, 3) + ", " + yDef.label + " " + formatNumber(yValue, 3)
+            + ", Core " + formatMoney(cell.coreValue) + ", GMV " + formatMoney(cell.gmvValue)
+            + (cell.feasible ? ", допустимо" : ", ограничения нарушены");
+          table += "<td><button type=\"button\" class=\"heat-cell " + heatClass(cell) + selected + "\" data-heat-index=\""
+            + optimization.cells.indexOf(cell) + "\" aria-label=\"" + escapeHtml(aria) + "\"></button></td>";
+        });
+        table += "</tr>";
+      });
+      table += "</tbody></table></div><div class=\"optimizer-detail\" id=\"optimizer-detail\">"
+        + escapeHtml("Допустимых точек: " + optimization.feasibleCount + " из " + optimization.cells.length) + "</div>";
+      var topRows = optimization.top.map(function (cell, index) {
+        return "<tr><td>" + (index + 1) + "</td><td>" + formatNumber(cell.xValue, 3) + "</td><td>" + formatNumber(cell.yValue, 3)
+          + "</td><td>" + formatMoney(cell.coreValue) + "</td><td>" + formatMoney(cell.gmvValue) + "</td><td>"
+          + formatMoney(cell.reserveValue) + "</td><td>" + (cell.feasible ? "да" : "нет") + "</td></tr>";
+      }).join("");
+      var top = "<div class=\"top-results\"><h3>Лучшие варианты</h3><div class=\"table-wrap\"><table><thead><tr><th>#</th><th>X</th><th>Y</th><th>Core</th><th>GMV</th><th>Своб. резерв</th><th>Допустим</th></tr></thead><tbody>"
+        + topRows + "</tbody></table></div></div>";
+      target.innerHTML = bestHtml + table + top;
+    }
+
+    function download(name, contents, type) {
+      var blob = new Blob([contents], { type: type });
+      var url = URL.createObjectURL(blob);
+      var anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = name;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+    }
+
+    function exportCsv() {
+      if (!activeResult) return;
+      var columns = [
+        ["month", function (row) { return row.month; }],
+        ["users", function (row) { return row.users; }],
+        ["treasury", function (row) { return row.treasury; }],
+        ["wallet_liability", function (row) { return row.walletLiability; }],
+        ["total_core", function (row) { return row.totalCore; }],
+        ["aggregate_reinvest_share", function (row) { return row.aggregateReinvestShare; }],
+        ["current_coverage", function (row) { return row.currentCoverage; }],
+        ["planning_coverage", function (row) { return row.planningCoverage; }],
+        ["forward_wallet_payout", function (row) { return row.forwardWalletPayout; }],
+        ["safe_core_budget", function (row) { return row.safeCoreBudget; }],
+        ["withdrawal_queue", function (row) { return row.withdrawalQueue; }],
+        ["external_wallet_net", function (row) { return row.flow.externalWalletNet; }],
+        ["external_wallet_per_user_day", function (row) { return row.externalWalletFlowPerUserDay; }],
+        ["external_deposits", function (row) { return row.flow.externalDeposits; }],
+        ["withdrawal_paid", function (row) { return row.flow.withdrawalPaid; }],
+        ["withdrawal_fees_burned", function (row) { return row.flow.withdrawalFees; }],
+        ["permanent_wallet_burn", function (row) { return row.flow.permanentWalletBurn; }],
+        ["permanent_wallet_burn_per_user_day", function (row) { return row.permanentWalletBurnPerUserDay; }],
+        ["wallet_to_core", function (row) { return row.flow.walletToCore; }],
+        ["core_reinvest", function (row) { return row.flow.coreReinvest; }],
+        ["challenge_rewards", function (row) { return row.flow.challengeRewards; }],
+        ["referral_rewards", function (row) { return row.flow.referralRewards; }],
+        ["leader_rewards", function (row) { return row.flow.leaderRewards; }],
+        ["marketplace_gmv", function (row) { return row.flow.marketplaceGmv; }],
+        ["marketplace_deals", function (row) { return row.flow.marketplaceDeals; }],
+        ["marketplace_refunds", function (row) { return row.flow.marketplaceRefunds; }],
+        ["marketplace_fees", function (row) { return row.flow.marketplaceFees; }]
+      ];
+      function csvValue(value) {
+        if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
+        return "\"" + String(value).replace(/"/g, "\"\"") + "\"";
+      }
+      var lines = [columns.map(function (column) { return column[0]; }).join(",")];
+      activeResult.periods.forEach(function (row) {
+        lines.push(columns.map(function (column) { return csvValue(column[1](row)); }).join(","));
+      });
+      download("abundance-economy-" + activeScenario().id + ".csv", "\uFEFF" + lines.join("\r\n"), "text/csv;charset=utf-8");
+    }
+
+    function runSelfTests() {
+      var tests = [];
+      function test(name, callback) {
+        try {
+          callback();
+          tests.push({ name: name, passed: true });
+        } catch (error) {
+          tests.push({ name: name, passed: false, error: error instanceof Error ? error.message : String(error) });
+        }
+      }
+      function assert(condition, message) {
+        if (!condition) throw new Error(message);
+      }
+      function near(actual, expected, tolerance, message) {
+        if (Math.abs(actual - expected) > tolerance) throw new Error(message + ": " + actual + " ≠ " + expected);
+      }
+      function zeroConfig() {
+        var config = defaultConfig();
+        config.horizonMonths = 1;
+        config.dailyRatePct = 0;
+        config.externalWalletFlowPerUserDay = 0;
+        config.walletFlowGrowthPct = 0;
+        config.permanentWalletBurnDailyPct = 0;
+        config.nonLiabilityFundingMonthly = 0;
+        config.newUsersMonthly = 0;
+        config.challengeReward = 0;
+        config.referralReward = 0;
+        config.otherCoreRewardsMonthly = 0;
+        config.leaderBonusPct = 0;
+        config.marketMatchPct = 0;
+        config.cohorts[0].growthPct = 0;
+        config.cohorts[0].churnPct = 0;
+        config.cohorts[0].walletToCorePct = 0;
+        config.cohorts[0].challengesPerUser = 0;
+        return config;
+      }
+
+      test("Нулевой сценарий сохраняет состояние", function () {
+        var config = zeroConfig();
+        var result = simulate(config);
+        near(result.final.treasury, 20000, 0.000001, "Treasury");
+        near(result.final.walletLiability, 10000, 0.000001, "Wallet");
+        near(result.final.totalCore, 10000, 0.000001, "Core");
+      });
+      test("Положительный поток Wallet зачисляется 1:1", function () {
+        var config = zeroConfig();
+        config.externalWalletFlowPerUserDay = 1;
+        var result = simulate(config);
+        near(result.final.treasury, 23100, 0.000001, "Treasury deposit");
+        near(result.final.walletLiability, 13100, 0.000001, "Wallet deposit");
+        near(result.final.flow.externalWalletNet, 3100, 0.000001, "Net external flow");
+      });
+      test("Отрицательный поток Wallet создаёт симметричный вывод без комиссии", function () {
+        var config = zeroConfig();
+        config.externalWalletFlowPerUserDay = -1;
+        config.withdrawalServiceFeePct = 0;
+        var result = simulate(config);
+        near(result.final.treasury, 16900, 0.000001, "Treasury withdrawal");
+        near(result.final.walletLiability, 6900, 0.000001, "Wallet withdrawal");
+        near(result.final.flow.externalWalletNet, -3100, 0.000001, "Net external flow");
+      });
+      test("Новые участники равномерно влияют на поток внутри месяца", function () {
+        var config = zeroConfig();
+        config.externalWalletFlowPerUserDay = 1;
+        config.newUsersMonthly = 100;
+        var result = simulate(config);
+        near(result.final.users, 200, 0.000001, "Final users");
+        near(result.final.averageUsers, 150, 0.000001, "Average users");
+        near(result.final.flow.externalWalletNet, 4650, 0.000001, "Uniform participant flow");
+      });
+      test("Постоянные внутренние расходы сжигают Wallet, но не Treasury", function () {
+        var config = zeroConfig();
+        config.cohorts[0].wallet = 100;
+        config.permanentWalletBurnDailyPct = 1;
+        var result = simulate(config);
+        near(result.final.walletLiability, 100 * Math.pow(0.99, 31), 0.000001, "Wallet burn");
+        near(result.final.treasury, 20000, 0.000001, "Treasury unchanged by burn");
+      });
+      test("Wallet → Core не создаёт внешнюю ликвидность", function () {
+        var config = zeroConfig();
+        config.cohorts[0].wallet = 100;
+        config.cohorts[0].core = 0;
+        config.cohorts[0].walletToCorePct = 100;
+        var result = simulate(config);
+        near(result.final.walletLiability, 0, 0.000001, "Wallet conversion");
+        near(result.final.totalCore, 100, 0.000001, "Core conversion");
+        near(result.final.treasury, 20000, 0.000001, "Treasury unchanged");
+      });
+      test("Reinvest 100% не создаёт плановую Wallet-выплату", function () {
+        var days = 365;
+        var zero = walletPayoutFactorPerCore(0.000633, 0, days);
+        var half = walletPayoutFactorPerCore(0.000633, 0.5, days);
+        var full = walletPayoutFactorPerCore(0.000633, 1, days);
+        assert(zero > half && half > full, "Фактор должен уменьшаться с ростом reinvest");
+        near(full, 0, 1e-12, "100% reinvest");
+      });
+      test("Совокупный reinvest взвешивается по Core", function () {
+        var config = zeroConfig();
+        config.cohorts[0].core = 100;
+        config.cohorts[0].reinvestPct = 0;
+        var second = clone(config.cohorts[0]);
+        second.id = "cohort-second";
+        second.core = 300;
+        second.reinvestPct = 100;
+        config.cohorts.push(second);
+        near(aggregateReinvestShare(initialState(config)), 0.75, 0.000001, "Weighted reinvest");
+      });
+      test("Награда за челлендж начисляется за подтверждённый результат", function () {
+        var config = zeroConfig();
+        config.challengeVerificationPct = 50;
+        config.challengeReward = 10;
+        config.cohorts[0].challengesPerUser = 1;
+        var result = simulate(config);
+        near(result.final.flow.verifiedResults, 50, 0.000001, "Verified results");
+        near(result.final.flow.challengeRewards, 500, 0.000001, "Challenge rewards");
+      });
+      test("Fee-free Marketplace сохраняет общий Wallet", function () {
+        var config = zeroConfig();
+        config.marketMatchPct = 100;
+        config.marketCompletionPct = 100;
+        config.marketplaceFeePct = 0;
+        config.cohorts[0].buyerPct = 50;
+        config.cohorts[0].sellerPct = 50;
+        config.cohorts[0].ordersPerBuyer = 1;
+        config.cohorts[0].salesCapacity = 1;
+        var result = simulate(config);
+        near(result.final.walletLiability, 10000, 0.000001, "Wallet invariant");
+        near(result.totals.marketplaceSales, result.totals.marketplacePurchases, 0.000001, "Sales equal purchases");
+        assert(result.totals.marketplaceGmv > 0, "GMV должен быть положительным");
+      });
+      test("Безопасный Core-бюджет растёт с Treasury", function () {
+        var config = zeroConfig();
+        config.dailyRatePct = 0.0633;
+        var lowState = initialState(config);
+        lowState.treasury = 12000;
+        var highState = initialState(config);
+        highState.treasury = 20000;
+        assert(forwardIndicators(highState, config).safeCoreBudget > forwardIndicators(lowState, config).safeCoreBudget, "Safe budget monotonicity");
+      });
+      test("Оптимизатор помечает допустимые точки", function () {
+        var config = zeroConfig();
+        config.reserveNormPct = 0;
+        var result = optimize(config, {
+          xParam: "challengeReward",
+          yParam: "externalWalletFlowPerUserDay",
+          xMin: 0,
+          xMax: 1,
+          yMin: 0,
+          yMax: 0.1,
+          steps: 2,
+          objective: "core"
+        });
+        assert(result.cells.length === 4, "Размер сетки");
+        assert(result.cells.every(function (cell) { return cell.feasible; }), "Все точки должны быть допустимы");
+        assert(result.best && result.best.feasible, "Лучшая точка должна быть допустима");
+      });
+
+      var passed = tests.filter(function (item) { return item.passed; }).length;
+      var status = document.getElementById("self-test-status");
+      status.textContent = "Самопроверка: " + passed + "/" + tests.length;
+      status.className = passed === tests.length ? "status-good" : "status-danger";
+      if (passed !== tests.length) {
+        console.error("Abundance economy model self-tests failed", tests.filter(function (item) { return !item.passed; }));
+      }
+      return tests;
+    }
+
+    document.addEventListener("input", function (event) {
+      var target = event.target;
+      if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLSelectElement)) return;
+      var scenario = activeScenario();
+      var configKey = target.getAttribute("data-config-key");
+      if (configKey) {
+        scenario.config[configKey] = target.type === "month" ? target.value : number(target.value, 0);
+        scheduleRecompute();
+        return;
+      }
+      var cohortId = target.getAttribute("data-cohort-id");
+      var cohortKey = target.getAttribute("data-cohort-key");
+      if (cohortId && cohortKey) {
+        var cohort = scenario.config.cohorts.find(function (item) { return item.id === cohortId; });
+        if (cohort) {
+          cohort[cohortKey] = target.type === "text" ? target.value : number(target.value, 0);
+          var cardTitle = target.closest(".cohort-card");
+          if (cohortKey === "name" && cardTitle) cardTitle.querySelector(".cohort-head strong").textContent = target.value || "Когорта";
+          scheduleRecompute();
+        }
+      }
+    });
+
+    document.addEventListener("change", function (event) {
+      var target = event.target;
+      if (target.id === "scenario-select") {
+        store.activeId = target.value;
+        if (store.compareIds.indexOf(store.activeId) === -1 && store.compareIds.length < 3) store.compareIds.unshift(store.activeId);
+        renderScenarioManager();
+        renderConfig();
+        recompute();
+        return;
+      }
+      var compareId = target.getAttribute && target.getAttribute("data-compare-id");
+      if (compareId) {
+        if (target.checked && store.compareIds.indexOf(compareId) === -1 && store.compareIds.length < 3) store.compareIds.push(compareId);
+        if (!target.checked) store.compareIds = store.compareIds.filter(function (id) { return id !== compareId; });
+        if (!store.compareIds.length) store.compareIds = [store.activeId];
+        renderScenarioManager();
+        recompute();
+        return;
+      }
+      if (target.id === "opt-x-param" || target.id === "opt-y-param") {
+        var parameters = optimizerParameters(activeScenario().config);
+        optimizerState.xParam = document.getElementById("opt-x-param").value;
+        optimizerState.yParam = document.getElementById("opt-y-param").value;
+        if (optimizerState.xParam === optimizerState.yParam) {
+          optimizerState.yParam = parameters.find(function (item) { return item.id !== optimizerState.xParam; }).id;
+        }
+        var xDef = parameters.find(function (item) { return item.id === optimizerState.xParam; });
+        var yDef = parameters.find(function (item) { return item.id === optimizerState.yParam; });
+        optimizerState.xMin = xDef.min;
+        optimizerState.xMax = xDef.max;
+        optimizerState.yMin = yDef.min;
+        optimizerState.yMax = yDef.max;
+        renderOptimizerControls(activeScenario().config, false);
+      }
+    });
+
+    document.addEventListener("click", function (event) {
+      var target = event.target.closest("button");
+      if (!target) return;
+      var removeCohortId = target.getAttribute("data-remove-cohort");
+      if (removeCohortId) {
+        var config = activeScenario().config;
+        if (config.cohorts.length > 1) {
+          config.cohorts = config.cohorts.filter(function (cohort) { return cohort.id !== removeCohortId; });
+          renderConfig();
+          recompute();
+        }
+        return;
+      }
+      if (target.id === "add-cohort") {
+        var activeConfig = activeScenario().config;
+        if (activeConfig.cohorts.length >= 12) {
+          transientMessage("Можно создать не более 12 когорт.", true);
+          return;
+        }
+        var template = clone(defaultConfig().cohorts[0]);
+        template.id = uid("cohort");
+        template.name = "Когорта " + (activeConfig.cohorts.length + 1);
+        template.users = 0;
+        template.wallet = 0;
+        template.core = 0;
+        activeConfig.cohorts.push(template);
+        renderConfig();
+        recompute();
+        return;
+      }
+      if (target.id === "duplicate-scenario") {
+        var source = activeScenario();
+        var copyId = uid("scenario");
+        var name = source.name + " — копия";
+        var configCopy = clone(source.config);
+        configCopy.name = name;
+        store.scenarios.push({ id: copyId, name: name, config: configCopy });
+        store.activeId = copyId;
+        store.compareIds = [source.id, copyId].slice(0, 3);
+        renderScenarioManager();
+        renderConfig();
+        recompute();
+        return;
+      }
+      if (target.id === "rename-scenario") {
+        var scenario = activeScenario();
+        var nextName = window.prompt("Название сценария", scenario.name);
+        if (nextName && nextName.trim()) {
+          scenario.name = nextName.trim().slice(0, 80);
+          scenario.config.name = scenario.name;
+          renderScenarioManager();
+          recompute();
+        }
+        return;
+      }
+      if (target.id === "delete-scenario") {
+        if (store.scenarios.length <= 1) return;
+        var current = activeScenario();
+        if (!window.confirm("Удалить сценарий «" + current.name + "»?")) return;
+        store.scenarios = store.scenarios.filter(function (scenario) { return scenario.id !== current.id; });
+        store.compareIds = store.compareIds.filter(function (id) { return id !== current.id; });
+        store.activeId = store.scenarios[0].id;
+        if (!store.compareIds.length) store.compareIds = [store.activeId];
+        renderScenarioManager();
+        renderConfig();
+        recompute();
+        return;
+      }
+      if (target.id === "export-json") {
+        download("abundance-economy-scenarios.json", JSON.stringify(store, null, 2), "application/json;charset=utf-8");
+        return;
+      }
+      if (target.id === "export-csv") {
+        exportCsv();
+        return;
+      }
+      if (target.id === "print-model") {
+        window.print();
+        return;
+      }
+      if (target.id === "run-optimizer") {
+        var options = readOptimizerState();
+        target.disabled = true;
+        target.textContent = "Расчёт…";
+        window.setTimeout(function () {
+          try {
+            lastOptimization = optimize(activeScenario().config, options);
+            renderOptimization(lastOptimization);
+          } finally {
+            target.disabled = false;
+            target.textContent = "Запустить перебор";
+          }
+        }, 0);
+        return;
+      }
+      var heatIndex = target.getAttribute("data-heat-index");
+      if (heatIndex !== null && lastOptimization) {
+        var cell = lastOptimization.cells[Number(heatIndex)];
+        document.querySelectorAll(".heat-cell.selected").forEach(function (button) { button.classList.remove("selected"); });
+        target.classList.add("selected");
+        document.getElementById("optimizer-detail").textContent =
+          "X " + formatNumber(cell.xValue, 3) + " · Y " + formatNumber(cell.yValue, 3)
+          + " · Core " + formatMoney(cell.coreValue) + " · GMV " + formatMoney(cell.gmvValue)
+          + " · покрытие min " + formatPercent(cell.result.minPlanningCoverage)
+          + (cell.feasible ? " · допустимо" : " · ограничения нарушены");
+      }
+    });
+
+    document.getElementById("import-json").addEventListener("change", function (event) {
+      var file = event.target.files && event.target.files[0];
+      event.target.value = "";
+      if (!file) return;
+      if (file.size > 1024 * 1024) {
+        transientMessage("JSON-файл должен быть меньше 1 МБ.", true);
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var parsed = JSON.parse(String(reader.result || ""));
+          if (Array.isArray(parsed.scenarios)) {
+            store = normalizeStore(parsed);
+          } else {
+            var report = validate(parsed);
+            if (!report.valid) throw new Error(report.errors.join(" "));
+            var config = sanitizeConfig(parsed);
+            var id = uid("scenario");
+            var name = config.name || "Импортированный сценарий";
+            store.scenarios.push({ id: id, name: name, config: config });
+            store.activeId = id;
+            store.compareIds = [id];
+          }
+          renderScenarioManager();
+          renderConfig();
+          recompute();
+          transientMessage("Сценарии импортированы.", false);
+        } catch (error) {
+          transientMessage("Не удалось импортировать JSON: " + (error instanceof Error ? error.message : String(error)), true);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    window.AbundanceEconomyModel = Object.freeze({
+      schemaVersion: SCHEMA_VERSION,
+      defaultConfig: defaultConfig,
+      validate: validate,
+      simulate: simulate,
+      optimize: optimize
+    });
+
+    renderScenarioManager();
+    renderConfig();
+    recompute();
+    runSelfTests();
+  }());
+  </script>
+</body>
+</html>

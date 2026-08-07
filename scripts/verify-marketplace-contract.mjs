@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const migrationPath = join(root, "supabase", "migrations", "20260806120000_marketplace_internal_escrow.sql");
+const migrationPath = join(root, "supabase", "migrations", "20260806120100_marketplace_internal_escrow.sql");
 const walletMigrationPath = join(root, "supabase", "migrations", "20260806121000_wallet_transfer_idempotency_required.sql");
 const migration = readFileSync(migrationPath, "utf8");
 const walletMigration = readFileSync(walletMigrationPath, "utf8");
@@ -32,8 +32,8 @@ for (const deferredTable of ["marketplace_user_balances", "marketplace_user_coun
 if (!walletMigration.includes("Idempotency key is required.")) {
   throw new Error("Wallet transfer migration does not enforce idempotency.");
 }
-if (!walletMigration.includes("Amount exceeds OA$ precision.")) {
-  throw new Error("Wallet transfer migration does not enforce OA$ precision.");
+if (!walletMigration.includes("Amount exceeds $ precision.")) {
+  throw new Error("Wallet transfer migration does not enforce $ precision.");
 }
 
 const routePaths = [

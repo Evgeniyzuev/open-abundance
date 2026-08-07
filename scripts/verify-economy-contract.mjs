@@ -2,8 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
+const legacyCurrencyMarker = ["OA", "$"].join("");
 const migrationPath = join(root, "supabase", "migrations", "20260807120000_user_economy_metrics.sql");
 const migration = readFileSync(migrationPath, "utf8");
+const currencyMigration = readFileSync(join(root, "supabase", "migrations", "20260807130000_currency_symbol_dollar.sql"), "utf8");
 
 const requiredFragments = [
   "create table if not exists public.user_economy_metrics",
@@ -27,6 +29,10 @@ for (const fragment of requiredFragments) {
 if (migration.includes("participation_balance',")) {
   throw new Error("Participation balance must not be a public visibility key.");
 }
+if (migration.includes(legacyCurrencyMarker)) throw new Error("Economy metrics migration must use the plain $ currency marker.");
+for (const fragment of ["set currency_code = '$'", "alter column currency_code set default '$'", "wallet_accounts", "marketplace_deals"]) {
+  if (!currencyMigration.includes(fragment)) throw new Error(`Currency migration is missing: ${fragment}`);
+}
 if (migration.includes("marketplace_user_balances") || migration.includes("marketplace_user_counterparties")) {
   throw new Error("Legacy ranking tables must remain deferred.");
 }
@@ -43,6 +49,9 @@ for (const routePath of routePaths) {
 const metricsRoute = readFileSync(join(root, "app", "api", "economy", "metrics", "route.ts"), "utf8");
 if (!metricsRoute.includes("fetchCache = \"force-no-store\"") || !metricsRoute.includes("NO_STORE_HEADERS")) {
   throw new Error("Metrics API must use no-store semantics.");
+}
+for (const uiPath of ["components/WalletApp.tsx", "components/PublicUserPage.tsx"]) {
+  if (readFileSync(join(root, uiPath), "utf8").includes(legacyCurrencyMarker)) throw new Error(`${uiPath} must not expose the legacy currency marker.`);
 }
 
 console.log(`Economy contract verified: ${requiredFragments.length} migration checks, ${routePaths.length} routes.`);

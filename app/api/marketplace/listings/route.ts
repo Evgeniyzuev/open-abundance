@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
 
     const row = {
       artifact_id: artifact?.id ?? null,
-      currency_code: "OA$",
+      currency_code: "$",
       description,
       image_url: imageUrl,
       listing_kind: listingKind,
@@ -358,7 +358,7 @@ function buildTerms({ artifact, description, priceAmount, title, listingKind, fu
     artifactId: artifact?.id ?? null,
     artifactTitle: artifact?.title ?? null,
     category,
-    currencyCode: "OA$",
+    currencyCode: "$",
     description,
     fulfillmentDays,
     listingKind,

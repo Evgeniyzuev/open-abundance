@@ -13,14 +13,15 @@
 
 2026-08-07 (current internal-only implementation):
 
-- `20260806120000_marketplace_internal_escrow.sql` adds listing kinds, nullable artifacts for services/physical goods, versioned terms, a minimal `marketplace_escrows` state table, reviews and idempotent hold/release/refund RPCs.
+- `20260806120100_marketplace_internal_escrow.sql` adds listing kinds, nullable artifacts for services/physical goods, versioned terms, a minimal `marketplace_escrows` state table, reviews and idempotent hold/release/refund RPCs.
 - The current MVP deliberately does not create `marketplace_user_balances` or `marketplace_user_counterparties`. The generalized `user_economy_metrics` period read model is now implemented as a rebuildable projection; ranking remains deferred and Wallet truth remains in `wallet_accounts`/`wallet_ledger`.
 - `marketplace_escrows` stores only the one-per-deal lifecycle and idempotency keys. Participants, amount and currency are read from the immutable deal snapshot; there is no zero-only `fee_amount` column.
 - `/api/marketplace/listings` now supports detail/edit; `/api/marketplace/deals` supports required idempotency and explicit accept/cancel/deliver/confirm/dispute/review actions plus protected timer/operator endpoints.
-- Wallet-to-Wallet requires a stable idempotency key and returns a canonical receipt with both ledger records and post-transfer balances. Transfers remain fee-free and have no amount/daily limits beyond positive amount, OA$ precision and sufficient balance.
+- Wallet-to-Wallet requires a stable idempotency key and returns a canonical receipt with both ledger records and post-transfer balances. Transfers remain fee-free and have no amount/daily limits beyond positive amount, `$` precision and sufficient balance.
 - Remote REST schema for the existing marketplace deals/listings is available; no deals or relevant ledger operations were present during the read-only check. The new migration is prepared but not applied remotely; buyer/seller User QA is still pending.
 - This card is DB-only. TON contracts, on-chain escrow, audits and blockchain settlement are explicitly deferred.
 - `20260807120000_user_economy_metrics.sql` adds immutable challenge reward settlement fields, the `user_economy_metrics`/visibility tables, rebuild/reconciliation functions, RLS and deterministic auth-user backfill. Its remote apply and buyer/seller QA remain open gates.
+- `20260807130000_currency_symbol_dollar.sql` normalizes Wallet, Marketplace and economy read-model currency data/defaults to `$`.
 
 2026-06-12:
 
@@ -214,7 +215,7 @@ Do not create separate `marketplace_user_balances`, `marketplace_user_counterpar
 - `user_id`
 - `period_type` - `day`, `month`, `year`, `lifetime`
 - `period_key` - UTC day/month/year key, or `lifetime`
-- `currency_code` - `OA$` for the current Wallet and Marketplace; Core fields are non-currency balance units
+- `currency_code` - `$` for the current Wallet and Marketplace; Core fields are non-currency balance units
 - `schema_version`, `source_watermark`, `is_reconciled`, `updated_at`, `last_reconciled_at`
 
 Use the actual posting/settlement time. For Marketplace, only the final seller-credit or buyer-refund outcome counts; listing views, clicks, holds, acceptance and pending escrows do not. Store UTC periods and convert to the viewer's timezone only when rendering.

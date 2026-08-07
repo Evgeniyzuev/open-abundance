@@ -11,7 +11,7 @@ create table if not exists public.marketplace_deals (
   buyer_user_id uuid not null references auth.users(id) on delete cascade,
   artifact_id uuid not null references public.user_artifacts(id) on delete restrict,
   price_amount numeric(30, 12) not null check (price_amount > 0),
-  currency_code text not null default 'OA$',
+  currency_code text not null default '$',
   terms_json jsonb not null default '{}'::jsonb,
   terms_hash text not null,
   status text not null default 'proposed' check (status in (

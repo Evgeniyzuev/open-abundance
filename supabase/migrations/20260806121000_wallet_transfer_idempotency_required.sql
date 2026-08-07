@@ -39,7 +39,7 @@ begin
     raise exception 'Amount must be greater than 0.';
   end if;
   if scale(p_amount) > 12 then
-    raise exception 'Amount exceeds OA$ precision.';
+    raise exception 'Amount exceeds $ precision.';
   end if;
   if p_idempotency_key is null or trim(p_idempotency_key) = '' then
     raise exception 'Idempotency key is required.';

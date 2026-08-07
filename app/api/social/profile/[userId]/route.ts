@@ -121,7 +121,7 @@ async function loadPublicEconomyMetrics(
     .from("user_economy_metrics")
     .select("period_type, period_key, wallet_inflows_total, wallet_outflows_total, marketplace_sales_gross, marketplace_purchases_gross, marketplace_completed_sales_count, marketplace_completed_purchase_count, core_growth_total, core_level_end")
     .eq("user_id", targetUserId)
-    .eq("currency_code", "OA$")
+    .eq("currency_code", "$")
     .in("period_type", periodTypes);
   if (error) throw error;
 

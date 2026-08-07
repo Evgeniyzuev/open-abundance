@@ -31,7 +31,7 @@ create table if not exists public.wallet_ledger (
   user_id uuid not null references public.wallet_accounts(user_id) on delete cascade,
   direction text not null check (direction in ('credit', 'debit')),
   amount numeric(30, 12) not null check (amount > 0),
-  currency_code text not null default 'OA$',
+  currency_code text not null default '$',
   operation_type text not null check (
     operation_type in (
       'marketplace_escrow_hold',

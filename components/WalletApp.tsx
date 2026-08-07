@@ -1244,7 +1244,7 @@ function EconomyMetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="economy-metric-card">
       <span>{label}</span>
-      <strong>{value} OA$</strong>
+      <strong>{value}</strong>
     </div>
   );
 }

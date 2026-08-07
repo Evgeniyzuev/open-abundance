@@ -47,7 +47,7 @@ function transferErrorStatus(message: string) {
     || message === "Insufficient wallet balance."
     || message === "Missing wallet transfer user id."
     || message === "Unsupported wallet transfer source type."
-    || message === "Amount exceeds OA$ precision."
+    || message === "Amount exceeds $ precision."
     || message === "Wallet transfer idempotency state is incomplete."
     || message === "Idempotency key is required."
   ) {
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     return jsonResponse({ error: "Amount must be greater than 0." }, { status: 400 });
   }
   if (!hasWalletPrecision(body.amount)) {
-    return jsonResponse({ error: "Amount exceeds OA$ precision." }, { status: 400 });
+    return jsonResponse({ error: "Amount exceeds $ precision." }, { status: 400 });
   }
 
   const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {

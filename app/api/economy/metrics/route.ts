@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     .eq("user_id", user.id)
     .eq("period_type", periodType)
     .eq("period_key", periodKey)
-    .eq("currency_code", "OA$")
+    .eq("currency_code", "$")
     .maybeSingle();
 
   let { data: metric, error: metricError } = await readMetric();

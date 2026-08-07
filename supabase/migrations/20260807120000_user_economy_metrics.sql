@@ -150,7 +150,7 @@ create table if not exists public.user_economy_metrics (
   user_id uuid not null references auth.users(id) on delete cascade,
   period_type text not null check (period_type in ('day', 'month', 'year', 'lifetime')),
   period_key text not null,
-  currency_code text not null default 'OA$' check (currency_code = 'OA$'),
+  currency_code text not null default '$' check (currency_code = '$'),
   marketplace_sales_gross numeric(30, 12) not null default 0 check (marketplace_sales_gross >= 0),
   marketplace_purchases_gross numeric(30, 12) not null default 0 check (marketplace_purchases_gross >= 0),
   marketplace_sales_net numeric(30, 12) not null default 0 check (marketplace_sales_net >= 0),
@@ -447,7 +447,7 @@ begin
       0::numeric
     from public.wallet_ledger l
     where l.user_id = p_user_id
-      and l.currency_code = 'OA$'
+      and l.currency_code = '$'
 
     union all
 
@@ -680,7 +680,7 @@ begin
     p_user_id,
     b.period_type,
     b.period_key,
-    'OA$',
+    '$',
     coalesce(a.marketplace_sales_gross, 0),
     coalesce(a.marketplace_purchases_gross, 0),
     coalesce(a.marketplace_sales_net, 0),
@@ -754,7 +754,7 @@ begin
 
   select * into metrics
   from public.user_economy_metrics
-  where user_id = p_user_id and period_type = 'lifetime' and period_key = 'lifetime' and currency_code = 'OA$';
+  where user_id = p_user_id and period_type = 'lifetime' and period_key = 'lifetime' and currency_code = '$';
 
   if metrics.user_id is null then
     return jsonb_build_object('ok', false, 'reason', 'metrics_not_built');

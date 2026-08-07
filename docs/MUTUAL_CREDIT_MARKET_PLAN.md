@@ -36,7 +36,7 @@ Read model не является вторым ledger. Его можно полн
 | `marketplace_user_balances` и `marketplace_user_counterparties` | Не создавать; использовать один `user_economy_metrics`, distinct count контрагентов считать из сделок |
 | Фиксированный cap `+10%` | Только предварительный пример; значение утверждается по shadow-данным и хранится в versioned config |
 | Buyer review UI ещё впереди | Минимальный review flow уже есть в `WalletApp`; остаётся реальный buyer/seller User QA |
-| Расчётная валюта `USD` | Текущий внутренний Wallet и Marketplace используют `OA$`; внешние TON/USDT суммы нормализуются в Wallet amount по зафиксированному settlement rate |
+| Расчётная валюта `USD` | Текущий внутренний Wallet и Marketplace используют `$`; внешние TON/USDT суммы нормализуются в Wallet amount по зафиксированному settlement rate |
 
 Порядок зависимостей:
 
@@ -92,7 +92,7 @@ Marketplace remote apply + technical QA + buyer/seller User QA
 - `period_type`: `day`, `month`, `year`, `lifetime`;
 - `period_key`: `YYYY-MM-DD`, `YYYY-MM`, `YYYY` или `lifetime`;
 - периоды и settlement timestamps хранятся в UTC;
-- `currency_code = 'OA$'` для текущего Wallet/Marketplace; Core-поля измеряются в единицах Core;
+- `currency_code = '$'` для текущего Wallet/Marketplace; Core-поля измеряются в единицах Core;
 - `schema_version`, `source_watermark`, `is_reconciled`, `updated_at`, `last_reconciled_at`;
 - все суммы — точные `numeric`, без расчётов через JavaScript float в источнике правды.
 
@@ -214,7 +214,7 @@ core_growth_total
 - Marketplace: покупки, продажи, завершённые сделки, возвраты;
 - Core: общий рост и разложение по источникам;
 - owner-only `participation_balance` с коротким пояснением «покупки у других минус продажи», без языка долга или обещания boost;
-- отметки `OA$`, период и время последней сверки;
+- отметки `$`, период и время последней сверки;
 - состояние `данные ещё сверяются`, если `is_reconciled = false`, вместо показа приблизительного числа как точного.
 
 ### Profile
@@ -298,7 +298,7 @@ core_growth_total
 - dispute учитывается только после final resolution;
 - duplicate settlement/rebuild не меняет итог;
 - Wallet transfer и external flow не меняют `participation_balance`;
-- day/month/year/lifetime используют UTC boundary и точную OA$ precision;
+- day/month/year/lifetime используют UTC boundary и точную `$` precision;
 - distinct counterparties не суммируются с дублями между днями;
 - Core growth components сходятся с `core_growth_total`;
 - необъяснимый Wallet/Core drift переводит row/report в failed reconciliation, а не записывается в `other`.

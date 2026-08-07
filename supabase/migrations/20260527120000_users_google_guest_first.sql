@@ -26,7 +26,7 @@ create table if not exists public.core_accounts (
 create table if not exists public.wallet_accounts (
   user_id uuid primary key references auth.users(id) on delete cascade,
   balance numeric(20, 2) not null default 0 check (balance >= 0),
-  currency_code text not null default 'OA$',
+  currency_code text not null default '$',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

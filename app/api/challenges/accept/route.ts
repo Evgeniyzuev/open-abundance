@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id")
+    .select("id,prerequisite_challenge_id")
     .eq("id", body.challengeId)
     .eq("is_active", true)
     .maybeSingle();
@@ -56,6 +56,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
   }
 
+  if (challenge.prerequisite_challenge_id) {
+    const { data: prerequisite, error: prerequisiteError } = await supabase
+      .from("user_challenges")
+      .select("status")
+      .eq("user_id", user.id)
+      .eq("challenge_id", challenge.prerequisite_challenge_id)
+      .maybeSingle();
+
+    if (prerequisiteError) {
+      return NextResponse.json({ error: prerequisiteError.message }, { status: 500 });
+    }
+
+    if (prerequisite?.status !== "completed") {
+      return NextResponse.json({ error: "Complete the previous challenge in this series first." }, { status: 409 });
+    }
+  }
   const { data: existing, error: existingError } = await supabase
     .from("user_challenges")
     .select("status")

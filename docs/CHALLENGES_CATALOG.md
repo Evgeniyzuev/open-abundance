@@ -2,6 +2,8 @@
 
 Документ описывает текущий набор челленджей и предлагает новые для увеличения привлечения пользователей, роста Core (инвестиций), пополнения Wallet (ликвидности), расширения внутреннего рынка и торговли между пользователями.
 
+Статус 2026-08-06: добавлена реализация acquisition-серии публикаций 1/3/6/12 и отдельных quality-челленджей 1 000 просмотров / 100 реакций / 10 комментариев. Детали peer-review, трек-ссылок, обложек и замедленной шкалы наград — в [ACQUISITION_CHALLENGES_PLAN.md](ACQUISITION_CHALLENGES_PLAN.md).
+
 Статус 2026-08-02: челлендж `Turn Wish Into 3 Steps` / «Разбей желание на 3 шага» удалён вручную из пользовательского каталога, потому что текущая проверка не исполняется надёжно. Отдельная migration для этого не добавлялась.
 
 ## 0. Сверка с концептом и мастер-планом
@@ -414,7 +416,7 @@
 
 ### 3.3 Skill-challenge contract
 
-Skill challenge всегда содержит короткое обучение, практическое действие и проверку результата. Первые Skill Passport levels проверяются автоматически по product facts: referral, public post и team membership. Ручной software_creation review, peer point и rubric остаются долгосрочным backlog. Полный текущий контракт — docs/SKILLS_SYSTEM_PLAN.md.
+Skill challenge всегда содержит короткое обучение, практическое действие и проверку результата. Первые Skill Passport levels проверяются автоматически по product facts: referral, public post и team membership. Acquisition-публикации используют постоянный Peer reviews challenge с одним заданием на проверяющего; Peer points удалены. Полный контракт привлечения — docs/ACQUISITION_CHALLENGES_PLAN.md, skill-контракт — docs/SKILLS_SYSTEM_PLAN.md.
 
 ## 4. Логика развития пользователя через челленджи
 

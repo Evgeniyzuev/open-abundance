@@ -6,6 +6,8 @@ import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/Challeng
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
+import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
+import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
@@ -35,6 +37,15 @@ type Challenge = {
   track_key: string | null;
   track_step: number | null;
   action_view: string | null;
+  prerequisite_challenge_id?: string | null;
+  prerequisite_completed?: boolean;
+  acquisition_series?: string | null;
+  acquisition_target?: number | null;
+  acquisition_metric_key?: string | null;
+  reward_amount?: number | null;
+  reward_account?: string | null;
+  is_permanent?: boolean;
+  review_reward_amount?: number | null;
   user_challenge_status?: ChallengeStatus | null;
 };
 
@@ -179,6 +190,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
+  const [permanentChallenges, setPermanentChallenges] = useState<Challenge[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [today, setToday] = useState<TodayPayload | null>(null);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
@@ -200,7 +212,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   const handledFocusNextChallengeRef = useRef(0);
   const lastVisibleRefreshAtRef = useRef(0);
   const userLevel = core?.level ?? profile?.level ?? DEFAULT_USER_LEVEL;
-  const hasChallenges = availableChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
+  const hasChallenges = availableChallenges.length > 0 || permanentChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
   const hasProjects = projects.length > 0;
 
   const loadToday = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
@@ -286,14 +298,17 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
       if (mutationVersionAtStart !== challengeMutationVersionRef.current) return;
 
       const nextChallenges = payload.challenges ?? [];
-      const serverCompletedChallenges = nextChallenges.filter(isCompletedChallenge);
-      const serverAcceptedChallenges = nextChallenges.filter(isActiveChallenge);
+      const serverPermanentChallenges = nextChallenges.filter((challenge) => challenge.is_permanent && (isActiveChallenge(challenge) || isCompletedChallenge(challenge)));
+      const serverCompletedChallenges = nextChallenges.filter((challenge) => !challenge.is_permanent && isCompletedChallenge(challenge));
+      const serverAcceptedChallenges = nextChallenges.filter((challenge) => !challenge.is_permanent && isActiveChallenge(challenge));
+      const permanentIds = new Set(serverPermanentChallenges.map((challenge) => challenge.id));
       const acceptedIds = new Set(serverAcceptedChallenges.map((challenge) => challenge.id));
       const completedIds = new Set(serverCompletedChallenges.map((challenge) => challenge.id));
 
+      setPermanentChallenges(serverPermanentChallenges);
       setAcceptedChallenges(serverAcceptedChallenges);
       setCompletedChallenges(serverCompletedChallenges);
-      setAvailableChallenges(nextChallenges.filter((challenge) => !acceptedIds.has(challenge.id) && !completedIds.has(challenge.id)));
+      setAvailableChallenges(nextChallenges.filter((challenge) => !permanentIds.has(challenge.id) && !acceptedIds.has(challenge.id) && !completedIds.has(challenge.id)));
       setStatus("ready");
     } catch {
       if (isMounted() && requestId === loadRequestIdRef.current && mutationVersionAtStart === challengeMutationVersionRef.current) {
@@ -676,6 +691,8 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
 
           <ChallengeSection challenges={availableChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} unread={challengesUnread} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
 
+          <ChallengeSection challenges={permanentChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.permanent")} unread={false} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+
           <section className="challenge-section">
             <button className="challenge-archive-link" type="button" onClick={() => {
               loadChallenges().then(() => setAcceptedOpen(true));
@@ -944,7 +961,7 @@ function ChallengeVisual({ challenge, mode }: { challenge: Challenge; mode: "thu
 function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: Challenge; locale: AppLocale; userLevel: number; t: TFunction; onOpen: () => void }) {
   const accepted = isActiveChallenge(challenge);
   const completed = challenge.user_challenge_status === "completed";
-  const locked = !accepted && !completed && challenge.difficulty_level > userLevel;
+  const locked = !accepted && !completed && (challenge.difficulty_level > userLevel || challenge.prerequisite_completed === false);
 
   return (
     <button className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
@@ -992,11 +1009,13 @@ function ChallengeDetailModal({
 }) {
   const completed = challenge.user_challenge_status === "completed";
   const accepted = isActiveChallenge(challenge);
-  const locked = !accepted && challenge.difficulty_level > userLevel;
+  const locked = !accepted && (challenge.difficulty_level > userLevel || challenge.prerequisite_completed === false);
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsCoreLawChallenge = challenge.verification_logic === "core_law_understood" && accepted && !completed && !locked;
   const needsAppTesting = challenge.verification_logic === "app_testing_feedback" && accepted && !completed && !locked;
+  const needsAcquisition = challenge.verification_logic === "acquisition_publications_milestone" || challenge.verification_logic?.startsWith("acquisition_metric_") === true;
+  const needsPeerReviews = challenge.verification_logic === "peer_reviews";
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -1254,6 +1273,14 @@ function ChallengeDetailModal({
             />
           ) : null}
 
+          {needsAcquisition && (accepted || completed) && !locked ? (
+            <AcquisitionChallengePanel challenge={challenge} locale={locale} readOnly={completed} onRefresh={onRefreshUserData} onComplete={(reward) => onComplete(challenge, reward)} />
+          ) : null}
+
+          {needsPeerReviews && (accepted || completed) && !locked ? (
+            <PeerReviewsPanel challenge={challenge} locale={locale} />
+          ) : null}
+
           {needsAppTesting ? (
             <AppTestingSurvey
               author={author}
@@ -1266,13 +1293,13 @@ function ChallengeDetailModal({
             />
           ) : null}
 
-          {!completed && !locked && accepted && !needsAppTesting ? (
+          {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews ? (
             <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
               {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
             </button>
           ) : null}
 
-          {!completed && accepted ? (
+          {!completed && accepted && !challenge.is_permanent ? (
             <button className="challenge-secondary-action" type="button" disabled={giveUpStatus === "loading"} onClick={handleGiveUp}>
               {giveUpStatus === "loading" ? t("app.common.loading") : t("challenges.giveUp")}
             </button>

@@ -13,6 +13,7 @@
     "test:marketplace": "node scripts/verify-marketplace-contract.mjs",
     "test:economy": "node scripts/verify-economy-contract.mjs",
     "test:growth": "node scripts/verify-growth-analytics-contract.mjs",
+    "test:acquisition": "node scripts/verify-acquisition-challenges-contract.mjs",
     "test:e2e": "playwright test",
     "db:link": "pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi",
     "db:pull": "pnpm dlx supabase db pull",

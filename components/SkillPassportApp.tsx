@@ -74,7 +74,7 @@ export default function SkillPassportApp() {
 }
 
 function SkillCard({ skill }: { skill: PassportSkill }) {
-  const nextCheck = skill.checks.find((check) => check.level > skill.earnedLevel) ?? skill.checks.at(-1) ?? null;
+  const nextCheck = skill.checks.find((check) => check.level > skill.earnedLevel) ?? null;
   const progress = nextCheck ? Math.min(100, Math.round((nextCheck.currentValue / nextCheck.threshold) * 100)) : 0;
 
   return (

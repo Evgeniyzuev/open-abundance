@@ -74,7 +74,7 @@ export default function SkillPassportApp() {
 }
 
 function SkillCard({ skill }: { skill: PassportSkill }) {
-  const nextCheck = skill.checks.find((check) => check.level > skill.earnedLevel) ?? null;
+  const nextCheck = skill.checks.find((check) => check.level > skill.earnedLevel) ?? skill.checks.at(-1) ?? null;
   const progress = nextCheck ? Math.min(100, Math.round((nextCheck.currentValue / nextCheck.threshold) * 100)) : 0;
 
   return (
@@ -92,7 +92,10 @@ function SkillCard({ skill }: { skill: PassportSkill }) {
 
       {nextCheck ? (
         <div className={styles.progressRow} aria-label={String(nextCheck.currentValue) + "/" + nextCheck.threshold}>
-          <strong>{nextCheck.currentValue}/{nextCheck.threshold}</strong>
+          <div className={styles.progressMeta}>
+            <strong>{nextCheck.currentValue}/{nextCheck.threshold}</strong>
+            <span>{nextCheck.requirements}</span>
+          </div>
           <div className={styles.progressTrack}><span style={{ width: String(progress) + "%" }} /></div>
         </div>
       ) : null}

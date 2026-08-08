@@ -37,7 +37,7 @@ const checks = [
   ["level 2 rules exist", migration.includes("'referral_acquisition',") && migration.includes("      4::bigint") && migration.includes("      3::bigint")],
   ["no-store passport API", passportApi.includes('export const dynamic = "force-dynamic"') && passportApi.includes("NO_STORE_HEADERS")],
   ["automatic progress UI", ui.includes("nextCheck") && ui.includes("progressTrack") && ui.includes("refresh")],
-  ["compact skill card UI", ui.includes("nextCheck") && ui.includes("🔼{skill.effectiveLevel}") && ui.includes("nextCheck.currentValue") && ui.includes("nextCheck.threshold") && !ui.includes("currentCheck")],
+  ["compact skill card UI", ui.includes("nextCheck") && ui.includes("🔼{skill.effectiveLevel}") && ui.includes("nextCheck.currentValue") && ui.includes("nextCheck.threshold") && ui.includes("nextCheck.requirements") && !ui.includes("currentCheck")],
   ["automatic logic labels", skillsI18n.includes("referralCount") && skillsI18n.includes("publicPostCount")],
   ["review is absent from current contract", reviewArtifacts.every((artifact) => !migration.includes(artifact) && !passportApi.includes(artifact) && !ui.includes(artifact) && !skillsTypes.includes(artifact) && !skillsI18n.includes(artifact))],
   ["review routes removed", !existsSync(resolve(root, "app/api/skills/submissions/route.ts")) && !existsSync(resolve(root, "app/api/skills/reviews/route.ts"))]

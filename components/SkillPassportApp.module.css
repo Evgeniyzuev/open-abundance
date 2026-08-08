@@ -18,9 +18,12 @@
 .titleLine { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .titleLine strong { font-size: .93rem; }
 .levelPill { border-radius: 999px; padding: 2px 6px; background: var(--accent-soft); color: var(--blue); font-size: .72rem; font-weight: 900; }
-.progressRow { display: flex; align-items: center; gap: 8px; min-height: 16px; }
-.progressRow > strong { min-width: 2.5em; color: var(--text); font-size: .76rem; line-height: 1; white-space: nowrap; }
-.progressTrack { flex: 1; height: 6px; overflow: hidden; border-radius: 999px; background: var(--surface-muted); }
+.progressRow { display: grid; gap: 5px; min-height: 16px; }
+.progressMeta { display: flex; align-items: flex-start; gap: 8px; }
+.progressMeta > strong { flex: 0 0 auto; min-width: 2.5em; color: var(--text); font-size: .76rem; line-height: 1.25; white-space: nowrap; }
+.progressMeta > span { min-width: 0; color: var(--muted); font-size: .72rem; line-height: 1.3; }
+
+.progressTrack { height: 6px; overflow: hidden; border-radius: 999px; background: var(--surface-muted); }
 .progressTrack span { display: block; height: 100%; border-radius: inherit; background: var(--accent-fill); transition: width .25s ease; }
 .success, .error, .muted { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .78rem; line-height: 1.35; }
 .success { color: var(--green); }

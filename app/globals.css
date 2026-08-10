@@ -879,9 +879,10 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .owner-profile-summary { margin-top: 0; }
 .owner-profile-summary p { text-align: left; white-space: pre-wrap; }
 .referral-box-compact { grid-template-columns: minmax(0, 1fr) auto; align-items: center; justify-items: stretch; text-align: left; }
-.referral-box-compact > div { min-width: 0; display: grid; gap: 3px; }
-.referral-box-compact > div > span { text-transform: none; }
+.referral-box-compact > .referral-box-copy { min-width: 0; display: grid; gap: 3px; }
+.referral-box-compact > .referral-box-copy > span { text-transform: none; }
 .referral-box-compact small { color: var(--muted); font-size: 0.75rem; }
+.referral-compact-actions { display: flex; align-items: center; gap: 8px; }
 .profile-action-modal { position: relative; max-height: min(88dvh, 760px); overflow: auto; padding: 18px; text-align: left; }
 .profile-action-modal .modal-header { padding: 2px 30px 4px; }
 .profile-action-modal .modal-header > span { color: var(--muted); font-size: 0.6875rem; font-weight: 850; text-align: center; text-transform: uppercase; }

@@ -1746,8 +1746,20 @@ export default function SocialApp({
             ) : null}
           </section>
           <div className="referral-box referral-box-compact">
-            <div><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
-            <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
+            <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
+            <div className="referral-compact-actions">
+              <button
+                className="secondary-button referral-icon-button"
+                type="button"
+                disabled={!referralLink}
+                aria-label={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
+                title={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
+                onClick={copyReferralLink}
+              >
+                {copied ? <Check size={19} /> : <Copy size={19} />}
+              </button>
+              <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
+            </div>
           </div>
         </section>
       ) : null}

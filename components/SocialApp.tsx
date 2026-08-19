@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import FeedPostGallery from "@/components/FeedPostGallery";
 import FeedPostInteractions from "@/components/FeedPostInteractions";
+import LegalDisclosure from "@/components/LegalDisclosure";
 import ManualPostComposer from "@/components/ManualPostComposer";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import CurrencyDisplayHelp from "@/components/CurrencyDisplayHelp";
@@ -1746,9 +1747,28 @@ export default function SocialApp({
             ) : null}
           </section>
           <div className="referral-box referral-box-compact">
-            <div><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
-            <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
+            <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
+            <div className="referral-compact-actions">
+              <button
+                className="secondary-button referral-icon-button"
+                type="button"
+                disabled={!referralLink}
+                aria-label={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
+                title={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
+                onClick={copyReferralLink}
+              >
+                {copied ? <Check size={19} /> : <Copy size={19} />}
+              </button>
+              <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
+            </div>
           </div>
+          <LegalDisclosure
+            contact={t("legal.contact")}
+            locale={locale}
+            privacy={t("legal.privacy")}
+            summary={t("legal.summary")}
+            terms={t("legal.terms")}
+          />
         </section>
       ) : null}
 

@@ -63,6 +63,13 @@ type OnboardingContent = {
     verifyEmailCode: OnboardingLocalizedText;
     viewStories: OnboardingLocalizedText;
   };
+  legal: {
+    summary: OnboardingLocalizedText;
+    privacy: OnboardingLocalizedText;
+    terms: OnboardingLocalizedText;
+    contact: OnboardingLocalizedText;
+    acknowledgement: OnboardingLocalizedText;
+  };
   errors: {
     auth: OnboardingLocalizedText;
     emailInvalid: OnboardingLocalizedText;
@@ -298,6 +305,43 @@ export const onboardingContent: OnboardingContent = {
       hi: "कोड सत्यापित करें"
     },
     viewStories: { ru: "Смотреть истории", en: "View stories", zh: "查看故事", es: "Ver historias", hi: "कहानियां देखें" }
+  },
+  legal: {
+    summary: {
+      ru: "Условия / Terms",
+      en: "Terms",
+      zh: "条款 / Terms",
+      es: "Términos / Terms",
+      hi: "शर्तें / Terms"
+    },
+    privacy: {
+      ru: "Конфиденциальность",
+      en: "Privacy",
+      zh: "隐私",
+      es: "Privacidad",
+      hi: "गोपनीयता"
+    },
+    terms: {
+      ru: "Условия",
+      en: "Terms of Use",
+      zh: "使用条款",
+      es: "Términos de uso",
+      hi: "उपयोग की शर्तें"
+    },
+    contact: {
+      ru: "Связаться",
+      en: "Contact",
+      zh: "联系",
+      es: "Contacto",
+      hi: "संपर्क"
+    },
+    acknowledgement: {
+      ru: "Продолжая, вы принимаете Условия и подтверждаете ознакомление с Политикой конфиденциальности.",
+      en: "By continuing, you accept the Terms and acknowledge the Privacy Policy.",
+      zh: "继续即表示您接受使用条款并确认已阅读隐私政策。",
+      es: "Al continuar, aceptas los Términos y confirmas que has leído la Política de privacidad.",
+      hi: "जारी रखकर, आप शर्तें स्वीकार करते हैं और गोपनीयता नीति पढ़ने की पुष्टि करते हैं।"
+    }
   },
   errors: {
     auth: {

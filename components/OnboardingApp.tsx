@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Mail, Sparkles } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
+import LegalDisclosure from "@/components/LegalDisclosure";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import {
   consumePostAuthReward,
@@ -416,6 +417,14 @@ function OnboardingApp({
                 {onboardingText(onboardingContent.actions.signInEmail, locale)}
               </button>
               {actionError ? <p className="onboarding-error" role="alert">{actionError}</p> : null}
+              <LegalDisclosure
+                acknowledgement={onboardingText(onboardingContent.legal.acknowledgement, locale)}
+                contact={onboardingText(onboardingContent.legal.contact, locale)}
+                locale={locale === "ru" ? "ru" : "en"}
+                privacy={onboardingText(onboardingContent.legal.privacy, locale)}
+                summary={onboardingText(onboardingContent.legal.summary, locale)}
+                terms={onboardingText(onboardingContent.legal.terms, locale)}
+              />
             </div>
           </section>
         ) : null}
@@ -503,6 +512,14 @@ function OnboardingApp({
                 </div>
               ) : null}
               {actionError ? <p className="onboarding-error" role="alert">{actionError}</p> : null}
+              <LegalDisclosure
+                acknowledgement={onboardingText(onboardingContent.legal.acknowledgement, locale)}
+                contact={onboardingText(onboardingContent.legal.contact, locale)}
+                locale={locale === "ru" ? "ru" : "en"}
+                privacy={onboardingText(onboardingContent.legal.privacy, locale)}
+                summary={onboardingText(onboardingContent.legal.summary, locale)}
+                terms={onboardingText(onboardingContent.legal.terms, locale)}
+              />
             </div>
           </section>
         ) : null}

@@ -92,7 +92,10 @@ function SkillCard({ skill }: { skill: PassportSkill }) {
 
       {nextCheck ? (
         <div className={styles.progressRow} aria-label={String(nextCheck.currentValue) + "/" + nextCheck.threshold}>
-          <strong>{nextCheck.currentValue}/{nextCheck.threshold}</strong>
+          <div className={styles.progressMeta}>
+            <strong>{nextCheck.currentValue}/{nextCheck.threshold}</strong>
+            <span>{nextCheck.requirements}</span>
+          </div>
           <div className={styles.progressTrack}><span style={{ width: String(progress) + "%" }} /></div>
         </div>
       ) : null}

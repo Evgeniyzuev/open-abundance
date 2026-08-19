@@ -71,6 +71,20 @@
     small, .muted { color: var(--muted); }
     code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
     .app { width: min(1500px, 100%); margin: 0 auto; padding: 24px clamp(14px, 3vw, 34px) 50px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .tab { min-height: 40px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; font-weight: 600; }
+    .tab:hover { border-color: var(--primary); }
+    .tab.active { border-color: var(--primary); background: var(--primary); color: var(--surface); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .analysis-body { display: grid; gap: 16px; }
+    .analysis-body h2 { margin-top: 4px; }
+    .analysis-body h3 { margin: 14px 0 8px; }
+    .analysis-body p, .analysis-body li { line-height: 1.55; }
+    .analysis-body ul { margin: 6px 0 10px; padding-left: 20px; }
+    .analysis-body .panel { padding: 16px 18px; }
+    .analysis-note { border-left: 4px solid var(--primary); padding: 11px 14px; background: var(--primary-soft); line-height: 1.5; }
+    .analysis-warn { border-left: 4px solid var(--warning); padding: 11px 14px; background: color-mix(in srgb, var(--warning) 8%, var(--surface)); line-height: 1.5; }
     .hero { display: grid; gap: 16px; margin-bottom: 20px; }
     .hero-line { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 14px; }
     .hero-copy { max-width: 760px; }
@@ -140,6 +154,23 @@
     th:first-child, td:first-child { text-align: left; }
     th { color: var(--muted); font-weight: 600; }
     td { font-variant-numeric: tabular-nums; }
+    #period-table { table-layout: fixed; }
+    #period-table th, #period-table td { max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
+    #period-table th:first-child, #period-table td:first-child { max-width: 78px; }
+    .period-legend { margin-top: 10px; width: 100%; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+    #period-table tbody td.col-shade-0 { background: color-mix(in srgb, var(--series-1) 6%, transparent); }
+    #period-table tbody td.col-shade-1 { background: color-mix(in srgb, var(--series-2) 6%, transparent); }
+    #period-table tbody td.col-shade-2 { background: color-mix(in srgb, var(--series-3) 6%, transparent); }
+    #period-table tbody td.col-shade-3 { background: color-mix(in srgb, var(--series-4) 6%, transparent); }
+    #period-table tbody td.col-shade-4 { background: color-mix(in srgb, var(--series-5) 6%, transparent); }
+    #period-table tbody td.col-shade-5 { background: color-mix(in srgb, var(--series-6) 6%, transparent); }
+    #period-table tbody td.col-shade-0:nth-child(3n) { background: color-mix(in srgb, var(--series-1) 6%, transparent); }
+    #period-table tbody td.col-shade-1:nth-child(3n+1) { background: color-mix(in srgb, var(--series-2) 6%, transparent); }
+    #period-table tbody td.col-shade-2:nth-child(3n+2) { background: color-mix(in srgb, var(--series-3) 6%, transparent); }
+    .legend-dot-colored { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--dot); margin-right: 4px; }
+    #period-table tbody tr:nth-child(even) td.col-shade-0 { background: color-mix(in srgb, var(--series-1) 7%, transparent); }
+    #period-table tbody tr:nth-child(even) td.col-shade-1 { background: color-mix(in srgb, var(--series-2) 7%, transparent); }
+    #period-table tbody tr:nth-child(even) td.col-shade-2 { background: color-mix(in srgb, var(--series-3) 7%, transparent); }
     .cohort-summary { margin-top: 14px; }
     .optimizer-grid { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; }
     .optimizer-controls { display: grid; gap: 12px; }
@@ -217,6 +248,13 @@
       </div>
     </header>
 
+    <nav class="tabs" aria-label="Разделы">
+      <button type="button" class="tab active" data-tab="model">Модель</button>
+      <button type="button" class="tab" data-tab="analysis">Анализ и оптимизация</button>
+      <button type="button" class="tab" data-tab="marketplace">Marketplace</button>
+    </nav>
+
+    <section class="tab-panel active" id="tab-model">
     <div class="layout">
       <aside class="sidebar" aria-label="Параметры модели">
         <details class="panel" open>
@@ -230,7 +268,7 @@
         <details class="panel" open>
           <summary>Ликвидность и расходы</summary>
           <div class="details-body">
-            <p class="section-note">Один знаковый поток задаёт среднюю динамику: плюс пополняет Treasury и Wallet 1:1, минус создаёт запрос на вывод. Постоянные внутренние услуги и комиссии сжигают Wallet, но сами по себе не уменьшают Treasury.</p>
+            <p class="section-note">Один знаковый поток задаёт среднюю динамику: плюс пополняет Treasury и Wallet 1:1, минус создаёт запрос на вывод. Инвестируемая часть Treasury ежедневно получает заданную сценарную доходность. Внутренние услуги сжигают Wallet и начисляют заданную долю Core; Wallet наследуется целиком без изменения совокупного Wallet. Неактивность переводит Core в отдельную категорию.</p>
             <div class="field-grid" id="liquidity-fields"></div>
             <p class="section-note" id="liquidity-derived"></p>
           </div>
@@ -239,7 +277,7 @@
         <details class="panel" open>
           <summary>Core и вознаграждения</summary>
           <div class="details-body">
-            <p class="section-note">Ставка и лидерский бонус соответствуют текущей модели. Реферальная награда и комиссии Wallet → Core — экспериментальные, по умолчанию нулевые.</p>
+            <p class="section-note">Core нельзя передать, уменьшить, наследовать или конвертировать обратно в Wallet. Доход от Core начисляется ежедневно без исключений. При неактивности Core только переводится в отдельную категорию — совокупный Total Core не меняется — и получает 100% reinvest; Wallet передаётся наследнику. Реферальная награда и комиссии Wallet → Core — экспериментальные, по умолчанию нулевые.</p>
             <div class="field-grid" id="reward-fields"></div>
           </div>
         </details>
@@ -288,6 +326,7 @@
             <button type="button" id="export-csv">Экспорт CSV</button>
           </div>
           <div class="table-wrap"><table id="period-table"></table></div>
+          <div class="period-legend" id="period-legend"></div>
           <div class="cohort-summary" id="cohort-summary"></div>
         </section>
 
@@ -314,6 +353,90 @@
         </section>
       </section>
     </div>
+    </section>
+
+    <section class="tab-panel" id="tab-analysis">
+      <div class="analysis-body">
+        <div class="panel">
+          <h2>Анализ модели и экономики Open Abundance</h2>
+          <p class="analysis-note">Это аналитическая вкладка: базовые принципы, механики, закономерности роста и открытые вопросы. Она не влияет на расчёт модели.</p>
+        </div>
+
+        <div class="panel">
+          <h3>1. Базовые принципы: неубывающий Core и ежедневный доход</h3>
+          <p>Каждый день Core генерирует доход <code>gross = core × dailyRatePct/100</code> (0.0633%/день ≈ 26% годовых эффективно). Скорость Core не убывает никогда: часть идёт в reinvest (сложный процент), остальное — в Wallet как выплата. Неактивный Core получает принудительно 100% reinvest и не создаёт Wallet-выплат. Total Core никогда не уменьшается — при неактивности он лишь переводится в отдельную категорию Inactive Core.</p>
+          <p>Это система «обязательств с плановым резервом»: Core — внутренняя величина-притязание, платёжеспособность обеспечивается покрытием <code>Treasury / Wallet ≥ Норма резервирования</code>. Модель учитывает будущие выплаты существующего Core (<code>forwardWalletPayout</code>) в «покрытии с будущими выплатами» и в <code>safeCoreBudget</code>.</p>
+        </div>
+
+        <div class="panel">
+          <h3>2. Механики: резерв → челленджи → рост Treasury + Core</h3>
+          <ul>
+            <li><strong>Свободный резерв:</strong> <code>F = Treasury − Wallet × Норма</code>.</li>
+            <li><strong>Награды за челленджи/мес:</strong> <code>challengeRewardPct × F</code> — начисляются Core участникам.</li>
+            <li><strong>Рост Treasury от челленджей:</strong> <code>challengeRewardPct × F × challengeTreasuryRevPct</code> — часть выпущенного Core тут же получает реальное обеспечение.</li>
+            <li><strong>Сжигание Wallet</strong> (постоянное, marketplace-комиссии, Wallet → Core) снижает обязательства и улучшает покрытие.</li>
+            <li><strong>Неактивность</strong> переводит Core в Inactive с 100% reinvest — автоматический деливеридж: Core перестаёт генерировать Wallet-обязательства.</li>
+          </ul>
+          <p class="analysis-note"><strong>Круг устойчивости:</strong> F растёт, когда Treasury растёт быстрее Wallet: конверсия челленджей в Treasury, инвестиционная доходность, финансирование без обязательств. Wallet сдерживается сжиганием и высоким reinvest.</p>
+        </div>
+
+        <div class="panel">
+          <h3>3. Закономерности для роста</h3>
+          <ul>
+            <li><strong>Оптимум наград за челленджи:</strong> модель даёт ограничитель <code>safeCoreBudget = (T / norm − W − forward) / recipientFactor</code>. Поскольку челленджи приносят Treasury <code>k×F</code>, выдача <code>c×F</code> при k>0 не только не вредит, но увеличивает F на следующий месяц — ограниченная положительная петля <code>F' = F(1 + c·k) − расходW</code>. Практический оптимум — максимизировать c при k, держа <code>rewardBudgetExcess</code> около нуля.</li>
+            <li><strong>Совокупный reinvest:</strong> фактор будущей выплаты <code>factor = d·(1−r)·((1+d·r)^n − 1)/(d·r)</code>. При r=0 растёт линейно, при r→1 → 0. Высокий reinvest — главный инструмент, чтобы Core рос, а обязательства не взрывались.</li>
+            <li><strong>Сжигание Wallet</strong> математически эквивалентно повышению нормы покрытия: снижает W без изменения T.</li>
+            <li><strong>Рост Treasury распадается на 3 источника</strong> (уже разделены в модели): от челленджей, от пополнений Wallet/финансирования, от инвестиций.</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h3>4. Вопросы и что не учтено</h3>
+          <ul>
+            <li><strong>Операционные расходы системы из Treasury.</strong> Сейчас всё сжигание — Wallet. Реальные операционные расходы (команда, инфраструктура, юристы) обычно идут из Treasury. Без этого модель переоценивает здоровье. Вопрос: какая доля операционных расходов идёт из Treasury, и как она снижается по мере роста?</li>
+            <li><strong>Доля расходов пользователей, выводимая из Wallet → Treasury.</strong> Если пользователи покупают за Wallet реальные активы (недвижимость и т.п.), это вывод из Treasury 1:1. Идея: эта доля должна снижаться по мере того, как система делает внешнеторговый баланс профицитным — мы не только покупаем снаружи, но и продаём, пополняя Treasury.</li>
+            <li><strong>Прирост пользователей не привязан к челленджам.</strong> Сейчас growthPct задаётся вручную. Правильнее: <code>newUsers = подтверждённые челленджи × конверсия привлечения % + органический рост</code>.</li>
+            <li><strong>Двойственность резерва:</strong> база челленджей <code>F = T − W×norm</code> не вычитает forward, а safeCoreBudget вычитает. Стоило бы сделать базу <code>F = T − (W + forward)×norm</code>.</li>
+            <li><strong>Экспоненциальный компоундинг на 360 месяцев</strong> может упираться в MAX_VALUE — нужен сигнал о «взрывном росте».</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h3>5. Резюме контура для добавления</h3>
+          <p class="analysis-note">Челленджи → (i) Core-награды, (ii) конверсия в Treasury, (iii) привлечение новых пользователей по конверсии → рост Wallet-потока и сжигания → рост свободного резерва → больше челленджей.</p>
+          <p class="analysis-warn">Два обязательных ограничителя устойчивости: реальные активы, покупаемые из Treasury, и операционные расходы из Treasury. Без них модель оптимистична.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-marketplace">
+      <div class="analysis-body">
+        <div class="panel">
+          <h2>Marketplace — отдельный оборотный контур</h2>
+          <p>Marketplace не связан с ростом Core, Wallet, Treasury и обеспечения — это чисто внутренняя экономика. Покупки и продажи перераспределяют Wallet между участниками; на совокупное обеспечение влияют только сожжённые комиссии (они уже включены в сжигание Wallet в основной модели).</p>
+        </div>
+        <div class="panel">
+          <h3>Ключевые параметры</h3>
+          <ul>
+            <li><strong>Средний чек</strong> (averageOrder) — размер сделки.</li>
+            <li><strong>Market match</strong> (marketMatchPct) — доля спроса, совпавшая с предложением.</li>
+            <li><strong>Завершение сделок</strong> (marketCompletionPct) — доля завершённых escrow-сделок.</li>
+            <li><strong>Возврат незавершённых escrow</strong> (marketRefundPct) — доля возврата.</li>
+            <li><strong>Комиссия Marketplace</strong> (marketplaceFeePct) и <strong>сгорающая доля</strong> (marketplaceFeeBurnPct) — комиссии сжигают Wallet.</li>
+            <li><strong>Скорость Wallet</strong> (walletVelocityCap) — максимальная скорость оборота Wallet за месяц.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Показатели</h3>
+          <ul>
+            <li>GMV — стоимость завершённых сделок (не доход и не внешняя ликвидность).</li>
+            <li>Спрос и предложение по когортам (покупатели × покупок × чек; продавцы × продаж × чек).</li>
+            <li>Возвраты, комиссии, сожжённые комиссии.</li>
+            <li>Изменение общего Wallet = −сожжённые комиссии (fee-free торговля не меняет Wallet).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
 
     <footer class="footer">
       <span id="self-test-status">Самопроверка модели…</span>
@@ -373,6 +496,16 @@
       return new Date(Date.UTC(year, month, 0)).getUTCDate();
     }
 
+    function daysInYear(monthKey) {
+      var year = Number(String(monthKey).split("-")[0]);
+      return new Date(Date.UTC(year, 1, 29)).getUTCDate() === 29 ? 366 : 365;
+    }
+
+    function treasuryDailyRate(annualReturnPct, monthKey) {
+      var annual = clamp(annualReturnPct, -99.9, 1000) / 100;
+      return Math.pow(1 + annual, 1 / daysInYear(monthKey)) - 1;
+    }
+
     function addMonths(monthKey, amount) {
       var parts = String(monthKey).split("-");
       var date = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1 + amount, 1));
@@ -390,17 +523,23 @@
         dailyRatePct: 0.0633,
         initialTreasury: 20000,
         initialWithdrawalQueue: 0,
+        treasuryInvestedPct: 50,
+        treasuryAnnualReturnPct: 5,
         externalWalletFlowPerUserDay: 0.26,
         walletFlowGrowthPct: 0,
         permanentWalletBurnDailyPct: 0.08,
+        participationSpendCorePct: 10,
+        annualInactivityPct: 1.2,
         nonLiabilityFundingMonthly: 0,
         fundingGrowthPct: 0,
+        operatingCostsMonthly: 0,
+        operatingCostsGrowthPct: 0,
+        realAssetSpendSharePct: 0,
         withdrawalServiceFeePct: 1,
         withdrawalNetworkCostPct: 0,
-        newUsersMonthly: 0,
-        newUsersGrowthPct: 0,
-        challengeVerificationPct: 80,
-        challengeReward: 1,
+        challengeRewardPct: 0,
+        challengeTreasuryRevPct: 0,
+        challengeAcquisitionPct: 0,
         referralActivationPct: 50,
         referralReward: 0,
         otherCoreRewardsMonthly: 0,
@@ -423,7 +562,6 @@
             wallet: 10000,
             core: 10000,
             reinvestPct: 50,
-            challengesPerUser: 0.5,
             walletToCorePct: 5,
             buyerPct: 25,
             ordersPerBuyer: 0.5,
@@ -439,27 +577,33 @@
     var FIELD_GROUPS = {
       basic: [
         ["startMonth", "Начальный месяц", "month", 0, 0, 1],
-        ["horizonMonths", "Горизонт, месяцев", "number", 1, 120, 1],
+        ["horizonMonths", "Горизонт, месяцев", "number", 1, 360, 1],
         ["initialTreasury", "Treasury на старте", "number", 0, MAX_VALUE, 100],
         ["initialWithdrawalQueue", "Очередь выводов на старте", "number", 0, MAX_VALUE, 100],
         ["reserveNormPct", "Норма резервирования Wallet, %", "number", 0, 300, 1],
-        ["forwardMonths", "Горизонт будущих выплат, мес.", "number", 1, 120, 1]
+        ["forwardMonths", "Горизонт будущих выплат, мес.", "number", 1, 360, 1]
       ],
       liquidity: [
+        ["treasuryInvestedPct", "Инвестируется Treasury, %", "number", 0, 100, 1],
+        ["treasuryAnnualReturnPct", "Доходность инвестированной Treasury, % годовых", "number", -99.9, 1000, 0.1],
         ["externalWalletFlowPerUserDay", "Чистый внешний поток Wallet, $ / чел. / день", "number", -MAX_VALUE, MAX_VALUE, 0.01],
         ["walletFlowGrowthPct", "Изменение модуля потока в месяц, %", "number", -100, 1000, 0.1],
         ["permanentWalletBurnDailyPct", "Постоянно сгорает Wallet в день, %", "number", 0, 100, 0.001],
+        ["participationSpendCorePct", "Core за внутренние траты, %", "number", 0, 100, 0.1],
+        ["annualInactivityPct", "Переход в неактивные, % / год", "number", 0, 100, 0.1],
         ["nonLiabilityFundingMonthly", "Финансирование без Wallet-обязательств", "number", 0, MAX_VALUE, 100],
         ["fundingGrowthPct", "Рост финансирования в месяц, %", "number", -100, 1000, 0.1],
+        ["operatingCostsMonthly", "Операционные расходы системы из Treasury / мес.", "number", 0, MAX_VALUE, 100],
+        ["operatingCostsGrowthPct", "Рост операционных расходов в месяц, %", "number", -100, 1000, 0.1],
+        ["realAssetSpendSharePct", "Доля расходов пользователей, обеспеченная Treasury, %", "number", 0, 100, 0.1],
         ["withdrawalServiceFeePct", "Сервисная комиссия вывода, %", "number", 0, 100, 0.1],
-        ["withdrawalNetworkCostPct", "Внешние сетевые расходы от payout, %", "number", 0, 100, 0.1],
-        ["newUsersMonthly", "Новые участники в 1-й месяц", "number", 0, MAX_VALUE, 1],
-        ["newUsersGrowthPct", "Рост новых участников в месяц, %", "number", -100, 1000, 0.1]
+        ["withdrawalNetworkCostPct", "Внешние сетевые расходы от payout, %", "number", 0, 100, 0.1]
       ],
       rewards: [
         ["dailyRatePct", "Суточная ставка Core, %", "number", 0, 10, 0.0001],
-        ["challengeVerificationPct", "Подтверждено челленджей, %", "number", 0, 100, 1],
-        ["challengeReward", "Награда за 1 подтверждённый челлендж, Core", "number", 0, MAX_VALUE, 0.1],
+        ["challengeRewardPct", "Награда от челленджей в месяц, % от свободного резерва", "number", 0, 100, 0.1],
+        ["challengeTreasuryRevPct", "Конверсия наград за челленджи в Treasury, %", "number", 0, 100, 0.1],
+        ["challengeAcquisitionPct", "Конверсия наград за челленджи в привлечение, %", "number", 0, 100, 0.1],
         ["referralActivationPct", "Активация новых рефералов, %", "number", 0, 100, 1],
         ["referralReward", "Реферальная награда, Core", "number", 0, MAX_VALUE, 0.1],
         ["otherCoreRewardsMonthly", "Другие Core-награды в месяц", "number", 0, MAX_VALUE, 10],
@@ -485,13 +629,12 @@
       ["wallet", "Wallet", "number", 0, MAX_VALUE, 100],
       ["core", "Core", "number", 0, MAX_VALUE, 100],
       ["reinvestPct", "Core reinvest, %", "number", 0, 100, 1],
-      ["challengesPerUser", "Челленджей / человека / месяц", "number", 0, 1000, 0.1],
       ["walletToCorePct", "Wallet → Core / мес., %", "number", 0, 100, 0.1],
       ["buyerPct", "Покупатели, %", "number", 0, 100, 1],
       ["ordersPerBuyer", "Покупок / покупателя", "number", 0, 1000, 0.1],
       ["sellerPct", "Продавцы, %", "number", 0, 100, 1],
       ["salesCapacity", "Продаж / продавца", "number", 0, 1000, 0.1],
-      ["growthPct", "Органический рост / мес., %", "number", -100, 1000, 0.1],
+      ["growthPct", "Прирост участников / мес., %", "number", -100, 1000, 0.1],
       ["churnPct", "Отток / мес., %", "number", 0, 100, 0.1]
     ];
 
@@ -506,6 +649,10 @@
       Object.keys(base).forEach(function (key) {
         if (key !== "cohorts" && source[key] !== undefined) base[key] = source[key];
       });
+      if (Object.keys(source).length && source.treasuryInvestedPct === undefined && source.treasuryAnnualReturnPct === undefined) {
+        base.treasuryInvestedPct = 0;
+        base.treasuryAnnualReturnPct = 0;
+      }
       if (source.externalWalletFlowPerUserDay === undefined
         && (source.userDepositsMonthly !== undefined || source.withdrawalRatePct !== undefined)) {
         var legacyCohorts = Array.isArray(source.cohorts) ? source.cohorts : base.cohorts;
@@ -527,11 +674,11 @@
       base.schemaVersion = SCHEMA_VERSION;
       base.name = String(base.name || "Сценарий").slice(0, 80);
       base.startMonth = /^\d{4}-\d{2}$/.test(String(base.startMonth)) ? String(base.startMonth) : "2026-08";
-      base.horizonMonths = Math.round(clamp(base.horizonMonths, 1, 120));
+      base.horizonMonths = Math.round(clamp(base.horizonMonths, 1, 360));
       base.initialTreasury = clamp(base.initialTreasury, 0, MAX_VALUE);
       base.initialWithdrawalQueue = clamp(base.initialWithdrawalQueue, 0, MAX_VALUE);
       base.reserveNormPct = clamp(base.reserveNormPct, 0, 300);
-      base.forwardMonths = Math.round(clamp(base.forwardMonths, 1, 120));
+      base.forwardMonths = Math.round(clamp(base.forwardMonths, 1, 360));
       Object.keys(FIELD_LOOKUP).forEach(function (key) {
         if (["startMonth", "horizonMonths", "initialTreasury", "initialWithdrawalQueue", "reserveNormPct", "forwardMonths"].indexOf(key) >= 0) return;
         var def = FIELD_LOOKUP[key];
@@ -563,7 +710,7 @@
       if (!input || typeof input !== "object") return { valid: false, errors: ["Конфигурация должна быть объектом."], warnings: [] };
       if (number(input.schemaVersion, SCHEMA_VERSION) !== SCHEMA_VERSION) errors.push("Поддерживается только schemaVersion 1.");
       if (!/^\d{4}-\d{2}$/.test(String(input.startMonth || ""))) errors.push("Начальный месяц должен иметь формат YYYY-MM.");
-      if (number(input.horizonMonths, 0) < 1 || number(input.horizonMonths, 0) > 120) errors.push("Горизонт должен быть от 1 до 120 месяцев.");
+      if (number(input.horizonMonths, 0) < 1 || number(input.horizonMonths, 0) > 360) errors.push("Горизонт должен быть от 1 до 360 месяцев.");
       if (!Array.isArray(input.cohorts) || !input.cohorts.length) errors.push("Нужна хотя бы одна когорта.");
       if (Array.isArray(input.cohorts)) {
         var ids = {};
@@ -630,20 +777,36 @@
       return state.platformWallet + state.cohorts.reduce(function (sum, cohort) { return sum + cohort.wallet; }, 0);
     }
 
+    function totalCohortWallet(state) {
+      return state.cohorts.reduce(function (sum, cohort) { return sum + cohort.wallet; }, 0);
+    }
+
     function totalCore(state) {
+      return state.cohorts.reduce(function (sum, cohort) { return sum + cohort.core + cohort.inactiveCore; }, 0);
+    }
+
+    function activeCore(state) {
       return state.cohorts.reduce(function (sum, cohort) { return sum + cohort.core; }, 0);
+    }
+
+    function inactiveCore(state) {
+      return state.cohorts.reduce(function (sum, cohort) { return sum + cohort.inactiveCore; }, 0);
     }
 
     function aggregateReinvestShare(state) {
       var core = totalCore(state);
       if (core <= 0) return 0;
       return state.cohorts.reduce(function (sum, cohort) {
-        return sum + cohort.core * pct(cohort.reinvestPct);
+        return sum + cohort.core * pct(cohort.reinvestPct) + cohort.inactiveCore;
       }, 0) / core;
     }
 
     function totalUsers(state) {
       return state.cohorts.reduce(function (sum, cohort) { return sum + cohort.users; }, 0);
+    }
+
+    function totalInactiveUsers(state) {
+      return state.cohorts.reduce(function (sum, cohort) { return sum + cohort.inactiveUsers; }, 0);
     }
 
     function allocateByUsers(state, amount, field) {
@@ -669,6 +832,22 @@
       var platformDebit = actual - paidFromCohorts;
       if (platformDebit > 0) state.platformWallet = Math.max(0, state.platformWallet - platformDebit);
       return actual;
+    }
+
+    function burnParticipationWallet(state, amount, coreShare) {
+      var requested = Math.max(0, amount);
+      var available = totalCohortWallet(state);
+      if (requested <= 0 || available <= 0) return { spent: 0, coreCredit: 0 };
+      var spent = Math.min(requested, available);
+      var coreCredit = 0;
+      state.cohorts.forEach(function (cohort) {
+        var debit = spent * (available > 0 ? cohort.wallet / available : 0);
+        cohort.wallet = Math.max(0, cohort.wallet - debit);
+        var credit = debit * pct(coreShare);
+        cohort.core = capped(cohort.core + credit, state.runtimeWarnings, "Core превысил числовой предел.");
+        coreCredit += credit;
+      });
+      return { spent: spent, coreCredit: coreCredit };
     }
 
     function leaderCascadeFactor(config) {
@@ -776,22 +955,32 @@
         externalDeposits: 0,
         externalWalletNet: 0,
         nonLiabilityFunding: 0,
+        treasuryInvestmentReturn: 0,
         withdrawalRequested: 0,
         withdrawalPaid: 0,
         withdrawalFees: 0,
         withdrawalNetworkCosts: 0,
         permanentWalletBurn: 0,
+        participationSpendCore: 0,
+        walletInherited: 0,
+        newInactiveUsers: 0,
+        newInactiveCore: 0,
         participantDays: 0,
         walletToCore: 0,
         walletToCoreFees: 0,
         coreReinvest: 0,
         walletPayoutFromCore: 0,
         coreAccrualGross: 0,
+        activeCoreIncome: 0,
+        inactiveCoreIncome: 0,
+        activeWalletIncome: 0,
         challengeRewards: 0,
         referralRewards: 0,
         leaderRewards: 0,
         otherCoreRewards: 0,
-        verifiedResults: 0,
+        challengeTreasuryGrowth: 0,
+        operatingCosts: 0,
+        realAssetDrain: 0,
         marketplaceGmv: 0,
         marketplaceSales: 0,
         marketplacePurchases: 0,
@@ -818,8 +1007,9 @@
             users: cohort.users,
             wallet: cohort.wallet,
             core: cohort.core,
+            inactiveUsers: 0,
+            inactiveCore: 0,
             reinvestPct: cohort.reinvestPct,
-            challengesPerUser: cohort.challengesPerUser,
             walletToCorePct: cohort.walletToCorePct,
             buyerPct: cohort.buyerPct,
             ordersPerBuyer: cohort.ordersPerBuyer,
@@ -843,6 +1033,9 @@
       var totals = emptyFlow();
       var plannedCoreRewards = 0;
       var initialCore = totalCore(state);
+      var initialActiveCore = activeCore(state);
+      var initialInactiveCore = inactiveCore(state);
+      var initialInactiveUsers = totalInactiveUsers(state);
       var initialWallet = totalWallet(state);
       var initialUsers = totalUsers(state);
       var initialReinvestShare = aggregateReinvestShare(state);
@@ -860,16 +1053,24 @@
           cohort.periodSales = 0;
         });
 
-        var newUsers = config.newUsersMonthly * Math.pow(Math.max(0, 1 + config.newUsersGrowthPct / 100), monthIndex);
-        flow.newUsers = newUsers;
         var startingUsers = totalUsers(state);
         var userPaths = {};
         var averageUsersByCohort = {};
+        var monthlyNewUsers = 0;
+        var inactivityRate = 1 - Math.pow(Math.max(0, 1 - pct(config.annualInactivityPct)), days / daysInYear(monthKey));
         state.cohorts.forEach(function (cohort) {
           var startUsers = cohort.users;
           var organicTarget = Math.max(0, startUsers * (1 + cohort.growthPct / 100) * (1 - pct(cohort.churnPct)));
-          var newUserShare = startingUsers > 0 ? startUsers / startingUsers : 1 / state.cohorts.length;
-          var targetUsers = organicTarget + newUsers * newUserShare;
+          monthlyNewUsers += Math.max(0, startUsers * pct(cohort.growthPct));
+          var newlyInactiveUsers = organicTarget * inactivityRate;
+          var targetUsers = Math.max(0, organicTarget - newlyInactiveUsers);
+          var coreToInactive = cohort.core * inactivityRate;
+          cohort.core = Math.max(0, cohort.core - coreToInactive);
+          cohort.inactiveCore += coreToInactive;
+          cohort.inactiveUsers += newlyInactiveUsers;
+          flow.newInactiveUsers += newlyInactiveUsers;
+          flow.newInactiveCore += coreToInactive;
+          flow.walletInherited += cohort.wallet * inactivityRate;
           userPaths[cohort.id] = { start: startUsers, target: targetUsers };
           averageUsersByCohort[cohort.id] = (startUsers + targetUsers) / 2;
         });
@@ -877,8 +1078,21 @@
         var externalFlowPerUserDay = config.externalWalletFlowPerUserDay
           * Math.pow(Math.max(0, 1 + config.walletFlowGrowthPct / 100), monthIndex);
         var monthlyFunding = config.nonLiabilityFundingMonthly * Math.pow(Math.max(0, 1 + config.fundingGrowthPct / 100), monthIndex);
-        var monthlyReferralReward = newUsers * pct(config.referralActivationPct) * config.referralReward;
+        var monthlyOperatingCosts = config.operatingCostsMonthly * Math.pow(Math.max(0, 1 + config.operatingCostsGrowthPct / 100), monthIndex);
+        var dailyTreasuryReturnRate = treasuryDailyRate(config.treasuryAnnualReturnPct, monthKey);
+        var monthlyReferralReward = monthlyNewUsers * pct(config.referralActivationPct) * config.referralReward;
         var monthlyOtherReward = config.otherCoreRewardsMonthly;
+        var forwardNow = forwardIndicators(state, config).forwardWalletPayout;
+        var freeReserve = Math.max(0, state.treasury - (totalWallet(state) + forwardNow) * (config.reserveNormPct / 100));
+        var monthlyChallengeReward = freeReserve * pct(config.challengeRewardPct);
+        var dayChallengeReward = monthlyChallengeReward / days;
+        var dayChallengeTreasuryGrowth = dayChallengeReward * pct(config.challengeTreasuryRevPct);
+        var monthlyAcquiredUsers = monthlyChallengeReward * pct(config.challengeAcquisitionPct);
+        var dayOperatingCosts = monthlyOperatingCosts / days;
+        var dayRealAssetDrain = 0;
+        var dayOperatingDrain = 0;
+        var dayAcquiredUsers = monthlyAcquiredUsers / days;
+        var dayAcquiredUsersAccum = 0;
 
         for (var day = 0; day < days; day += 1) {
           state.cohorts.forEach(function (cohort) {
@@ -917,8 +1131,21 @@
             flow.externalWalletNet -= payout;
           }
 
-          var permanentBurn = debitWalletProportionally(state, totalWallet(state) * pct(config.permanentWalletBurnDailyPct));
-          flow.permanentWalletBurn += permanentBurn;
+          var participation = burnParticipationWallet(state, totalCohortWallet(state) * pct(config.permanentWalletBurnDailyPct), config.participationSpendCorePct);
+          flow.permanentWalletBurn += participation.spent;
+          flow.participationSpendCore += participation.coreCredit;
+
+          dayRealAssetDrain = participation.spent * pct(config.realAssetSpendSharePct);
+          dayOperatingDrain = dayOperatingCosts;
+          state.treasury = Math.max(0, state.treasury - dayOperatingDrain - dayRealAssetDrain);
+          flow.operatingCosts += dayOperatingDrain;
+          flow.realAssetDrain += dayRealAssetDrain;
+          dayAcquiredUsersAccum += dayAcquiredUsers;
+
+          var investedTreasury = Math.max(0, state.treasury) * pct(config.treasuryInvestedPct);
+          var treasuryInvestmentReturn = investedTreasury * dailyTreasuryReturnRate;
+          state.treasury = capped(Math.max(0, state.treasury + treasuryInvestmentReturn), state.runtimeWarnings, "Treasury превысила числовой предел.");
+          flow.treasuryInvestmentReturn += treasuryInvestmentReturn;
 
           var dayWalletToCore = 0;
           var dayWalletToCoreFees = 0;
@@ -935,24 +1162,24 @@
           flow.walletToCore += dayWalletToCore;
           flow.walletToCoreFees += dayWalletToCoreFees;
 
-          var dayChallenges = 0;
-          var dayVerified = 0;
-          state.cohorts.forEach(function (cohort) {
-            var verified = cohort.users * cohort.challengesPerUser / days * pct(config.challengeVerificationPct);
-            var reward = verified * config.challengeReward;
-            cohort.core = capped(cohort.core + reward, state.runtimeWarnings, "Core превысил числовой предел.");
-            dayVerified += verified;
-            dayChallenges += reward;
-          });
+          if (dayChallengeReward > 0) {
+            allocateByUsers(state, dayChallengeReward, "core");
+            flow.challengeRewards += dayChallengeReward;
+          }
+          if (dayChallengeTreasuryGrowth > 0) {
+            state.treasury = capped(state.treasury + dayChallengeTreasuryGrowth, state.runtimeWarnings, "Treasury превысила числовой предел.");
+            flow.challengeTreasuryGrowth += dayChallengeTreasuryGrowth;
+          }
           var dayReferral = monthlyReferralReward / days;
           var dayOther = monthlyOtherReward / days;
           allocateByUsers(state, dayReferral + dayOther, "core");
-          flow.verifiedResults += dayVerified;
-          flow.challengeRewards += dayChallenges;
           flow.referralRewards += dayReferral;
           flow.otherCoreRewards += dayOther;
 
           var dayReinvest = 0;
+          var dayActiveCoreIncome = 0;
+          var dayInactiveCoreIncome = 0;
+          var dayActiveWalletIncome = 0;
           var dayWalletPayout = 0;
           var dayGross = 0;
           state.cohorts.forEach(function (cohort) {
@@ -961,42 +1188,76 @@
             var walletPayout = gross - reinvest;
             cohort.core = capped(cohort.core + reinvest, state.runtimeWarnings, "Core превысил числовой предел.");
             cohort.wallet = capped(cohort.wallet + walletPayout, state.runtimeWarnings, "Wallet превысил числовой предел.");
+            var inactiveGross = cohort.inactiveCore * (config.dailyRatePct / 100);
+            cohort.inactiveCore = capped(cohort.inactiveCore + inactiveGross, state.runtimeWarnings, "Неактивный Core превысил числовой предел.");
             dayGross += gross;
+            dayGross += inactiveGross;
             dayReinvest += reinvest;
             dayWalletPayout += walletPayout;
+            dayActiveCoreIncome += gross;
+            dayInactiveCoreIncome += inactiveGross;
+            dayActiveWalletIncome += walletPayout;
+            dayReinvest += inactiveGross;
           });
           flow.coreAccrualGross += dayGross;
           flow.coreReinvest += dayReinvest;
           flow.walletPayoutFromCore += dayWalletPayout;
+          flow.activeCoreIncome += dayActiveCoreIncome;
+          flow.inactiveCoreIncome += dayInactiveCoreIncome;
+          flow.activeWalletIncome += dayActiveWalletIncome;
 
-          var leaderBase = dayWalletToCore + dayChallenges + dayReferral + dayOther + dayReinvest;
+          var leaderBase = participation.coreCredit + dayWalletToCore + dayChallengeReward + dayReferral + dayOther + (dayReinvest - dayInactiveCoreIncome);
           var leaderReward = leaderBase * leaderCascadeFactor(config);
           allocateByUsers(state, leaderReward, "core");
           flow.leaderRewards += leaderReward;
         }
 
         state.cohorts.forEach(function (cohort) { cohort.users = userPaths[cohort.id].target; });
+        if (monthlyAcquiredUsers > 0) {
+          var acquiredShareBase = totalUsers(state);
+          state.cohorts.forEach(function (cohort) {
+            var share = acquiredShareBase > 0 ? cohort.users / acquiredShareBase : 1 / state.cohorts.length;
+            var acquired = monthlyAcquiredUsers * share;
+            cohort.users += acquired;
+            flow.newUsers += acquired;
+          });
+        }
         processMarketplace(state, config, flow, averageUsersByCohort);
         var indicators = forwardIndicators(state, config);
         var coreNow = totalCore(state);
+        var activeCoreNow = activeCore(state);
+        var inactiveCoreNow = inactiveCore(state);
         var walletNow = totalWallet(state);
         var usersNow = totalUsers(state);
-        var monthlyCoreRewards = flow.challengeRewards + flow.referralRewards + flow.leaderRewards + flow.otherCoreRewards;
+        var inactiveUsersNow = totalInactiveUsers(state);
+        var monthlyCoreRewards = flow.participationSpendCore + flow.challengeRewards + flow.referralRewards + flow.leaderRewards + flow.otherCoreRewards;
         plannedCoreRewards += monthlyCoreRewards;
         Object.keys(totals).forEach(function (key) { totals[key] += flow[key]; });
         minTreasury = Math.min(minTreasury, state.treasury);
         minCurrentCoverage = Math.min(minCurrentCoverage, indicators.currentCoverage);
         minPlanningCoverage = Math.min(minPlanningCoverage, indicators.planningCoverage);
-        var netTreasuryFlow = flow.externalDeposits + flow.nonLiabilityFunding - flow.withdrawalPaid - flow.withdrawalNetworkCosts;
+        var netTreasuryFlow = flow.externalDeposits + flow.nonLiabilityFunding + flow.treasuryInvestmentReturn - flow.withdrawalPaid - flow.withdrawalNetworkCosts - flow.operatingCosts - flow.realAssetDrain;
         var runway = netTreasuryFlow < 0 ? Math.max(0, state.treasury / -netTreasuryFlow) : Infinity;
         periods.push({
           month: monthKey,
           users: usersNow,
+          activeUsers: usersNow,
+          inactiveUsers: inactiveUsersNow,
+          totalUsers: usersNow + inactiveUsersNow,
           averageUsers: flow.participantDays > 0 ? flow.participantDays / days : 0,
           treasury: state.treasury,
+          treasuryFromWalletDeposits: flow.externalDeposits,
           walletLiability: walletNow,
           totalCore: coreNow,
-          corePerUser: usersNow > 0 ? coreNow / usersNow : 0,
+          activeCore: activeCoreNow,
+          activeTotalCore: activeCoreNow,
+          inactiveCore: inactiveCoreNow,
+          activeCoreIncome: flow.activeCoreIncome,
+          activeTotalCoreIncome: flow.activeCoreIncome,
+          inactiveCoreIncome: flow.inactiveCoreIncome,
+          activeWalletIncome: flow.activeWalletIncome,
+          corePerUser: usersNow > 0 ? activeCoreNow / usersNow : 0,
+          totalCorePerParticipant: (usersNow + inactiveUsersNow) > 0 ? coreNow / (usersNow + inactiveUsersNow) : 0,
           aggregateReinvestShare: aggregateReinvestShare(state),
           externalWalletFlowPerUserDay: flow.participantDays > 0 ? flow.externalWalletNet / flow.participantDays : 0,
           permanentWalletBurnPerUserDay: flow.participantDays > 0 ? flow.permanentWalletBurn / flow.participantDays : 0,
@@ -1007,6 +1268,7 @@
           reserveSurplus: indicators.freeReserve,
           forwardWalletPayout: indicators.forwardWalletPayout,
           safeCoreBudget: indicators.safeCoreBudget,
+          challengeRewardPerUser: usersNow > 0 ? flow.challengeRewards / usersNow : 0,
           plannedCoreRewards: monthlyCoreRewards,
           rewardBudgetExcess: Number.isFinite(indicators.safeCoreBudget) ? Math.max(0, monthlyCoreRewards - indicators.safeCoreBudget) : 0,
           runwayMonths: runway,
@@ -1016,8 +1278,10 @@
               id: cohort.id,
               name: cohort.name,
               users: cohort.users,
+              inactiveUsers: cohort.inactiveUsers,
               wallet: cohort.wallet,
               core: cohort.core,
+              inactiveCore: cohort.inactiveCore,
               reinvestPct: cohort.reinvestPct,
               purchases: cohort.periodPurchases,
               sales: cohort.periodSales,
@@ -1048,6 +1312,10 @@
           treasury: config.initialTreasury,
           walletLiability: initialWallet,
           totalCore: initialCore,
+          activeCore: initialActiveCore,
+          activeTotalCore: initialActiveCore,
+          inactiveCore: initialInactiveCore,
+          inactiveUsers: initialInactiveUsers,
           currentCoverage: initialForward.currentCoverage,
           planningCoverage: initialForward.planningCoverage,
           forwardWalletPayout: initialForward.forwardWalletPayout,
@@ -1088,12 +1356,17 @@
 
     function optimizerParameters(config) {
       var definitions = [
+        ["treasuryInvestedPct", "Инвестируется Treasury, %", 0, 100],
+        ["treasuryAnnualReturnPct", "Доходность Treasury, % годовых", -20, 30],
         ["externalWalletFlowPerUserDay", "Чистый поток Wallet, $ / чел. / день", -2, 2],
         ["walletFlowGrowthPct", "Изменение модуля потока, % / мес.", -10, 20],
         ["permanentWalletBurnDailyPct", "Постоянное сжигание Wallet, % / день", 0, 0.5],
+        ["participationSpendCorePct", "Core за внутренние траты, %", 0, 50],
+        ["annualInactivityPct", "Неактивность, % / год", 0, 20],
         ["reserveNormPct", "Норма резервирования, %", 50, 200],
         ["forwardMonths", "Горизонт обязательств, мес.", 3, 36],
-        ["challengeReward", "Награда за подтверждённый челлендж, Core", 0, 10],
+        ["challengeRewardPct", "Награда от челленджей, % от свободного резерва", 0, 50],
+        ["challengeTreasuryRevPct", "Конверсия наград за челленджи в Treasury, %", 0, 100],
         ["referralReward", "Реферальная награда, Core", 0, 10],
         ["leaderBonusPct", "Лидерский бонус, %", 0, 20],
         ["marketplaceFeePct", "Комиссия Marketplace, %", 0, 10],
@@ -1111,7 +1384,6 @@
           ["ordersPerBuyer", "Покупок / покупателя", 0, 10],
           ["sellerPct", "Продавцы", 0, 100],
           ["salesCapacity", "Продаж / продавца", 0, 10],
-          ["challengesPerUser", "Челленджей / человека", 0, 10],
           ["growthPct", "Рост пользователей", -10, 30],
           ["churnPct", "Отток", 0, 30]
         ].forEach(function (item) {
@@ -1248,6 +1520,26 @@
         .replace(/'/g, "&#039;");
     }
 
+    function formatCompactMoney(value) {
+      if (!Number.isFinite(value)) return "∞";
+      var sign = value < 0 ? "−" : "";
+      var abs = Math.abs(value);
+      var units = [
+        { value: 1e12, suffix: "T" },
+        { value: 1e9, suffix: "B" },
+        { value: 1e6, suffix: "M" },
+        { value: 1e3, suffix: "K" }
+      ];
+      for (var i = 0; i < units.length; i += 1) {
+        if (abs >= units[i].value) {
+          var scaled = abs / units[i].value;
+          var digits = scaled >= 100 ? 0 : (scaled >= 10 ? 1 : 2);
+          return sign + "$" + scaled.toFixed(digits).replace(/\.?0+$/, "") + units[i].suffix;
+        }
+      }
+      return sign + "$" + (abs < 0.01 ? abs.toFixed(4) : abs.toFixed(2));
+    }
+
     function formatMoney(value, compact) {
       if (!Number.isFinite(value)) return "∞";
       var absolute = Math.abs(value);
@@ -1332,7 +1624,7 @@
     var activeResult = null;
     var comparisonResults = [];
     var optimizerState = {
-      xParam: "challengeReward",
+      xParam: "challengeRewardPct",
       yParam: "externalWalletFlowPerUserDay",
       objective: "balanced",
       steps: 11,
@@ -1435,9 +1727,16 @@
       var planningClass = final.planningCoverage >= norm ? "status-good" : "status-danger";
       var safeText = Number.isFinite(final.safeCoreBudget) ? formatMoney(final.safeCoreBudget, true) : "не ограничен резервом";
       var metrics = [
-        ["Treasury", formatMoney(final.treasury, true), "Изменение: " + formatMoney(final.treasury - result.initial.treasury, true), final.treasury >= 0 ? "" : "status-danger"],
+        ["Treasury", formatMoney(final.treasury, true), "Рост за месяц: " + formatMoney(final.flow.challengeTreasuryGrowth + final.treasuryFromWalletDeposits + final.flow.treasuryInvestmentReturn, true), final.treasury >= 0 ? "" : "status-danger"],
+        ["Рост Treasury от челленджей", formatMoney(final.flow.challengeTreasuryGrowth, true), "Награды за челленджи за месяц: " + formatMoney(final.flow.challengeRewards, true) + " · конверсия " + formatNumber(result.config.challengeTreasuryRevPct, 1) + "%", ""],
+        ["Рост Treasury от пополнений Wallet", formatMoney(final.treasuryFromWalletDeposits, true), "Чистый внешний поток за месяц: " + formatMoney(final.flow.externalWalletNet, true), ""],
+        ["Рост Treasury от инвестиций", formatMoney(final.flow.treasuryInvestmentReturn, true), "Инвестируется " + formatNumber(result.config.treasuryInvestedPct, 1) + "% · доходность " + formatNumber(result.config.treasuryAnnualReturnPct, 1) + "% годовых", ""],
+        ["Награда от челленджей / чел.", formatMoney(final.challengeRewardPerUser, true), "Награды за челленджи за месяц: " + formatMoney(final.flow.challengeRewards, true) + " · участников: " + formatNumber(final.users, 0), ""],
         ["Wallet liabilities", formatMoney(final.walletLiability, true), "Сожжено за месяц: " + formatMoney(final.flow.permanentWalletBurn + final.flow.withdrawalFees + final.flow.walletToCoreFees + final.flow.marketplaceFeesBurned, true), ""],
-        ["Total Core", formatMoney(final.totalCore, true), formatMoney(final.corePerUser, true) + " на участника", ""],
+        ["Total Core", formatMoney(final.totalCore, true), formatMoney(final.corePerUser, true) + " Active Core на активного участника", ""],
+        ["Active Total Core", formatMoney(final.activeCore, true), "Доход активного Core за месяц: " + formatMoney(final.flow.activeCoreIncome, true), ""],
+        ["Inactive Core", formatMoney(final.inactiveCore, true), formatNumber(final.inactiveUsers, 1) + " неактивных участников; reinvest принудительно 100%", ""],
+        ["Active Total Core income", formatMoney(final.flow.activeCoreIncome, true), "Из них в Wallet: " + formatMoney(final.flow.activeWalletIncome, true), ""],
         ["Совокупный Core reinvest", formatPercent(final.aggregateReinvestShare), "Средневзвешено по Core всех когорт", ""],
         ["Текущее покрытие", formatPercent(final.currentCoverage), "Норма: " + formatNumber(result.config.reserveNormPct, 1) + "%", currentClass],
         ["Покрытие + будущие выплаты", formatPercent(final.planningCoverage), "Wallet + прогноз выплат: " + formatMoney(final.walletLiability + final.forwardWalletPayout, true), planningClass],
@@ -1457,7 +1756,9 @@
       if (!target || !final) return;
       target.textContent = "Последний месяц: фактический чистый поток "
         + formatMoney(final.externalWalletFlowPerUserDay) + " / чел. / день; постоянное сжигание "
-        + formatMoney(final.permanentWalletBurnPerUserDay) + " / чел. / день. Отрицательный поток создаёт очередь вывода, если выплатить его нельзя.";
+        + formatMoney(final.permanentWalletBurnPerUserDay) + " / чел. / день; Core за экономику участия: "
+        + formatMoney(final.flow.participationSpendCore) + ". Неактивными стали "
+        + formatNumber(final.flow.newInactiveUsers, 1) + " участников, их Wallet передан наследникам без изменения совокупного Wallet.";
     }
 
     function renderWarnings(result) {
@@ -1555,11 +1856,12 @@
       }
       var definitions = [
         ["walletToCore", "Wallet → Core", COLORS[0]],
-        ["coreReinvest", "Reinvest", COLORS[1]],
-        ["challengeRewards", "Челленджи", COLORS[2]],
-        ["referralRewards", "Рефералы", COLORS[3]],
-        ["leaderRewards", "Лидеры", COLORS[4]],
-        ["otherCoreRewards", "Другие", COLORS[5]]
+        ["participationSpendCore", "Экономика участия", COLORS[1]],
+        ["coreReinvest", "Reinvest", COLORS[2]],
+        ["challengeRewards", "Челленджи", COLORS[3]],
+        ["referralRewards", "Рефералы", COLORS[4]],
+        ["leaderRewards", "Лидеры", COLORS[5]],
+        ["otherCoreRewards", "Другие системные награды", "var(--muted)"]
       ];
       var totals = periods.map(function (period) {
         return definitions.reduce(function (sum, definition) { return sum + period.flow[definition[0]]; }, 0);
@@ -1613,6 +1915,8 @@
         { label: "Treasury", color: COLORS[0], values: periods.map(function (row) { return row.treasury; }) },
         { label: "Wallet", color: COLORS[1], values: periods.map(function (row) { return row.walletLiability; }) },
         { label: "Total Core", color: COLORS[2], values: periods.map(function (row) { return row.totalCore; }) },
+        { label: "Active Core", color: COLORS[4], values: periods.map(function (row) { return row.activeCore; }) },
+        { label: "Inactive Core", color: COLORS[5], values: periods.map(function (row) { return row.inactiveCore; }) },
         { label: "Резерв Wallet + будущие выплаты", color: COLORS[3], values: periods.map(function (row) { return row.planningReserveRequired; }), dashed: true }
       ];
       renderLineChart("balance-chart", periods, balanceSeries, { ariaLabel: "Treasury, Wallet, Total Core и резерв с учётом будущих выплат", zeroBased: true });
@@ -1649,16 +1953,36 @@
     }
 
     function renderPeriodTable(result) {
-      var header = ["Месяц", "Участники", "Treasury", "Wallet", "Чистый внешний поток", "Постоянно сожжено", "Total Core", "Совокупный reinvest", "Текущее покрытие", "Покрытие + будущие выплаты", "Будущие выплаты", "Доп. Core в резерве", "Очередь"];
-      var html = "<thead><tr>" + header.map(function (item) { return "<th>" + escapeHtml(item) + "</th>"; }).join("") + "</tr></thead><tbody>";
+      var columns = [
+        ["Месяц", function (row) { return escapeHtml(row.month); }],
+        ["Активные участники", function (row) { return formatNumber(row.users, 0); }],
+        ["Treasury", function (row) { return formatCompactMoney(row.treasury); }],
+        ["Treasury от челленджей", function (row) { return formatCompactMoney(row.flow.challengeTreasuryGrowth); }],
+        ["Treasury от пополнений Wallet", function (row) { return formatCompactMoney(row.treasuryFromWalletDeposits); }],
+        ["Доход Treasury (инвест)", function (row) { return formatCompactMoney(row.flow.treasuryInvestmentReturn); }],
+        ["Награды за челленджи", function (row) { return formatCompactMoney(row.flow.challengeRewards); }],
+        ["Награда / чел.", function (row) { return formatCompactMoney(row.challengeRewardPerUser); }],
+        ["Wallet", function (row) { return formatCompactMoney(row.walletLiability); }],
+        ["Чистый внешний поток", function (row) { return formatCompactMoney(row.flow.externalWalletNet); }],
+        ["Active Core", function (row) { return formatCompactMoney(row.activeCore); }],
+        ["Inactive Core", function (row) { return formatCompactMoney(row.inactiveCore); }],
+        ["Active Core income", function (row) { return formatCompactMoney(row.flow.activeCoreIncome); }],
+        ["Wallet-выплата от Active Core", function (row) { return formatCompactMoney(row.flow.activeWalletIncome); }],
+        ["Совокупный reinvest", function (row) { return formatPercent(row.aggregateReinvestShare); }],
+        ["Текущее покрытие", function (row) { return formatPercent(row.currentCoverage); }]
+      ];
+      var html = "<thead><tr>" + columns.map(function (column, index) {
+        return "<th title=\"" + escapeHtml(column[0]) + "\" class=\"col-shade-" + (index % 6) + "\">" + (index + 1) + "</th>";
+      }).join("") + "</tr></thead><tbody>";
       result.periods.forEach(function (row) {
-        html += "<tr><td>" + escapeHtml(row.month) + "</td><td>" + formatNumber(row.users, 0) + "</td><td>"
-          + formatMoney(row.treasury) + "</td><td>" + formatMoney(row.walletLiability) + "</td><td>" + formatMoney(row.flow.externalWalletNet)
-          + "</td><td>" + formatMoney(row.flow.permanentWalletBurn) + "</td><td>" + formatMoney(row.totalCore)
-          + "</td><td>" + formatPercent(row.aggregateReinvestShare) + "</td><td>" + formatPercent(row.currentCoverage) + "</td><td>" + formatPercent(row.planningCoverage)
-          + "</td><td>" + formatMoney(row.forwardWalletPayout) + "</td><td>" + formatMoney(row.safeCoreBudget)
-          + "</td><td>" + formatMoney(row.withdrawalQueue) + "</td></tr>";
+        html += "<tr>" + columns.map(function (column, columnIndex) {
+          return "<td class=\"col-shade-" + (columnIndex % 6) + "\">" + column[1](row) + "</td>";
+        }).join("") + "</tr>";
       });
+      var legend = columns.map(function (column, index) {
+        return "<span class=\"legend-dot-colored\" style=\"--dot:" + COLORS[index % 6] + "\"></span><strong>" + (index + 1) + "</strong> — " + escapeHtml(column[0]);
+      }).join("; ") + ".";
+      document.getElementById("period-legend").innerHTML = legend;
       document.getElementById("period-table").innerHTML = html + "</tbody>";
     }
 
@@ -1676,13 +2000,13 @@
           + "</td><td>" + formatPercent(item.result.final.aggregateReinvestShare) + "</td></tr>";
       }).join("");
       var cohortRows = final.cohorts.map(function (cohort) {
-        return "<tr><td>" + escapeHtml(cohort.name) + "</td><td>" + formatNumber(cohort.users, 0) + "</td><td>"
-          + formatMoney(cohort.wallet) + "</td><td>" + formatMoney(cohort.core) + "</td><td>"
+        return "<tr><td>" + escapeHtml(cohort.name) + "</td><td>" + formatNumber(cohort.users, 0) + "</td><td>" + formatNumber(cohort.inactiveUsers, 0) + "</td><td>"
+          + formatMoney(cohort.wallet) + "</td><td>" + formatMoney(cohort.core) + "</td><td>" + formatMoney(cohort.inactiveCore) + "</td><td>"
           + formatNumber(cohort.reinvestPct, 1) + "%</td></tr>";
       }).join("");
       document.getElementById("cohort-summary").innerHTML =
         "<h3>Сравнение сценариев</h3><div class=\"table-wrap\"><table><thead><tr><th>Сценарий</th><th>Core</th><th>Treasury</th><th>Покрытие + будущие выплаты</th><th>Совокупный reinvest</th></tr></thead><tbody>"
-        + comparisonRows + "</tbody></table></div><h3 style=\"margin-top:18px\">Когорты в конце сценария</h3><div class=\"table-wrap\"><table><thead><tr><th>Когорта</th><th>Участники</th><th>Wallet</th><th>Core</th><th>Core reinvest</th></tr></thead><tbody>"
+        + comparisonRows + "</tbody></table></div><h3 style=\"margin-top:18px\">Когорты в конце сценария</h3><div class=\"table-wrap\"><table><thead><tr><th>Когорта</th><th>Активные</th><th>Неактивные</th><th>Wallet</th><th>Active Core</th><th>Inactive Core</th><th>Core reinvest</th></tr></thead><tbody>"
         + cohortRows + "</tbody></table></div>";
     }
 
@@ -1889,9 +2213,15 @@
       var columns = [
         ["month", function (row) { return row.month; }],
         ["users", function (row) { return row.users; }],
+        ["inactive_users", function (row) { return row.inactiveUsers; }],
         ["treasury", function (row) { return row.treasury; }],
+        ["treasury_investment_return", function (row) { return row.flow.treasuryInvestmentReturn; }],
+        ["challenge_treasury_growth", function (row) { return row.flow.challengeTreasuryGrowth; }],
+        ["challenge_reward_per_user", function (row) { return row.challengeRewardPerUser; }],
         ["wallet_liability", function (row) { return row.walletLiability; }],
         ["total_core", function (row) { return row.totalCore; }],
+        ["active_core", function (row) { return row.activeCore; }],
+        ["inactive_core", function (row) { return row.inactiveCore; }],
         ["aggregate_reinvest_share", function (row) { return row.aggregateReinvestShare; }],
         ["current_coverage", function (row) { return row.currentCoverage; }],
         ["planning_coverage", function (row) { return row.planningCoverage; }],
@@ -1905,8 +2235,15 @@
         ["withdrawal_fees_burned", function (row) { return row.flow.withdrawalFees; }],
         ["permanent_wallet_burn", function (row) { return row.flow.permanentWalletBurn; }],
         ["permanent_wallet_burn_per_user_day", function (row) { return row.permanentWalletBurnPerUserDay; }],
+        ["participation_spend_core", function (row) { return row.flow.participationSpendCore; }],
+        ["wallet_inherited", function (row) { return row.flow.walletInherited; }],
+        ["new_inactive_users", function (row) { return row.flow.newInactiveUsers; }],
+        ["new_inactive_core", function (row) { return row.flow.newInactiveCore; }],
         ["wallet_to_core", function (row) { return row.flow.walletToCore; }],
         ["core_reinvest", function (row) { return row.flow.coreReinvest; }],
+        ["active_core_income", function (row) { return row.flow.activeCoreIncome; }],
+        ["inactive_core_income", function (row) { return row.flow.inactiveCoreIncome; }],
+        ["wallet_income_from_active_core", function (row) { return row.flow.activeWalletIncome; }],
         ["challenge_rewards", function (row) { return row.flow.challengeRewards; }],
         ["referral_rewards", function (row) { return row.flow.referralRewards; }],
         ["leader_rewards", function (row) { return row.flow.leaderRewards; }],
@@ -1946,12 +2283,15 @@
         var config = defaultConfig();
         config.horizonMonths = 1;
         config.dailyRatePct = 0;
+        config.treasuryInvestedPct = 0;
+        config.treasuryAnnualReturnPct = 0;
         config.externalWalletFlowPerUserDay = 0;
         config.walletFlowGrowthPct = 0;
         config.permanentWalletBurnDailyPct = 0;
+        config.participationSpendCorePct = 0;
+        config.annualInactivityPct = 0;
         config.nonLiabilityFundingMonthly = 0;
-        config.newUsersMonthly = 0;
-        config.challengeReward = 0;
+        config.challengeRewardPct = 0;
         config.referralReward = 0;
         config.otherCoreRewardsMonthly = 0;
         config.leaderBonusPct = 0;
@@ -1959,7 +2299,6 @@
         config.cohorts[0].growthPct = 0;
         config.cohorts[0].churnPct = 0;
         config.cohorts[0].walletToCorePct = 0;
-        config.cohorts[0].challengesPerUser = 0;
         return config;
       }
 
@@ -1978,6 +2317,16 @@
         near(result.final.walletLiability, 13100, 0.000001, "Wallet deposit");
         near(result.final.flow.externalWalletNet, 3100, 0.000001, "Net external flow");
       });
+      test("Инвестированная Treasury растёт по эффективной годовой ставке", function () {
+        var config = zeroConfig();
+        config.horizonMonths = 12;
+        config.treasuryInvestedPct = 100;
+        config.treasuryAnnualReturnPct = 10;
+        var result = simulate(config);
+        near(result.final.treasury, 22000, 0.00001, "Treasury annual compound return");
+        near(result.totals.treasuryInvestmentReturn, 2000, 0.00001, "Treasury investment income");
+        near(result.final.walletLiability, 10000, 0.000001, "Treasury return does not create Wallet");
+      });
       test("Отрицательный поток Wallet создаёт симметричный вывод без комиссии", function () {
         var config = zeroConfig();
         config.externalWalletFlowPerUserDay = -1;
@@ -1987,10 +2336,10 @@
         near(result.final.walletLiability, 6900, 0.000001, "Wallet withdrawal");
         near(result.final.flow.externalWalletNet, -3100, 0.000001, "Net external flow");
       });
-      test("Новые участники равномерно влияют на поток внутри месяца", function () {
+      test("Прирост участников в когорте влияет на поток внутри месяца", function () {
         var config = zeroConfig();
         config.externalWalletFlowPerUserDay = 1;
-        config.newUsersMonthly = 100;
+        config.cohorts[0].growthPct = 100;
         var result = simulate(config);
         near(result.final.users, 200, 0.000001, "Final users");
         near(result.final.averageUsers, 150, 0.000001, "Average users");
@@ -2003,6 +2352,37 @@
         var result = simulate(config);
         near(result.final.walletLiability, 100 * Math.pow(0.99, 31), 0.000001, "Wallet burn");
         near(result.final.treasury, 20000, 0.000001, "Treasury unchanged by burn");
+      });
+      test("Экономика участия превращает часть внутренних трат в Core", function () {
+        var config = zeroConfig();
+        config.cohorts[0].wallet = 100;
+        config.cohorts[0].core = 0;
+        config.permanentWalletBurnDailyPct = 100;
+        config.participationSpendCorePct = 10;
+        var result = simulate(config);
+        near(result.final.walletLiability, 0, 0.000001, "Participation Wallet burn");
+        near(result.final.totalCore, 10, 0.000001, "Participation Core credit");
+        near(result.totals.participationSpendCore, 10, 0.000001, "Participation source");
+      });
+      test("Неактивность переносит Core в отдельную категорию и сохраняет Wallet", function () {
+        var config = zeroConfig();
+        config.annualInactivityPct = 1.2;
+        var result = simulate(config);
+        assert(result.final.inactiveUsers > 0, "Inactive users");
+        assert(result.final.inactiveCore > 0, "Inactive Core");
+        near(result.final.totalCore, result.final.activeCore + result.final.inactiveCore, 0.000001, "Core categories");
+        near(result.final.walletLiability, 10000, 0.000001, "Aggregate Wallet invariant");
+        assert(result.totals.walletInherited > 0, "Wallet inheritance event");
+      });
+      test("Неактивный Core получает 100% reinvest без Wallet-выплат", function () {
+        var config = zeroConfig();
+        config.annualInactivityPct = 100;
+        config.dailyRatePct = 0.0633;
+        var result = simulate(config);
+        assert(result.final.inactiveCore > 10000, "Inactive Core compounds");
+        near(result.final.aggregateReinvestShare, 1, 0.000001, "Inactive Core reinvest");
+        near(result.final.flow.walletPayoutFromCore, 0, 0.000001, "Inactive Core has no Wallet payout");
+        near(result.final.walletLiability, 10000, 0.000001, "Wallet unchanged by inactive income");
       });
       test("Wallet → Core не создаёт внешнюю ликвидность", function () {
         var config = zeroConfig();
@@ -2033,14 +2413,21 @@
         config.cohorts.push(second);
         near(aggregateReinvestShare(initialState(config)), 0.75, 0.000001, "Weighted reinvest");
       });
-      test("Награда за челлендж начисляется за подтверждённый результат", function () {
+      test("Награда от челленджей = % от свободного резерва", function () {
         var config = zeroConfig();
-        config.challengeVerificationPct = 50;
-        config.challengeReward = 10;
-        config.cohorts[0].challengesPerUser = 1;
+        config.challengeRewardPct = 10;
         var result = simulate(config);
-        near(result.final.flow.verifiedResults, 50, 0.000001, "Verified results");
-        near(result.final.flow.challengeRewards, 500, 0.000001, "Challenge rewards");
+        near(result.final.flow.challengeRewards, 1000, 0.000001, "Challenge rewards");
+        near(result.final.challengeRewardPerUser, 10, 0.000001, "Challenge reward per user");
+      });
+      test("Доля наград за челленджи конвертируется в рост Treasury", function () {
+        var config = zeroConfig();
+        config.challengeRewardPct = 10;
+        config.challengeTreasuryRevPct = 50;
+        var result = simulate(config);
+        near(result.final.flow.challengeRewards, 1000, 0.000001, "Challenge rewards");
+        near(result.final.flow.challengeTreasuryGrowth, 500, 0.000001, "Challenge Treasury growth");
+        near(result.final.treasury, 20500, 0.000001, "Treasury growth from challenges");
       });
       test("Fee-free Marketplace сохраняет общий Wallet", function () {
         var config = zeroConfig();
@@ -2069,7 +2456,7 @@
         var config = zeroConfig();
         config.reserveNormPct = 0;
         var result = optimize(config, {
-          xParam: "challengeReward",
+          xParam: "challengeRewardPct",
           yParam: "externalWalletFlowPerUserDay",
           xMin: 0,
           xMax: 1,
@@ -2150,6 +2537,16 @@
         optimizerState.yMax = yDef.max;
         renderOptimizerControls(activeScenario().config, false);
       }
+    });
+
+    document.querySelectorAll(".tab").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var tabName = button.getAttribute("data-tab");
+        document.querySelectorAll(".tab").forEach(function (tab) { tab.classList.toggle("active", tab === button); });
+        document.querySelectorAll(".tab-panel").forEach(function (panel) {
+          panel.classList.toggle("active", panel.id === "tab-" + tabName);
+        });
+      });
     });
 
     document.addEventListener("click", function (event) {

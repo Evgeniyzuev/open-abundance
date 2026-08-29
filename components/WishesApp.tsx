@@ -8,6 +8,13 @@ import { useUserContext } from "@/components/UserProvider";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { AppLocale } from "@/lib/i18n";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
+import { findDaysToTarget, formatDurationParts } from "@/lib/coreCalculator";
+import {
+  FIRST_WISH_CATEGORIES,
+  FIRST_WISH_DAILY_ADDITIONS,
+  type FirstWishCategory,
+  type FirstWishOption
+} from "@/lib/firstWishGuide";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -74,7 +81,7 @@ type SavedWishResult = {
 };
 
 export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
-  const { loading: userLoading, locale, profile, t, user } = useUserContext();
+  const { core, loading: userLoading, locale, profile, t, user } = useUserContext();
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [recommendedWishes, setRecommendedWishes] = useState<RecommendedWish[]>([]);
   const [activeTab, setActiveTab] = useState<WishTab>("recommended");
@@ -82,6 +89,8 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
   const [completingWish, setCompletingWish] = useState<Wish | null>(null);
   const [editingWish, setEditingWish] = useState<Wish | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createInitial, setCreateInitial] = useState<FormState>(emptyForm);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [recommendedDraft, setRecommendedDraft] = useState<RecommendedWish | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "offline" | "unauthenticated" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -160,6 +169,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
     if (notice) setErrorMessage(notice);
     setIsCreateOpen(false);
     setRecommendedDraft(null);
+    setCreateInitial(emptyForm);
   }
 
   async function updateWish(wish: Wish, values: FormState) {
@@ -222,6 +232,15 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
 
   function replaceWish(nextWish: Wish) {
     setWishes((current) => current.map((item) => item.id === nextWish.id ? nextWish : item));
+  }
+
+  function openWishCreation() {
+    if (wishes.length === 0) {
+      setIsGuideOpen(true);
+      return;
+    }
+    setCreateInitial(emptyForm);
+    setIsCreateOpen(true);
   }
 
   async function sendWishRequest(url: string, method: "POST" | "PATCH", body: unknown): Promise<SavedWishResult> {
@@ -290,7 +309,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
 
           {activeTab === "mine" ? (
             <WishSection id="wish-panel-mine" labelledBy="wish-tab-mine" emptyText={t("wishes.emptyMine")} itemsCount={myWishes.length}>
-              <button className="wish-tile wish-add-tile" type="button" onClick={() => setIsCreateOpen(true)}>
+              <button className="wish-tile wish-add-tile" type="button" onClick={openWishCreation}>
                 <Plus size={28} />
                 <span>{t("wishes.add")}</span>
               </button>
@@ -348,10 +367,27 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
         />
       ) : null}
 
+      {isGuideOpen ? (
+        <FirstWishGuideModal
+          core={core}
+          locale={locale}
+          onClose={() => setIsGuideOpen(false)}
+          onAdd={(category, option) => {
+            setIsGuideOpen(false);
+            void createWish(firstWishToForm(category, option, locale));
+          }}
+          onCustomize={(category, option) => {
+            setIsGuideOpen(false);
+            setCreateInitial(firstWishToForm(category, option, locale));
+            setIsCreateOpen(true);
+          }}
+        />
+      ) : null}
+
       {isCreateOpen ? (
         <WishFormModal
           title={t("wishes.createTitle")}
-          initialState={emptyForm}
+          initialState={createInitial}
           onClose={() => setIsCreateOpen(false)}
           onSave={createWish}
         />
@@ -376,6 +412,149 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
       ) : null}
     </section>
   );
+}
+
+function FirstWishGuideModal({
+  core,
+  locale,
+  onClose,
+  onAdd,
+  onCustomize
+}: {
+  core: ReturnType<typeof useUserContext>["core"];
+  locale: AppLocale;
+  onClose: () => void;
+  onAdd: (category: FirstWishCategory, option: FirstWishOption) => void;
+  onCustomize: (category: FirstWishCategory, option: FirstWishOption) => void;
+}) {
+  const { t } = useUserContext();
+  const [step, setStep] = useState<"category" | "option" | "summary">("category");
+  const [category, setCategory] = useState<FirstWishCategory | null>(null);
+  const [option, setOption] = useState<FirstWishOption | null>(null);
+
+  const timeLabel = useMemo(() => {
+    if (!option) return null;
+    const calculation = findDaysToTarget({
+      startCore: Math.max(0, core?.balance ?? 0),
+      dailyAdditions: FIRST_WISH_DAILY_ADDITIONS,
+      reinvestPercent: core?.reinvest_percent ?? 100,
+      days: 0,
+      targetCore: option.targetAmount
+    });
+    if (calculation.kind !== "estimated") return null;
+    const parts = formatDurationParts(calculation.days);
+    const chunks = [
+      parts.years > 0 ? `${parts.years} ${t("app.common.years.short")}` : "",
+      parts.months > 0 ? `${parts.months} ${t("app.common.months.short")}` : ""
+    ].filter(Boolean);
+    return chunks.join(" ") || `1 ${t("app.common.days.short")}`;
+  }, [core, option, t]);
+
+  const heading = step === "category"
+    ? t("wishes.guide.title")
+    : step === "option" && category
+      ? `${category.emoji} ${category.title[locale]}`
+      : option?.title[locale] ?? t("wishes.guide.title");
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet wish-modal" role="dialog" aria-modal="true" aria-label={t("wishes.guide.title")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              if (step === "summary" && category && option) setStep("option");
+              else if (step === "option") setStep("category");
+              else onClose();
+            }}
+          >
+            {step === "category" ? t("app.common.cancel") : t("wishes.guide.back")}
+          </button>
+          <h2>{heading}</h2>
+          <span />
+        </div>
+        <div className="wish-modal-body">
+          {step === "category" ? (
+            <>
+              <p>{t("wishes.guide.description")}</p>
+              <div className="wish-grid">
+                {FIRST_WISH_CATEGORIES.map((item) => (
+                  <button
+                    className="wish-tile"
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      setCategory(item);
+                      setStep("option");
+                    }}
+                  >
+                    <div className="wish-tile-placeholder">{item.emoji}</div>
+                    <span>{item.title[locale]}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+          {step === "option" && category ? (
+            <div className="wish-grid">
+              {category.options.map((item) => (
+                <button
+                  className="wish-tile"
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    setOption(item);
+                    setStep("summary");
+                  }}
+                >
+                  <div className="wish-tile-placeholder">{category.emoji}</div>
+                  <span>{item.title[locale]}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {step === "summary" && category && option ? (
+            <>
+              <strong>{option.title[locale]}</strong>
+              <p>{option.description[locale]}</p>
+              <div className="wish-meta">
+                <span>{formatAdaptiveMoney(option.targetAmount, locale)}</span>
+                <span>{t("wishes.guide.levelNeeded", { level: option.difficultyLevel })}</span>
+              </div>
+              {timeLabel ? (
+                <p>{t("wishes.guide.timeToGoal", { daily: formatAdaptiveMoney(FIRST_WISH_DAILY_ADDITIONS, locale), time: timeLabel })}</p>
+              ) : null}
+              <div className="wish-detail-actions">
+                <button className="task-done-primary-button" type="button" onClick={() => onAdd(category, option)}>
+                  <Plus size={16} />
+                  {t("wishes.guide.addWish")}
+                </button>
+                <button className="secondary-button" type="button" onClick={() => onCustomize(category, option)}>
+                  {t("wishes.guide.customize")}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function firstWishToForm(category: FirstWishCategory, option: FirstWishOption, locale: AppLocale): FormState {
+  return {
+    title: option.title[locale],
+    description: option.description[locale],
+    category: category.title[locale],
+    imageUrl: "",
+    targetAmount: String(option.targetAmount),
+    targetCurrency: "USD",
+    difficultyLevel: String(option.difficultyLevel),
+    publishToFeed: false,
+    visibility: "private",
+    sourceRecommendedWishId: null
+  };
 }
 
 function WishSection({

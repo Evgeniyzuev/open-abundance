@@ -111,6 +111,7 @@ export type Database = {
           overall_rating: number | null
           platform: string | null
           private_comment: string | null
+          project_clarity_rating: number | null
           public_consent_at: string | null
           public_consent_version: string | null
           public_review: string | null
@@ -138,6 +139,7 @@ export type Database = {
           overall_rating?: number | null
           platform?: string | null
           private_comment?: string | null
+          project_clarity_rating?: number | null
           public_consent_at?: string | null
           public_consent_version?: string | null
           public_review?: string | null
@@ -165,6 +167,7 @@ export type Database = {
           overall_rating?: number | null
           platform?: string | null
           private_comment?: string | null
+          project_clarity_rating?: number | null
           public_consent_at?: string | null
           public_consent_version?: string | null
           public_review?: string | null
@@ -3481,6 +3484,7 @@ export type Database = {
           p_overall_rating: number
           p_platform: string
           p_private_comment: string
+          p_project_clarity_rating: number
           p_public_review: string
           p_schema_version: number
           p_strongest_area: string

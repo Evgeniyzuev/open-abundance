@@ -41,6 +41,7 @@ export type AppTestingDraft = {
   mainDifficulty: string;
   privateComment: string;
   missionRating: number;
+  projectClarityRating: number;
   attitude: AppTestingAttitude | "";
   strongestArea: AppTestingStrength | "";
   mainConcern: AppTestingConcern | "";
@@ -65,6 +66,7 @@ export function createEmptyAppTestingDraft(platform: AppTestingPlatform = "other
     mainDifficulty: "",
     privateComment: "",
     missionRating: 0,
+    projectClarityRating: 0,
     attitude: "",
     strongestArea: "",
     mainConcern: "",
@@ -97,6 +99,7 @@ export function normalizeAppTestingDraft(value: unknown, fallbackPlatform: AppTe
   draft.mainDifficulty = normalizeText(source.mainDifficulty ?? source.main_difficulty, 1000);
   draft.privateComment = normalizeText(source.privateComment ?? source.private_comment, 2000);
   draft.missionRating = normalizeRating(source.missionRating ?? source.mission_rating);
+  draft.projectClarityRating = normalizeRating(source.projectClarityRating ?? source.project_clarity_rating);
   draft.attitude = normalizeChoice(source.attitude, APP_TESTING_ATTITUDES) ?? "";
   draft.strongestArea = normalizeChoice(source.strongestArea ?? source.strongest_area, APP_TESTING_STRENGTHS) ?? "";
   draft.mainConcern = normalizeChoice(source.mainConcern ?? source.main_concern, APP_TESTING_CONCERNS) ?? "";
@@ -124,6 +127,7 @@ export function validateAppTestingSubmission(draft: AppTestingDraft): string | n
 
   if (draft.overallRating < 1 || draft.overallRating > 5) return "Rate the app from 1 to 5.";
   if (draft.missionRating < 1 || draft.missionRating > 5) return "Rate how close the mission feels from 1 to 5.";
+  if (draft.projectClarityRating < 1 || draft.projectClarityRating > 5) return "Rate how clear the project is from 1 to 5.";
   if (!draft.mostUsefulArea) return "Choose the most useful area.";
   if (!draft.dailyUseIntent) return "Choose whether you plan to keep using the app.";
   if (!draft.attitude) return "Choose your attitude to the project.";

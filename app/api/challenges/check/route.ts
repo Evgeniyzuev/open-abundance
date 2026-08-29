@@ -429,6 +429,60 @@ async function verifyChallenge(
     }
   }
 
+  if (challenge.verification_logic === "day_2_return") {
+    const { data: acceptance, error: acceptanceError } = await supabase
+      .from("user_challenges")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("challenge_id", challenge.id)
+      .maybeSingle();
+
+    if (acceptanceError) {
+      return { ok: false, reason: "Could not check the challenge acceptance. Try again." };
+    }
+
+    if (!acceptance?.created_at) {
+      return { ok: false, reason: "Accept the challenge first." };
+    }
+
+    const acceptedAt = new Date(acceptance.created_at);
+    if (Number.isNaN(acceptedAt.getTime())) {
+      return { ok: false, reason: "Could not read the acceptance date. Try again." };
+    }
+
+    const returnDayStart = new Date(Date.UTC(acceptedAt.getUTCFullYear(), acceptedAt.getUTCMonth(), acceptedAt.getUTCDate() + 1));
+    const returnDayEnd = new Date(returnDayStart.getTime() + 24 * 60 * 60 * 1000);
+    const returnLocalDate = returnDayStart.toISOString().slice(0, 10);
+
+    const [openResult, todayResult] = await Promise.all([
+      supabase
+        .from("product_events")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("event_name", "app_open")
+        .gte("created_at", returnDayStart.toISOString())
+        .lt("created_at", returnDayEnd.toISOString())
+        .limit(1),
+      supabase
+        .from("user_today_instances")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("status", "completed")
+        .eq("local_date", returnLocalDate)
+        .limit(1)
+    ]);
+
+    if (openResult.error || todayResult.error) {
+      return { ok: false, reason: "Could not check the next-day visit. Try again." };
+    }
+
+    if ((openResult.data ?? []).length > 0 || (todayResult.data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Come back tomorrow and open the app or complete Today." };
+  }
+
   if (challenge.verification_logic === "first_wallet_to_core") {
     const { data, error } = await supabase
       .from("wallet_ledger")

@@ -289,6 +289,7 @@ export default function AppTestingSurvey({
           </div>
         </div>
         <RatingField label={t("appTesting.missionRating")} value={draft.missionRating} onChange={(missionRating) => setDraft((current) => ({ ...current, missionRating }))} />
+        <RatingField label={t("appTesting.projectClarity")} value={draft.projectClarityRating} onChange={(projectClarityRating) => setDraft((current) => ({ ...current, projectClarityRating }))} />
         <SelectField label={t("appTesting.attitude")} value={draft.attitude} values={APP_TESTING_ATTITUDES} t={t} prefix="appTesting.attitude" onChange={(attitude) => setDraft((current) => ({ ...current, attitude: attitude as AppTestingDraft["attitude"] }))} />
         <SelectField label={t("appTesting.strongest")} value={draft.strongestArea} values={APP_TESTING_STRENGTHS} t={t} prefix="appTesting.strength" onChange={(strongestArea) => setDraft((current) => ({ ...current, strongestArea: strongestArea as AppTestingDraft["strongestArea"] }))} />
         <SelectField label={t("appTesting.concern")} value={draft.mainConcern} values={APP_TESTING_CONCERNS} t={t} prefix="appTesting.concern" onChange={(mainConcern) => setDraft((current) => ({ ...current, mainConcern: mainConcern as AppTestingDraft["mainConcern"] }))} />

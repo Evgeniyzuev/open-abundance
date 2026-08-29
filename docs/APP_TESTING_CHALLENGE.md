@@ -19,7 +19,9 @@ The draft is written to `localStorage` immediately and to the authenticated, `no
 
 ## Submission and reward
 
-The final step collects the overall technical assessment, mission assessment, attitude, strengths, concerns and a separate public review. The user sees the exact public card and must explicitly consent to publish it from the current profile.
+The final step collects the overall technical assessment, mission assessment, project clarity rating, attitude, strengths, concerns and a separate public review. The user sees the exact public card and must explicitly consent to publish it from the current profile.
+
+**Extension 2026-08-29 (project clarity):** the survey adds a required 1–5 rating "How clear is what Open Abundance is?" (`projectClarityRating`). It is stored privately in `challenge_feedback_submissions.project_clarity_rating` and is not exposed in public review metadata. "What seemed strange or suspicious" remains covered by the existing `main_concern` choice plus the private technical comment, so no duplicate field was added. Migration: `supabase/migrations/20260829130000_app_testing_project_clarity.sql` (adds the column and recreates `submit_app_testing_feedback` with the new parameter).
 
 `submit_app_testing_feedback(...)` performs the final operation in one database transaction:
 

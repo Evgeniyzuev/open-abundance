@@ -3,24 +3,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://open-abundance.vercel.app"),
-  title: {
-    default: "Open Abundance — turn goals into real actions",
-    template: "%s · Open Abundance"
-  },
-  description: "An open experiment in building a more abundant economy. Turn goals into real actions, people and resources — offline-first, community-owned.",
-  openGraph: {
-    type: "website",
-    siteName: "Open Abundance",
-    title: "Open Abundance — turn goals into real actions",
-    description: "An open experiment in building a more abundant economy. Turn goals into real actions, people and resources.",
-    url: "/"
-  },
-  twitter: {
-    card: "summary",
-    title: "Open Abundance — turn goals into real actions",
-    description: "An open experiment in building a more abundant economy. Turn goals into real actions, people and resources."
-  },
+  title: "Open Abundance",
+  description: "Offline-first growth app prototype",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icons/twenty-levels-app-icon-512.png",

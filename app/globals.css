@@ -2114,10 +2114,3 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .peer-reviews-verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .peer-reviews-verdicts button { min-height: 42px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); color: var(--text); font-weight: 800; }
 .peer-reviews-verdicts button.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface-soft)); }
-
-.public-intro { width: min(100%, 610px); display: grid; gap: 10px; margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 14px 8px; }
-.public-intro h1 { margin: 0; font-size: clamp(1.75rem, 6vw, 2.5rem); line-height: 1.05; letter-spacing: -0.03em; }
-.public-intro p { margin: 0; color: var(--muted); font-size: 1rem; line-height: 1.45; }
-.public-intro ul { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: var(--text); font-size: 0.9375rem; line-height: 1.5; }
-.public-intro a { color: var(--blue); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
-.public-intro a + a { margin-left: 14px; }

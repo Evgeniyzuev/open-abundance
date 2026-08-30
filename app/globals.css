@@ -296,6 +296,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .local-data-notice { margin: 0 6px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--warning-line); border-radius: 13px; padding: 10px 12px; background: var(--warning-soft); color: var(--warning-text); font-size: 0.8125rem; line-height: 1.35; }
 .local-data-notice.error { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
 .local-data-notice button { flex: 0 0 auto; border-radius: 10px; padding: 7px 10px; background: var(--surface-glass); color: inherit; font-size: 0.75rem; font-weight: 850; }
+.public-intro { position: fixed; inset: 0; z-index: 20; overflow-y: auto; display: grid; align-content: center; gap: 14px; padding: max(28px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); background: var(--bg); color: var(--text); }
+.public-intro > * { width: min(100%, 680px); margin: 0 auto; }
+.public-intro h1 { font-size: clamp(2rem, 7vw, 3.25rem); line-height: 1; letter-spacing: -0.04em; }
+.public-intro p { color: var(--muted); font-size: clamp(1rem, 2.4vw, 1.1875rem); line-height: 1.5; }
+.public-intro strong { color: var(--text); font-weight: 850; }
 .app-shell { min-height: 100vh; padding: 0; }
 .app-content { min-height: 100vh; padding: 84px 0 98px; }
 .app-view { display: contents; }

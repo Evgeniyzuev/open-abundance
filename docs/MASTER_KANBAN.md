@@ -172,6 +172,7 @@
     - Сделать шаг ключевым через прогресс и открытие anti-abuse-sensitive функций, включая системные rewards и реферальные выплаты, но не блокировать базовый доступ и вывод собственных средств.
     - Acceptance: согласованный UX, threat model replay/deepfake/injection/multiaccount, provider-vs-build решение, recovery flow и только после этого отдельная схема данных и реализация.
     - До выполнения карточки `humanity_confirmed_accounts` отсутствует в текущем growth report и не выводится из регистраций.
+    - Связанный план: [`docs/HUMANITY_VERIFICATION_PLAN.md`](./HUMANITY_VERIFICATION_PLAN.md). План согласован; vendor/legal gate, миграция и реализация остаются pending.
 
 9. [ ] **Capital efficiency observability + Total Core capacity**
 

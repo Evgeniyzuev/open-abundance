@@ -177,7 +177,7 @@ Wallet пользователя уменьшается
 ## 10. Идентичность и anti-abuse
 
 - После ознакомительных челленджей системные награды предполагают доказательство уникального человека.
-- Рассматриваются документы, биометрия и privacy-preserving proof-of-personhood наподобие World ID.
+- Рассматриваются документы, биометрия и privacy-preserving proof-of-personhood наподобие World ID; текущая трёхуровневая реализация описана в [`HUMANITY_VERIFICATION_PLAN.md`](./HUMANITY_VERIFICATION_PLAN.md).
 - Proof-of-personhood помогает против Sybil abuse, но не автоматически заменяет KYC/AML там, где они требуются.
 - Для наград и переводов нужны non-self checks, idempotency, replay protection, связанные аккаунты/устройства, циклические переводы и ручной review подозрительных операций.
 

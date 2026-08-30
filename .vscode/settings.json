@@ -1,5 +1,6 @@
 {
     "workbench.browser.openLocalhostLinks": false,
     "deno.enablePaths": ["./supabase/functions"],
-    "deno.config": "./supabase/functions/send-reflection-reminders/deno.json"
+    "deno.config": "./supabase/functions/send-reflection-reminders/deno.json",
+    "js/ts.tsdk.path": "node_modules\\typescript\\lib"
 }

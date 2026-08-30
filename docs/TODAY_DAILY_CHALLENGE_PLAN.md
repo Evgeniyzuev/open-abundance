@@ -4,6 +4,8 @@ Today - ежедневный персональный челлендж поль�
 
 Идея: пользователь не ищет, что делать дальше. При первом входе за день Today автоматически принимается, показывает короткий экран смысла дня и остается в принятых челленджах, где можно проверить чек-лист и прогресс.
 
+Будущий onboarding-челлендж подтверждения человечности в Today и его anti-abuse/reward gates описаны в [`HUMANITY_VERIFICATION_PLAN.md`](./HUMANITY_VERIFICATION_PLAN.md).
+
 ## Current Status
 
 2026-07-22: Home объединяет Today с локальным due-счётчиком Reflection Inbox; серверный payload теперь отдаёт активную completion-серию и lifetime total. В каталог добавлены `today_completion_streak_7` и `today_completion_total_30`; ежедневный push ведёт на Home и пропускается для уже завершённого Today.

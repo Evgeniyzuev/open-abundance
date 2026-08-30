@@ -643,6 +643,7 @@ These questions must be resolved before the corresponding implementation phase, 
 - [`docs/DEVELOPMENT_RULES.md`](./DEVELOPMENT_RULES.md)
 - [`docs/DATABASE.md`](./DATABASE.md)
 - [`docs/USERS.md`](./USERS.md)
+- [`docs/HUMANITY_VERIFICATION_PLAN.md`](./HUMANITY_VERIFICATION_PLAN.md)
 - [`docs/CHALLENGES_CATALOG.md`](./CHALLENGES_CATALOG.md)
 - [`docs/TRUST_RECIPROCITY_MARKET_PLAN.md`](./TRUST_RECIPROCITY_MARKET_PLAN.md)
 - [`docs/REFERRALS_TEAMS_PLAN.md`](./REFERRALS_TEAMS_PLAN.md)

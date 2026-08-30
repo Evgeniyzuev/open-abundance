@@ -468,6 +468,7 @@ export default function AppNavigation() {
             onOpenNextChallenge={openNextChallenge}
             onOpenReflectionInbox={openReflectionInbox}
             onOpenToday={openToday}
+            onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
             todayUnread={todayUnread}
             refreshNonce={refreshNonce}
           />

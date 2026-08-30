@@ -999,6 +999,27 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .referral-qr-code { max-width: 100%; overflow: hidden; border-radius: 16px; padding: 8px; background: var(--fixed-white); line-height: 0; }
 .referral-qr-code svg { width: min(220px, 100%); height: auto; }
 .team-summary strong { font-size: 20px; }
+.team-help-grid { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.team-path-summary { justify-items: stretch; text-align: left; }
+.team-path-steps { display: grid; gap: 6px; color: var(--muted); font-size: 0.8125rem; font-weight: 800; }
+.team-path-steps span.is-next { color: var(--blue); }
+.team-path-steps span.is-done { color: var(--green); }
+.team-task-summary, .team-task-create { justify-items: stretch; text-align: left; }
+.team-task-card { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.team-task-card-header { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.team-task-card-header > div { min-width: 0; display: grid; gap: 3px; }
+.team-task-card-header strong { overflow-wrap: anywhere; font-size: 0.9375rem; }
+.team-task-card-header span, .team-task-card-header small { color: var(--muted); font-size: 0.75rem; font-weight: 750; }
+.team-task-card p { margin: 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
+.team-task-submission { padding: 8px; border-radius: 9px; background: var(--surface); }
+.team-task-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.team-task-actions textarea { flex: 1 1 100%; min-height: 68px; resize: vertical; }
+.team-task-actions .secondary-button { min-height: 34px; padding: 0 10px; font-size: 0.75rem; }
+.team-task-actions .text-button { min-height: 30px; padding: 0 4px; font-size: 0.75rem; }
+.team-task-form { display: grid; gap: 7px; }
+.team-task-form input, .team-task-form textarea, .team-task-form select { width: 100%; border: 1px solid var(--line); border-radius: 10px; outline: 0; padding: 9px 10px; background: var(--surface); color: var(--text); font: inherit; }
+.team-task-form textarea { min-height: 64px; resize: vertical; }
+.referral-locked-hint { grid-column: 1 / -1; color: var(--muted); font-size: 0.75rem; }
 .leadership-value { font-variant-numeric: tabular-nums; letter-spacing: -0.8px; }
 .leadership-progress { width: min(320px, 100%); height: 9px; overflow: hidden; border: 0; border-radius: 999px; background: #e4e8f0; accent-color: var(--blue); }
 .leadership-progress::-webkit-progress-bar { border-radius: 999px; background: #e4e8f0; }
@@ -1006,6 +1027,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .leadership-progress::-moz-progress-bar { border-radius: 999px; background: var(--blue); }
 .inline-profile-button { max-width: 100%; overflow: hidden; background: transparent; color: var(--text); font-size: 20px; font-weight: 900; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
 .compact-profile-list { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.compact-profile-entry { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
 .compact-profile-button { min-height: 30px; max-width: 100%; overflow: hidden; border-radius: 999px; padding: 0 10px; background: var(--accent-soft); color: var(--blue); font-size: 0.75rem; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
 .public-profile-box { width: 100%; display: grid; gap: 9px; justify-items: stretch; margin-top: 8px; border-radius: 12px; padding: 12px; background: var(--surface-soft); text-align: left; }
 .section-heading-row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1578,6 +1600,7 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
   .calculator-metrics strong { max-width: 100%; }
 }
 @media (max-width: 390px) {
+  .team-help-grid { grid-template-columns: 1fr; }
   .smart-card strong { font-size: 29px; }
   .smart-card span:last-child { font-size: 1.0625rem; }
   .task-text span { font-size: 1.1875rem; }

@@ -143,8 +143,8 @@
     - Связанный документ: `docs/SKILLS_SYSTEM_PLAN.md`.
 3. [ ] **Team / Referral / Leader Loop**
 
-    - Team dashboard, помощь новичку, лидерские челленджи и базовая коммуникация.
-    - Invite challenge считает регистрацию; высокий уровень навыка привлечения — активацию и удержание.
+    - Локальная функциональная реализация Team Help Loop v1 завершена: team dashboard, помощь новичку, лидерские челленджи, task API/RLS, quality-referral агрегаты и Direct.
+    - Remote migration apply и ручной QA не входят в этот этап; Invite challenge открывается после первого подтверждённого non-onboarding результата, Skill Passport использует activated/retained D7.
     - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
 4. [ ] **User economy metrics + participation shadow**
 

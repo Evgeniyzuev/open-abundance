@@ -88,9 +88,14 @@ export async function GET(request: NextRequest) {
 
   let userChallengeCount = 0;
   let prerequisiteStatuses = new Map<string, string>();
+  let hasFirstResult = false;
   if (viewerUserId) {
-    const { data: progressRows } = await supabase.from("user_challenges").select("challenge_id,status").eq("user_id", viewerUserId);
+    const [{ data: progressRows }, { data: snapshots }] = await Promise.all([
+      supabase.from("user_challenges").select("challenge_id,status").eq("user_id", viewerUserId),
+      supabase.from("challenge_completion_snapshots").select("challenge_category").eq("user_id", viewerUserId)
+    ]);
     prerequisiteStatuses = new Map((progressRows ?? []).map((row) => [row.challenge_id, String(row.status).trim().toLowerCase()]));
+    hasFirstResult = (snapshots ?? []).some((snapshot) => Boolean(snapshot.challenge_category && snapshot.challenge_category !== "onboarding"));
   }
   const challengeRows = (challenges ?? []) as unknown as ChallengeWithProgress[];
   const data = challengeRows.map((challenge) => {
@@ -101,7 +106,9 @@ export async function GET(request: NextRequest) {
     return {
       ...publicChallenge,
       user_challenge_status: userChallenge?.status ? String(userChallenge.status).trim().toLowerCase() : null,
-      prerequisite_completed: !challenge.prerequisite_challenge_id || prerequisiteStatuses.get(challenge.prerequisite_challenge_id) === "completed"
+      prerequisite_completed: challenge.verification_logic === "has_referral"
+        ? hasFirstResult
+        : !challenge.prerequisite_challenge_id || prerequisiteStatuses.get(challenge.prerequisite_challenge_id) === "completed"
     };
   });
 

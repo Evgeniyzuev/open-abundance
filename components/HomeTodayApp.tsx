@@ -54,6 +54,12 @@ type TodayPayload = {
   };
 };
 
+type TeamDashboardSummary = {
+  taskCounts?: { memberOpen: number; memberSubmitted: number; leaderReview: number; leaderOpen: number; total: number };
+  nextAction?: string;
+  leaderPath?: { next: "publish_result" | "invite_participant" | "help_newcomer" | "complete" } | null;
+};
+
 type HomeTodayAppProps = {
   active: boolean;
   refreshNonce: number;
@@ -61,6 +67,7 @@ type HomeTodayAppProps = {
   onOpenNextChallenge: () => void;
   onOpenReflectionInbox: () => void;
   onOpenToday: () => void;
+  onOpenTeams: () => void;
   todayUnread: boolean;
 };
 
@@ -71,10 +78,12 @@ export default function HomeTodayApp({
   onOpenNextChallenge,
   onOpenReflectionInbox,
   onOpenToday,
+  onOpenTeams,
   todayUnread
 }: HomeTodayAppProps) {
   const { locale, loading, profile, t, user } = useUserContext();
   const [today, setToday] = useState<TodayPayload | null>(null);
+  const [teamSummary, setTeamSummary] = useState<TeamDashboardSummary | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [actionError, setActionError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
@@ -141,10 +150,37 @@ export default function HomeTodayApp({
     }
   }, [user]);
 
+  const loadTeamSummary = useCallback(async () => {
+    if (!user || !navigator.onLine) {
+      setTeamSummary(null);
+      return;
+    }
+    try {
+      const supabase = getBrowserSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch(`/api/teams/me?ts=${Date.now()}`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${session.access_token}`, "Cache-Control": "no-cache" }
+      });
+      const payload = (await response.json()) as TeamDashboardSummary & { error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load team summary.");
+      setTeamSummary(payload);
+    } catch (error) {
+      console.warn("Team summary load failed", error);
+      setTeamSummary(null);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!active) return;
     void loadHome();
   }, [active, loadHome, refreshNonce]);
+
+  useEffect(() => {
+    if (!active) return;
+    void loadTeamSummary();
+  }, [active, loadTeamSummary, refreshNonce]);
 
   useEffect(() => {
     if (!active) return;
@@ -329,6 +365,31 @@ export default function HomeTodayApp({
           <ArrowRight size={17} />
         </button>
       </section>
+
+      {user && teamSummary ? (
+        <section className="home-card home-team-card">
+          <div className="home-card-heading">
+            <span className="home-card-label">{t("home.team.title")}</span>
+            {teamSummary.taskCounts?.leaderReview ? <b>{teamSummary.taskCounts.leaderReview}</b> : null}
+          </div>
+          <p>
+            {teamSummary.nextAction === "review_task"
+              ? t("home.team.leaderQueue", { count: teamSummary.taskCounts?.leaderReview ?? 0 })
+              : teamSummary.nextAction === "work_on_task"
+                ? t("home.team.memberAction", { count: teamSummary.taskCounts?.memberOpen ?? 0 })
+                : teamSummary.nextAction === "await_review"
+                  ? t("home.team.awaitReview")
+                  : teamSummary.leaderPath?.next === "publish_result"
+                    ? t("social.teams.path.result")
+                    : teamSummary.leaderPath?.next === "invite_participant"
+                      ? t("social.teams.path.invite")
+                      : teamSummary.leaderPath?.next === "help_newcomer"
+                        ? t("social.teams.path.help")
+                        : t("home.team.ready")}
+          </p>
+          <button className="text-button" type="button" onClick={onOpenTeams}>{t("home.team.open")}</button>
+        </section>
+      ) : null}
     </section>
   );
 }

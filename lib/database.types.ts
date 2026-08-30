@@ -1868,6 +1868,118 @@ export type Database = {
         }
         Relationships: []
       }
+      team_task_events: {
+        Row: {
+          actor_user_id: string
+          created_at: string
+          event_type: string
+          from_status: string | null
+          id: string
+          metadata: Json
+          task_id: string
+          task_version: number
+          to_status: string
+        }
+        Insert: {
+          actor_user_id: string
+          created_at?: string
+          event_type: string
+          from_status?: string | null
+          id?: string
+          metadata?: Json
+          task_id: string
+          task_version: number
+          to_status: string
+        }
+        Update: {
+          actor_user_id?: string
+          created_at?: string
+          event_type?: string
+          from_status?: string | null
+          id?: string
+          metadata?: Json
+          task_id?: string
+          task_version?: number
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_task_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "team_tasks"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      team_tasks: {
+        Row: {
+          accepted_at: string | null
+          challenge_id: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          due_at: string | null
+          id: string
+          leader_user_id: string
+          member_user_id: string
+          newcomer_eligible: boolean
+          status: string
+          submission: string | null
+          task_kind: string
+          title: string
+          submitted_at: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          accepted_at?: string | null
+          challenge_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_at?: string | null
+          id?: string
+          leader_user_id: string
+          member_user_id: string
+          newcomer_eligible?: boolean
+          status?: string
+          submission?: string | null
+          task_kind?: string
+          title: string
+          submitted_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          accepted_at?: string | null
+          challenge_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_at?: string | null
+          id?: string
+          leader_user_id?: string
+          member_user_id?: string
+          newcomer_eligible?: boolean
+          status?: string
+          submission?: string | null
+          task_kind?: string
+          title?: string
+          submitted_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_tasks_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       today_progress_events: {
         Row: {
           amount_core: number
@@ -3239,6 +3351,26 @@ export type Database = {
           rewarded_amount: number
         }[]
       }
+      count_activated_referrals: {
+        Args: { p_referrer_user_id: string }
+        Returns: number
+      }
+      count_retained_referrals: {
+        Args: { p_referrer_user_id: string }
+        Returns: number
+      }
+      create_team_task: {
+        Args: {
+          p_actor_user_id: string
+          p_challenge_id?: string | null
+          p_description?: string
+          p_due_at?: string | null
+          p_member_user_id: string
+          p_task_kind: string
+          p_title: string
+        }
+        Returns: Json
+      }
       rebuild_user_economy_metrics: {
         Args: {
           p_from_date?: string | null
@@ -3376,6 +3508,16 @@ export type Database = {
       run_daily_team_bonus: {
         Args: { p_bonus_date?: string }
         Returns: undefined
+      }
+      transition_team_task: {
+        Args: {
+          p_action: string
+          p_actor_user_id: string
+          p_expected_version?: number | null
+          p_submission?: string | null
+          p_task_id: string
+        }
+        Returns: Json
       }
       configure_ton_deposit_scanner: {
         Args: {

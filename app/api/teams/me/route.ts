@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     }
 
-    const [membershipResult, directMembershipsResult, queueResult, leadershipResult] = await Promise.all([
+    const [membershipResult, directMembershipsResult, queueResult, leadershipResult, tasksResult, referralResult, firstResultResult, activatedResult, retainedResult] = await Promise.all([
       supabase
         .from("team_memberships")
         .select("*")
@@ -29,7 +29,23 @@ export async function GET(request: NextRequest) {
         .select("reason,attempt_count,last_attempt_at,created_at")
         .eq("member_user_id", user.id)
         .maybeSingle(),
-      supabase.rpc("team_leadership_snapshot", { p_user_id: user.id })
+      supabase.rpc("team_leadership_snapshot", { p_user_id: user.id }),
+      supabase
+        .from("team_tasks")
+        .select("id,leader_user_id,member_user_id,challenge_id,task_kind,title,description,due_at,status,submission,newcomer_eligible,version,accepted_at,submitted_at,completed_at,created_at,updated_at")
+        .or(`leader_user_id.eq.${user.id},member_user_id.eq.${user.id}`)
+        .order("updated_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("referral_edges")
+        .select("referral_user_id", { count: "exact", head: true })
+        .eq("referrer_user_id", user.id),
+      supabase
+        .from("challenge_completion_snapshots")
+        .select("challenge_category")
+        .eq("user_id", user.id),
+      supabase.rpc("count_activated_referrals", { p_referrer_user_id: user.id }),
+      supabase.rpc("count_retained_referrals", { p_referrer_user_id: user.id })
     ]);
 
     if (membershipResult.error) {
@@ -44,11 +60,46 @@ export async function GET(request: NextRequest) {
     if (leadershipResult.error) {
       return NextResponse.json({ error: leadershipResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
+    if (tasksResult.error) {
+      return NextResponse.json({ error: tasksResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+    if (referralResult.error) {
+      return NextResponse.json({ error: referralResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+    if (firstResultResult.error) {
+      return NextResponse.json({ error: firstResultResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+    if (activatedResult.error) {
+      return NextResponse.json({ error: activatedResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+    if (retainedResult.error) {
+      return NextResponse.json({ error: retainedResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
 
     const membership = membershipResult.data;
     const directMemberships = directMembershipsResult.data;
     const queue = queueResult.data;
     const [leadership] = leadershipResult.data ?? [];
+    const tasks = tasksResult.data ?? [];
+    const hasFirstResult = (firstResultResult.data ?? []).some((snapshot) => Boolean(snapshot.challenge_category && snapshot.challenge_category !== "onboarding"));
+    const registeredReferrals = referralResult.count ?? 0;
+    const activatedReferrals = Number(activatedResult.data ?? 0);
+    const retainedReferrals = Number(retainedResult.data ?? 0);
+    const memberTasks = tasks.filter((task) => task.member_user_id === user.id);
+    const leaderTasks = tasks.filter((task) => task.leader_user_id === user.id);
+    const memberOpen = memberTasks.filter((task) => ["proposed", "accepted", "returned"].includes(task.status)).length;
+    const memberSubmitted = memberTasks.filter((task) => task.status === "submitted").length;
+    const leaderReview = leaderTasks.filter((task) => task.status === "submitted").length;
+    const leaderOpen = leaderTasks.filter((task) => ["proposed", "accepted", "returned"].includes(task.status)).length;
+    const isLeader = (directMemberships ?? []).length > 0 || leaderReview > 0 || leaderOpen > 0;
+    const helpCompleted = leaderTasks.some((task) => task.status === "completed" && task.newcomer_eligible);
+    const leaderPath = isLeader ? {
+        firstResultCompleted: hasFirstResult,
+        inviteUnlocked: hasFirstResult,
+        referralRegistered: registeredReferrals > 0,
+        newcomerHelpCompleted: helpCompleted,
+        next: !hasFirstResult ? "publish_result" : registeredReferrals === 0 ? "invite_participant" : helpCompleted ? "complete" : "help_newcomer"
+      } as const : null;
 
     const leaderProfile = membership?.leader_user_id
       ? await loadProfile(supabase, membership.leader_user_id)
@@ -93,6 +144,22 @@ export async function GET(request: NextRequest) {
             used_points: 0,
             free_points: 0,
             overcommitted: false
+          },
+          taskCounts: {
+            memberOpen,
+            memberSubmitted,
+            leaderReview,
+            leaderOpen,
+            total: tasks.length
+          },
+          nextAction: isLeader
+            ? (leaderReview > 0 ? "review_task" : leaderPath?.next ?? "complete")
+            : (memberSubmitted > 0 ? "await_review" : memberOpen > 0 ? "work_on_task" : "none"),
+          leaderPath,
+          referralQuality: {
+            registered: registeredReferrals,
+            activated: activatedReferrals,
+            retainedD7: retainedReferrals
           }
         },
       { headers: NO_STORE_HEADERS }

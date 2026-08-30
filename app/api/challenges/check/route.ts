@@ -530,14 +530,24 @@ async function verifyChallenge(
   }
 
   if (challenge.verification_logic === "has_referral") {
-    const { data, error } = await supabase
-      .from("referral_edges")
-      .select("referral_user_id")
-      .eq("referrer_user_id", userId)
-      .limit(1);
+    const [{ data: snapshots, error: snapshotError }, { data, error }] = await Promise.all([
+      supabase
+        .from("challenge_completion_snapshots")
+        .select("challenge_category")
+        .eq("user_id", userId),
+      supabase
+        .from("referral_edges")
+        .select("referral_user_id")
+        .eq("referrer_user_id", userId)
+        .limit(1)
+    ]);
 
-    if (error) {
+    if (snapshotError || error) {
       return { ok: false, reason: "Could not check referrals. Try again." };
+    }
+
+    if (!(snapshots ?? []).some((snapshot) => Boolean(snapshot.challenge_category && snapshot.challenge_category !== "onboarding"))) {
+      return { ok: false, reason: "Publish your first non-onboarding result before inviting someone." };
     }
 
     if ((data ?? []).length > 0) {
@@ -545,6 +555,26 @@ async function verifyChallenge(
     }
 
     return { ok: false, reason: "Invite one person who completes registration first." };
+  }
+
+  if (challenge.verification_logic === "team_task_help_completed") {
+    const { data, error } = await supabase
+      .from("team_tasks")
+      .select("id")
+      .eq("leader_user_id", userId)
+      .eq("status", "completed")
+      .eq("newcomer_eligible", true)
+      .limit(1);
+
+    if (error) {
+      return { ok: false, reason: "Could not check team help tasks. Try again." };
+    }
+
+    if ((data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Complete one task for a newcomer in Teams first." };
   }
 
   if (challenge.verification_logic === "team_contact_active") {

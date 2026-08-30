@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id,prerequisite_challenge_id")
+    .select("id,prerequisite_challenge_id,verification_logic")
     .eq("id", body.challengeId)
     .eq("is_active", true)
     .maybeSingle();
@@ -54,6 +54,20 @@ export async function POST(request: NextRequest) {
 
   if (!challenge) {
     return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
+  }
+
+  if (challenge.verification_logic === "has_referral") {
+    const { data: snapshots, error: snapshotError } = await supabase
+      .from("challenge_completion_snapshots")
+      .select("challenge_category")
+      .eq("user_id", user.id);
+
+    if (snapshotError) {
+      return NextResponse.json({ error: snapshotError.message }, { status: 500 });
+    }
+    if (!(snapshots ?? []).some((snapshot) => Boolean(snapshot.challenge_category && snapshot.challenge_category !== "onboarding"))) {
+      return NextResponse.json({ error: "Complete your first non-onboarding result before inviting someone." }, { status: 409 });
+    }
   }
 
   if (challenge.prerequisite_challenge_id) {

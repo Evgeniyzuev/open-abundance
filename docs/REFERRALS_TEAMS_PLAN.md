@@ -842,6 +842,7 @@ Implemented 2026-08-30 — Team Help Loop v1 (local code):
 - создание и проверка ограничены текущей прямой связью, чтение scoped участником/лидером, повторные actions идемпотентны, незавершённые задания старой связи отменяются при смене лидера;
 - добавлены `/api/teams/tasks`, `/api/teams/tasks/[taskId]/action` и расширены `/api/teams/me` полями очереди, leader path и quality-referral агрегатами;
 - Invite теперь открывается после первого подтверждённого non-onboarding результата; добавлен challenge «Помоги новичку выполнить шаг», автоматическое закрытие challenge-task и перевод Skill Passport L2–L4 на activated, L5–L10 на retained D7 без понижения заработанных уровней;
+- расчёт skill-метрик вынесен в общий серверный helper с безопасным `search_path`, а dashboard-запрос Teams получает только поля, необходимые для счётчиков;
 - `People → Teams` получил карточки заданий, создание manual/challenge task, принятие/отправку/проверку, быстрый Direct и отображение лидерского пути.
 
 Remote migration apply и ручной QA остаются отдельными deployment/acceptance gates и в этот этап не входят.

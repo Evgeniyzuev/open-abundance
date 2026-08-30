@@ -265,12 +265,12 @@ begin
     raise exception 'You are not a participant in this task.' using errcode = '42501';
   end if;
 
-  v_idempotent := (p_action = 'accept' and v_task.status = 'accepted')
-    or (p_action = 'submit' and v_task.status = 'submitted')
-    or (p_action = 'complete' and v_task.status = 'completed')
-    or (p_action = 'return' and v_task.status = 'returned')
-    or (p_action = 'decline' and v_task.status = 'declined')
-    or (p_action = 'cancel' and v_task.status = 'cancelled');
+  v_idempotent := (p_action = 'accept' and v_is_member and v_task.status = 'accepted')
+    or (p_action = 'submit' and v_is_member and v_task.status = 'submitted')
+    or (p_action = 'complete' and v_is_leader and v_task.status = 'completed')
+    or (p_action = 'return' and v_is_leader and v_task.status = 'returned')
+    or (p_action = 'decline' and v_is_member and v_task.status = 'declined')
+    or (p_action = 'cancel' and v_is_leader and v_task.status = 'cancelled');
   if v_idempotent then
     return jsonb_build_object('task', to_jsonb(v_task), 'idempotent', true);
   end if;
@@ -501,6 +501,20 @@ grant execute on function public.count_activated_referrals(uuid) to service_role
 grant execute on function public.count_retained_referrals(uuid) to service_role;
 
 -- Existing earned skill levels remain monotonic; only future refreshes use quality metrics.
+alter table public.skill_level_rules
+  drop constraint if exists skill_level_rules_verification_logic_check;
+
+alter table public.skill_level_rules
+  add constraint skill_level_rules_verification_logic_check check (verification_logic in (
+    'referral_count',
+    'activated_referral_count',
+    'retained_referral_count',
+    'public_post_count',
+    'team_member_count',
+    'team_contact_count',
+    'challenge_completion_count'
+  ));
+
 update public.skill_level_rules rule
 set verification_logic = case
       when rule.level between 2 and 4 then 'activated_referral_count'
@@ -522,11 +536,63 @@ where rule.skill_id = skill.id
   and skill.slug = 'referral_acquisition'
   and rule.level >= 2;
 
+-- Keep metric lookups in one place so future skill refreshes do not copy this CASE block.
+create or replace function public.skill_metric_value(
+  p_user_id uuid,
+  p_verification_logic text
+)
+returns bigint
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select case p_verification_logic
+    when 'referral_count' then (
+      select count(*)::bigint
+      from public.referral_edges edge
+      where edge.referrer_user_id = p_user_id
+    )
+    when 'activated_referral_count' then public.count_activated_referrals(p_user_id)
+    when 'retained_referral_count' then public.count_retained_referrals(p_user_id)
+    when 'public_post_count' then (
+      select count(*)::bigint
+      from public.feed_posts post
+      where post.author_user_id = p_user_id
+        and post.status = 'published'
+        and post.visibility = 'public'
+        and post.deleted_at is null
+    )
+    when 'team_member_count' then (
+      select count(*)::bigint
+      from public.team_memberships membership
+      where membership.leader_user_id = p_user_id
+        and membership.is_active
+    )
+    when 'team_contact_count' then (
+      select count(*)::bigint
+      from public.user_contacts contact
+      where contact.owner_user_id = p_user_id
+        and contact.status = 'active'
+        and contact.source in ('team_leader', 'team_member')
+    )
+    when 'challenge_completion_count' then (
+      select count(*)::bigint
+      from public.challenge_completion_snapshots completion
+      where completion.user_id = p_user_id
+    )
+    else 0::bigint
+  end;
+$$;
+
+revoke all on function public.skill_metric_value(uuid, text) from public, anon, authenticated;
+grant execute on function public.skill_metric_value(uuid, text) to service_role;
+
 create or replace function public.refresh_user_skill_levels(p_user_id uuid)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   skill_row record;
@@ -555,25 +621,7 @@ begin
       where rule.skill_id = skill_row.id
       order by rule.level
     loop
-      current_value := case rule_row.verification_logic
-        when 'referral_count' then (select count(*) from public.referral_edges edge where edge.referrer_user_id = p_user_id)
-        when 'activated_referral_count' then public.count_activated_referrals(p_user_id)
-        when 'retained_referral_count' then public.count_retained_referrals(p_user_id)
-        when 'public_post_count' then (
-          select count(*) from public.feed_posts post
-          where post.author_user_id = p_user_id and post.status = 'published' and post.visibility = 'public' and post.deleted_at is null
-        )
-        when 'team_member_count' then (
-          select count(*) from public.team_memberships membership
-          where membership.leader_user_id = p_user_id and membership.is_active
-        )
-        when 'team_contact_count' then (
-          select count(*) from public.user_contacts contact
-          where contact.owner_user_id = p_user_id and contact.status = 'active' and contact.source in ('team_leader', 'team_member')
-        )
-        when 'challenge_completion_count' then (select count(*) from public.challenge_completion_snapshots completion where completion.user_id = p_user_id)
-        else 0
-      end;
+      current_value := public.skill_metric_value(p_user_id, rule_row.verification_logic);
 
       if current_value >= rule_row.threshold then
         calculated_level := greatest(calculated_level, rule_row.level);

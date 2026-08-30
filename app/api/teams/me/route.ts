@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       supabase.rpc("team_leadership_snapshot", { p_user_id: user.id }),
       supabase
         .from("team_tasks")
-        .select("id,leader_user_id,member_user_id,challenge_id,task_kind,title,description,due_at,status,submission,newcomer_eligible,version,accepted_at,submitted_at,completed_at,created_at,updated_at")
+        .select("id,leader_user_id,member_user_id,status,newcomer_eligible")
         .or(`leader_user_id.eq.${user.id},member_user_id.eq.${user.id}`)
         .order("updated_at", { ascending: false })
         .limit(100),

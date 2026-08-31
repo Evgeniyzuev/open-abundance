@@ -29,19 +29,14 @@
 
 ## Сейчас
 
-### Marketplace safety completion + Internal Market
+### Trust v2 Shadow v1
 
-- **Статус:** Сейчас — внутренний DB-only контур реализируется; remote marketplace schema доступна, но сделок и buyer/seller User QA ещё не было. Юридический gate закрытой beta отмечен пройденным по подтверждению основателя.
-- **Пользовательский результат:** объявление → резерв Wallet без комиссии → принятие/выполнение → атомарный settlement или refund → receipt, история и review.
-- **Почему сейчас:** существующий foundation показывал объявления, но не резервировал оплату из UI; запуск mutual economy без hold создавал риск недостаточного баланса, двойной продажи и зависших сделок.
-- **Главное решение:** одна идемпотентная RPC-транзакция для hold/lock, минимальный отдельный `marketplace_escrows` только для состояния hold/release/refund и ключей повторов, явные deal actions, 24-часовой seller acceptance, 72-часовой auto-release, dispute с двумя исходами и immutable terms versions.
-- **Граница шага:** только внутренние Wallet/DB операции. TON contracts, on-chain escrow, аудит smart contracts и blockchain settlement — отдельный отложенный этап.
-- **Изменения:** listing kinds `digital_asset/service/physical_good`, detail/edit, image/category/fulfillment/terms hash; Wallet-to-Wallet receipt и обязательный idempotency key; immutable buyer reviews и server-maintained listing counters. `user_economy_metrics`, `participation_balance` и ranking отложены до отдельного этапа после QA.
-- **Упрощение MVP:** Wallet truth остаётся в `wallet_accounts`/`wallet_ledger`; текущая миграция не создаёт `marketplace_user_balances` или `marketplace_user_counterparties`, а `fee_amount` не хранится до появления комиссии.
-- **Технические проверки:** `node scripts/verify-marketplace-contract.mjs`, `pnpm exec tsc --noEmit`, `pnpm lint`; remote migration apply и REST schema verification остаются следующим подтверждаемым шагом.
-- **Ручной UX-сценарий после deployment:** buyer Wallet transfer → seller listing → покупка → seller accept/deliver → buyer confirm → refund/cancel → dispute/operator resolution.
-- **Критерий завершения:** технические проверки, remote schema check и buyer/seller User QA на двух реальных аккаунтах; после подтверждения основателя карточка переносится в `Подтверждено`, следующей активной становится Team/Referral.
-- **Связанные документы:** `docs/MARKETPLACE_ESCROW_PLAN.md`, `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
+- **Статус:** Сейчас — внутренний детерминированный shadow calculation; публичный Trust, пользовательский UI и влияние на Core/Wallet/Skills запрещены.
+- **Конфигурация:** versioned `trust-shadow-v1`: starter `0.25`, `A=100`, `c=1`, `beta=0.25`, amount cap `9`, pair cap `2 + 0.25 × Core Level`, окно `365` дней, rater share `10%`, annual decay `0.9`.
+- **Граница шага:** только service-only таблицы, атомарный rebuild и aggregate operator report; corrections, private owner summary, qualitative badges и public scale остаются следующими этапами.
+- **Источники:** только published reviews завершённых и оплаченных сделок; hidden/flagged, refunded/cancelled/unresolved и неподтверждённые суммы исключаются, Trust-lite учитывается лишь диагностически.
+- **Критерий завершения:** deterministic contract test, typecheck/lint/build и проверка operator auth; remote migration apply, анализ реального распределения и ручной QA остаются отдельными gate’ами.
+- **Связанные документы:** `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`, `docs/REFERRALS_TEAMS_PLAN.md`, `docs/MARKETPLACE_ESCROW_PLAN.md`.
 
 ## Завершённая карточка — Skill Passport
 
@@ -141,23 +136,21 @@
     - Server-authoritative refresh и автоматические уровни по referral, public content и team facts.
     - Ручной User QA подтверждён пользователем 2026-08-02; human review, evidence и certificates не входят.
     - Связанный документ: `docs/SKILLS_SYSTEM_PLAN.md`.
-3. [ ] **Team / Referral / Leader Loop**
+3. [X] **Team / Referral / Leader Loop**
 
     - Локальная функциональная реализация Team Help Loop v1 завершена: team dashboard, помощь новичку, лидерские челленджи, task API/RLS, quality-referral агрегаты и Direct.
-    - Remote migration apply и ручной QA не входят в этот этап; Invite challenge открывается после первого подтверждённого non-onboarding результата, Skill Passport использует activated/retained D7.
+    - Функционально выполнено; remote migration apply и ручной QA остаются отдельными deployment/acceptance gates. Invite challenge открывается после первого подтверждённого non-onboarding результата, Skill Passport использует activated/retained D7.
     - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
-4. [ ] **User economy metrics + participation shadow**
+4. [X] **User economy metrics + participation shadow**
 
-    - Local implementation is complete: challenge reward normalization, rebuildable `user_economy_metrics`, reconciliation/RLS, private APIs, Wallet UI and safe opt-in aggregates. Remote migration apply, reconciliation run and buyer/seller QA remain the gate.
+    - Функционально выполнено локально: challenge reward normalization, rebuildable `user_economy_metrics`, reconciliation/RLS, private APIs, Wallet UI и safe opt-in aggregates. Remote migration apply, reconciliation run и buyer/seller QA остаются gate.
 
-    - После закрытия внутреннего Marketplace и buyer/seller QA: нормализовать reward sources и построить один `user_economy_metrics` для `day/month/year/lifetime`.
     - `participation_balance = marketplace_purchases_gross - marketplace_sales_gross`; Wallet transfers и внешние flows его не меняют.
-    - Только после private metrics и reconciliation считать rolling 90-day eligible signal в shadow mode; ranking включается лишь для закрытой beta после отдельного подтверждения.
-    - Связанный документ: `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
-5. [ ] **Trust v2**
+    - Marketplace остаётся отдельным неподтверждённым QA-gate и выведен из активной очереди разработки.
+    - Связанный документ: `docs/MARKETPLACE_ESCROW_PLAN.md`.
+5. [ ] **Trust v2 private summary + calibrated public pilot**
 
-    - Rating `0.0–5.0`, amount smoothing, level-based pair cap, `10%` signed rater effect и calendar-year `×0.9` summary.
-    - Порядок: shadow calculation → private summary → calibrated public pilot.
+    - Следующий этап после Shadow v1: private summary → calibrated public pilot только после отдельного решения по калибровке и anti-abuse.
     - Связанный документ: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
 6. [ ] **Future Sim**
 

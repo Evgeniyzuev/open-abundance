@@ -838,6 +838,8 @@ API:
 
 Implemented 2026-08-30 — Team Help Loop v1 (local code):
 
+Функциональный статус: выполнено локально. Remote migration apply и ручной QA остаются отдельными deployment/acceptance gates; эта карточка больше не входит в активную очередь разработки.
+
 - добавлены `team_tasks` и неизменяемый `team_task_events` с серверными переходами `proposed → accepted → submitted → completed/returned`, а также `declined/cancelled`;
 - создание и проверка ограничены текущей прямой связью, чтение scoped участником/лидером, повторные actions идемпотентны, незавершённые задания старой связи отменяются при смене лидера;
 - добавлены `/api/teams/tasks`, `/api/teams/tasks/[taskId]/action` и расширены `/api/teams/me` полями очереди, leader path и quality-referral агрегатами;

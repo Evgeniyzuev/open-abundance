@@ -12,6 +12,7 @@
     "test:usdt": "node scripts/verify-ton-usdt-contract.mjs",
     "test:marketplace": "node scripts/verify-marketplace-contract.mjs",
     "test:economy": "node scripts/verify-economy-contract.mjs",
+    "test:trust-v2": "node scripts/verify-trust-v2-contract.mjs",
     "test:growth": "node scripts/verify-growth-analytics-contract.mjs",
     "test:acquisition": "node scripts/verify-acquisition-challenges-contract.mjs",
     "test:e2e": "playwright test",

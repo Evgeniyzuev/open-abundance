@@ -45,16 +45,16 @@
 
 ## Trust v2 — принятое направление
 
-Trust v2 не заменяет `trust_events`; он рассчитывает объяснимый summary поверх append-only событий, сделок, оценок, corrections и annual decay.
+Trust v2 не заменяет `trust_events`; Shadow v1 рассчитывает объяснимый внутренний summary поверх append-only событий, сделок и оценок. Публичная шкала, corrections и private owner summary не входят в этот этап.
 
 Принятые правила:
 
-- при регистрации создаётся небольшой положительный starter event; точное значение ещё не утверждено;
-- после допустимого взаимодействия контрагент оценивает другого по шкале `0.0–5.0` с шагом `0.1`; `3.0` нейтрально;
-- завершённая settled deal использует фактическую сумму после возвратов, нелинейно через квадратный корень;
+- при регистрации создаётся положительный starter `0.25`;
+- после допустимого взаимодействия контрагент оценивает другого целым рейтингом `1–5`; `3` нейтрально (decimal-rating UX не входит в Shadow v1);
+- завершённая и оплаченная deal использует подтверждённую сумму `$` через `amount_factor = 1 + sqrt(clamp(amount / 100, 0, 9))`;
 - максимальное положительное и отрицательное влияние одного rater на одного target линейно зависит от Core Level rater и ограничивается rolling pair budget;
 - после всех caps rater получает `10%` от того же подписанного изменения: положительная оценка немного повышает обоих, негативная имеет небольшую цену для автора;
-- в конце каждого календарного года текущий summary умножается на `0.9`; исходные ledger events не меняются;
+- переход календарного года умножает накопленный summary на `0.9`; исходные ledger events не меняются;
 - score не меняет Core, Wallet, Core Level или Skill Level.
 
 Кандидат формулы:
@@ -67,9 +67,9 @@ target_delta = clamp_to_remaining_pair_budget(raw_delta, pair_cap(level))
 rater_delta = 0.10 × target_delta
 ```
 
-`A`, `c`, `beta`, caps, rolling window, starter value и публичная шкала являются versioned configuration и decision gate. Одна крупная сделка не может определить весь Trust.
+Shadow v1 фиксирует эти параметры в versioned configuration `trust-shadow-v1`; публичная шкала и переход из shadow остаются отдельным decision gate. Одна крупная сделка не может определить весь Trust.
 
-Для незавершённого, отменённого или нулевого заказа допускается отдельный малый fixed-impact rating event только после доказанного двустороннего взаимодействия: обе стороны приняли условия, либо контрагент подтвердил контакт/работу. Одного созданного запроса недостаточно. Amount multiplier для такого события равен нулю; применяется отдельная малая константа и более строгий pair cap.
+Для Shadow v1 незавершённые, отменённые, refunded и unresolved deals не создают числовой rating event: в расчёт проходят только опубликованные reviews завершённых и оплаченных сделок с подтверждённой суммой. Возможный fixed-impact event для других доказанных взаимодействий — отдельный будущий decision gate.
 
 Публичность вводится поэтапно:
 
@@ -106,13 +106,21 @@ rater_delta = 0.10 × target_delta
 - Added Wallet transfer modal with contact selection/manual recipient id fallback and server refresh after successful transfer.
 - Added and applied Marketplace listings Phase 2: `marketplace_listings`, create/list/cancel API and Wallet -> Market listing grid.
 - Updated Marketplace listings UI/API so users can create product/service/skill cards directly; open cards are limited by current Core level.
-- Marketplace quality layer is specified in `docs/MARKETPLACE_ESCROW_PLAN.md`: listing sales/review counters and buyer reviews are part of the internal MVP; private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross` belongs to the deferred `user_economy_metrics` stage after buyer/seller QA.
+- Marketplace quality layer is specified in `docs/MARKETPLACE_ESCROW_PLAN.md`: listing sales/review counters and buyer reviews are part of the internal MVP; local `user_economy_metrics` and private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross` implementation is complete, while remote apply/reconciliation and buyer/seller QA remain acceptance gates.
 
 2026-08-01:
 
 - Trust v2 accepted as a future public numeric summary, without changing the current Trust-lite implementation.
-- Marketplace deal lifecycle, funds reserve, expire/refund, disputes and reviews exist in the local DB-only implementation; remote apply and buyer/seller User QA remain prerequisites for Trust v2 and any mutual ranking.
-- Exact Trust scale and constants remain decision gates; no Trust v2 tables or scoring worker are implemented.
+- Marketplace deal lifecycle, funds reserve, expire/refund, disputes and reviews exist in the local DB-only implementation; remote apply and buyer/seller User QA remain prerequisites for marketplace launch and any future Trust distribution analysis.
+- Exact Trust scale and constants were decision gates for the prior design; Shadow v1 fixes them in `trust-shadow-v1` without exposing a score.
+
+2026-08-31:
+
+- Added service-only `trust_v2_score_configs`, `trust_v2_shadow_contributions` and `trust_v2_shadow_summaries`.
+- Marketplace review creation now snapshots `rater_core_level`; existing reviews are marked `backfilled_current`.
+- Added atomic `rebuild_trust_v2_shadow(config_version, as_of_date)` and aggregate operator-only report routes.
+- Eligibility uses current deal/moderation/payment truth with an `as_of_date` source cutoff; Trust-lite events are diagnostic-only.
+- Remote migration apply, real-distribution analysis, manual QA and any private/public Trust surface remain separate stages.
 
 ## Core Entities
 
@@ -389,10 +397,10 @@ MVP endpoints:
 
 ### Phase 8. Trust v2
 
-- reviews и dispute/correction ledger поверх допустимых interaction events;
-- versioned score configuration и deterministic recalculation;
-- synthetic scenarios, shadow calculation и abuse monitoring;
-- private owner summary с объяснением каждой дельты;
+- reviews поверх допустимых interaction events;
+- versioned score configuration и deterministic shadow recalculation;
+- synthetic scenarios, shadow calculation и aggregate abuse diagnostics;
+- private owner summary с объяснением каждой дельты — следующий этап;
 - ограниченный public pilot только после утверждения scale/start/constants/caps;
 - никакого автоматического уменьшения Core, Wallet, Skill Level или базового доступа.
 
@@ -405,7 +413,7 @@ MVP endpoints:
 - Community-check челлендж может проверять confirmed trust event.
 - Reciprocity summary считается без публичного числового рейтинга.
 - Предметы могут выдаваться за подтвержденные milestones.
-- Marketplace economic launch и Trust v2 остаются закрытыми, пока нет funds reserve, dispute/review, anti-abuse и User QA.
+- Marketplace economic launch остаётся закрытым до remote apply и buyer/seller QA; Shadow v1 не открывает public/private Trust и не зависит от пользовательского рейтингового UX.
 
 ## Open Questions
 
@@ -415,11 +423,11 @@ Trust-lite:
 - срок жизни pending confirmation и лимит одного counterparty;
 - где показывать входящие запросы и когда включать ручной review.
 
-Trust v2 decision gates:
+Future Trust v2 decision gates after Shadow analysis:
 
 - публичная шкала summary (`0–5`, `0–100` или level + score);
-- starter Trust и абсолютные границы score;
-- `A`, `c`, `beta`, per-deal caps, rolling pair window и fixed constant для нулевой суммы;
+- calibrated starter/scale boundaries after observing the shadow distribution;
+- any changes to `A`, `c`, `beta`, per-deal caps or rolling pair window;
 - минимальное доказательство двустороннего взаимодействия для cancelled/incomplete rating;
 - окно rating/edit, обязательные причины и evidence для экстремальных оценок;
 - correction/dispute SLA и критерии выхода из shadow/private в public pilot.

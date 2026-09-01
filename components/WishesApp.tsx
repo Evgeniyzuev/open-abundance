@@ -909,8 +909,26 @@ function recommendedToForm(wish: RecommendedWish, locale: AppLocale): FormState 
 
 function estimatedCostToAmount(value: string | null): string {
   if (!value) return "";
-  const match = value.replace(/\s/g, "").match(/(\d+(?:[.,]\d+)?)/);
-  return match ? match[1].replace(",", ".") : "";
+
+  const normalized = value.replace(/\s/g, "").replace(/[^\d.,]/g, "");
+  if (!normalized) return "";
+
+  const lastSeparator = Math.max(normalized.lastIndexOf(","), normalized.lastIndexOf("."));
+  const fractionalPart = lastSeparator >= 0 ? normalized.slice(lastSeparator + 1) : "";
+  const hasBothSeparators = normalized.includes(",") && normalized.includes(".");
+  const isGroupedInteger = /^\d{1,3}(?:[.,]\d{3})+$/.test(normalized);
+  const isDecimal = lastSeparator >= 0
+    && fractionalPart.length >= 1
+    && fractionalPart.length <= 2
+    && (hasBothSeparators || !isGroupedInteger);
+
+  if (isDecimal) {
+    const wholePart = normalized.slice(0, lastSeparator).replace(/[.,]/g, "");
+    return `${wholePart}.${fractionalPart}`;
+  }
+
+  if (isGroupedInteger) return normalized.replace(/[.,]/g, "");
+  return /^\d+$/.test(normalized) ? normalized : "";
 }
 
 function text(value: LocaleText, locale: AppLocale): string {

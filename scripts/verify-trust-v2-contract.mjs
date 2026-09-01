@@ -11,6 +11,7 @@ assert.match(ratingModule, /MARKETPLACE_RATING_ERROR/);
 assert.match(ratingModule, /replace\(",", "\."\)/);
 assert.match(ratingModule, /parsed < 0 \|\| parsed > 5/);
 assert.match(ratingModule, /Math\.round\(parsed \* 10\)/);
+assert.doesNotMatch(migration, /\brating\s+numeric\(2, 1\)/);
 
 function normalizeMarketplaceRating(value) {
   const parsed = typeof value === "number"
@@ -32,12 +33,12 @@ for (const input of [-0.1, 5.1, "4.55", "Infinity", null, true]) {
 }
 
 for (const fragment of [
-  "alter column rating type numeric(2, 1)",
+  "alter column rating type numeric using rating::numeric",
   "alter column rating_sum type numeric(30, 1)",
   "drop function if exists public.create_marketplace_review(uuid, uuid, integer, text)",
   "p_rating numeric",
   "p_rating <> round(p_rating, 1)",
-  "rating numeric(2, 1),",
+  "rating numeric,",
   "alter column rater_core_level drop not null",
   "rater_core_level_source is null or rater_core_level_source in",
   "create table if not exists public.trust_v2_score_configs",

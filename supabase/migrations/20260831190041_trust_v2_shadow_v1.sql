@@ -2,7 +2,7 @@
 -- This migration never writes Core, Wallet, Skill Passport or public profiles.
 
 alter table public.marketplace_reviews
-  alter column rating type numeric(2, 1) using rating::numeric(2, 1);
+  alter column rating type numeric using rating::numeric;
 
 alter table public.marketplace_reviews
   drop constraint if exists marketplace_reviews_rating_check;
@@ -210,7 +210,7 @@ create table if not exists public.trust_v2_shadow_contributions (
   rater_user_id uuid references auth.users(id) on delete cascade,
   deal_id uuid,
   listing_id uuid,
-  rating numeric(2, 1) check (rating is null or (rating between 0 and 5 and rating = round(rating, 1))),
+  rating numeric check (rating is null or (rating between 0 and 5 and rating = round(rating, 1))),
   amount numeric(30, 12) check (amount is null or amount >= 0),
   currency_code text,
   rater_core_level integer check (rater_core_level is null or rater_core_level >= 0),
@@ -321,7 +321,7 @@ begin
     starter_delta numeric(30, 12) not null default 0,
     deal_id uuid,
     listing_id uuid,
-    rating numeric(2, 1),
+    rating numeric,
     amount numeric(30, 12),
     currency_code text,
     rater_core_level integer,

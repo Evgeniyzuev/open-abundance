@@ -6,6 +6,7 @@ const legacyCurrencyMarker = ["OA", "$"].join("");
 const migrationPath = join(root, "supabase", "migrations", "20260807120000_user_economy_metrics.sql");
 const migration = readFileSync(migrationPath, "utf8");
 const currencyMigration = readFileSync(join(root, "supabase", "migrations", "20260807130000_currency_symbol_dollar.sql"), "utf8");
+const rpcRepairMigration = readFileSync(join(root, "supabase", "migrations", "20260901181009_fix_user_economy_metrics_currency_rpc.sql"), "utf8");
 
 const requiredFragments = [
   "create table if not exists public.user_economy_metrics",
@@ -32,6 +33,21 @@ if (migration.includes("participation_balance',")) {
 if (migration.includes(legacyCurrencyMarker)) throw new Error("Economy metrics migration must use the plain $ currency marker.");
 for (const fragment of ["set currency_code = '$'", "alter column currency_code set default '$'", "wallet_accounts", "marketplace_deals"]) {
   if (!currencyMigration.includes(fragment)) throw new Error(`Currency migration is missing: ${fragment}`);
+}
+for (const fragment of [
+  "pg_get_functiondef('public.rebuild_user_economy_metrics(uuid,date,date)'::regprocedure)",
+  "pg_get_functiondef('public.reconcile_user_economy_metrics(uuid)'::regprocedure)",
+  "rebuild_definition := replace(rebuild_definition, legacy_currency, '$')",
+  "reconcile_definition := replace(reconcile_definition, legacy_currency, '$')",
+  "A zero-valued fact guarantees day/month/year rows for the current UTC",
+  "revoke all on function public.rebuild_user_economy_metrics(uuid, date, date) from public, anon, authenticated",
+  "perform public.rebuild_user_economy_metrics(v_user_id)",
+  "perform public.reconcile_user_economy_metrics(v_user_id)"
+]) {
+  if (!rpcRepairMigration.includes(fragment)) throw new Error(`Economy RPC repair migration is missing: ${fragment}`);
+}
+if (rpcRepairMigration.includes(legacyCurrencyMarker)) {
+  throw new Error("Economy RPC repair migration must construct, not repeat, the legacy currency marker.");
 }
 if (migration.includes("marketplace_user_balances") || migration.includes("marketplace_user_counterparties")) {
   throw new Error("Legacy ranking tables must remain deferred.");

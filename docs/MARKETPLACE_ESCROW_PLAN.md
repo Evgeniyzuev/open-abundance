@@ -11,6 +11,12 @@
 
 ## Current Status
 
+2026-09-01 (production economy RPC repair):
+
+- Applied `20260901181009_fix_user_economy_metrics_currency_rpc.sql` to the linked production project. It aligns the deployed rebuild/reconciliation functions with the `$` constraint and guarantees zero-valued current UTC day/month/year rows when a period has no source activity.
+- The migration rebuilt the disposable projection for all existing auth users. Remote migration parity, REST HTTP 200, service-role-only RPC execution, four current day/month/year/lifetime rows and zero non-`$` metric rows were verified after apply.
+- Reconciliation executed during backfill, but all four current lifetime rows remain `is_reconciled = false`; reconciliation diagnosis and buyer/seller User QA remain acceptance gates. No Wallet/Core balance, ledger or deal source row was changed by this repair.
+
 2026-08-07 (current internal-only implementation):
 
 - `20260806120100_marketplace_internal_escrow.sql` adds listing kinds, nullable artifacts for services/physical goods, versioned terms, a minimal `marketplace_escrows` state table, reviews and idempotent hold/release/refund RPCs.
@@ -20,7 +26,7 @@
 - Wallet-to-Wallet requires a stable idempotency key and returns a canonical receipt with both ledger records and post-transfer balances. Transfers remain fee-free and have no amount/daily limits beyond positive amount, `$` precision and sufficient balance.
 - Remote REST schema for the existing marketplace deals/listings is available; no deals or relevant ledger operations were present during the read-only check. The new migration is prepared but not applied remotely; buyer/seller User QA is still pending.
 - This card is DB-only. TON contracts, on-chain escrow, audits and blockchain settlement are explicitly deferred.
-- `20260807120000_user_economy_metrics.sql` adds immutable challenge reward settlement fields, the `user_economy_metrics`/visibility tables, rebuild/reconciliation functions, RLS and deterministic auth-user backfill. Its remote apply and buyer/seller QA remain open gates.
+- `20260807120000_user_economy_metrics.sql` adds immutable challenge reward settlement fields, the `user_economy_metrics`/visibility tables, rebuild/reconciliation functions, RLS and deterministic auth-user backfill. Remote apply and the 2026-09-01 currency/RPC repair are complete; reconciliation diagnosis and buyer/seller QA remain open gates.
 - `20260807130000_currency_symbol_dollar.sql` normalizes Wallet, Marketplace and economy read-model currency data/defaults to `$`.
 
 2026-06-12:
@@ -514,8 +520,8 @@ Additional quality anti-abuse:
 - Done in code: private completion RPC, Wallet debit/credit, artifact transfer, listing `sold` и deal event в одной transaction.
 - Done in code: cancel/refund before seller acceptance, 24h expiry worker, 72h auto-release, dispute resolution and idempotent retries.
 - Done in code: one immutable buyer review per completed deal and server-maintained listing quality counters.
-- Implemented locally: `user_economy_metrics` period read model, unique-counterparty count, challenge reward normalization, reconciliation and private Wallet/Profile APIs; remote apply and buyer/seller User QA remain pending.
-- Pending: remote apply, SQL/API integration checks and no-store buyer/seller User QA.
+- Implemented and applied remotely: `user_economy_metrics` period read model, unique-counterparty count, challenge reward normalization, private Wallet/Profile APIs and the current-period/currency RPC repair.
+- Pending: investigate the remaining `is_reconciled = false` results, complete SQL/API integration checks and run no-store buyer/seller User QA.
 
 ### Phase 5. Trust And Challenges
 
@@ -559,11 +565,11 @@ Additional quality criteria:
 
 ## Next Step
 
-The local `user_economy_metrics` implementation is complete; the remaining gate is remote migration apply, reconciliation verification and buyer/seller QA. Ranking and boost stay out of this gate.
+The `user_economy_metrics` implementation and production RPC repair are applied. The remaining gate is reconciliation diagnosis plus buyer/seller QA. Ranking and boost stay out of this gate.
 
 Закрыть текущий внутренний safety gate:
 
-1. подтвердить remote migration apply и проверить REST schema;
+1. диагностировать оставшиеся `is_reconciled = false` после подтверждённых remote migration parity и REST HTTP 200;
 2. прогнать SQL/API сценарии hold, completion, cancellation, expiry, refund, dispute, concurrent buyers, duplicate requests и insufficient balance;
 3. пройти buyer/seller User QA на двух реальных аккаунтах: Wallet transfer → listing → buy → accept/deliver/confirm → refund → dispute;
 4. после подтверждения основателя перенести Marketplace в `Подтверждено`; затем выполнять `MUTUAL_CREDIT_MARKET_PLAN.md` как отдельный metrics/read-model этап, не включая ranking/boost в текущий gate.

@@ -120,12 +120,12 @@ Shadow v1 фиксирует эти параметры в versioned configuratio
 - Marketplace review creation now snapshots `rater_core_level`; existing reviews with an available Core level are marked `backfilled_current`, while legacy reviews without one remain excluded from Shadow calculations.
 - Added atomic `rebuild_trust_v2_shadow(config_version, as_of_date)` and aggregate operator-only report routes.
 - Eligibility uses current deal/moderation/payment truth with an `as_of_date` source cutoff; Trust-lite events are diagnostic-only.
-- Trust Shadow migration apply, real-distribution analysis, manual QA and any private/public Trust surface remain separate stages.
+- Trust Shadow migration apply выполнен; real-distribution analysis, manual QA and any private/public Trust surface remain separate stages.
 
 2026-09-01:
 
 - Shadow review input is canonical `0.0–5.0` with `0.1` increments and neutral `3.0`; Marketplace review storage, RPC validation and UI input use the same contract.
-- The pending migration also preserves legacy reviews without a resolvable Core snapshot by excluding them from Shadow calculations; it does not make public/private Trust available.
+- Applied migration preserves legacy reviews without a resolvable Core snapshot by excluding them from Shadow calculations; it does not make public/private Trust available. Remote schema/RLS/grants are verified, while operator auth, deterministic rebuild and manual QA remain pending.
 
 ## Core Entities
 

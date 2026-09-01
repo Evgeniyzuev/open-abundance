@@ -174,7 +174,7 @@ coverage_ratio =
 5. Marketplace safety completion: listing → Wallet reserve → delivery → settlement/refund → review; remote schema и migration применены, buyer/seller QA остаётся отдельным gate. TON contracts и blockchain settlement отложены.
 6. Team/referral/leader loop: dashboard, помощь новичку, лидерские челленджи и приглашение после результата; remote migration применена, ручной QA остаётся отдельным gate.
 7. User economy metrics: `user_economy_metrics` read model для `day/month/year/lifetime` и private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross`; remote migration применена, reconciliation и buyer/seller QA остаются gate.
-8. **Текущая кодовая карточка:** Trust v2 Shadow v1 — shadow calculation и aggregate diagnostics; private summary и только после калибровки публичный pilot.
+8. **Текущая кодовая карточка:** Trust v2 Shadow v1 — shadow calculation и aggregate diagnostics; remote migration применена, private summary и только после калибровки публичный pilot.
 9. Trust v2 private summary и calibrated public pilot после наблюдения shadow-распределения и anti-abuse решения.
 10. USDT Jetton в TON и следующая сеть — после отдельного blockchain-аудита и операционного допуска.
 11. Future Sim после устойчивого workflow, финансового калькулятора и подтверждённого D1/D3/D7.

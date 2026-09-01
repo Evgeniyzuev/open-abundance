@@ -35,8 +35,8 @@
 - **Конфигурация:** versioned `trust-shadow-v1`: rating `0.0–5.0` с шагом `0.1` и нейтральной точкой `3.0`, starter `0.25`, `A=100`, `c=1`, `beta=0.25`, amount cap `9`, pair cap `2 + 0.25 × Core Level`, окно `365` дней, rater share `10%`, annual decay `0.9`.
 - **Граница шага:** только service-only таблицы, атомарный rebuild и aggregate operator report; corrections, private owner summary, qualitative badges и public scale остаются следующими этапами.
 - **Источники:** только published reviews завершённых и оплаченных сделок; hidden/flagged, refunded/cancelled/unresolved и неподтверждённые суммы исключаются, Trust-lite учитывается лишь диагностически.
-- **Критерий завершения:** deterministic contract test, typecheck/lint/build и проверка operator auth; remote migration apply, анализ реального распределения и ручной QA остаются отдельными gate’ами.
-- **Обновление 2026-09-01:** review contract синхронизирован на `0.0–5.0` с шагом `0.1`; corrective migration и remote Technical QA ещё не закрыты.
+- **Критерий завершения:** deterministic contract test, typecheck/lint/build и проверка operator auth; remote migration apply выполнен, анализ реального распределения и ручной QA остаются отдельными gate’ами.
+- **Обновление 2026-09-01:** review contract синхронизирован на `0.0–5.0` с шагом `0.1`; corrective migration применена, remote schema/RLS/grants проверены, operator auth, deterministic rebuild и User QA ещё не закрыты.
 - **Связанные документы:** `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`, `docs/REFERRALS_TEAMS_PLAN.md`, `docs/MARKETPLACE_ESCROW_PLAN.md`.
 
 ## Завершённая карточка — Skill Passport

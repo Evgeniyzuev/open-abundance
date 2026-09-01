@@ -7,7 +7,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { AppLocale } from "@/lib/i18n";
-import { formatAdaptiveMoney } from "@/lib/moneyFormat";
+import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { findDaysToTarget, formatDurationParts } from "@/lib/coreCalculator";
 import {
   FIRST_WISH_CATEGORIES,
@@ -519,11 +519,11 @@ function FirstWishGuideModal({
               <strong>{option.title[locale]}</strong>
               <p>{option.description[locale]}</p>
               <div className="wish-meta">
-                <span>{formatAdaptiveMoney(option.targetAmount, locale)}</span>
+                <span>{formatRoundedMoney(option.targetAmount, locale)}</span>
                 <span>{t("wishes.guide.levelNeeded", { level: option.difficultyLevel })}</span>
               </div>
               {timeLabel ? (
-                <p>{t("wishes.guide.timeToGoal", { daily: formatAdaptiveMoney(FIRST_WISH_DAILY_ADDITIONS, locale), time: timeLabel })}</p>
+                <p>{t("wishes.guide.timeToGoal", { daily: formatRoundedMoney(FIRST_WISH_DAILY_ADDITIONS, locale), time: timeLabel })}</p>
               ) : null}
               <div className="wish-detail-actions">
                 <button className="task-done-primary-button" type="button" onClick={() => onAdd(category, option)}>
@@ -697,7 +697,7 @@ function WishDetailModal({
           {description ? <p>{description}</p> : null}
           <div className="wish-meta">
             {isPersonal && selectedWish.wish.target_amount ? <span>{formatAmount(selectedWish.wish.target_amount, selectedWish.wish.target_currency, locale)}</span> : null}
-            {!isPersonal && selectedWish.wish.estimated_cost ? <span>{formatAdaptiveMoney(Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)), locale)}</span> : null}
+            {!isPersonal && selectedWish.wish.estimated_cost ? <span>{formatRoundedMoney(Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)), locale)}</span> : null}
             <span>{t("wishes.level", { level: selectedWish.wish.difficulty_level })}</span>
             {isPersonal ? <span>{visibilityLabel(selectedWish.wish.visibility, t)}</span> : null}
           </div>
@@ -945,7 +945,7 @@ function text(value: LocaleText, locale: AppLocale): string {
 }
 
 function formatAmount(amount: number, currency: string, locale: AppLocale): string {
-  if (currency === "USD") return formatAdaptiveMoney(amount, locale);
+  if (currency === "USD") return formatRoundedMoney(amount, locale);
   return `${amount.toLocaleString(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 2 })} ${currency}`;
 }
 

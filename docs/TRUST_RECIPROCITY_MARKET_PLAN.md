@@ -50,7 +50,7 @@ Trust v2 не заменяет `trust_events`; Shadow v1 рассчитывае�
 Принятые правила:
 
 - при регистрации создаётся положительный starter `0.25`;
-- после допустимого взаимодействия контрагент оценивает другого целым рейтингом `1–5`; `3` нейтрально (decimal-rating UX не входит в Shadow v1);
+- после допустимого взаимодействия контрагент оценивает другого рейтингом `0.0–5.0` с шагом `0.1`; `3.0` нейтрально;
 - завершённая и оплаченная deal использует подтверждённую сумму `$` через `amount_factor = 1 + sqrt(clamp(amount / 100, 0, 9))`;
 - максимальное положительное и отрицательное влияние одного rater на одного target линейно зависит от Core Level rater и ограничивается rolling pair budget;
 - после всех caps rater получает `10%` от того же подписанного изменения: положительная оценка немного повышает обоих, негативная имеет небольшую цену для автора;
@@ -106,21 +106,26 @@ Shadow v1 фиксирует эти параметры в versioned configuratio
 - Added Wallet transfer modal with contact selection/manual recipient id fallback and server refresh after successful transfer.
 - Added and applied Marketplace listings Phase 2: `marketplace_listings`, create/list/cancel API and Wallet -> Market listing grid.
 - Updated Marketplace listings UI/API so users can create product/service/skill cards directly; open cards are limited by current Core level.
-- Marketplace quality layer is specified in `docs/MARKETPLACE_ESCROW_PLAN.md`: listing sales/review counters and buyer reviews are part of the internal MVP; local `user_economy_metrics` and private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross` implementation is complete, while remote apply/reconciliation and buyer/seller QA remain acceptance gates.
+- Marketplace quality layer is specified in `docs/MARKETPLACE_ESCROW_PLAN.md`: listing sales/review counters and buyer reviews are part of the internal MVP; `user_economy_metrics` and private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross` implementation is complete, remote migration is applied, while reconciliation and buyer/seller QA remain acceptance gates.
 
 2026-08-01:
 
 - Trust v2 accepted as a future public numeric summary, without changing the current Trust-lite implementation.
-- Marketplace deal lifecycle, funds reserve, expire/refund, disputes and reviews exist in the local DB-only implementation; remote apply and buyer/seller User QA remain prerequisites for marketplace launch and any future Trust distribution analysis.
+- Marketplace deal lifecycle, funds reserve, expire/refund, disputes and reviews exist in the local DB-only implementation; remote apply is complete, while buyer/seller User QA remains a prerequisite for marketplace launch and future Trust distribution analysis.
 - Exact Trust scale and constants were decision gates for the prior design; Shadow v1 fixes them in `trust-shadow-v1` without exposing a score.
 
 2026-08-31:
 
 - Added service-only `trust_v2_score_configs`, `trust_v2_shadow_contributions` and `trust_v2_shadow_summaries`.
-- Marketplace review creation now snapshots `rater_core_level`; existing reviews are marked `backfilled_current`.
+- Marketplace review creation now snapshots `rater_core_level`; existing reviews with an available Core level are marked `backfilled_current`, while legacy reviews without one remain excluded from Shadow calculations.
 - Added atomic `rebuild_trust_v2_shadow(config_version, as_of_date)` and aggregate operator-only report routes.
 - Eligibility uses current deal/moderation/payment truth with an `as_of_date` source cutoff; Trust-lite events are diagnostic-only.
-- Remote migration apply, real-distribution analysis, manual QA and any private/public Trust surface remain separate stages.
+- Trust Shadow migration apply, real-distribution analysis, manual QA and any private/public Trust surface remain separate stages.
+
+2026-09-01:
+
+- Shadow review input is canonical `0.0–5.0` with `0.1` increments and neutral `3.0`; Marketplace review storage, RPC validation and UI input use the same contract.
+- The pending migration also preserves legacy reviews without a resolvable Core snapshot by excluding them from Shadow calculations; it does not make public/private Trust available.
 
 ## Core Entities
 
@@ -413,7 +418,7 @@ MVP endpoints:
 - Community-check челлендж может проверять confirmed trust event.
 - Reciprocity summary считается без публичного числового рейтинга.
 - Предметы могут выдаваться за подтвержденные milestones.
-- Marketplace economic launch остаётся закрытым до remote apply и buyer/seller QA; Shadow v1 не открывает public/private Trust и не зависит от пользовательского рейтингового UX.
+- Marketplace economic launch остаётся закрытым до buyer/seller QA; Shadow v1 не открывает public/private Trust и использует десятичный review UX только для корректного входного сигнала.
 
 ## Open Questions
 

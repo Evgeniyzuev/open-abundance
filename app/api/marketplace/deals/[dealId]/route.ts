@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { MARKETPLACE_RATING_ERROR, normalizeMarketplaceRating } from "@/lib/marketplaceRating";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -86,10 +87,10 @@ export async function POST(request: NextRequest, { params }: { params: { dealId:
     }
 
     if (action === "review") {
-      const rating = Number(body.rating);
+      const rating = normalizeMarketplaceRating(body.rating);
       const reviewText = typeof body.reviewText === "string" ? body.reviewText : "";
-      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-        return NextResponse.json({ error: "Rating must be between 1 and 5." }, { status: 400, headers: NO_STORE_HEADERS });
+      if (rating === null) {
+        return NextResponse.json({ error: MARKETPLACE_RATING_ERROR }, { status: 400, headers: NO_STORE_HEADERS });
       }
       const { data: result, error: rpcError } = await (supabase as any).rpc("create_marketplace_review", {
         p_deal_id: dealId,

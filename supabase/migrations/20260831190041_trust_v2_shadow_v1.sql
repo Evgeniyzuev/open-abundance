@@ -2,6 +2,19 @@
 -- This migration never writes Core, Wallet, Skill Passport or public profiles.
 
 alter table public.marketplace_reviews
+  alter column rating type numeric(2, 1) using rating::numeric(2, 1);
+
+alter table public.marketplace_reviews
+  drop constraint if exists marketplace_reviews_rating_check;
+
+alter table public.marketplace_reviews
+  add constraint marketplace_reviews_rating_check
+  check (rating >= 0 and rating <= 5 and rating = round(rating, 1));
+
+alter table public.marketplace_listings
+  alter column rating_sum type numeric(30, 1) using rating_sum::numeric(30, 1);
+
+alter table public.marketplace_reviews
   add column if not exists rater_core_level integer,
   add column if not exists rater_core_level_source text;
 
@@ -11,22 +24,9 @@ set rater_core_level = core.level,
 from public.core_accounts core
 where core.user_id = review.buyer_user_id;
 
-do $$
-begin
-  if exists (
-    select 1
-    from public.marketplace_reviews
-    where rater_core_level is null
-       or rater_core_level_source is null
-  ) then
-    raise exception 'Trust v2 review backfill could not resolve a current rater Core level.' using errcode = '23502';
-  end if;
-end
-$$;
-
 alter table public.marketplace_reviews
-  alter column rater_core_level set not null,
-  alter column rater_core_level_source set not null;
+  alter column rater_core_level drop not null,
+  alter column rater_core_level_source drop not null;
 
 create or replace function public.prevent_marketplace_review_rater_core_level_mutation()
 returns trigger
@@ -66,17 +66,19 @@ begin
     where conname = 'marketplace_reviews_rater_core_level_source_check'
       and conrelid = 'public.marketplace_reviews'::regclass
   ) then
-    alter table public.marketplace_reviews
-      add constraint marketplace_reviews_rater_core_level_source_check
-      check (rater_core_level_source in ('captured_at_review', 'backfilled_current'));
+     alter table public.marketplace_reviews
+       add constraint marketplace_reviews_rater_core_level_source_check
+       check (rater_core_level_source is null or rater_core_level_source in ('captured_at_review', 'backfilled_current'));
   end if;
 end
 $$;
 
+drop function if exists public.create_marketplace_review(uuid, uuid, integer, text);
+
 create or replace function public.create_marketplace_review(
   p_deal_id uuid,
   p_buyer_user_id uuid,
-  p_rating integer,
+  p_rating numeric,
   p_review_text text
 ) returns jsonb
 language plpgsql
@@ -94,8 +96,8 @@ begin
   if not found or v_deal.buyer_user_id <> p_buyer_user_id or v_deal.status <> 'completed' then
     return jsonb_build_object('error', 'Only the buyer can review a completed deal.');
   end if;
-  if p_rating is null or p_rating < 1 or p_rating > 5 then
-    return jsonb_build_object('error', 'Rating must be between 1 and 5.');
+  if p_rating is null or p_rating < 0 or p_rating > 5 or p_rating <> round(p_rating, 1) then
+    return jsonb_build_object('error', 'Rating must be between 0.0 and 5.0 in 0.1 increments.');
   end if;
   select level into v_rater_core_level
   from public.core_accounts
@@ -208,7 +210,7 @@ create table if not exists public.trust_v2_shadow_contributions (
   rater_user_id uuid references auth.users(id) on delete cascade,
   deal_id uuid,
   listing_id uuid,
-  rating integer check (rating is null or rating between 1 and 5),
+  rating numeric(2, 1) check (rating is null or (rating between 0 and 5 and rating = round(rating, 1))),
   amount numeric(30, 12) check (amount is null or amount >= 0),
   currency_code text,
   rater_core_level integer check (rater_core_level is null or rater_core_level >= 0),
@@ -319,7 +321,7 @@ begin
     starter_delta numeric(30, 12) not null default 0,
     deal_id uuid,
     listing_id uuid,
-    rating integer,
+    rating numeric(2, 1),
     amount numeric(30, 12),
     currency_code text,
     rater_core_level integer,
@@ -742,8 +744,8 @@ $$;
 
 revoke all on function public.prevent_trust_v2_config_mutation() from public, anon, authenticated;
 revoke all on function public.prevent_marketplace_review_rater_core_level_mutation() from public, anon, authenticated;
-revoke all on function public.create_marketplace_review(uuid, uuid, integer, text) from public, anon, authenticated;
-grant execute on function public.create_marketplace_review(uuid, uuid, integer, text) to service_role;
+revoke all on function public.create_marketplace_review(uuid, uuid, numeric, text) from public, anon, authenticated;
+grant execute on function public.create_marketplace_review(uuid, uuid, numeric, text) to service_role;
 revoke all on function public.rebuild_trust_v2_shadow(text, date) from public, anon, authenticated;
 revoke all on function public.get_trust_v2_shadow_report(text, date) from public, anon, authenticated;
 grant execute on function public.rebuild_trust_v2_shadow(text, date) to service_role;

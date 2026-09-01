@@ -12,6 +12,7 @@ import { type CoreAccount, useUserContext } from "@/components/UserProvider";
 import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatMoney, formatRateMoney } from "@/lib/moneyFormat";
+import { normalizeMarketplaceRating } from "@/lib/marketplaceRating";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
@@ -780,8 +781,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   }
 
   async function handleReviewDeal(dealId: string) {
-    const rating = Number(window.prompt(t("market.reviewPrompt"), "5"));
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return;
+    const rating = normalizeMarketplaceRating(window.prompt(t("market.reviewPrompt"), "5.0"));
+    if (rating === null) return;
     const reviewText = window.prompt(t("market.reviewTextPrompt"), "") ?? "";
     setMarketDealSavingId(dealId);
     setMarketError(null);

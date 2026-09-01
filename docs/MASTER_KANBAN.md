@@ -32,10 +32,11 @@
 ### Trust v2 Shadow v1
 
 - **Статус:** Сейчас — внутренний детерминированный shadow calculation; публичный Trust, пользовательский UI и влияние на Core/Wallet/Skills запрещены.
-- **Конфигурация:** versioned `trust-shadow-v1`: starter `0.25`, `A=100`, `c=1`, `beta=0.25`, amount cap `9`, pair cap `2 + 0.25 × Core Level`, окно `365` дней, rater share `10%`, annual decay `0.9`.
+- **Конфигурация:** versioned `trust-shadow-v1`: rating `0.0–5.0` с шагом `0.1` и нейтральной точкой `3.0`, starter `0.25`, `A=100`, `c=1`, `beta=0.25`, amount cap `9`, pair cap `2 + 0.25 × Core Level`, окно `365` дней, rater share `10%`, annual decay `0.9`.
 - **Граница шага:** только service-only таблицы, атомарный rebuild и aggregate operator report; corrections, private owner summary, qualitative badges и public scale остаются следующими этапами.
 - **Источники:** только published reviews завершённых и оплаченных сделок; hidden/flagged, refunded/cancelled/unresolved и неподтверждённые суммы исключаются, Trust-lite учитывается лишь диагностически.
 - **Критерий завершения:** deterministic contract test, typecheck/lint/build и проверка operator auth; remote migration apply, анализ реального распределения и ручной QA остаются отдельными gate’ами.
+- **Обновление 2026-09-01:** review contract синхронизирован на `0.0–5.0` с шагом `0.1`; corrective migration и remote Technical QA ещё не закрыты.
 - **Связанные документы:** `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`, `docs/REFERRALS_TEAMS_PLAN.md`, `docs/MARKETPLACE_ESCROW_PLAN.md`.
 
 ## Завершённая карточка — Skill Passport
@@ -139,14 +140,14 @@
 3. [X] **Team / Referral / Leader Loop**
 
     - Локальная функциональная реализация Team Help Loop v1 завершена: team dashboard, помощь новичку, лидерские челленджи, task API/RLS, quality-referral агрегаты и Direct.
-    - Функционально выполнено; remote migration apply и ручной QA остаются отдельными deployment/acceptance gates. Invite challenge открывается после первого подтверждённого non-onboarding результата, Skill Passport использует activated/retained D7.
+    - Функционально выполнено; remote migration применена, ручной QA остаётся отдельным acceptance gate. Invite challenge открывается после первого подтверждённого non-onboarding результата, Skill Passport использует activated/retained D7.
     - Связанные документы: `docs/REFERRALS_TEAMS_PLAN.md`, `docs/LEADER_GROWTH_PROGRAM.md`.
 4. [X] **User economy metrics + participation shadow**
 
-    - Функционально выполнено локально: challenge reward normalization, rebuildable `user_economy_metrics`, reconciliation/RLS, private APIs, Wallet UI и safe opt-in aggregates. Remote migration apply, reconciliation run и buyer/seller QA остаются gate.
+    - Функционально выполнено локально: challenge reward normalization, rebuildable `user_economy_metrics`, reconciliation/RLS, private APIs, Wallet UI и safe opt-in aggregates. Remote migration применена; reconciliation run и buyer/seller QA остаются gate.
 
     - `participation_balance = marketplace_purchases_gross - marketplace_sales_gross`; Wallet transfers и внешние flows его не меняют.
-    - Marketplace остаётся отдельным неподтверждённым QA-gate и выведен из активной очереди разработки.
+    - Marketplace остаётся отдельным неподтверждённым buyer/seller QA-gate и выведен из активной очереди разработки.
     - Связанный документ: `docs/MARKETPLACE_ESCROW_PLAN.md`.
 5. [ ] **Trust v2 private summary + calibrated public pilot**
 
@@ -238,7 +239,7 @@
 ### Поздние контуры, уже имеющие технический фундамент
 
 - [ ] Open Projects: каталог, заявки и project tasks без завершенного participation loop.
-- [X] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Remote schema существующей deals-модели доступна; новая internal escrow migration и routes добавляют hold/refund/dispute/reviews, но remote apply и buyer/seller User QA ещё впереди.
+- [X] Marketplace foundation: artifacts, wallet ledger, Wallet-to-Wallet, listings и deal lifecycle с atomic completion подготовлены. Remote schema и internal escrow migration доступны; buyer/seller User QA ещё впереди.
 - [X] Native TON deposit MVP: invoice, chain ingestion/finality и idempotent Wallet credit реализованы первой версией. Полный статус и границы — `docs/TON_DEPOSIT_MVP_PLAN.md`; ограниченный withdrawal подтверждён ручным mainnet User QA, полный статус и границы — `docs/WALLET_CRYPTO_RAILS_PLAN.md`.
 
 ## Подтверждено пользователями

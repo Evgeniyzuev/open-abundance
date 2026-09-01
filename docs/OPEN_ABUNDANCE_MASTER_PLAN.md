@@ -143,7 +143,7 @@ coverage_ratio =
 - Прогнозируемый GMV не считается резервом.
 - Нельзя давать награды за валовый оборот.
 - Коммерческие рекомендации маркируются и ранжируются прежде всего по соответствию желанию, качеству и подтвержденным результатам.
-- Внутренний DB-only Marketplace теперь имеет buyer Wallet hold, atomic item/payment settlement, refund/expiry/dispute RPC и reviews. User-level settled balance/counterparty projection и ranking read model отложены до отдельного этапа после QA; remote migration apply и buyer/seller User QA остаются обязательными до экономического запуска. TON smart contracts и blockchain settlement не входят в этот этап.
+- Внутренний DB-only Marketplace теперь имеет buyer Wallet hold, atomic item/payment settlement, refund/expiry/dispute RPC и reviews. User-level settled balance/counterparty projection и ranking read model отложены до отдельного этапа после QA; remote migration применена, buyer/seller User QA остаётся обязательным до экономического запуска. TON smart contracts и blockchain settlement не входят в этот этап.
 - Mutual credit учитывает только legitimate settled deals без возврата/спора. `spent - earned` даёт ограниченный мягкий boost, но релевантность и качество доминируют; отрицательного штрафа и прямой награды за оборот нет.
 - Цель алгоритма — балансировать возможность взаимного продвижения и увеличивать полезный GMV, а не создавать искусственный оборот. Self-deals, связанные аккаунты, круговые сделки и дробление исключаются.
 
@@ -171,12 +171,13 @@ coverage_ratio =
 2. Собрать короткий Day 0/Day 1 activation loop, закрыть события воронки и начать управляемую когорту 20–50 человек.
 3. Пользовательский content loop: ручной media-post, like, простые комментарии, canonical repost и outbound share package; Daily Progress входит в этот контур и является текущим кодовым шагом. Кодовый MVP и remote migration реализованы 2026-08-02; User QA остаётся впереди.
 4. Отдельно завершить ручной User QA и операционные процедуры ограниченного native TON withdrawal; кодовый срез уже реализован и не блокирует Content Loop.
-5. **Текущая кодовая карточка:** внутренний Marketplace safety completion: listing → Wallet reserve → delivery → settlement/refund → review. TON contracts и blockchain settlement отложены.
-6. Team/referral/leader loop: dashboard, помощь новичку, лидерские челленджи и приглашение после результата.
-7. User economy metrics после Marketplace QA: один `user_economy_metrics` read model для `day/month/year/lifetime`, затем private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross`. Rolling 90-day eligible signal и cap проверяются позже в shadow mode; ranking только для закрытой beta после отдельного решения. `marketplace_user_balances` и `marketplace_user_counterparties` не создаются.
-8. Trust v2: shadow calculation, private summary и только после калибровки публичный pilot.
-9. USDT Jetton в TON и следующая сеть — после отдельного blockchain-аудита и операционного допуска.
-10. Future Sim после устойчивого workflow, финансового калькулятора и подтверждённого D1/D3/D7.
+5. Marketplace safety completion: listing → Wallet reserve → delivery → settlement/refund → review; remote schema и migration применены, buyer/seller QA остаётся отдельным gate. TON contracts и blockchain settlement отложены.
+6. Team/referral/leader loop: dashboard, помощь новичку, лидерские челленджи и приглашение после результата; remote migration применена, ручной QA остаётся отдельным gate.
+7. User economy metrics: `user_economy_metrics` read model для `day/month/year/lifetime` и private `participation_balance = marketplace_purchases_gross - marketplace_sales_gross`; remote migration применена, reconciliation и buyer/seller QA остаются gate.
+8. **Текущая кодовая карточка:** Trust v2 Shadow v1 — shadow calculation и aggregate diagnostics; private summary и только после калибровки публичный pilot.
+9. Trust v2 private summary и calibrated public pilot после наблюдения shadow-распределения и anti-abuse решения.
+10. USDT Jetton в TON и следующая сеть — после отдельного blockchain-аудита и операционного допуска.
+11. Future Sim после устойчивого workflow, финансового калькулятора и подтверждённого D1/D3/D7.
 
 Одновременно реализуется только один главный шаг. Путь карточки: `Очередь -> Сейчас -> Technical QA -> User QA -> Подтверждено`.
 
@@ -196,7 +197,7 @@ coverage_ratio =
 - Полный Marketplace dispute/arbitration, сложные рейтинги и uncapped discovery.
 - User-level mutual balance/counterparty projections и ranking read model; сначала только shadow calculation после buyer/seller QA.
 - Расширенный project participation loop.
-- Trust v2 остаётся в очереди после marketplace reviews/disputes; публичный запуск не выполняется раньше shadow/private фаз.
+- Public/private Trust v2 остаётся закрытым до завершения shadow/private фаз, калибровки и anti-abuse review.
 - Afterburn.
 - Полный Direct.
 - Несколько одновременно активных crypto payout-маршрутов до проверки native TON и USDT Jetton в TON.

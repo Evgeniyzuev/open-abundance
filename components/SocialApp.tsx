@@ -1026,19 +1026,18 @@ export default function SocialApp({
     setAddingStoryWishKey(post.source_key);
     setSocialError(null);
     try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/wishes", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" },
-        body: JSON.stringify({ locale, sourceRecommendedWishId: recommendedWishId })
-      });
-      const payload = (await response.json()) as { wish?: { id: string }; error?: string };
+      let token = await getAccessToken();
+      let { payload, response } = await requestStoryWish(recommendedWishId, locale, token);
+      if (response.status === 401) {
+        token = await refreshAccessToken();
+        ({ payload, response } = await requestStoryWish(recommendedWishId, locale, token));
+      }
       if (!response.ok || payload.error || !payload.wish) throw new Error(payload.error ?? "Failed to add wish.");
       setSelectedPost(null);
       onOpenWishJourney(payload.wish.id);
     } catch (storyWishError) {
-      setSocialError(storyWishError instanceof Error ? storyWishError.message : "Failed to add wish.");
+      console.warn("Story wish add failed", storyWishError);
+      setSocialError(t("wishes.addError"));
     } finally {
       setAddingStoryWishKey(null);
     }
@@ -1597,6 +1596,7 @@ export default function SocialApp({
 
   return (
     <section className="social-screen">
+      {combinedError ? <p className="finance-error social-top-error" role="alert">{combinedError}</p> : null}
       {activeTab === "feed" && !user && !loading ? (
         <section className="profile-panel">
           <div className="profile-avatar placeholder">
@@ -2042,7 +2042,6 @@ export default function SocialApp({
         />
       ) : null}
 
-      {combinedError ? <p className="finance-error">{combinedError}</p> : null}
       {publicProfileLoading ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
       {referralQrOpen && referralLink ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setReferralQrOpen(false)}>
@@ -3995,6 +3994,25 @@ async function getAccessToken(): Promise<string> {
   if (error) throw error;
   if (!session?.access_token) throw new Error("Supabase session is missing.");
   return session.access_token;
+}
+
+async function refreshAccessToken(): Promise<string> {
+  const supabase = getBrowserSupabaseClient();
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error) throw error;
+  if (!data.session?.access_token) throw new Error("Supabase session refresh failed.");
+  return data.session.access_token;
+}
+
+async function requestStoryWish(recommendedWishId: string, locale: AppLocale, token: string) {
+  const response = await fetch("/api/wishes", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" },
+    body: JSON.stringify({ locale, sourceRecommendedWishId: recommendedWishId })
+  });
+  const payload = await response.json().catch(() => ({})) as { wish?: { id: string }; error?: string };
+  return { payload, response };
 }
 
 function getVideoDuration(file: File): Promise<number | null> {

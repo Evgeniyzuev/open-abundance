@@ -2199,6 +2199,7 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .primary-wish-first-step > span { color: var(--accent-fill); font-size: 0.73rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
 .primary-wish-first-step > strong { font-size: 1.02rem; line-height: 1.35; }
 .primary-wish-first-step > p { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
+.primary-wish-first-step > small { margin-top: -4px; color: var(--muted); font-size: 0.8rem; line-height: 1.4; }
 .primary-wish-first-step label { font-size: 0.88rem; font-weight: 850; }
 .primary-wish-first-step input { min-height: 46px; width: 100%; border: 1px solid var(--line); border-radius: 13px; padding: 10px 12px; background: var(--surface); color: var(--text); font: inherit; font-size: 1rem; }
 .primary-wish-agent-actions { display: flex; gap: 7px; overflow-x: auto; padding: 0 16px; }
@@ -2206,6 +2207,8 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .primary-wish-agent-note { display: flex; align-items: flex-start; gap: 7px; margin: 0 16px; border-radius: 13px; padding: 11px; background: var(--purple-soft); color: var(--purple-text); font-size: 0.82rem; line-height: 1.4; }
 .primary-wish-agent-note svg { flex: 0 0 auto; margin-top: 1px; }
 .primary-wish-change { justify-self: center; margin: -4px 0 12px; }
+.wish-primary-hint { margin: 0 0 2px; color: var(--muted); font-size: 0.84rem; line-height: 1.4; }
+.social-top-error { position: sticky; z-index: 12; top: 8px; margin: 0 0 10px; box-shadow: var(--shadow-soft); }
 
 @media (max-width: 520px) {
   .primary-wish-path-cover { min-height: 190px; }

@@ -772,12 +772,13 @@ function WishDetailModal({
           {isPersonal ? (
             <div className="wish-detail-actions">
               {selectedWish.wish.status === "active" ? (
-                <button className={isPrimary ? "secondary-button" : "task-done-primary-button"} type="button" disabled={isPrimary} onClick={() => onMakePrimary(selectedWish.wish)}>
-                  <Target size={16} />
-                  {isPrimary
-                    ? locale === "ru" ? "Ближайшее желание" : "Nearest wish"
-                    : locale === "ru" ? "Сделать ближайшим" : "Make nearest"}
-                </button>
+                <>
+                  {!isPrimary ? <p className="wish-primary-hint">{t("wishes.primaryHint")}</p> : null}
+                  <button className={isPrimary ? "secondary-button" : "task-done-primary-button"} type="button" disabled={isPrimary} onClick={() => onMakePrimary(selectedWish.wish)}>
+                    <Target size={16} />
+                    {isPrimary ? t("wishes.nearest") : t("wishes.makeNearest")}
+                  </button>
+                </>
               ) : null}
               <button className="secondary-button" type="button" onClick={() => onEdit(selectedWish.wish)}>
                 <Pencil size={16} />

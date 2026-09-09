@@ -331,7 +331,7 @@ export default function HomeTodayApp({
             </div>
           ) : null}
           <div className="primary-wish-first-step">
-            <span>{milestone ? (locale === "ru" ? "Первый ориентир готов" : "First milestone ready") : (locale === "ru" ? "Шаг на одну минуту" : "One-minute step")}</span>
+            <span>{milestone ? t("home.path.milestoneReady") : t("home.path.oneMinuteStep")}</span>
             {milestone ? (
               <>
                 <strong>{milestone}</strong>
@@ -342,10 +342,11 @@ export default function HomeTodayApp({
               </>
             ) : (
               <>
-                <label htmlFor="primary-wish-milestone">{locale === "ru" ? "Что станет первым заметным результатом?" : "What will be the first visible result?"}</label>
-                <input id="primary-wish-milestone" maxLength={160} placeholder={locale === "ru" ? "Например: выбрать три подходящих варианта" : "For example: choose three suitable options"} value={milestoneDraft} onChange={(event) => setMilestoneDraft(event.target.value)} />
+                <label htmlFor="primary-wish-milestone">{t("home.path.milestonePrompt")}</label>
+                <small>{t("home.path.milestoneHelp")}</small>
+                <input id="primary-wish-milestone" maxLength={160} placeholder={t("home.path.milestonePlaceholder")} value={milestoneDraft} onChange={(event) => setMilestoneDraft(event.target.value)} />
                 <button className="challenge-primary-action home-primary-action" type="button" disabled={milestoneDraft.trim().length < 3} onClick={saveFirstMilestone}>
-                  {locale === "ru" ? "Зафиксировать результат" : "Set this milestone"}<ArrowRight size={17} />
+                  {t("home.path.saveMilestone")}<ArrowRight size={17} />
                 </button>
               </>
             )}

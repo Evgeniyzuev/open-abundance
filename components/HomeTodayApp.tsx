@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Bell, CheckCircle2, FileText, Heart, RefreshCw, Target } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, FileText, Heart, RefreshCw, Sparkles, Target } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import { ONBOARDING_DRAFT_STORAGE_KEY } from "@/lib/onboardingContent";
@@ -8,6 +8,14 @@ import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { getNotes, isReflectionDue, NOTES_CHANGED_EVENT } from "@/lib/notesStore";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
+import {
+  calculateWishJourney,
+  PRIMARY_WISH_CHANGED_EVENT,
+  readPrimaryWish,
+  readWishMilestone,
+  storeWishMilestone,
+  type PrimaryWishSummary
+} from "@/lib/wishJourney";
 import {
   enableDailyPush,
   getDailyReminderSettings,
@@ -68,6 +76,7 @@ type HomeTodayAppProps = {
   onOpenReflectionInbox: () => void;
   onOpenToday: () => void;
   onOpenTeams: () => void;
+  onOpenWishes: () => void;
   todayUnread: boolean;
 };
 
@@ -79,9 +88,10 @@ export default function HomeTodayApp({
   onOpenReflectionInbox,
   onOpenToday,
   onOpenTeams,
+  onOpenWishes,
   todayUnread
 }: HomeTodayAppProps) {
-  const { locale, loading, profile, t, user } = useUserContext();
+  const { core, locale, loading, profile, t, user, wallet } = useUserContext();
   const [today, setToday] = useState<TodayPayload | null>(null);
   const [teamSummary, setTeamSummary] = useState<TeamDashboardSummary | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
@@ -90,8 +100,39 @@ export default function HomeTodayApp({
   const [dueReflectionCount, setDueReflectionCount] = useState(0);
   const [reminderSettings, setReminderSettings] = useState(getDailyReminderSettings);
   const [reminderError, setReminderError] = useState(false);
+  const [primaryWish, setPrimaryWish] = useState<PrimaryWishSummary | null>(null);
+  const [milestone, setMilestone] = useState("");
+  const [milestoneDraft, setMilestoneDraft] = useState("");
+  const [agentNote, setAgentNote] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const draft = useMemo(() => readDraft(profile?.onboarding_state), [profile?.onboarding_state]);
+  const wishJourney = useMemo(() => calculateWishJourney({
+    coreBalance: core?.balance ?? 0,
+    reinvestPercent: core?.reinvest_percent ?? 100,
+    targetAmount: primaryWish?.target_amount ?? null,
+    walletBalance: wallet?.balance ?? 0
+  }), [core?.balance, core?.reinvest_percent, primaryWish?.target_amount, wallet?.balance]);
+
+  useEffect(() => {
+    const syncPrimaryWish = () => {
+      const nextWish = readPrimaryWish(user?.id);
+      setPrimaryWish(nextWish);
+      const nextMilestone = readWishMilestone(user?.id, nextWish?.id);
+      setMilestone(nextMilestone);
+      setMilestoneDraft(nextMilestone);
+    };
+    syncPrimaryWish();
+    window.addEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
+    return () => window.removeEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
+  }, [user?.id]);
+
+  function saveFirstMilestone() {
+    if (!user || !primaryWish || milestoneDraft.trim().length < 3) return;
+    const nextMilestone = milestoneDraft.trim();
+    storeWishMilestone(user.id, primaryWish.id, nextMilestone);
+    setMilestone(nextMilestone);
+    setAgentNote(locale === "ru" ? "Отлично. Теперь у пути есть первый видимый результат." : "Great. Your path now has a first visible result.");
+  }
 
   const loadDueReflections = useCallback(async () => {
     const notes = await getNotes();
@@ -261,17 +302,75 @@ export default function HomeTodayApp({
       {loading || status === "loading" ? <p className="home-status">{t("app.common.loading")}</p> : null}
       {status === "offline" ? <p className="home-status">{t("home.offline")}</p> : null}
 
-      <div className="home-plan-grid">
-        <article className="home-card home-wish-card">
-          <span className="home-card-label"><Heart size={16} />{t("home.wish.title")}</span>
-          <strong>{wish}</strong>
-        </article>
-        <article className="home-card home-goal-card">
-          <span className="home-card-label"><Target size={16} />{t("home.goal.title")}</span>
-          <strong>{formatMoney(coreTarget, locale)}</strong>
-          <small>{serverPlan ? t("home.goal.saved") : t("home.goal.preview")}</small>
-        </article>
-      </div>
+      {primaryWish ? (
+        <section className="home-card primary-wish-path">
+          <div className="primary-wish-path-cover">
+            {primaryWish.image_url ? <img alt="" src={primaryWish.image_url} /> : <span><Heart size={28} /></span>}
+            <div>
+              <small>{locale === "ru" ? "Мой путь" : "My path"}</small>
+              <h2>{primaryWish.title}</h2>
+            </div>
+          </div>
+          {wishJourney.targetAmount !== null ? (
+            <div className="primary-wish-path-progress">
+              <div>
+                <span>{locale === "ru" ? "Доступно для цели" : "Available for the goal"}</span>
+                <strong>{formatRoundedMoney(wishJourney.savedAmount, locale)} / {formatRoundedMoney(wishJourney.targetAmount, locale)}</strong>
+              </div>
+              <div className="today-progress"><span style={{ width: `${Math.min(100, wishJourney.savedAmount / wishJourney.targetAmount * 100)}%` }} /></div>
+              <div className="primary-wish-path-metrics">
+                <span><small>{locale === "ru" ? "Доступный доход" : "Available income"}</small><b>{formatRoundedMoney(wishJourney.dailyAvailableIncome, locale)} / {locale === "ru" ? "день" : "day"}</b></span>
+                <span><small>{locale === "ru" ? "Расчётный срок" : "Estimated time"}</small><b>{wishJourney.estimatedDays === null ? (locale === "ru" ? "Пока не определён" : "Not determined yet") : wishJourney.estimatedDays === 0 ? (locale === "ru" ? "Цель обеспечена" : "Goal funded") : `${wishJourney.estimatedDays} ${locale === "ru" ? "дн." : "days"}`}</b></span>
+              </div>
+              <details className="primary-wish-assumptions">
+                <summary>{locale === "ru" ? "Как рассчитано" : "How this is calculated"}</summary>
+                <p>{locale === "ru"
+                  ? `Core: ${core?.balance ?? 0}; ставка: 0,0633% в день; reinvest: ${core?.reinvest_percent ?? 100}%. Будущие награды не учитываются.`
+                  : `Core: ${core?.balance ?? 0}; rate: 0.0633% per day; reinvest: ${core?.reinvest_percent ?? 100}%. Future rewards are not included.`}</p>
+              </details>
+            </div>
+          ) : null}
+          <div className="primary-wish-first-step">
+            <span>{milestone ? (locale === "ru" ? "Первый ориентир готов" : "First milestone ready") : (locale === "ru" ? "Шаг на одну минуту" : "One-minute step")}</span>
+            {milestone ? (
+              <>
+                <strong>{milestone}</strong>
+                <p>{locale === "ru" ? "Теперь выбери одно полезное действие, которое приблизит этот результат." : "Now choose one useful action that moves this result closer."}</p>
+                <button className="challenge-primary-action home-primary-action" type="button" onClick={onOpenNextChallenge}>
+                  {locale === "ru" ? "Выбрать действие" : "Choose an action"}<ArrowRight size={17} />
+                </button>
+              </>
+            ) : (
+              <>
+                <label htmlFor="primary-wish-milestone">{locale === "ru" ? "Что станет первым заметным результатом?" : "What will be the first visible result?"}</label>
+                <input id="primary-wish-milestone" maxLength={160} placeholder={locale === "ru" ? "Например: выбрать три подходящих варианта" : "For example: choose three suitable options"} value={milestoneDraft} onChange={(event) => setMilestoneDraft(event.target.value)} />
+                <button className="challenge-primary-action home-primary-action" type="button" disabled={milestoneDraft.trim().length < 3} onClick={saveFirstMilestone}>
+                  {locale === "ru" ? "Зафиксировать результат" : "Set this milestone"}<ArrowRight size={17} />
+                </button>
+              </>
+            )}
+          </div>
+          <div className="primary-wish-agent-actions">
+            <button type="button" onClick={() => setAgentNote(locale === "ru" ? "Начни с самого маленького доказуемого результата. На сегодня достаточно одного завершённого действия." : "Start with the smallest verifiable result. One completed action is enough for today.")}>{locale === "ru" ? "Помоги начать" : "Help me start"}</button>
+            <button type="button" onClick={onOpenNextChallenge}>{locale === "ru" ? "Предложи другое" : "Suggest another"}</button>
+            <button type="button" onClick={() => setAgentNote(locale === "ru" ? "Хорошо. Всё достигнутое сохранено — продолжишь, когда будет удобно." : "Okay. Everything you achieved is saved; continue when it suits you.")}>{locale === "ru" ? "Сегодня пропущу" : "Skip today"}</button>
+          </div>
+          {agentNote ? <p className="primary-wish-agent-note"><Sparkles size={15} />{agentNote}</p> : null}
+          <button className="text-button primary-wish-change" type="button" onClick={onOpenWishes}>{locale === "ru" ? "Все мои желания" : "All my wishes"}</button>
+        </section>
+      ) : (
+        <div className="home-plan-grid">
+          <article className="home-card home-wish-card">
+            <span className="home-card-label"><Heart size={16} />{t("home.wish.title")}</span>
+            <strong>{wish}</strong>
+          </article>
+          <article className="home-card home-goal-card">
+            <span className="home-card-label"><Target size={16} />{t("home.goal.title")}</span>
+            <strong>{formatMoney(coreTarget, locale)}</strong>
+            <small>{serverPlan ? t("home.goal.saved") : t("home.goal.preview")}</small>
+          </article>
+        </div>
+      )}
 
       <section className="home-card home-today-card">
         <div className="home-card-heading">

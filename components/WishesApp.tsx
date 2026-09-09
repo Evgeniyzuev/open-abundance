@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { Archive, Check, Pencil, Plus, Send, Trash2, X } from "lucide-react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Archive, ArrowRight, Check, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
@@ -15,6 +15,7 @@ import {
   type FirstWishCategory,
   type FirstWishOption
 } from "@/lib/firstWishGuide";
+import { calculateWishJourney, PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -42,6 +43,9 @@ type WishMutationResponse = {
 
 type WishesAppProps = {
   active: boolean;
+  focusNonce?: number;
+  focusWishId?: string | null;
+  onOpenPrimaryWish?: () => void;
   refreshNonce: number;
 };
 
@@ -80,8 +84,8 @@ type SavedWishResult = {
   wish: Wish;
 };
 
-export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
-  const { core, loading: userLoading, locale, profile, t, user } = useUserContext();
+export default function WishesApp({ active, focusNonce = 0, focusWishId = null, onOpenPrimaryWish, refreshNonce }: WishesAppProps) {
+  const { core, loading: userLoading, locale, profile, t, user, wallet } = useUserContext();
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [recommendedWishes, setRecommendedWishes] = useState<RecommendedWish[]>([]);
   const [activeTab, setActiveTab] = useState<WishTab>("recommended");
@@ -95,9 +99,33 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
   const [status, setStatus] = useState<"loading" | "ready" | "offline" | "unauthenticated" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [primaryWish, setPrimaryWish] = useState<PrimaryWishSummary | null>(null);
+  const lastFocusNonceRef = useRef(0);
 
   const myWishes = useMemo(() => wishes.filter((wish) => wish.status !== "completed"), [wishes]);
   const completedWishes = useMemo(() => wishes.filter((wish) => wish.status === "completed"), [wishes]);
+  const journey = useMemo(() => calculateWishJourney({
+    coreBalance: core?.balance ?? 0,
+    reinvestPercent: core?.reinvest_percent ?? 100,
+    targetAmount: primaryWish?.target_amount ?? null,
+    walletBalance: wallet?.balance ?? 0
+  }), [core?.balance, core?.reinvest_percent, primaryWish?.target_amount, wallet?.balance]);
+
+  useEffect(() => {
+    setPrimaryWish(readPrimaryWish(user?.id));
+    const syncPrimaryWish = () => setPrimaryWish(readPrimaryWish(user?.id));
+    window.addEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
+    return () => window.removeEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!active || !focusNonce || focusNonce === lastFocusNonceRef.current || !focusWishId) return;
+    const wish = wishes.find((item) => item.id === focusWishId);
+    if (!wish) return;
+    lastFocusNonceRef.current = focusNonce;
+    setActiveTab("mine");
+    setSelectedWish({ type: "wish", wish });
+  }, [active, focusNonce, focusWishId, wishes]);
 
   useEffect(() => {
     let mounted = true;
@@ -157,7 +185,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
     return () => {
       mounted = false;
     };
-  }, [active, refreshNonce, t, user, userLoading]);
+  }, [active, focusNonce, refreshNonce, t, user, userLoading]);
 
   async function createWish(values: FormState) {
     setErrorMessage(null);
@@ -179,6 +207,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
     if (notice) setErrorMessage(notice);
     setEditingWish(null);
     setSelectedWish({ type: "wish", wish: updatedWish });
+    if (primaryWish?.id === updatedWish.id && user) storePrimaryWish(user.id, updatedWish);
   }
 
   async function publishWish(wish: Wish) {
@@ -194,6 +223,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
     replaceWish(updatedWish);
     setSelectedWish(null);
     setActiveTab(nextStatus === "completed" ? "completed" : "mine");
+    if (primaryWish?.id === wish.id && nextStatus !== "active" && user) storePrimaryWish(user.id, null);
   }
 
   async function completeWish(wish: Wish, publishToFeed: boolean) {
@@ -228,6 +258,15 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
 
     setWishes((current) => current.filter((item) => item.id !== wish.id));
     setSelectedWish(null);
+    if (primaryWish?.id === wish.id && user) storePrimaryWish(user.id, null);
+  }
+
+  function choosePrimaryWish(wish: Wish) {
+    if (!user || wish.status !== "active") return;
+    storePrimaryWish(user.id, wish);
+    setSelectedWish(null);
+    setActiveTab("mine");
+    onOpenPrimaryWish?.();
   }
 
   function replaceWish(nextWish: Wish) {
@@ -267,6 +306,27 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
 
   return (
     <section className="wishes-screen">
+      {primaryWish ? (
+        <section className="wish-journey-card" aria-label={locale === "ru" ? "Мой путь" : "My path"}>
+          <div className="wish-journey-heading">
+            <span><Target size={17} />{locale === "ru" ? "Ближайшее желание" : "Nearest wish"}</span>
+            <strong>{primaryWish.title}</strong>
+          </div>
+          {journey.targetAmount !== null ? (
+            <>
+              <div className="wish-journey-progress" aria-label={locale === "ru" ? "Прогресс" : "Progress"}>
+                <span style={{ width: `${Math.min(100, journey.targetAmount > 0 ? journey.savedAmount / journey.targetAmount * 100 : 0)}%` }} />
+              </div>
+              <p>{locale === "ru"
+                ? `${formatAmount(journey.savedAmount, primaryWish.target_currency, locale)} из ${formatAmount(journey.targetAmount, primaryWish.target_currency, locale)}`
+                : `${formatAmount(journey.savedAmount, primaryWish.target_currency, locale)} of ${formatAmount(journey.targetAmount, primaryWish.target_currency, locale)}`}</p>
+            </>
+          ) : <p>{locale === "ru" ? "Сначала определим первый заметный результат." : "First, define the first visible result."}</p>}
+          <button className="task-done-primary-button" type="button" onClick={onOpenPrimaryWish}>
+            {locale === "ru" ? "Продолжить путь" : "Continue the path"}<ArrowRight size={16} />
+          </button>
+        </section>
+      ) : null}
       {status !== "unauthenticated" ? (
         <nav className="wish-tabs" role="tablist" aria-label={t("wishes.tabs.label")}>
           {(["recommended", "mine", "completed"] as const).map((tab) => (
@@ -319,6 +379,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
                   title={wish.title}
                   imageUrl={wish.image_url}
                   badge={wish.status === "archived" ? t("wishes.status.archived") : visibilityLabel(wish.visibility, t)}
+                  primary={primaryWish?.id === wish.id}
                   onClick={() => setSelectedWish({ type: "wish", wish })}
                 />
               ))}
@@ -355,6 +416,8 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
             setRecommendedDraft(wish);
           }}
           onRestore={(wish) => setWishStatus(wish, "active").catch((detailError) => setErrorMessage(detailError instanceof Error ? detailError.message : t("wishes.error")))}
+          isPrimary={selectedWish.type === "wish" && primaryWish?.id === selectedWish.wish.id}
+          onMakePrimary={choosePrimaryWish}
         />
       ) : null}
 
@@ -578,11 +641,12 @@ function WishSection({
   );
 }
 
-function WishTile({ badge, imageUrl, onClick, title }: { badge?: string; imageUrl: string | null; onClick: () => void; title: string }) {
+function WishTile({ badge, imageUrl, onClick, primary = false, title }: { badge?: string; imageUrl: string | null; onClick: () => void; primary?: boolean; title: string }) {
   return (
     <button className="wish-tile" type="button" onClick={onClick}>
       {imageUrl ? <img alt="" src={imageUrl} loading="lazy" /> : <div className="wish-tile-placeholder">OA</div>}
       {badge ? <em>{badge}</em> : null}
+      {primary ? <em className="wish-primary-badge">{title ? "★" : ""}</em> : null}
       <span>{title}</span>
     </button>
   );
@@ -664,6 +728,8 @@ function WishDetailModal({
   onPublish,
   onUseTemplate,
   onRestore,
+  isPrimary,
+  onMakePrimary,
   selectedWish
 }: {
   selectedWish: SelectedWish;
@@ -675,6 +741,8 @@ function WishDetailModal({
   onPublish: (wish: Wish) => void;
   onUseTemplate: (wish: RecommendedWish) => void;
   onRestore: (wish: Wish) => void;
+  isPrimary: boolean;
+  onMakePrimary: (wish: Wish) => void;
 }) {
   const { locale, t } = useUserContext();
   const isPersonal = selectedWish.type === "wish";
@@ -703,6 +771,14 @@ function WishDetailModal({
           </div>
           {isPersonal ? (
             <div className="wish-detail-actions">
+              {selectedWish.wish.status === "active" ? (
+                <button className={isPrimary ? "secondary-button" : "task-done-primary-button"} type="button" disabled={isPrimary} onClick={() => onMakePrimary(selectedWish.wish)}>
+                  <Target size={16} />
+                  {isPrimary
+                    ? locale === "ru" ? "Ближайшее желание" : "Nearest wish"
+                    : locale === "ru" ? "Сделать ближайшим" : "Make nearest"}
+                </button>
+              ) : null}
               <button className="secondary-button" type="button" onClick={() => onEdit(selectedWish.wish)}>
                 <Pencil size={16} />
                 {t("app.common.edit")}

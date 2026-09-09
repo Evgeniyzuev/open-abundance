@@ -1321,6 +1321,13 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .feed-post-tile-avatar img { position: static; width: 100%; height: 100%; object-fit: cover; }
 .feed-post-tile-count { position: absolute; top: 7px; right: 7px; z-index: 1; min-width: 24px; min-height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 0 6px; background: rgba(0,0,0,0.42); color: var(--fixed-white); font-size: 0.6875rem; font-weight: 900; }
 .feed-post-tile:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.feed-post-tile-shell { position: relative; min-width: 0; aspect-ratio: 4 / 5; }
+.feed-post-tile-shell .feed-post-tile { width: 100%; height: 100%; }
+.feed-post-tile-shell.has-wish-action .feed-post-tile-copy { bottom: 37px; }
+.feed-post-tile-wish { position: absolute; z-index: 2; left: 7px; bottom: 7px; display: inline-flex; align-items: center; gap: 4px; max-width: calc(100% - 14px); overflow: hidden; border: 1px solid rgba(255,255,255,0.55); border-radius: 999px; padding: 5px 7px; background: rgba(12,18,32,0.7); color: #fff; font-size: clamp(0.58rem, 1.8vw, 0.7rem); font-weight: 900; white-space: nowrap; text-overflow: ellipsis; backdrop-filter: blur(8px); cursor: pointer; }
+.feed-post-tile-wish:disabled { opacity: 0.66; }
+.feed-post-tile-skeleton { aspect-ratio: 4 / 5; border-radius: 5px; background: linear-gradient(110deg, var(--surface-muted) 24%, var(--surface) 42%, var(--surface-muted) 62%); background-size: 260% 100%; animation: feed-tile-loading 1.25s ease-in-out infinite; }
+@keyframes feed-tile-loading { to { background-position-x: -130%; } }
 .feed-empty { margin: 0; border-radius: 12px; padding: 18px 14px; background: var(--surface-glass); color: var(--muted); font-size: 0.875rem; text-align: center; }
 .feed-empty-action { display: grid; justify-items: center; gap: 8px; margin: 0; border-radius: 14px; padding: 22px 16px; background: var(--surface-glass); color: var(--muted); text-align: center; }
 .feed-empty-action p, .feed-empty-action small { margin: 0; }
@@ -2142,3 +2149,65 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .peer-reviews-verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .peer-reviews-verdicts button { min-height: 42px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); color: var(--text); font-weight: 800; }
 .peer-reviews-verdicts button.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface-soft)); }
+
+.wish-journey-card {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 18px;
+  border: 1px solid color-mix(in srgb, var(--accent-fill) 28%, var(--line));
+  border-radius: 22px;
+  padding: 16px;
+  background: linear-gradient(145deg, var(--surface), color-mix(in srgb, var(--accent-soft) 72%, var(--surface)));
+  box-shadow: var(--shadow-soft);
+}
+.wish-journey-heading { display: grid; gap: 6px; }
+.wish-journey-heading > span { display: flex; align-items: center; gap: 7px; color: var(--accent-fill); font-size: 0.76rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
+.wish-journey-heading > strong { font-size: 1.25rem; line-height: 1.2; }
+.wish-journey-card p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+.wish-journey-progress { height: 9px; overflow: hidden; border-radius: 999px; background: var(--surface-muted); }
+.wish-journey-progress > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent-fill), #34c759); }
+.wish-primary-badge { left: 8px; right: auto !important; background: #fff2c7 !important; color: #7b5700 !important; }
+.story-wish-action { min-width: 150px; }
+
+.primary-wish-path {
+  display: grid;
+  gap: 16px;
+  overflow: hidden;
+  padding: 0;
+  border-color: color-mix(in srgb, var(--accent-fill) 24%, var(--line));
+  box-shadow: 0 16px 44px color-mix(in srgb, var(--accent-fill) 12%, transparent);
+}
+.primary-wish-path-cover { position: relative; min-height: 210px; display: grid; align-items: end; overflow: hidden; background: linear-gradient(145deg, #675dff, #0a84ff 58%, #34c759); color: #fff; }
+.primary-wish-path-cover::after { content: ""; position: absolute; inset: 35% 0 0; background: linear-gradient(transparent, rgba(3, 15, 35, 0.8)); }
+.primary-wish-path-cover > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.primary-wish-path-cover > span { position: absolute; inset: 0; display: grid; place-items: center; }
+.primary-wish-path-cover > div { position: relative; z-index: 1; display: grid; gap: 4px; padding: 18px; }
+.primary-wish-path-cover small { font-size: 0.72rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.primary-wish-path-cover h2 { margin: 0; font-size: clamp(1.35rem, 5vw, 2rem); line-height: 1.08; text-wrap: balance; }
+.primary-wish-path-progress, .primary-wish-first-step { display: grid; gap: 10px; margin: 0 16px; }
+.primary-wish-path-progress > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.primary-wish-path-progress > div:first-child span { color: var(--muted); font-size: 0.8rem; }
+.primary-wish-path-progress > div:first-child strong { font-size: 0.94rem; }
+.primary-wish-path-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.primary-wish-path-metrics > span { display: grid; gap: 4px; border-radius: 14px; padding: 11px; background: var(--surface-soft); }
+.primary-wish-path-metrics small { color: var(--muted); font-size: 0.72rem; }
+.primary-wish-path-metrics b { font-size: 0.87rem; line-height: 1.25; }
+.primary-wish-assumptions { color: var(--muted); font-size: 0.76rem; }
+.primary-wish-assumptions summary { width: fit-content; cursor: pointer; font-weight: 800; }
+.primary-wish-assumptions p { margin: 7px 0 0; line-height: 1.45; }
+.primary-wish-first-step { border-radius: 18px; padding: 14px; background: linear-gradient(145deg, var(--accent-soft), var(--surface-soft)); }
+.primary-wish-first-step > span { color: var(--accent-fill); font-size: 0.73rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
+.primary-wish-first-step > strong { font-size: 1.02rem; line-height: 1.35; }
+.primary-wish-first-step > p { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
+.primary-wish-first-step label { font-size: 0.88rem; font-weight: 850; }
+.primary-wish-first-step input { min-height: 46px; width: 100%; border: 1px solid var(--line); border-radius: 13px; padding: 10px 12px; background: var(--surface); color: var(--text); font: inherit; font-size: 1rem; }
+.primary-wish-agent-actions { display: flex; gap: 7px; overflow-x: auto; padding: 0 16px; }
+.primary-wish-agent-actions button { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 999px; padding: 8px 11px; background: var(--surface); color: var(--text); font-size: 0.78rem; font-weight: 800; cursor: pointer; }
+.primary-wish-agent-note { display: flex; align-items: flex-start; gap: 7px; margin: 0 16px; border-radius: 13px; padding: 11px; background: var(--purple-soft); color: var(--purple-text); font-size: 0.82rem; line-height: 1.4; }
+.primary-wish-agent-note svg { flex: 0 0 auto; margin-top: 1px; }
+.primary-wish-change { justify-self: center; margin: -4px 0 12px; }
+
+@media (max-width: 520px) {
+  .primary-wish-path-cover { min-height: 190px; }
+  .primary-wish-path-metrics { grid-template-columns: 1fr; }
+}

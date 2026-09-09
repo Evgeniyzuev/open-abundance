@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -21,6 +21,7 @@ import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_V
 import { ACCENT_THEMES, COLOR_THEMES, UI_SCALES, type AccentTheme, type ColorTheme, type UiScale } from "@/lib/appearance";
 import { DISPLAY_CURRENCIES, DISPLAY_CURRENCY_SYMBOLS, type DisplayCurrency } from "@/lib/displayCurrency";
 import { APP_TESTING_ATTITUDES, APP_TESTING_USEFUL_AREAS } from "@/lib/appTestingFeedback";
+import { recommendedWishIdForStory } from "@/lib/wishJourney";
 
 type SocialTab = "feed" | "people" | "blog" | "profile" | "teams";
 type SocialTabChange = (tab: SocialTab) => void;
@@ -267,7 +268,8 @@ export default function SocialApp({
   openFeedDraftsNonce,
   refreshNonce,
   onTabChange,
-  onOpenChallenge
+  onOpenChallenge,
+  onOpenWishJourney
 }: {
   active: boolean;
   activeTab: SocialTab;
@@ -275,6 +277,7 @@ export default function SocialApp({
   refreshNonce: number;
   onTabChange: SocialTabChange;
   onOpenChallenge: () => void;
+  onOpenWishJourney: (wishId: string) => void;
 }) {
   const {
     user,
@@ -330,6 +333,7 @@ export default function SocialApp({
   const [publicProfile, setPublicProfile] = useState<PublicProfilePayload | null>(null);
   const [publicProfileLoading, setPublicProfileLoading] = useState(false);
   const [copyingWishId, setCopyingWishId] = useState<string | null>(null);
+  const [addingStoryWishKey, setAddingStoryWishKey] = useState<string | null>(null);
   const [contactSavingId, setContactSavingId] = useState<string | null>(null);
   const [peoplePayload, setPeoplePayload] = useState<PeoplePayload | null>(null);
   const [peopleLoading, setPeopleLoading] = useState(false);
@@ -344,7 +348,7 @@ export default function SocialApp({
   const [directLoading, setDirectLoading] = useState(false);
   const [directSending, setDirectSending] = useState(false);
   const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
-  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>("stories");
   const [feedLoadingMore, setFeedLoadingMore] = useState(false);
   const [blogPayload, setBlogPayload] = useState<FeedPayload | null>(null);
   const [systemPayload, setSystemPayload] = useState<FeedPayload | null>(null);
@@ -425,7 +429,7 @@ export default function SocialApp({
     setDirectLoading(false);
     setDirectSending(false);
     setFeedPayload(null);
-    setFeedFilter("all");
+    setFeedFilter("stories");
     setFeedLoadingMore(false);
     setBlogPayload(null);
     setManualDraft(null);
@@ -1016,6 +1020,30 @@ export default function SocialApp({
     }
   }
 
+  async function addStoryWish(post: FeedPost) {
+    const recommendedWishId = recommendedWishIdForStory(post.source_key);
+    if (!recommendedWishId || !user) return;
+    setAddingStoryWishKey(post.source_key);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/wishes", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" },
+        body: JSON.stringify({ locale, sourceRecommendedWishId: recommendedWishId })
+      });
+      const payload = (await response.json()) as { wish?: { id: string }; error?: string };
+      if (!response.ok || payload.error || !payload.wish) throw new Error(payload.error ?? "Failed to add wish.");
+      setSelectedPost(null);
+      onOpenWishJourney(payload.wish.id);
+    } catch (storyWishError) {
+      setSocialError(storyWishError instanceof Error ? storyWishError.message : "Failed to add wish.");
+    } finally {
+      setAddingStoryWishKey(null);
+    }
+  }
+
   function markWishCopied(wishId: string, copiedIncrement: number) {
       setPublicProfile((current) => current
         ? {
@@ -1598,6 +1626,7 @@ export default function SocialApp({
 
       {activeTab === "feed" && user && !selectedSystemAccountKey ? (
         <FeedView
+          addingStoryWishKey={addingStoryWishKey}
           copyingWishId={copyingWishId}
           currentUserId={user.id}
           dailyDraft={dailyDraft}
@@ -1614,6 +1643,7 @@ export default function SocialApp({
           onCreateDraft={createDailyDraft}
           onCreateExternalLink={createExternalLinkPost}
           onCopyWish={copyPublicWishToMine}
+          onAddStoryWish={addStoryWish}
           onDraftBodyChange={updateDailyDraftBody}
           onDraftBodyChangeForPost={updateSystemDraftBody}
           onExternalLinkUrlChange={setExternalLinkUrl}
@@ -2109,6 +2139,8 @@ export default function SocialApp({
           onUploadCover={uploadPostCover}
           onUpdateReview={updateProjectReview}
           onCopyWish={copyPublicWishToMine}
+          onAddStoryWish={addStoryWish}
+          storyWishSaving={addingStoryWishKey === selectedPost.source_key}
           onReposted={() => {
             invalidateFeedCache();
             void Promise.all([loadFeed(false, true), loadBlog()]);
@@ -2769,6 +2801,7 @@ function SystemProfileView({
 }
 
 function FeedView({
+  addingStoryWishKey,
   copyingWishId,
   currentUserId,
   dailyDraft,
@@ -2784,6 +2817,7 @@ function FeedView({
   t,
   onCreateDraft,
   onCreateExternalLink,
+  onAddStoryWish,
   onCopyWish,
   onDraftBodyChange,
   onDraftBodyChangeForPost,
@@ -2802,6 +2836,7 @@ function FeedView({
   onUploadCover,
   onToggleDraftBlock
 }: {
+  addingStoryWishKey: string | null;
   copyingWishId: string | null;
   currentUserId: string;
   dailyDraft: FeedPost | null;
@@ -2817,6 +2852,7 @@ function FeedView({
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onCreateDraft: () => void;
   onCreateExternalLink: () => void;
+  onAddStoryWish: (post: FeedPost) => void;
   onCopyWish: (wish: PublicWish) => void;
   onDraftBodyChange: (body: string) => void;
   onDraftBodyChangeForPost: (postId: string, body: string) => void;
@@ -2857,6 +2893,7 @@ function FeedView({
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
       ) : null}
       <PostList
+        addingStoryWishKey={addingStoryWishKey}
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
         emptyText={t("social.feed.empty")}
@@ -2876,6 +2913,7 @@ function FeedView({
         showBlogAction={true}
         t={t}
         onCopyWish={onCopyWish}
+        onAddStoryWish={onAddStoryWish}
         onOpenAuthor={onOpenAuthor}
         onOpenBlog={onOpenBlog}
         onOpenPost={onOpenPost}
@@ -3291,6 +3329,7 @@ function SystemEventCoverPicker({ post, saving, t, onUpdateCover, onUploadCover 
 }
 
 function PostList(props: {
+  addingStoryWishKey?: string | null;
   copyingWishId: string | null;
   currentUserId: string;
   emptyText: string;
@@ -3303,6 +3342,7 @@ function PostList(props: {
   showSystemProfileAction?: boolean;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onCopyWish: (wish: PublicWish) => void;
+  onAddStoryWish?: (post: FeedPost) => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenPost: (post: FeedPost) => void;
@@ -3310,11 +3350,15 @@ function PostList(props: {
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
-  const { emptyState, emptyText, loading, onOpenPost, posts, t } = props;
-  if (loading && !posts.length) return <p className="finance-error neutral">{t("app.common.loading")}</p>;
+  const { addingStoryWishKey, emptyState, emptyText, loading, onAddStoryWish, onOpenPost, posts, t } = props;
+  if (loading && !posts.length) {
+    return <div className="feed-post-gallery feed-post-gallery-loading" aria-label={t("app.common.loading")}>
+      {Array.from({ length: 9 }, (_, index) => <span className="feed-post-tile-skeleton" key={index} />)}
+    </div>;
+  }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={posts} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} fallbackTitle={t("social.post.detail")} posts={posts} wishActionLabel={t("wishes.addToMine")} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({
@@ -3478,6 +3522,7 @@ export function PostDetailModal({
   post,
   t,
   onClose,
+  onAddStoryWish,
   onCopyWish,
   onDeletePost,
   onOpenAuthor,
@@ -3488,7 +3533,8 @@ export function PostDetailModal({
   onUpdateCover,
   onUploadCover,
   onUpdateReview,
-  onReposted
+  onReposted,
+  storyWishSaving = false
 }: {
   copyingWishId: string | null;
   currentUserId: string | null;
@@ -3497,6 +3543,7 @@ export function PostDetailModal({
   post: FeedPost;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onClose: () => void;
+  onAddStoryWish?: (post: FeedPost) => void;
   onCopyWish: (wish: PublicWish) => void;
   onDeletePost: (post: FeedPost) => void;
   onOpenAuthor: (userId: string) => void;
@@ -3508,6 +3555,7 @@ export function PostDetailModal({
   onUploadCover?: (post: FeedPost, file: File) => void;
   onUpdateReview: (post: FeedPost, changes: ReviewEditPayload) => Promise<void>;
   onReposted?: () => void;
+  storyWishSaving?: boolean;
 }) {
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
   const [editingReview, setEditingReview] = useState(false);
@@ -3609,6 +3657,12 @@ export function PostDetailModal({
         <ExternalLinkPreview post={post} />
         <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
         <div className="post-detail-actions">
+          {!readOnly && onAddStoryWish && recommendedWishIdForStory(post.source_key) ? (
+            <button className="primary-button story-wish-action" type="button" disabled={storyWishSaving} onClick={() => onAddStoryWish(post)}>
+              <Heart size={16} />
+              {storyWishSaving ? t("app.common.loading") : locale === "ru" ? "Хочу так же" : "I want this too"}
+            </button>
+          ) : null}
           {post.system_verified && post.verifiedChallenge ? (
             <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
               <Check size={15} />

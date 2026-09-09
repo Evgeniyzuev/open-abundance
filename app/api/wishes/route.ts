@@ -13,6 +13,7 @@ type WishStatus = "active" | "completed" | "archived";
 type WishVisibility = "private" | "public" | "team" | "contacts";
 
 type WishPostBody = {
+  locale?: unknown;
   title?: unknown;
   description?: unknown;
   category?: unknown;
@@ -104,11 +105,6 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await readJsonBody(request);
-    const title = normalizeRequiredText(body.title, 120);
-    if (!title) {
-      return NextResponse.json({ error: "Wish title is required." }, { status: 400, headers: NO_STORE_HEADERS });
-    }
-
     const sourceRecommendedWishId = normalizeUuid(body.sourceRecommendedWishId ?? body.source_recommended_wish_id);
     if (sourceRecommendedWishId) {
       const existingWish = await findExistingRecommendedWishCopy(supabase, user.id, sourceRecommendedWishId);
@@ -121,15 +117,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const template = sourceRecommendedWishId && body.title === undefined
+      ? await loadRecommendedWishTemplate(supabase, sourceRecommendedWishId)
+      : null;
+    if (sourceRecommendedWishId && body.title === undefined && !template) {
+      return NextResponse.json({ error: "Recommended wish not found." }, { status: 404, headers: NO_STORE_HEADERS });
+    }
+
+    const locale = body.locale === "ru" ? "ru" : "en";
+    const title = normalizeRequiredText(body.title ?? localizedText(template?.title, locale), 120);
+    if (!title) {
+      return NextResponse.json({ error: "Wish title is required." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+
     const row: TablesInsert<"wishes"> = {
       owner_user_id: user.id,
       title,
-      description: normalizeText(body.description, 1200) ?? "",
-      category: normalizeText(body.category, 80),
-      image_url: normalizeText(body.imageUrl ?? body.image_url, 900),
-      target_amount: normalizeAmount(body.targetAmount ?? body.target_amount),
+      description: normalizeText(body.description ?? localizedText(template?.description, locale), 1200) ?? "",
+      category: normalizeText(body.category ?? template?.category, 80),
+      image_url: normalizeText(body.imageUrl ?? body.image_url ?? template?.image_url, 900),
+      target_amount: normalizeAmount(body.targetAmount ?? body.target_amount ?? estimatedCostToAmount(template?.estimated_cost ?? null)),
       target_currency: normalizeCurrency(body.targetCurrency ?? body.target_currency),
-      difficulty_level: normalizeDifficulty(body.difficultyLevel ?? body.difficulty_level),
+      difficulty_level: normalizeDifficulty(body.difficultyLevel ?? body.difficulty_level ?? template?.difficulty_level),
       visibility: normalizeVisibility(body.visibility),
       source_recommended_wish_id: sourceRecommendedWishId
     };
@@ -169,6 +178,39 @@ export async function POST(request: NextRequest) {
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
+}
+
+async function loadRecommendedWishTemplate(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"],
+  recommendedWishId: string
+) {
+  const { data, error } = await supabase
+    .from("recommended_wishes")
+    .select("id,title,description,image_url,category,estimated_cost,difficulty_level")
+    .eq("id", recommendedWishId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+function localizedText(value: unknown, locale: "ru" | "en"): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (typeof record[locale] === "string") return record[locale];
+    if (typeof record.en === "string") return record.en;
+  }
+  return "";
+}
+
+function estimatedCostToAmount(value: string | null): number | null {
+  if (!value) return null;
+  const normalized = value.replace(/\s/g, "").replace(/[^\d.,]/g, "");
+  if (!normalized) return null;
+  const groupedInteger = /^\d{1,3}(?:[.,]\d{3})+$/.test(normalized);
+  const numberText = groupedInteger ? normalized.replace(/[.,]/g, "") : normalized.replace(",", ".");
+  const amount = Number(numberText);
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
 }
 
 function normalizeBoolean(value: unknown): boolean {

@@ -21,6 +21,7 @@ import { markChallengesViewed, markTodayViewed, readDailyUnreadState } from "@/l
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
+import { readPrimaryWish } from "@/lib/wishJourney";
 
 type MainTabId = "home" | "goals" | "challenges" | "wallet" | "people";
 type HomeTabId = "home" | "ideas";
@@ -107,7 +108,7 @@ const DEFAULT_NAVIGATION_STATE: NavigationState = {
 };
 
 export default function AppNavigation() {
-  const { refreshUserData, t, user } = useUserContext();
+  const { authResolved, refreshUserData, t, user } = useUserContext();
   const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTabId>(DEFAULT_NAVIGATION_STATE.homeTab);
   const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
@@ -125,6 +126,7 @@ export default function AppNavigation() {
   const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
   const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
   const [feedDraftFocusNonce, setFeedDraftFocusNonce] = useState(0);
+  const [wishFocusRequest, setWishFocusRequest] = useState<{ id: string; nonce: number } | null>(null);
   const [, setDailyUnreadVersion] = useState(0);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
@@ -141,6 +143,7 @@ export default function AppNavigation() {
   const touchStartYRef = useRef(0);
   const lastGestureTouchYRef = useRef(0);
   const navigationHydratedRef = useRef(false);
+  const journeyEntryUserRef = useRef<string | null>(null);
   const suppressHistoryPushRef = useRef(false);
   const navigationStateRef = useRef<NavigationState>(DEFAULT_NAVIGATION_STATE);
 
@@ -251,6 +254,17 @@ export default function AppNavigation() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [applyNavigationState]);
+
+  useEffect(() => {
+    if (!authResolved || !user || journeyEntryUserRef.current === user.id || typeof window === "undefined") return;
+    journeyEntryUserRef.current = user.id;
+    if (new URLSearchParams(window.location.search).has(VIEW_QUERY_PARAM)) return;
+    const nextState: NavigationState = readPrimaryWish(user.id)
+      ? { ...DEFAULT_NAVIGATION_STATE, mainTab: "home", homeTab: "home" }
+      : { ...DEFAULT_NAVIGATION_STATE, mainTab: "people", socialTab: "feed" };
+    suppressHistoryPushRef.current = true;
+    applyNavigationState(nextState);
+  }, [applyNavigationState, authResolved, user]);
 
   useEffect(() => {
     if (!navigationHydratedRef.current) return;
@@ -444,6 +458,12 @@ export default function AppNavigation() {
     setActiveMainTab("goals");
   }
 
+  function openWishJourney(wishId: string) {
+    setWishFocusRequest({ id: wishId, nonce: Date.now() });
+    setActiveGoalTab("desires");
+    setActiveMainTab("goals");
+  }
+
   return (
     <>
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
@@ -469,6 +489,7 @@ export default function AppNavigation() {
             onOpenReflectionInbox={openReflectionInbox}
             onOpenToday={openToday}
             onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
+            onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
             todayUnread={todayUnread}
             refreshNonce={refreshNonce}
           />
@@ -477,7 +498,13 @@ export default function AppNavigation() {
           <NotesApp openInboxNonce={reflectionInboxNonce} onScheduleReflection={scheduleReflection} />
         </KeepAliveView>
         <KeepAliveView active={showWishes} visited={visitedServerViews.wishes}>
-          <WishesApp active={showWishes} refreshNonce={refreshNonce} />
+          <WishesApp
+            active={showWishes}
+            focusNonce={wishFocusRequest?.nonce ?? 0}
+            focusWishId={wishFocusRequest?.id ?? null}
+            refreshNonce={refreshNonce}
+            onOpenPrimaryWish={() => { setActiveHomeTab("home"); setActiveMainTab("home"); }}
+          />
         </KeepAliveView>
         <KeepAliveView active={showIdeas} visited={visitedHomeViews.ideas}>
           <AiChatApp active={showIdeas} />
@@ -514,7 +541,7 @@ export default function AppNavigation() {
           />
         </KeepAliveView>
         <KeepAliveView active={showPeople} visited={visitedServerViews.people}>
-          <SocialApp active={showPeople} activeTab={activeSocialTab} openFeedDraftsNonce={feedDraftFocusNonce} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} onOpenChallenge={openNextChallenge} />
+          <SocialApp active={showPeople} activeTab={activeSocialTab} openFeedDraftsNonce={feedDraftFocusNonce} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} onOpenChallenge={openNextChallenge} onOpenWishJourney={openWishJourney} />
         </KeepAliveView>
         {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>

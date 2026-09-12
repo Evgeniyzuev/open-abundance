@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Bot, CheckCircle2, Clock3, Compass, HandHeart, PenLine, Rocket, Send, ShieldCheck, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
@@ -683,19 +683,27 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           {status === "loading" && !hasChallenges ? <ChallengeState title={t("app.common.loading")} description={t("challenges.loading.description")} /> : null}
           {status === "offline" && !hasChallenges ? <ChallengeState title={t("app.common.offline")} description={t("challenges.offline.description")} /> : null}
 
-          {today ? (
-            <TodayChallengeCard
-              locale={locale}
-              message={todayMessage}
-              payload={today}
-              checking={todayChecking}
-              todayUnread={todayUnread}
-              t={t}
-              onCheck={checkToday}
-            />
-          ) : null}
-
-          <ChallengeSection challenges={availableChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} unread={challengesUnread} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+          <ChallengeSection
+            challenges={availableChallenges}
+            emptyMessage={t("challenges.emptyArchive")}
+            featured={today ? (
+              <TodayChallengeCard
+                locale={locale}
+                message={todayMessage}
+                payload={today}
+                checking={todayChecking}
+                todayUnread={todayUnread}
+                t={t}
+                onCheck={checkToday}
+              />
+            ) : null}
+            locale={locale}
+            title={t("challenges.available")}
+            unread={challengesUnread || todayUnread}
+            userLevel={userLevel}
+            t={t}
+            onOpen={(challenge) => setSelectedChallenge(challenge)}
+          />
 
           <ChallengeSection challenges={permanentChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.permanent")} unread={false} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
 
@@ -805,6 +813,7 @@ function ChallengeArchiveScreen({
 function ChallengeSection({
   challenges,
   emptyMessage,
+  featured,
   locale,
   title,
   unread,
@@ -814,6 +823,7 @@ function ChallengeSection({
 }: {
   challenges: Challenge[];
   emptyMessage: string;
+  featured?: ReactNode;
   locale: AppLocale;
   title: string;
   unread?: boolean;
@@ -827,10 +837,11 @@ function ChallengeSection({
         {title}
         {unread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
       </h2>
-      {challenges.length === 0 ? (
+      {challenges.length === 0 && !featured ? (
         <div className="task-empty">{emptyMessage}</div>
       ) : (
         <div className="challenge-list">
+          {featured}
           {challenges.map((challenge) => (
             <ChallengeRow challenge={challenge} key={challenge.id} locale={locale} userLevel={userLevel} t={t} onOpen={() => onOpen(challenge)} />
           ))}
@@ -879,18 +890,27 @@ function TodayChallengeCard({
   const percent = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 100;
 
   return (
-    <section className="challenge-section today-challenge-section">
-      <h2 className="section-title-with-dot">
-        {t("today.title")}
-        {todayUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
-      </h2>
-      <div className={complete ? "today-challenge-card completed" : "today-challenge-card"}>
+    <details className={complete ? "today-challenge-disclosure completed" : "today-challenge-disclosure"}>
+      <summary className="challenge-row today-challenge-row">
+        <span className="challenge-thumb challenge-visual-gold challenge-art-fallback today-challenge-art" aria-hidden="true">
+          <span className="challenge-art-icon"><Trophy size={26} /></span>
+        </span>
+        <span className="challenge-row-body">
+          <span className="challenge-row-title">
+            {t("today.title")}
+            {todayUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+          </span>
+          <span className="challenge-row-reward" aria-label={t("today.progress")}>
+            {formatTodayMoney(progress, locale)} / {formatTodayMoney(target, locale)}
+          </span>
+        </span>
+      </summary>
+      <div className="today-challenge-card">
         <div className="today-challenge-head">
           <span>
             <strong>{t("today.challengeTitle")}</strong>
             <small>{payload.showIntro ? t("today.intro") : t("today.subtitle")}</small>
           </span>
-          <b>{formatTodayMoney(progress, locale)} / {formatTodayMoney(target, locale)}</b>
         </div>
 
         <div className="today-progress" aria-label={t("today.progress")}>
@@ -918,7 +938,7 @@ function TodayChallengeCard({
           {complete ? t("today.completed") : checking ? t("challenges.checking") : t("today.check")}
         </button>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -949,8 +969,8 @@ function ChallengeVisual({ challenge, mode }: { challenge: Challenge; mode: "thu
 
   if (mode === "thumb") {
     return (
-      <span className={`challenge-thumb challenge-visual-${tone}`}>
-        {challenge.image_url ? <img alt="" src={challenge.image_url} loading="lazy" /> : <Icon size={25} />}
+      <span className={`challenge-thumb challenge-visual-${tone}${challenge.image_url ? "" : " challenge-art-fallback"}`}>
+        {challenge.image_url ? <img alt="" src={challenge.image_url} loading="lazy" /> : <span className="challenge-art-icon"><Icon size={25} /></span>}
       </span>
     );
   }
@@ -958,8 +978,8 @@ function ChallengeVisual({ challenge, mode }: { challenge: Challenge; mode: "thu
   if (challenge.image_url) return <img className="challenge-modal-image" alt="" src={challenge.image_url} />;
 
   return (
-    <div className={`challenge-modal-image challenge-modal-fallback challenge-visual-${tone}`}>
-      <Icon size={42} />
+    <div className={`challenge-modal-image challenge-modal-fallback challenge-visual-${tone} challenge-art-fallback`}>
+      <span className="challenge-art-icon challenge-modal-art-icon"><Icon size={42} /></span>
     </div>
   );
 }
@@ -968,19 +988,16 @@ function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: 
   const accepted = isActiveChallenge(challenge);
   const completed = challenge.user_challenge_status === "completed";
   const locked = !accepted && !completed && (challenge.difficulty_level > userLevel || challenge.prerequisite_completed === false);
+  const title = displayText(challenge.title, t("challenges.challenge"), locale);
+  const reward = rewardText(challenge.reward_label, locale);
+  const state = completed ? t("challenges.completed") : locked ? t("challenges.availableFrom", { level: challenge.difficulty_level }) : "";
 
   return (
-    <button className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
+    <button aria-label={[title, reward, state].filter(Boolean).join(". ")} className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
       <ChallengeVisual challenge={challenge} mode="thumb" />
       <span className="challenge-row-body">
-        <span className="challenge-row-title">{displayText(challenge.title, t("challenges.challenge"), locale)}</span>
-        <small>{completed ? t("challenges.completed") : displayText(challenge.description, "", locale)}</small>
-        <span className="challenge-meta">
-          <span>{rewardText(challenge.reward_label, locale)}</span>
-          <span className={locked ? "challenge-level locked-level" : "challenge-level"}>Lvl {challenge.difficulty_level}</span>
-          {challenge.duration_days ? <span>{challenge.duration_days} {t("app.common.days.short")}</span> : null}
-          {completed ? <span>{t("challenges.done")}</span> : null}
-        </span>
+        <span className="challenge-row-title">{title}</span>
+        <span className="challenge-row-reward">{reward}</span>
       </span>
     </button>
   );

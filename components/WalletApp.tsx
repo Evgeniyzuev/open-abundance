@@ -16,6 +16,7 @@ import { normalizeMarketplaceRating } from "@/lib/marketplaceRating";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
+import { isUuid } from "@/lib/uuid";
 
 type WalletTab = "wallet" | "core" | "market";
 export type WalletCalculatorRequest = {
@@ -3463,10 +3464,6 @@ function formatDay(value: string, locale: AppLocale): string {
   const date = new Date(normalized);
   if (!Number.isFinite(date.getTime())) return "—";
   return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { day: "2-digit", month: "short", year: "numeric" }).format(date);
-}
-
-function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }
 
 function contactName(contact: WalletTransferContact): string {

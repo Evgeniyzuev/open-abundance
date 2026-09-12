@@ -105,8 +105,15 @@ Configure it once in `%USERPROFILE%\.codex\config.toml`:
 ```toml
 [mcp_servers.playwright]
 command = "npx.cmd"
-args = ["-y", "@playwright/mcp@latest"]
+args = [
+  "-y",
+  "@playwright/mcp@latest",
+  "--caps=storage",
+  "--user-data-dir=C:/Users/<Windows-user>/AppData/Local/ms-playwright/open-abundance-codex",
+]
 ```
+
+Replace `<Windows-user>` with the current Windows account name. Keep the profile outside the repository. `--user-data-dir` makes browser cookies and local storage persist between Codex sessions; `--caps=storage` exposes the storage-management tools needed for controlled reset or recovery.
 
 Requirements and startup:
 
@@ -115,6 +122,22 @@ Requirements and startup:
 - confirm that Playwright browser tools are available, then perform one small navigation such as opening `https://example.com` or the relevant local route;
 - the first launch may need network access to download the MCP package;
 - do not expect this configuration to add an embedded browser panel to VS Code: it gives Codex browser-control tools backed by a separate Playwright browser.
+
+### Authenticated Playwright MCP Checks
+
+Use the persistent profile only for a dedicated test account without administrator privileges, real funds, production secrets, or personal data. The user enters the email address, one-time code, password, or provider confirmation directly in the Playwright browser window. Never ask for those values in chat, place them in a prompt, print browser-storage values, or write them to repository files or logs.
+
+Use this workflow:
+
+1. Start or confirm the local application at one fixed origin. For the current profile, use `http://127.0.0.1:3100`; `localhost`, another port, and a deployed URL have separate browser storage and may require separate login.
+2. Navigate to `http://127.0.0.1:3100/?auth=signin`. If the session expired, ask the user to complete sign-in in the browser window and continue only after the user confirms it.
+3. Confirm authentication from visible application state, such as the owner-only `Кабинет` tab at `?view=people.blog`. Do not inspect or return cookies, access tokens, refresh tokens, or complete local-storage entries merely to prove that login worked.
+4. Perform only the authorized user journey. A shared test account is unsuitable for parallel tests that change server state; use a separate account and a separate `--user-data-dir` for each concurrent identity.
+5. Close the Playwright browser when the check is complete so the persistent profile is saved and released. Stop only a local server started for that check, and remove temporary `.playwright-mcp` snapshots or logs when they are not intentional artifacts.
+
+The profile directory is local to this Windows device by default and Playwright MCP does not automatically upload it. This is device locality, not an exclusive-access guarantee: the current Windows user, local administrators, `SYSTEM`, Codex processes that run the browser, malware, backup software, or anyone who copies the directory may be able to use its authenticated state. Never sync, archive, attach, or commit the profile or an exported storage-state file. Protect the Windows account and disk, and use only a low-privilege test identity.
+
+To revoke local browser access, close Playwright, sign the test account out when possible, and delete `%LOCALAPPDATA%\ms-playwright\open-abundance-codex` manually. If the device or a profile copy may be compromised, also revoke the account sessions from the authentication service; deleting the local directory alone cannot invalidate a copy stored elsewhere. The next authenticated check will require the user to sign in again.
 
 For a local UI check:
 
@@ -132,7 +155,7 @@ Playwright MCP browser verification and the repository's `pnpm test:e2e` command
 - `pnpm test:e2e` runs the repository's committed automated test suite and follows the additional rules in "E2E Tests That Must Stay Fast" below;
 - a successful MCP navigation or screenshot does not prove that the automated e2e suite passes.
 
-Official references: [Browser availability](https://learn.chatgpt.com/docs/browser) and [Codex MCP configuration](https://developers.openai.com/codex/mcp).
+Official references: [Browser availability](https://learn.chatgpt.com/docs/browser), [Codex MCP configuration](https://developers.openai.com/codex/mcp), [Playwright MCP persistent profiles](https://github.com/microsoft/playwright-mcp#user-profile), and [Playwright authentication-state security](https://playwright.dev/docs/auth#core-concepts).
 
 If the selected browser tool is unavailable:
 

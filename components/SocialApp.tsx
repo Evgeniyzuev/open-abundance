@@ -313,6 +313,7 @@ export default function SocialApp({
   const [teamTaskChallengeId, setTeamTaskChallengeId] = useState("");
   const [teamTaskCreating, setTeamTaskCreating] = useState(false);
   const [socialError, setSocialError] = useState<string | null>(null);
+  const [storyWishError, setStoryWishError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [referralQrOpen, setReferralQrOpen] = useState(false);
   const [teamRewardsOpen, setTeamRewardsOpen] = useState(false);
@@ -999,6 +1000,7 @@ export default function SocialApp({
     if (!recommendedWishId || !user) return;
     setAddingStoryWishKey(post.source_key);
     setSocialError(null);
+    setStoryWishError(null);
     try {
       let token = await getAccessToken();
       let { payload, response } = await requestStoryWish(recommendedWishId, locale, token);
@@ -1006,12 +1008,14 @@ export default function SocialApp({
         token = await refreshAccessToken();
         ({ payload, response } = await requestStoryWish(recommendedWishId, locale, token));
       }
-      if (!response.ok || payload.error || !payload.wish) throw new Error(payload.error ?? "Failed to add wish.");
+      if (!response.ok || payload.error || !payload.wish) throw new StoryWishRequestError(response.status, payload.error ?? "Failed to add wish.");
       setSelectedPost(null);
       onOpenWishJourney(payload.wish.id);
-    } catch (storyWishError) {
-      console.warn("Story wish add failed", storyWishError);
-      setSocialError(t("wishes.addError"));
+    } catch (requestError) {
+      console.warn("Story wish add failed", requestError);
+      const message = storyWishErrorMessage(requestError, t);
+      setStoryWishError(message);
+      setSocialError(message);
     } finally {
       setAddingStoryWishKey(null);
     }
@@ -1438,6 +1442,11 @@ export default function SocialApp({
     onTabChange("blog");
   }
 
+  function openPostDetail(post: FeedPost) {
+    setStoryWishError(null);
+    setSelectedPost(post);
+  }
+
   function openSystemAccount(accountKey: string) {
     if (selectedSystemAccountKey === accountKey) {
       setSelectedPost(null);
@@ -1518,7 +1527,7 @@ export default function SocialApp({
           onBack={closeSystemAccount}
           onCopyWish={copyPublicWishToMine}
           onDeletePost={deletePost}
-          onOpenPost={setSelectedPost}
+          onOpenPost={openPostDetail}
           onOpenSystemAccount={openSystemAccount}
           onPublish={publishPost}
         />
@@ -1558,7 +1567,7 @@ export default function SocialApp({
           onLinkComposerToggle={() => setLinkComposerOpen((current) => !current)}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
-          onOpenPost={setSelectedPost}
+          onOpenPost={openPostDetail}
           onOpenChallenge={onOpenChallenge}
           onOpenSystemAccount={openSystemAccount}
           onDeletePost={deletePost}
@@ -1634,7 +1643,7 @@ export default function SocialApp({
           refreshKey={dailyDraft?.id ?? ""}
           openCabinetNonce={openFeedDraftsNonce}
           t={t}
-          onOpenPost={setSelectedPost}
+          onOpenPost={openPostDetail}
           onChanged={() => { invalidateFeedCache(); void loadSystemDrafts().catch(() => undefined); }}
         />
       ) : null}
@@ -2004,7 +2013,7 @@ export default function SocialApp({
           post={selectedPost}
           readOnly={activeTab === "blog"}
           t={t}
-          onClose={() => setSelectedPost(null)}
+          onClose={() => { setStoryWishError(null); setSelectedPost(null); }}
           onDeletePost={deletePost}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
@@ -2016,6 +2025,7 @@ export default function SocialApp({
           onUpdateReview={updateProjectReview}
           onCopyWish={copyPublicWishToMine}
           onAddStoryWish={addStoryWish}
+          storyWishError={storyWishError}
           storyWishSaving={addingStoryWishKey === selectedPost.source_key}
           onReposted={() => {
             invalidateFeedCache();
@@ -2663,6 +2673,7 @@ function SystemProfileView({
         posts={posts}
         showBlogAction={false}
         showSystemProfileAction={false}
+        showTileAuthor={false}
         t={t}
         onCopyWish={onCopyWish}
         onDeletePost={onDeletePost}
@@ -2935,6 +2946,7 @@ function PostList(props: {
   saving?: boolean;
   showBlogAction: boolean;
   showSystemProfileAction?: boolean;
+  showTileAuthor?: boolean;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onCopyWish: (wish: PublicWish) => void;
   onAddStoryWish?: (post: FeedPost) => void;
@@ -2945,7 +2957,7 @@ function PostList(props: {
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
-  const { addingStoryWishKey, emptyState, emptyText, loading, onAddStoryWish, onOpenPost, posts, t } = props;
+  const { addingStoryWishKey, emptyState, emptyText, loading, onAddStoryWish, onOpenPost, posts, showTileAuthor = true, t } = props;
   if (loading && !posts.length) {
     return <div className="feed-post-gallery feed-post-gallery-loading" aria-label={t("app.common.loading")}>
       {Array.from({ length: 9 }, (_, index) => <span className="feed-post-tile-skeleton" key={index} />)}
@@ -2953,7 +2965,7 @@ function PostList(props: {
   }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} fallbackTitle={t("social.post.detail")} posts={posts} wishActionLabel={t("wishes.addToMine")} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} wishActionLabel={t("wishes.addToMine")} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({
@@ -3129,6 +3141,7 @@ export function PostDetailModal({
   onUploadCover,
   onUpdateReview,
   onReposted,
+  storyWishError = null,
   storyWishSaving = false
 }: {
   copyingWishId: string | null;
@@ -3150,6 +3163,7 @@ export function PostDetailModal({
   onUploadCover?: (post: FeedPost, file: File) => void;
   onUpdateReview: (post: FeedPost, changes: ReviewEditPayload) => Promise<void>;
   onReposted?: () => void;
+  storyWishError?: string | null;
   storyWishSaving?: boolean;
 }) {
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
@@ -3253,10 +3267,13 @@ export function PostDetailModal({
         <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
         <div className="post-detail-actions">
           {!readOnly && onAddStoryWish && recommendedWishIdForStory(post.source_key) ? (
-            <button className="primary-button story-wish-action" type="button" disabled={storyWishSaving} onClick={() => onAddStoryWish(post)}>
-              <Heart size={16} />
-              {storyWishSaving ? t("app.common.loading") : locale === "ru" ? "Хочу так же" : "I want this too"}
-            </button>
+            <div className="story-wish-action-wrap">
+              <button aria-describedby={storyWishError ? "story-wish-error" : undefined} className="primary-button story-wish-action" type="button" disabled={storyWishSaving} onClick={() => onAddStoryWish(post)}>
+                <Heart size={16} />
+                {storyWishSaving ? t("app.common.loading") : locale === "ru" ? "Хочу так же" : "I want this too"}
+              </button>
+              {storyWishError ? <p className="finance-error inline" id="story-wish-error" role="alert">{storyWishError}</p> : null}
+            </div>
           ) : null}
           {post.system_verified && post.verifiedChallenge ? (
             <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
@@ -3609,6 +3626,23 @@ async function requestStoryWish(recommendedWishId: string, locale: AppLocale, to
   });
   const payload = await response.json().catch(() => ({})) as { wish?: { id: string }; error?: string };
   return { payload, response };
+}
+
+class StoryWishRequestError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "StoryWishRequestError";
+  }
+}
+
+function storyWishErrorMessage(error: unknown, t: (key: MessageKey) => string): string {
+  if (error instanceof StoryWishRequestError) {
+    if (error.status === 400 || error.status === 404) return t("wishes.addUnavailable");
+    if (error.status === 401 || error.status === 403) return t("wishes.addAuthError");
+    return t("wishes.addServerError");
+  }
+  if (error instanceof Error && /session/i.test(error.message)) return t("wishes.addAuthError");
+  return t("wishes.addError");
 }
 
 async function loadTeamRewardsHistory(since?: string): Promise<TeamRewardDay[]> {

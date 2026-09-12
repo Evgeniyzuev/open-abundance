@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Tables, TablesInsert } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { normalizeUuid } from "@/lib/uuid";
 import { publishWishToFeed } from "@/lib/serverWishFeed";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 
@@ -254,11 +255,6 @@ function normalizeDifficulty(value: unknown): number {
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return 1;
   return Math.max(1, Math.round(numeric));
-}
-
-function normalizeUuid(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value) ? value : null;
 }
 
 async function readJsonBody(request: NextRequest): Promise<WishPostBody> {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { isUuid } from "@/lib/uuid";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,8 +30,4 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
-}
-
-function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }

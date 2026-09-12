@@ -11,19 +11,20 @@ type FeedPostGalleryProps = {
   onAddStoryWish?: (post: FeedPost) => void;
   addingStoryWishKey?: string | null;
   wishActionLabel?: string;
+  showAuthor?: boolean;
 };
 
-export default function FeedPostGallery({ addingStoryWishKey, fallbackTitle, onAddStoryWish, posts, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
+export default function FeedPostGallery({ addingStoryWishKey, fallbackTitle, onAddStoryWish, posts, showAuthor = true, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
   return (
     <div className="feed-post-gallery">
       {posts.map((post) => (
-        <FeedPostTile adding={addingStoryWishKey === post.source_key} fallbackTitle={fallbackTitle} key={post.id} post={post} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} />
+        <FeedPostTile adding={addingStoryWishKey === post.source_key} fallbackTitle={fallbackTitle} key={post.id} post={post} showAuthor={showAuthor} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} />
       ))}
     </div>
   );
 }
 
-function FeedPostTile({ adding, fallbackTitle, post, wishActionLabel, onAddStoryWish, onOpen }: { adding: boolean; fallbackTitle: string; post: FeedPost; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void }) {
+function FeedPostTile({ adding, fallbackTitle, post, showAuthor, wishActionLabel, onAddStoryWish, onOpen }: { adding: boolean; fallbackTitle: string; post: FeedPost; showAuthor: boolean; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void }) {
   const title = getFeedPostTitle(post, fallbackTitle);
   const cover = getFeedPostCover(post);
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
@@ -34,20 +35,19 @@ function FeedPostTile({ adding, fallbackTitle, post, wishActionLabel, onAddStory
     <article className={`feed-post-tile-shell ${canAddWish ? "has-wish-action" : ""}`}>
       <button aria-label={title} className="feed-post-tile" type="button" onClick={() => onOpen(post)}>
         {cover ? <img alt="" loading="lazy" src={cover} /> : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
-        {author ? (
-          <span className="feed-post-tile-author">
+        {showAuthor && author ? (
+          <span aria-label={author.name} className="feed-post-tile-author">
             <span className="feed-post-tile-avatar">
               {author.avatarUrl ? <img alt="" loading="lazy" src={author.avatarUrl} style={{ objectPosition: author.avatarPosition }} /> : author.name.slice(0, 1).toUpperCase()}
             </span>
-            <span>{author.name}</span>
           </span>
         ) : null}
         {imageCount > 1 ? <span className="feed-post-tile-count">{imageCount}</span> : null}
         <span className="feed-post-tile-copy">{title}</span>
       </button>
       {canAddWish ? (
-        <button aria-label={wishActionLabel} className="feed-post-tile-wish" type="button" disabled={adding} onClick={() => onAddStoryWish?.(post)}>
-          <Heart size={13} />{adding ? "…" : wishActionLabel}
+        <button aria-busy={adding} aria-label={wishActionLabel} className="feed-post-tile-wish" type="button" disabled={adding} onClick={() => onAddStoryWish?.(post)}>
+          {adding ? <span aria-hidden="true">…</span> : <Heart aria-hidden="true" size={15} />}
         </button>
       ) : null}
     </article>

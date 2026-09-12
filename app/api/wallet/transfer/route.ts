@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Database, Tables } from "@/lib/database.types";
+import { isUuid } from "@/lib/uuid";
 
 type TransferRequest = {
   amount?: number;
@@ -198,8 +199,4 @@ function hasWalletPrecision(value: unknown): boolean {
   const text = typeof value === "number" ? value.toString() : typeof value === "string" ? value.trim().replace(",", ".") : "";
   const fraction = text.split(".")[1] ?? "";
   return fraction.length <= 12;
-}
-
-function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }

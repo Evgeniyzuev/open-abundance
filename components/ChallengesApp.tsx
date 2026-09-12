@@ -13,6 +13,7 @@ import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
+import { parseChallengeRewardAmount } from "@/lib/challengePresentation";
 
 type LocaleText = Record<string, string> | null;
 type RewardLabel = LocaleText | string | number | null;
@@ -966,16 +967,18 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
 function ChallengeVisual({ challenge, mode }: { challenge: Challenge; mode: "thumb" | "modal" }) {
   const Icon = getChallengeIcon(challenge);
   const tone = getChallengeTone(challenge);
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const imageUrl = challenge.image_url && failedImageUrl !== challenge.image_url ? challenge.image_url : null;
 
   if (mode === "thumb") {
     return (
-      <span className={`challenge-thumb challenge-visual-${tone}${challenge.image_url ? "" : " challenge-art-fallback"}`}>
-        {challenge.image_url ? <img alt="" src={challenge.image_url} loading="lazy" /> : <span className="challenge-art-icon"><Icon size={25} /></span>}
+      <span className={`challenge-thumb challenge-visual-${tone}${imageUrl ? "" : " challenge-art-fallback"}`}>
+        {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : <span className="challenge-art-icon"><Icon size={25} /></span>}
       </span>
     );
   }
 
-  if (challenge.image_url) return <img className="challenge-modal-image" alt="" src={challenge.image_url} />;
+  if (imageUrl) return <img className="challenge-modal-image" alt="" src={imageUrl} onError={() => setFailedImageUrl(imageUrl)} />;
 
   return (
     <div className={`challenge-modal-image challenge-modal-fallback challenge-visual-${tone} challenge-art-fallback`}>
@@ -989,15 +992,19 @@ function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: 
   const completed = challenge.user_challenge_status === "completed";
   const locked = !accepted && !completed && (challenge.difficulty_level > userLevel || challenge.prerequisite_completed === false);
   const title = displayText(challenge.title, t("challenges.challenge"), locale);
-  const reward = rewardText(challenge.reward_label, locale);
-  const state = completed ? t("challenges.completed") : locked ? t("challenges.availableFrom", { level: challenge.difficulty_level }) : "";
+  const reward = rewardText(challenge.reward_label, locale, challenge.reward_amount);
+  const rewardLabel = reward || t("challenges.rewardUnknown");
+  const state = getChallengeRowState(challenge, userLevel, t);
 
   return (
-    <button aria-label={[title, reward, state].filter(Boolean).join(". ")} className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
+    <button aria-label={[title, rewardLabel, state].filter(Boolean).join(". ")} className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
       <ChallengeVisual challenge={challenge} mode="thumb" />
       <span className="challenge-row-body">
         <span className="challenge-row-title">{title}</span>
-        <span className="challenge-row-reward">{reward}</span>
+        <span className="challenge-row-summary">
+          <span className={reward ? "challenge-row-reward" : "challenge-row-reward unknown"}>{rewardLabel}</span>
+          {state ? <span className="challenge-row-state">{state}</span> : null}
+        </span>
       </span>
     </button>
   );
@@ -1109,7 +1116,7 @@ function ChallengeDetailModal({
       }
 
       const reward = {
-        amount: payload.rewardAmount ?? rewardAmount(challenge.reward_label, locale),
+        amount: payload.rewardAmount ?? parseChallengeRewardAmount(challenge.reward_label, locale) ?? 0,
         account: payload.rewardAccount ?? "core",
         claimed: Boolean(payload.rewardClaimed),
         coreBalanceAfter: payload.core?.balance ?? null
@@ -1226,7 +1233,7 @@ function ChallengeDetailModal({
           <div className="challenge-detail-grid">
             <span>
               <Trophy size={17} />
-              {rewardText(challenge.reward_label, locale)}
+              {rewardText(challenge.reward_label, locale, challenge.reward_amount) || t("challenges.rewardUnknown")}
             </span>
             <span>
               <ShieldCheck size={17} />
@@ -1445,7 +1452,7 @@ function ProjectDetailModal({
                   <article className="project-task" key={task.id}>
                     <strong>{displayText(task.title, t("tasks.task"), locale)}</strong>
                     <p>{displayText(task.description, "", locale)}</p>
-                    <span>{rewardText(task.reward_label, locale)} - {getVerificationLabel(task.verification_type, t)}</span>
+                    <span>{rewardText(task.reward_label, locale) || t("challenges.rewardUnknown")} - {getVerificationLabel(task.verification_type, t)}</span>
                   </article>
                 ))}
               </div>
@@ -1559,25 +1566,31 @@ function parseUsdTextAmount(value: string): number {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-function rewardText(value: RewardLabel, locale: AppLocale): string {
-  const amount = rewardAmount(value, locale);
-  return formatTodayMoney(amount || 1, locale);
+function rewardText(value: RewardLabel, locale: AppLocale, explicitAmount?: number | null): string {
+  const amount = typeof explicitAmount === "number" && Number.isFinite(explicitAmount)
+    ? explicitAmount
+    : parseChallengeRewardAmount(value, locale);
+  return amount === null ? "" : formatTodayMoney(amount, locale);
 }
 
 function formatTodayMoney(value: number, locale: AppLocale): string {
   return formatRoundedMoney(value, locale);
 }
 
-function rewardAmount(value: RewardLabel, locale: AppLocale): number {
-  const raw = rewardLabelText(value, locale).trim();
-  const amount = raw.match(/(\d+(?:[.,]\d+)?)\s*\$/)?.[1] ?? raw.match(/\+(\d+(?:[.,]\d+)?)/)?.[1] ?? raw.match(/(\d+(?:[.,]\d+)?)/)?.[1];
-  return amount ? Number(amount.replace(",", ".")) : 1;
-}
-
 function getVerificationLabel(type: Challenge["verification_type"], t: TFunction): string {
   if (type === "auto") return t("challenges.verification.auto");
   if (type === "community") return t("challenges.verification.community");
   return t("challenges.verification.manual");
+}
+
+function getChallengeRowState(challenge: Challenge, userLevel: number, t: TFunction): string {
+  if (challenge.user_challenge_status === "completed") return t("challenges.completed");
+  if (challenge.user_challenge_status === "accepted") return t("challenges.inProgress");
+  if (challenge.user_challenge_status === "failed") return t("challenges.failed");
+  if (challenge.user_challenge_status === "declined") return t("challenges.declined");
+  if (challenge.prerequisite_completed === false) return t("challenges.prerequisiteRequired");
+  if (challenge.difficulty_level > userLevel) return t("challenges.availableFrom", { level: challenge.difficulty_level });
+  return "";
 }
 
 function getChallengeIcon(challenge: Challenge): LucideIcon {
@@ -1667,10 +1680,4 @@ async function getAccessToken(): Promise<string> {
   if (error) throw error;
   if (!session?.access_token) throw new Error("Supabase session is missing.");
   return session.access_token;
-}
-
-function rewardLabelText(value: RewardLabel, locale: AppLocale): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  return text(value, "1$", locale);
 }

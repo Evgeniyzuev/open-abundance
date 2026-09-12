@@ -76,6 +76,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingChatAction | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
 
@@ -465,16 +466,24 @@ export default function AiChatApp({ active }: AiChatAppProps) {
     ? t("ai.chat.quota", { day: quota.dayRemaining, month: quota.monthRemaining })
     : null;
 
+  const selectPrompt = useCallback((text: string) => {
+    setInput(text);
+    setQuestionsOpen(false);
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
   return (
     <section className="ai-chat-screen">
       <header className="ai-chat-header">
-        <div className="ai-chat-identity">
-          <Image className="ai-chat-avatar" src="/icons/nova-avatar.svg" alt="" width={44} height={44} priority />
-          <div>
-            <span className="ai-chat-kicker">{t("ai.chat.novaLabel")}</span>
-            <h2 className="ai-chat-welcome-title">{novaName}</h2>
+        {messages.length > 0 ? (
+          <div className="ai-chat-identity">
+            <Image className="ai-chat-avatar" src="/icons/nova-avatar.svg" alt="" width={44} height={44} priority />
+            <div>
+              <span className="ai-chat-kicker">{t("ai.chat.novaLabel")}</span>
+              <h2 className="ai-chat-welcome-title">{novaName}</h2>
+            </div>
           </div>
-        </div>
+        ) : <span />}
         <div className="ai-chat-header-actions">
           <button
             className="ai-chat-icon-btn"
@@ -642,13 +651,14 @@ export default function AiChatApp({ active }: AiChatAppProps) {
       ) : messages.length === 0 ? (
         <div className="ai-chat-empty">
           <div className="ai-chat-welcome-icon">
-            <Image src="/icons/nova-avatar.svg" alt="" width={72} height={72} priority />
+            <Image src="/icons/nova-avatar.svg" alt="" width={96} height={96} priority />
           </div>
-          <h1 className="ai-chat-empty-title">{t("ai.chat.title")}</h1>
+          <span className="ai-chat-kicker">{t("ai.chat.novaLabel")}</span>
+          <h1 className="ai-chat-empty-title">{novaName}</h1>
           <p className="ai-chat-welcome-text">{welcome}</p>
           <div className="ai-chat-quick-actions" aria-label={t("ai.chat.quickActions")}>
-            {quickActions.map((prompt) => (
-              <button key={prompt.id} className="ai-suggestion-chip" type="button" onClick={() => void sendMessage(prompt.text)}>
+            {quickActions.slice(0, 3).map((prompt) => (
+              <button key={prompt.id} className="ai-suggestion-chip" type="button" onClick={() => selectPrompt(prompt.text)}>
                 {prompt.text}
               </button>
             ))}
@@ -683,7 +693,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
           {groupedSuggestions.map(({ category, prompts }) => (
             <div className="ai-chat-question-group" key={category}>
               <span>{t(`ai.chat.category.${category}` as MessageKey)}</span>
-              {prompts.map((prompt) => <PromptButton key={prompt.id} prompt={prompt} onSelect={sendMessage} />)}
+              {prompts.map((prompt) => <PromptButton key={prompt.id} prompt={prompt} onSelect={selectPrompt} />)}
             </div>
           ))}
         </div>
@@ -700,6 +710,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
           <CircleHelp size={19} />
         </button>
         <textarea
+          ref={inputRef}
           className="ai-chat-textarea"
           placeholder={t("ai.chat.placeholder")}
           value={input}
@@ -749,9 +760,9 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   );
 }
 
-function PromptButton({ prompt, onSelect }: { prompt: AiPrompt; onSelect: (text: string) => Promise<void> | void }) {
+function PromptButton({ prompt, onSelect }: { prompt: AiPrompt; onSelect: (text: string) => void }) {
   return (
-    <button className="ai-suggestion-chip" type="button" onClick={() => void onSelect(prompt.text)}>
+    <button className="ai-suggestion-chip" type="button" onClick={() => onSelect(prompt.text)}>
       {prompt.text}
     </button>
   );

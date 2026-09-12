@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowRight, Bell, CheckCircle2, FileText, Heart, RefreshCw, Sparkles, Target } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, FileText, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
-import { ONBOARDING_DRAFT_STORAGE_KEY } from "@/lib/onboardingContent";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { getNotes, isReflectionDue, NOTES_CHANGED_EVENT } from "@/lib/notesStore";
@@ -83,7 +82,6 @@ type HomeTodayAppProps = {
 export default function HomeTodayApp({
   active,
   refreshNonce,
-  onOpenCalculator,
   onOpenNextChallenge,
   onOpenReflectionInbox,
   onOpenToday,
@@ -91,7 +89,7 @@ export default function HomeTodayApp({
   onOpenWishes,
   todayUnread
 }: HomeTodayAppProps) {
-  const { core, locale, loading, profile, t, user, wallet } = useUserContext();
+  const { core, locale, loading, t, user, wallet } = useUserContext();
   const [today, setToday] = useState<TodayPayload | null>(null);
   const [teamSummary, setTeamSummary] = useState<TeamDashboardSummary | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
@@ -104,8 +102,8 @@ export default function HomeTodayApp({
   const [milestone, setMilestone] = useState("");
   const [milestoneDraft, setMilestoneDraft] = useState("");
   const [agentNote, setAgentNote] = useState<string | null>(null);
+  const [failedWishImageUrl, setFailedWishImageUrl] = useState<string | null>(null);
   const requestIdRef = useRef(0);
-  const draft = useMemo(() => readDraft(profile?.onboarding_state), [profile?.onboarding_state]);
   const wishJourney = useMemo(() => calculateWishJourney({
     coreBalance: core?.balance ?? 0,
     reinvestPercent: core?.reinvest_percent ?? 100,
@@ -131,7 +129,7 @@ export default function HomeTodayApp({
     const nextMilestone = milestoneDraft.trim();
     storeWishMilestone(user.id, primaryWish.id, nextMilestone);
     setMilestone(nextMilestone);
-    setAgentNote(locale === "ru" ? "Отлично. Теперь у пути есть первый видимый результат." : "Great. Your path now has a first visible result.");
+    setAgentNote(t("home.path.milestoneSaved"));
   }
 
   const loadDueReflections = useCallback(async () => {
@@ -276,16 +274,14 @@ export default function HomeTodayApp({
   }
 
   const serverPlan = today?.plan;
-  const wish = draft?.mainWish.trim() || t("home.wish.empty");
-  const coreTarget = serverPlan?.target_type === "daily_income"
-    ? serverPlan.target_value
-    : serverPlan?.target_value ?? draft?.targetCore ?? 0;
-  const dailyTarget = today?.today.target_core ?? serverPlan?.daily_additions ?? draft?.dailyCoreTarget ?? 0;
+  const dailyTarget = today?.today.target_core ?? serverPlan?.daily_additions ?? 0;
   const todayProgress = today?.today.progress_core ?? 0;
   const todayTarget = today?.today.target_core ?? dailyTarget;
   const todayPercent = todayTarget > 0 ? Math.min(100, Math.round((todayProgress / todayTarget) * 100)) : 0;
   const todayComplete = today?.today.status === "completed";
-  const action = getHomeAction({ hasUser: Boolean(user), hasServerPlan: Boolean(serverPlan), todayComplete });
+  const action = getHomeAction({ hasUser: Boolean(user) });
+  const teamStatus = teamSummary ? getTeamStatus(teamSummary, t) : "";
+  const wishImageUrl = primaryWish?.image_url && failedWishImageUrl !== primaryWish.image_url ? primaryWish.image_url : null;
 
   return (
     <section className="home-screen">
@@ -305,28 +301,26 @@ export default function HomeTodayApp({
       {primaryWish ? (
         <section className="home-card primary-wish-path">
           <div className="primary-wish-path-cover">
-            {primaryWish.image_url ? <img alt="" src={primaryWish.image_url} /> : <span><Heart size={28} /></span>}
+            {wishImageUrl ? <img alt="" src={wishImageUrl} onError={() => setFailedWishImageUrl(wishImageUrl)} /> : <span><Heart size={28} /></span>}
             <div>
-              <small>{locale === "ru" ? "Мой путь" : "My path"}</small>
+              <small>{t("home.path.title")}</small>
               <h2>{primaryWish.title}</h2>
             </div>
           </div>
           {wishJourney.targetAmount !== null ? (
             <div className="primary-wish-path-progress">
               <div>
-                <span>{locale === "ru" ? "Доступно для цели" : "Available for the goal"}</span>
+                <span>{t("home.path.availableForGoal")}</span>
                 <strong>{formatRoundedMoney(wishJourney.savedAmount, locale)} / {formatRoundedMoney(wishJourney.targetAmount, locale)}</strong>
               </div>
               <div className="today-progress"><span style={{ width: `${Math.min(100, wishJourney.savedAmount / wishJourney.targetAmount * 100)}%` }} /></div>
               <div className="primary-wish-path-metrics">
-                <span><small>{locale === "ru" ? "Доступный доход" : "Available income"}</small><b>{formatRoundedMoney(wishJourney.dailyAvailableIncome, locale)} / {locale === "ru" ? "день" : "day"}</b></span>
-                <span><small>{locale === "ru" ? "Расчётный срок" : "Estimated time"}</small><b>{wishJourney.estimatedDays === null ? (locale === "ru" ? "Пока не определён" : "Not determined yet") : wishJourney.estimatedDays === 0 ? (locale === "ru" ? "Цель обеспечена" : "Goal funded") : `${wishJourney.estimatedDays} ${locale === "ru" ? "дн." : "days"}`}</b></span>
+                <span><small>{t("home.path.availableIncome")}</small><b>{formatRoundedMoney(wishJourney.dailyAvailableIncome, locale)} / {t("home.path.day")}</b></span>
+                <span><small>{t("home.path.estimatedTime")}</small><b>{wishJourney.estimatedDays === null ? t("home.path.notDetermined") : wishJourney.estimatedDays === 0 ? t("home.path.funded") : `${wishJourney.estimatedDays} ${t("app.common.days.short")}`}</b></span>
               </div>
               <details className="primary-wish-assumptions">
-                <summary>{locale === "ru" ? "Как рассчитано" : "How this is calculated"}</summary>
-                <p>{locale === "ru"
-                  ? `Core: ${core?.balance ?? 0}; ставка: 0,0633% в день; reinvest: ${core?.reinvest_percent ?? 100}%. Будущие награды не учитываются.`
-                  : `Core: ${core?.balance ?? 0}; rate: 0.0633% per day; reinvest: ${core?.reinvest_percent ?? 100}%. Future rewards are not included.`}</p>
+                <summary>{t("home.path.calculation")}</summary>
+                <p>{t("home.path.calculationDetails", { core: core?.balance ?? 0, reinvest: core?.reinvest_percent ?? 100 })}</p>
               </details>
             </div>
           ) : null}
@@ -335,9 +329,9 @@ export default function HomeTodayApp({
             {milestone ? (
               <>
                 <strong>{milestone}</strong>
-                <p>{locale === "ru" ? "Теперь выбери одно полезное действие, которое приблизит этот результат." : "Now choose one useful action that moves this result closer."}</p>
+                <p>{t("home.path.continueDescription")}</p>
                 <button className="challenge-primary-action home-primary-action" type="button" onClick={onOpenNextChallenge}>
-                  {locale === "ru" ? "Выбрать действие" : "Choose an action"}<ArrowRight size={17} />
+                  {t("home.path.chooseAction")}<ArrowRight size={17} />
                 </button>
               </>
             ) : (
@@ -352,41 +346,47 @@ export default function HomeTodayApp({
             )}
           </div>
           <div className="primary-wish-agent-actions">
-            <button type="button" onClick={() => setAgentNote(locale === "ru" ? "Начни с самого маленького доказуемого результата. На сегодня достаточно одного завершённого действия." : "Start with the smallest verifiable result. One completed action is enough for today.")}>{locale === "ru" ? "Помоги начать" : "Help me start"}</button>
-            <button type="button" onClick={onOpenNextChallenge}>{locale === "ru" ? "Предложи другое" : "Suggest another"}</button>
-            <button type="button" onClick={() => setAgentNote(locale === "ru" ? "Хорошо. Всё достигнутое сохранено — продолжишь, когда будет удобно." : "Okay. Everything you achieved is saved; continue when it suits you.")}>{locale === "ru" ? "Сегодня пропущу" : "Skip today"}</button>
+            <button type="button" onClick={() => setAgentNote(t("home.path.helpReply"))}>{t("home.path.help")}</button>
+            <button type="button" onClick={() => setAgentNote(t("home.path.pauseReply"))}>{t("home.path.pause")}</button>
           </div>
           {agentNote ? <p className="primary-wish-agent-note"><Sparkles size={15} />{agentNote}</p> : null}
-          <button className="text-button primary-wish-change" type="button" onClick={onOpenWishes}>{locale === "ru" ? "Все мои желания" : "All my wishes"}</button>
+          <button className="text-button primary-wish-change" type="button" onClick={onOpenWishes}>{t("home.path.allWishes")}</button>
         </section>
       ) : (
-        <div className="home-plan-grid">
-          <article className="home-card home-wish-card">
-            <span className="home-card-label"><Heart size={16} />{t("home.wish.title")}</span>
-            <strong>{wish}</strong>
-          </article>
-          <article className="home-card home-goal-card">
-            <span className="home-card-label"><Target size={16} />{t("home.goal.title")}</span>
-            <strong>{formatMoney(coreTarget, locale)}</strong>
-            <small>{serverPlan ? t("home.goal.saved") : t("home.goal.preview")}</small>
-          </article>
-        </div>
+        <section className="home-action-card">
+          <span className="home-card-label">{t("home.nextAction")}</span>
+          <h2>{t(action.titleKey)}</h2>
+          <p>{t(action.descriptionKey)}</p>
+          {actionError ? <p className="home-error" role="alert">{actionError}</p> : null}
+          <button
+            className="challenge-primary-action home-primary-action"
+            type="button"
+            disabled={signingIn}
+            onClick={() => action.kind === "signIn" ? void handleSignIn() : onOpenWishes()}
+          >
+            {t(action.ctaKey)}
+            <ArrowRight size={17} />
+          </button>
+        </section>
       )}
 
-      <section className="home-card home-today-card">
-        <div className="home-card-heading">
-          <span>
-            <span className="home-card-label home-card-label-with-dot">
-              {t("today.title")}
-              {todayUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+      <details className="home-card home-today-card home-secondary-disclosure">
+        <summary>
+          <span className="home-card-heading">
+            <span>
+              <span className="home-card-label home-card-label-with-dot">
+                {t("today.title")}
+                {todayUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+              </span>
+              <strong>{todayComplete ? t("today.completedMessage") : t("today.subtitle")}</strong>
             </span>
-            <strong>{todayComplete ? t("today.completedMessage") : t("today.subtitle")}</strong>
+            {user ? <b>{formatMoney(todayProgress, locale)} / {formatMoney(todayTarget, locale)}</b> : <b>—</b>}
           </span>
-          {user ? <b>{formatMoney(todayProgress, locale)} / {formatMoney(todayTarget, locale)}</b> : <b>—</b>}
-        </div>
-        <div className="today-progress" aria-label={t("today.progress")}>
-          <span style={{ width: `${user ? todayPercent : 0}%` }} />
-        </div>
+          <span className="today-progress" aria-label={t("today.progress")}>
+            <span style={{ width: `${user ? todayPercent : 0}%` }} />
+          </span>
+        </summary>
+        <div className="home-secondary-content">
         {user && today ? (
           <>
             <div className="today-streak-row">
@@ -422,7 +422,7 @@ export default function HomeTodayApp({
                 <button className="text-button" type="button" onClick={() => void enableDailyReminder()}>{t("today.dailyReminderEnable", { time: reminderSettings.reviewTime })}</button>
               )}
             </div>
-            {reminderError ? <p className="today-reminder-error">{t("today.dailyReminderUnavailable")}</p> : null}
+            {reminderError ? <p className="today-reminder-error" role="alert">{t("today.dailyReminderUnavailable")}</p> : null}
           </>
         ) : (
           <>
@@ -438,57 +438,23 @@ export default function HomeTodayApp({
             ) : null}
           </>
         )}
-      </section>
-
-      <section className="home-action-card">
-        <span className="home-card-label">{t("home.nextAction")}</span>
-        <h2>{t(action.titleKey)}</h2>
-        <p>{t(action.descriptionKey)}</p>
-        {actionError ? <p className="home-error">{actionError}</p> : null}
-        <button
-          className="challenge-primary-action home-primary-action"
-          type="button"
-          disabled={signingIn}
-          onClick={() => {
-            if (action.kind === "signIn") {
-              void handleSignIn();
-            } else if (action.kind === "calculator") {
-              onOpenCalculator(draft);
-            } else if (action.kind === "today") {
-              onOpenToday();
-            } else {
-              onOpenNextChallenge();
-            }
-          }}
-        >
-          {t(action.ctaKey)}
-          <ArrowRight size={17} />
-        </button>
-      </section>
+          <button className="text-button home-secondary-open" type="button" onClick={onOpenToday}>{t("today.popup.open")}</button>
+        </div>
+      </details>
 
       {user && teamSummary ? (
-        <section className="home-card home-team-card">
-          <div className="home-card-heading">
-            <span className="home-card-label">{t("home.team.title")}</span>
+        <details className="home-card home-team-card home-secondary-disclosure">
+          <summary className="home-card-heading">
+            <span>
+              <span className="home-card-label">{t("home.team.title")}</span>
+              <strong>{teamStatus}</strong>
+            </span>
             {teamSummary.taskCounts?.leaderReview ? <b>{teamSummary.taskCounts.leaderReview}</b> : null}
+          </summary>
+          <div className="home-secondary-content">
+            <button className="text-button" type="button" onClick={onOpenTeams}>{t("home.team.open")}</button>
           </div>
-          <p>
-            {teamSummary.nextAction === "review_task"
-              ? t("home.team.leaderQueue", { count: teamSummary.taskCounts?.leaderReview ?? 0 })
-              : teamSummary.nextAction === "work_on_task"
-                ? t("home.team.memberAction", { count: teamSummary.taskCounts?.memberOpen ?? 0 })
-                : teamSummary.nextAction === "await_review"
-                  ? t("home.team.awaitReview")
-                  : teamSummary.leaderPath?.next === "publish_result"
-                    ? t("social.teams.path.result")
-                    : teamSummary.leaderPath?.next === "invite_participant"
-                      ? t("social.teams.path.invite")
-                      : teamSummary.leaderPath?.next === "help_newcomer"
-                        ? t("social.teams.path.help")
-                        : t("home.team.ready")}
-          </p>
-          <button className="text-button" type="button" onClick={onOpenTeams}>{t("home.team.open")}</button>
-        </section>
+        </details>
       ) : null}
     </section>
   );
@@ -505,13 +471,13 @@ function MilestoneButton({ current, label, target, onClick }: { current: number;
 }
 
 type HomeAction = {
-  kind: "calculator" | "next" | "signIn" | "today";
+  kind: "signIn" | "wishes";
   titleKey: MessageKey;
   descriptionKey: MessageKey;
   ctaKey: MessageKey;
 };
 
-function getHomeAction(input: { hasUser: boolean; hasServerPlan: boolean; todayComplete: boolean }): HomeAction {
+function getHomeAction(input: { hasUser: boolean }): HomeAction {
   if (!input.hasUser) {
     return {
       kind: "signIn",
@@ -521,56 +487,22 @@ function getHomeAction(input: { hasUser: boolean; hasServerPlan: boolean; todayC
     };
   }
 
-  if (!input.hasServerPlan) {
-    return {
-      kind: "calculator",
-      titleKey: "home.action.calculatorTitle",
-      descriptionKey: "home.action.calculatorDescription",
-      ctaKey: "home.action.calculator"
-    };
-  }
-
-  if (!input.todayComplete) {
-    return {
-      kind: "today",
-      titleKey: "home.action.todayTitle",
-      descriptionKey: "home.action.todayDescription",
-      ctaKey: "home.action.today"
-    };
-  }
-
   return {
-    kind: "next",
-    titleKey: "home.action.nextTitle",
-    descriptionKey: "home.action.nextDescription",
-    ctaKey: "home.action.next"
+    kind: "wishes",
+    titleKey: "home.action.wishTitle",
+    descriptionKey: "home.action.wishDescription",
+    ctaKey: "home.action.wish"
   };
 }
 
-function readDraft(value: unknown): HomePlanDraft | null {
-  const fromProfile = parseDraft(value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>).firstPlanDraft
-    : null);
-  if (fromProfile) return fromProfile;
-
-  if (typeof window === "undefined") return null;
-  try {
-    return parseDraft(JSON.parse(window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY) ?? "null"));
-  } catch {
-    return null;
-  }
-}
-
-function parseDraft(value: unknown): HomePlanDraft | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const draft = value as Record<string, unknown>;
-  return {
-    dailyCoreTarget: typeof draft.dailyCoreTarget === "number" ? draft.dailyCoreTarget : 1,
-    effort: draft.effort === "light" || draft.effort === "focused" ? draft.effort : "steady",
-    estimatedDays: typeof draft.estimatedDays === "number" ? draft.estimatedDays : null,
-    mainWish: typeof draft.mainWish === "string" ? draft.mainWish : "",
-    targetCore: typeof draft.targetCore === "number" ? draft.targetCore : 1000
-  };
+function getTeamStatus(teamSummary: TeamDashboardSummary, t: TFunction): string {
+  if (teamSummary.nextAction === "review_task") return t("home.team.leaderQueue", { count: teamSummary.taskCounts?.leaderReview ?? 0 });
+  if (teamSummary.nextAction === "work_on_task") return t("home.team.memberAction", { count: teamSummary.taskCounts?.memberOpen ?? 0 });
+  if (teamSummary.nextAction === "await_review") return t("home.team.awaitReview");
+  if (teamSummary.leaderPath?.next === "publish_result") return t("social.teams.path.result");
+  if (teamSummary.leaderPath?.next === "invite_participant") return t("social.teams.path.invite");
+  if (teamSummary.leaderPath?.next === "help_newcomer") return t("social.teams.path.help");
+  return t("home.team.ready");
 }
 
 function text(value: LocaleText, fallback: string, locale: AppLocale): string {

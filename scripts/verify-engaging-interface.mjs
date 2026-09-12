@@ -1,0 +1,56 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+import ts from "typescript";
+
+function read(path) {
+  return readFileSync(path, "utf8");
+}
+
+const presentationSource = read("lib/challengePresentation.ts");
+const presentationModule = { exports: {} };
+const presentationCode = ts.transpileModule(presentationSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+vm.runInThisContext(`(function(module,exports){${presentationCode}\n})`, {
+  filename: "lib/challengePresentation.ts"
+})(presentationModule, presentationModule.exports);
+
+const { parseChallengeRewardAmount } = presentationModule.exports;
+assert.equal(parseChallengeRewardAmount(0, "ru"), 0, "A zero reward must stay zero");
+assert.equal(parseChallengeRewardAmount({ ru: "Core +1 000$", en: "Core +1,000$" }, "ru"), 1000);
+assert.equal(parseChallengeRewardAmount({ ru: "Core +1 000$", en: "Core +1,000$" }, "en"), 1000);
+assert.equal(parseChallengeRewardAmount("Core +1,000,000$", "en"), 1_000_000);
+assert.equal(parseChallengeRewardAmount("Core +1,5$", "ru"), 1.5);
+assert.equal(parseChallengeRewardAmount({ ru: "Не указана", en: "Not specified" }, "ru"), null);
+assert.equal(parseChallengeRewardAmount(null, "en"), null);
+
+const challenges = read("components/ChallengesApp.tsx");
+assert.doesNotMatch(challenges, /amount\s*\|\|\s*1/, "Unknown or zero rewards must not become $1");
+assert.match(challenges, /challenge-row-state/, "Challenge rows must expose a visible state");
+assert.match(challenges, /prerequisiteRequired/, "Prerequisite failure must have a specific visible reason");
+assert.match(challenges, /onError=\{\(\) => setFailedImageUrl/, "Broken challenge images must fall back intentionally");
+
+const home = read("components/HomeTodayApp.tsx");
+assert.equal((home.match(/className="home-action-card"/g) ?? []).length, 1, "Home must render only one generic primary-action card");
+assert.match(home, /primaryWish \? \(/, "The selected wish must own the primary Home path");
+assert.match(home, /home-secondary-disclosure/, "Today and team details must use compact disclosure");
+assert.doesNotMatch(home, /Предложи другое|Suggest another/, "The primary wish action must not be duplicated by another suggestion CTA");
+
+const aiChat = read("components/AiChatApp.tsx");
+assert.match(aiChat, /quickActions\.slice\(0, 3\)/, "The empty Nova screen must keep only three starting prompts");
+assert.match(aiChat, /setInput\(text\)/, "A selected prompt must fill the editable input");
+assert.doesNotMatch(aiChat, /sendMessage\(prompt\.text\)/, "Prompt selection must not send automatically");
+assert.match(aiChat, /ref=\{inputRef\}/, "Nova must focus the editable input after a prompt is selected");
+
+const translations = read("lib/i18n.ts");
+for (const key of [
+  "challenges.rewardUnknown",
+  "challenges.prerequisiteRequired",
+  "home.action.wishTitle",
+  "home.path.chooseAction"
+]) {
+  assert.equal((translations.match(new RegExp(`"${key.replaceAll(".", "\\.")}"`, "g")) ?? []).length, 2, `${key} must exist in both locales`);
+}
+
+console.log("Engaging interface: reward, challenge-state, Home primary-action and editable Nova prompt contracts passed.");

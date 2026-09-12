@@ -16,6 +16,7 @@
     "test:growth": "node scripts/verify-growth-analytics-contract.mjs",
     "test:acquisition": "node scripts/verify-acquisition-challenges-contract.mjs",
     "test:e2e": "playwright test",
+    "test:blog": "node scripts/verify-blog-workspace.mjs && node scripts/verify-blog-editor.mjs",
     "db:link": "pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi",
     "db:pull": "pnpm dlx supabase db pull",
     "db:push": "pnpm dlx supabase db push",

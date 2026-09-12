@@ -4,6 +4,8 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Database, Tables, TablesInsert } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import type { FeedRepostSource } from "@/lib/socialFeed";
+import { decodeBlogCursor, encodeBlogCursor, isPublicBlogPost } from "@/lib/blogWorkspace";
+import { normalizeProfileVisibilitySettings } from "@/lib/socialProfile";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -57,6 +59,16 @@ export async function GET(request: NextRequest) {
     const category = normalizeFeedCategory(request.nextUrl.searchParams.get("category"));
     const postType = scope === "feed" && request.nextUrl.searchParams.get("postType") === "project_review" ? "project_review" : null;
     const systemDraftsOnly = scope === "blog" && request.nextUrl.searchParams.get("drafts") === "system";
+    const cabinet = scope === "blog" && request.nextUrl.searchParams.get("view") === "cabinet";
+    const publicBlog = scope === "blog" && !cabinet && !systemDraftsOnly;
+    if ((cabinet || systemDraftsOnly) && authorUserId !== user.id) {
+      return NextResponse.json({ error: "Only the owner can access the cabinet." }, { status: 403, headers: NO_STORE_HEADERS });
+    }
+    const blogCursor = scope === "blog" ? decodeBlogCursor(request.nextUrl.searchParams.get("cursor")) : null;
+    if (scope === "blog" && request.nextUrl.searchParams.has("cursor") && !blogCursor) {
+      return NextResponse.json({ error: "Invalid blog cursor." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+    const cabinetStatus = request.nextUrl.searchParams.get("status") === "published" ? "published" : "draft";
     const cursor = scope === "feed" ? normalizeCursor(request.nextUrl.searchParams.get("cursor")) : null;
 
     let systemAccount: FeedSystemAccountRow | null = null;
@@ -91,7 +103,11 @@ export async function GET(request: NextRequest) {
       .select("id,author_user_id,author_label,source_key,snapshot_id,system_verified,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at,repost_of_post_id")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
-      .limit(scope === "feed" ? limit + 1 : limit);
+      .limit(scope === "system" ? limit : limit + 1);
+    if (scope === "blog") {
+      query = query.order("id", { ascending: false });
+      if (blogCursor) query = query.or(`created_at.lt.${blogCursor.createdAt},and(created_at.eq.${blogCursor.createdAt},id.lt.${blogCursor.id})`);
+    }
 
     if (scope === "feed") {
       query = query.eq("status", "published").eq("visibility", "public");
@@ -112,8 +128,8 @@ export async function GET(request: NextRequest) {
         .eq("author_user_id", authorUserId)
         .eq("status", "draft")
         .in("post_type", ["daily_progress", "level_up", "wish_completed", "challenge"]);
-    } else if (authorUserId === user.id) {
-      query = query.eq("author_user_id", authorUserId);
+    } else if (cabinet) {
+      query = query.eq("author_user_id", user.id).eq("status", cabinetStatus);
     } else if (authorUserId) {
       query = query
         .eq("author_user_id", authorUserId)
@@ -124,7 +140,7 @@ export async function GET(request: NextRequest) {
     const { data: posts, error: postsError } = await query;
     if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
-    const hasMore = scope === "feed" && (posts?.length ?? 0) > limit;
+    const hasMore = scope !== "system" && (posts?.length ?? 0) > limit;
     const rawPostRows = ((posts ?? []) as FeedPostRow[]).slice(0, limit);
     if (scope !== "system") {
       systemStoryMetadata = await loadSystemStoryMetadata(supabase, rawPostRows.map((post) => post.id));
@@ -132,16 +148,16 @@ export async function GET(request: NextRequest) {
     const systemStoryMetadataByPostId = new Map(systemStoryMetadata.map((item) => [item.post_id, item]));
     const postRows = scope === "system"
       ? [...rawPostRows].sort((left, right) => (systemStoryMetadataByPostId.get(left.id)?.series_order ?? 0) - (systemStoryMetadataByPostId.get(right.id)?.series_order ?? 0))
-      : rawPostRows;
+      : publicBlog ? rawPostRows.filter(isPublicBlogPost) : rawPostRows;
     const postIds = postRows.map((post) => post.id);
     const repostSourceIds = Array.from(new Set(postRows.map((post) => post.repost_of_post_id).filter(isString)));
     const systemAccountKeys = Array.from(new Set(systemStoryMetadata.map((item) => item.system_account_key)));
     const [profiles, statBlocks, externalLinks, wishPosts, translations, media, systemAccounts, reviewMetadata, reviewSummary, challengeSnapshots, repostSources] = await Promise.all([
-      loadProfiles(supabase, Array.from(new Set(postRows.map((post) => post.author_user_id).filter(isString)))),
-      loadStatBlocks(supabase, postRows.map((post) => post.id), scope === "blog" && authorUserId === user.id),
+      loadProfiles(supabase, Array.from(new Set([...postRows.map((post) => post.author_user_id), authorUserId].filter(isString)))),
+      loadStatBlocks(supabase, postRows.map((post) => post.id), cabinet || systemDraftsOnly),
       loadExternalLinks(supabase, postIds),
-      loadWishPosts(supabase, postIds, user.id),
-      loadTranslations(supabase, postIds, locale),
+      loadWishPosts(supabase, postIds, publicBlog ? null : user.id, cabinet),
+      cabinet ? Promise.resolve(new Map<string, FeedTranslationRow>()) : loadTranslations(supabase, postIds, locale),
       loadMedia(supabase, postIds),
       loadSystemAccounts(supabase, systemAccountKeys),
       loadProjectReviewMetadata(supabase, postIds),
@@ -165,6 +181,7 @@ export async function GET(request: NextRequest) {
     const visiblePostRows = postRows.filter((post) => post.post_type !== "wish" || wishPosts.has(post.id));
 
     const authorProfile = authorUserId ? profiles.find((item) => item.user_id === authorUserId) ?? null : null;
+    const blogHeader = publicBlog && authorUserId ? await loadPublicBlogHeader(supabase, authorUserId) : null;
 
     return NextResponse.json(
       {
@@ -172,24 +189,27 @@ export async function GET(request: NextRequest) {
         category,
         postType,
         author: authorProfile,
+        blogHeader,
         systemAccount,
-        nextCursor: hasMore ? rawPostRows.at(-1)?.created_at ?? null : null,
+        nextCursor: hasMore && rawPostRows.length ? (scope === "blog" ? encodeBlogCursor(rawPostRows[rawPostRows.length - 1]) : rawPostRows.at(-1)?.created_at) : null,
         reviewSummary,
         posts: visiblePostRows.map((post) => {
           const translation = translations.get(post.id) ?? null;
           const systemStory = systemStoryMetadataByPostId.get(post.id) ?? null;
+          const repost = post.repost_of_post_id ? repostSources.get(post.repost_of_post_id) ?? null : null;
           return {
             ...post,
+            ...(publicBlog ? { snapshot_id: null } : {}),
             body: translation?.body ?? post.body,
             authorName: translation?.author_name ?? post.author_label,
             author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
-            statBlocks: filterStatBlocksForViewer(post, statBlocks, user.id),
+            statBlocks: cabinet ? statBlocks.filter((block) => block.post_id === post.id) : filterStatBlocksForViewer(post, statBlocks, publicBlog ? "" : user.id),
             externalLinks: externalLinks.filter((link) => link.post_id === post.id),
-            media: media.filter((item) => item.post_id === post.id),
+            media: media.filter((item) => item.post_id === post.id).map((item) => publicBlog ? { ...item, storage_path: undefined, metadata: {} } : item),
             wish: wishPosts.get(post.id) ?? null,
             projectReview: reviewMetadata.get(post.id) ?? null,
             verifiedChallenge: challengeSnapshotsByPostId.get(post.id) ?? null,
-            repostOf: post.repost_of_post_id ? repostSources.get(post.repost_of_post_id) ?? null : null,
+            repostOf: publicBlog && repost ? { ...repost, media: repost.media.map((item) => ({ ...item, storage_path: undefined, metadata: {} })) } : repost,
             systemStory: systemStory ? {
               ...systemStory,
               account: systemAccountsByKey.get(systemStory.system_account_key) ?? systemAccount
@@ -289,7 +309,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function loadWishPosts(supabase: SupabaseClient<Database>, postIds: string[], viewerUserId: string): Promise<Map<string, FeedWishRow>> {
+async function loadWishPosts(supabase: SupabaseClient<Database>, postIds: string[], viewerUserId: string | null, includeOwnPrivate = false): Promise<Map<string, FeedWishRow>> {
   const result = new Map<string, FeedWishRow>();
   if (!postIds.length) return result;
 
@@ -305,25 +325,26 @@ async function loadWishPosts(supabase: SupabaseClient<Database>, postIds: string
   const wishIds = Array.from(new Set(entityRows.map((entity) => entity.entity_id)));
   if (!wishIds.length) return result;
 
-  const { data: wishes, error: wishesError } = await supabase
+  let wishQuery = supabase
     .from("wishes")
     .select("*")
     .in("id", wishIds)
-    .eq("visibility", "public")
     .in("status", ["active", "completed"])
     .is("deleted_at", null);
+  wishQuery = includeOwnPrivate && viewerUserId ? wishQuery.or(`visibility.eq.public,owner_user_id.eq.${viewerUserId}`) : wishQuery.eq("visibility", "public");
+  const { data: wishes, error: wishesError } = await wishQuery;
 
   if (wishesError) throw wishesError;
   const wishRows = (wishes ?? []) as Tables<"wishes">[];
   if (!wishRows.length) return result;
 
-  const copiedWishIds = await loadCopiedWishIds(supabase, wishRows, viewerUserId);
+  const copiedWishIds = viewerUserId ? await loadCopiedWishIds(supabase, wishRows, viewerUserId) : new Set<string>();
   const wishesById = new Map(
     wishRows.map((wish) => [
       wish.id,
       {
         ...wish,
-        viewer_has_copy: wish.owner_user_id === viewerUserId || copiedWishIds.has(wish.id) || copiedWishIds.has(wish.original_wish_id ?? wish.id)
+        viewer_has_copy: Boolean(viewerUserId) && (wish.owner_user_id === viewerUserId || copiedWishIds.has(wish.id) || copiedWishIds.has(wish.original_wish_id ?? wish.id))
       }
     ])
   );
@@ -367,6 +388,19 @@ async function loadCopiedWishIds(supabase: SupabaseClient<Database>, wishes: Tab
   });
 
   return copiedIds;
+}
+
+async function loadPublicBlogHeader(supabase: SupabaseClient<Database>, userId: string) {
+  const [profile, settings, links] = await Promise.all([
+    supabase.from("user_profiles").select("bio").eq("user_id", userId).maybeSingle(),
+    supabase.from("user_profile_visibility_settings").select("settings").eq("user_id", userId).maybeSingle(),
+    supabase.from("user_profile_links").select("id,label,url").eq("user_id", userId).eq("visibility", "public").order("sort_order", { ascending: true })
+  ]);
+  for (const result of [profile, settings, links]) if (result.error) throw result.error;
+  return {
+    bio: normalizeProfileVisibilitySettings(settings.data?.settings).bio === "public" ? profile.data?.bio ?? null : null,
+    links: links.data ?? []
+  };
 }
 
 async function loadProfiles(supabase: SupabaseClient<Database>, userIds: string[]): Promise<FeedProfile[]> {

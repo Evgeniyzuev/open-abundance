@@ -7,7 +7,7 @@ import type { Dispatch, ReactNode, SetStateAction } from "react";
 import FeedPostGallery from "@/components/FeedPostGallery";
 import FeedPostInteractions from "@/components/FeedPostInteractions";
 import LegalDisclosure from "@/components/LegalDisclosure";
-import ManualPostComposer from "@/components/ManualPostComposer";
+import BlogWorkspace from "@/components/BlogWorkspace";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import CurrencyDisplayHelp from "@/components/CurrencyDisplayHelp";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
@@ -350,13 +350,11 @@ export default function SocialApp({
   const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("stories");
   const [feedLoadingMore, setFeedLoadingMore] = useState(false);
-  const [blogPayload, setBlogPayload] = useState<FeedPayload | null>(null);
   const [systemPayload, setSystemPayload] = useState<FeedPayload | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
   const [systemLoading, setSystemLoading] = useState(false);
   const [feedSaving, setFeedSaving] = useState(false);
   const [dailyDraft, setDailyDraft] = useState<FeedPost | null>(null);
-  const [manualDraft, setManualDraft] = useState<FeedPost | null>(null);
   const [systemDrafts, setSystemDrafts] = useState<FeedPost[]>([]);
   const [externalLinkUrl, setExternalLinkUrl] = useState("");
   const [linkComposerOpen, setLinkComposerOpen] = useState(false);
@@ -431,8 +429,6 @@ export default function SocialApp({
     setFeedPayload(null);
     setFeedFilter("stories");
     setFeedLoadingMore(false);
-    setBlogPayload(null);
-    setManualDraft(null);
     setSystemPayload(null);
     setFeedLoading(false);
     setSystemLoading(false);
@@ -766,30 +762,8 @@ export default function SocialApp({
   }, [ensureDailyDraft, feedFilter, loadSystemDrafts, locale, user]);
 
   const loadBlog = useCallback(async () => {
-    if (!user) return;
-    setFeedLoading(true);
-    try {
-      if (!selectedBlogAuthorId) await loadSystemDrafts();
-      const token = await getAccessToken();
-      const params = new URLSearchParams({ scope: "blog", locale, ts: String(Date.now()) });
-      if (selectedBlogAuthorId) params.set("authorUserId", selectedBlogAuthorId);
-      const response = await fetch(`/api/social/feed?${params.toString()}`, {
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache"
-        }
-      });
-      const payload = (await response.json()) as FeedPayload;
-      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load blog.");
-      setBlogPayload(payload);
-      if (!selectedBlogAuthorId) {
-        setManualDraft((current) => current ?? payload.posts.find((post) => post.post_type === "manual" && post.status === "draft") ?? null);
-      }
-    } finally {
-      setFeedLoading(false);
-    }
-  }, [loadSystemDrafts, locale, selectedBlogAuthorId, user]);
+    if (!selectedBlogAuthorId) await ensureDailyDraft();
+  }, [ensureDailyDraft, selectedBlogAuthorId]);
 
   const loadSystemProfile = useCallback(async () => {
     if (!user || !selectedSystemAccountKey) return;
@@ -1057,7 +1031,6 @@ export default function SocialApp({
           }
         : current);
     updateCachedFeedPayloads((payload) => updateFeedWishCopyState(payload, wishId, copiedIncrement) ?? payload);
-    setBlogPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setSystemPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setSelectedPost((current) => current ? updatePostWishCopyState(current, wishId, copiedIncrement) : current);
   }
@@ -1259,66 +1232,6 @@ export default function SocialApp({
     }
   }
 
-  async function createManualPost(body: string, visibility: "public" | "private", file: File | null) {
-    setFeedSaving(true);
-    setSocialError(null);
-    try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/social/feed/posts", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ body, visibility })
-      });
-      const payload = (await response.json()) as { post?: FeedPost; error?: string };
-      if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to create manual post.");
-      let createdPost = payload.post;
-      if (file) {
-        const media = await requestManualMedia(createdPost, file, token);
-        createdPost = { ...createdPost, media: [media] };
-      }
-      setManualDraft(createdPost);
-      await Promise.all([loadFeed(false, true), loadBlog()]);
-    } catch (manualPostError) {
-      console.warn("Manual post create failed", manualPostError);
-      setSocialError(manualPostError instanceof Error ? manualPostError.message : "Failed to create manual post.");
-    } finally {
-      setFeedSaving(false);
-    }
-  }
-
-  async function uploadManualMedia(post: FeedPost, file: File) {
-    setFeedSaving(true);
-    setSocialError(null);
-    try {
-      const token = await getAccessToken();
-      const media = await requestManualMedia(post, file, token);
-      updateLocalPostCover(post.id, media);
-    } catch (mediaError) {
-      setSocialError(mediaError instanceof Error ? mediaError.message : "Failed to upload post media.");
-    } finally {
-      setFeedSaving(false);
-    }
-  }
-
-  async function requestManualMedia(post: FeedPost, file: File, token: string): Promise<FeedMedia> {
-    const form = new FormData();
-    form.set("file", file);
-    if (file.type === "video/mp4") {
-      const duration = await getVideoDuration(file);
-      if (duration !== null) form.set("durationSeconds", String(duration));
-    }
-    const response = await fetch(`/api/social/feed/posts/${post.id}/media`, {
-      method: "POST",
-      cache: "no-store",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form
-    });
-    const payload = (await response.json()) as { media?: FeedMedia; error?: string };
-    if (!response.ok || payload.error || !payload.media) throw new Error(payload.error ?? "Failed to upload post media.");
-    return payload.media;
-  }
-
   async function createExternalLinkPost() {
     const url = externalLinkUrl.trim();
     if (!url) return;
@@ -1353,9 +1266,7 @@ export default function SocialApp({
     const update = (item: FeedPost) => item.id === postId ? { ...item, media: [media, ...item.media.filter((current) => current.sort_order !== 0)] } : item;
     setSystemDrafts((current) => current.map(update));
     setDailyDraft((current) => current ? update(current) : current);
-    setManualDraft((current) => current ? update(current) : current);
     updateCachedFeedPayloads((payload) => ({ ...payload, posts: payload.posts.map(update) }));
-    setBlogPayload((current) => current ? { ...current, posts: current.posts.map(update) } : current);
     setSelectedPost((current) => current ? update(current) : current);
   }
 
@@ -1432,7 +1343,6 @@ export default function SocialApp({
         verifiedChallenge: payload.post.verifiedChallenge ?? post.verifiedChallenge ?? null
       };
       setDailyDraft((current) => current?.id === updatedPost.id ? updatedPost : current);
-      setManualDraft((current) => current?.id === updatedPost.id ? null : current);
       setSelectedPost((current) => current?.id === updatedPost.id ? updatedPost : current);
       invalidateFeedCache();
       await Promise.all([loadFeed(false, true), loadBlog()]);
@@ -1467,7 +1377,6 @@ export default function SocialApp({
         projectReview: payload.post.projectReview ?? post.projectReview
       };
       updateCachedFeedPayloads((current) => replaceFeedPost(current, updatedPost) ?? current);
-      setBlogPayload((current) => replaceFeedPost(current, updatedPost));
       setSelectedPost(updatedPost);
       await loadFeed(false, true);
     } catch (updateError) {
@@ -1494,7 +1403,6 @@ export default function SocialApp({
       const payload = (await response.json()) as { deletedPostId?: string; error?: string };
       if (!response.ok || payload.error || !payload.deletedPostId) throw new Error(payload.error ?? "Failed to delete post.");
       setDailyDraft((current) => current?.id === post.id ? null : current);
-      setManualDraft((current) => current?.id === post.id ? null : current);
       setSelectedPost((current) => current?.id === post.id ? null : current);
       invalidateFeedCache();
       await Promise.all([loadFeed(false, true), loadBlog()]);
@@ -1508,14 +1416,6 @@ export default function SocialApp({
 
   function updateDailyDraftBody(body: string) {
     setDailyDraft((current) => current ? { ...current, body } : current);
-  }
-
-  function updateManualDraftBody(body: string) {
-    setManualDraft((current) => current ? { ...current, body } : current);
-  }
-
-  function updateManualDraftVisibility(visibility: "public" | "private") {
-    setManualDraft((current) => current ? { ...current, visibility } : current);
   }
 
   function updateSystemDraftBody(postId: string, body: string) {
@@ -1724,42 +1624,18 @@ export default function SocialApp({
         </section>
       ) : null}
 
-      {activeTab === "blog" && user ? (
-        <BlogView
-          blogPayload={blogPayload}
-          copyingWishId={copyingWishId}
-          currentUserId={user.id}
-          dailyDraft={dailyDraft}
-          manualDraft={manualDraft}
-          systemDrafts={systemDrafts}
-          externalLinkUrl={externalLinkUrl}
-          linkComposerOpen={linkComposerOpen}
-          loading={feedLoading}
+      {user ? (
+        <BlogWorkspace
+          key={user.id}
+          userId={user.id}
+          authorId={selectedBlogAuthorId}
           locale={locale}
-          openDraftsNonce={openFeedDraftsNonce}
-          saving={feedSaving}
-          selectedBlogAuthorId={selectedBlogAuthorId}
+          active={active && activeTab === "blog"}
+          refreshKey={dailyDraft?.id ?? ""}
+          openCabinetNonce={openFeedDraftsNonce}
           t={t}
-          onOpenAuthor={openPublicProfile}
-          onOpenOwnBlog={() => setSelectedBlogAuthorId(null)}
           onOpenPost={setSelectedPost}
-          onOpenSystemAccount={openSystemAccount}
-          onCopyWish={copyPublicWishToMine}
-          onDeletePost={deletePost}
-          onPublish={publishPost}
-          onCreateDraft={createDailyDraft}
-          onCreateManualPost={createManualPost}
-          onDraftBodyChange={updateDailyDraftBody}
-          onManualBodyChange={updateManualDraftBody}
-          onManualMediaUpload={uploadManualMedia}
-          onManualVisibilityChange={updateManualDraftVisibility}
-          onDraftBodyChangeForPost={updateSystemDraftBody}
-          onToggleDraftBlock={toggleDailyDraftBlock}
-          onUpdateCover={updatePostCover}
-          onUploadCover={uploadPostCover}
-          onExternalLinkUrlChange={setExternalLinkUrl}
-          onLinkComposerToggle={() => setLinkComposerOpen((current) => !current)}
-          onCreateExternalLink={createExternalLinkPost}
+          onChanged={() => { invalidateFeedCache(); void loadSystemDrafts().catch(() => undefined); }}
         />
       ) : null}
 
@@ -2126,6 +2002,7 @@ export default function SocialApp({
           currentUserId={user?.id ?? null}
           locale={locale}
           post={selectedPost}
+          readOnly={activeTab === "blog"}
           t={t}
           onClose={() => setSelectedPost(null)}
           onDeletePost={deletePost}
@@ -3007,287 +2884,6 @@ function ExternalLinkComposer({
   );
 }
 
-type BlogSubTab = "posts" | "drafts";
-
-function BlogView({
-  blogPayload,
-  copyingWishId,
-  currentUserId,
-  dailyDraft,
-  manualDraft,
-  systemDrafts,
-  externalLinkUrl,
-  linkComposerOpen,
-  loading,
-  locale,
-  openDraftsNonce,
-  saving,
-  selectedBlogAuthorId,
-  t,
-  onCopyWish,
-  onOpenAuthor,
-  onOpenOwnBlog,
-  onOpenPost,
-  onOpenSystemAccount,
-  onDeletePost,
-  onPublish,
-  onCreateDraft,
-  onCreateManualPost,
-  onDraftBodyChange,
-  onManualBodyChange,
-  onManualMediaUpload,
-  onManualVisibilityChange,
-  onDraftBodyChangeForPost,
-  onToggleDraftBlock,
-  onUpdateCover,
-  onUploadCover,
-  onExternalLinkUrlChange,
-  onLinkComposerToggle,
-  onCreateExternalLink
-}: {
-  blogPayload: FeedPayload | null;
-  copyingWishId: string | null;
-  currentUserId: string;
-  dailyDraft: FeedPost | null;
-  manualDraft: FeedPost | null;
-  systemDrafts: FeedPost[];
-  externalLinkUrl: string;
-  linkComposerOpen: boolean;
-  loading: boolean;
-  locale: AppLocale;
-  openDraftsNonce: number;
-  saving: boolean;
-  selectedBlogAuthorId: string | null;
-  t: (key: MessageKey, values?: Record<string, string | number>) => string;
-  onCopyWish: (wish: PublicWish) => void;
-  onOpenAuthor: (userId: string) => void;
-  onOpenOwnBlog: () => void;
-  onOpenPost: (post: FeedPost) => void;
-  onOpenSystemAccount: (accountKey: string) => void;
-  onDeletePost: (post: FeedPost) => void;
-  onPublish: (post: FeedPost) => void;
-  onCreateDraft: () => void;
-  onCreateManualPost: (body: string, visibility: "public" | "private", file: File | null) => void;
-  onDraftBodyChange: (body: string) => void;
-  onManualBodyChange: (body: string) => void;
-  onManualMediaUpload: (post: FeedPost, file: File) => void;
-  onManualVisibilityChange: (visibility: "public" | "private") => void;
-  onDraftBodyChangeForPost: (postId: string, body: string) => void;
-  onToggleDraftBlock: (blockKey: string) => void;
-  onUpdateCover: (post: FeedPost, templateKey: string) => void;
-  onUploadCover: (post: FeedPost, file: File) => void;
-  onExternalLinkUrlChange: (url: string) => void;
-  onLinkComposerToggle: () => void;
-  onCreateExternalLink: () => void;
-}) {
-  const [blogSubTab, setBlogSubTab] = useState<BlogSubTab>("posts");
-  useEffect(() => {
-    if (openDraftsNonce) setBlogSubTab("drafts");
-  }, [openDraftsNonce]);
-  const posts = blogPayload?.posts ?? [];
-  const author = blogPayload?.author ?? posts[0]?.author ?? null;
-  const title = selectedBlogAuthorId ? formatProfileName(author, selectedBlogAuthorId) : t("social.blog.mine");
-
-  return (
-    <section className="feed-layout">
-      <section className="blog-heading">
-        <div>
-          <span>{t("social.blog.title")}</span>
-          <strong>
-            {selectedBlogAuthorId ? (
-              <UserNameWithLevel
-                label={author ? t("profile.levelBadge", { level: author.level }) : undefined}
-                level={author?.level}
-              >
-                {title}
-              </UserNameWithLevel>
-            ) : title}
-          </strong>
-        </div>
-        {selectedBlogAuthorId && selectedBlogAuthorId !== currentUserId ? (
-          <button className="secondary-button" type="button" onClick={onOpenOwnBlog}>
-            <UserRound size={16} />
-            {t("social.blog.mine")}
-          </button>
-        ) : null}
-      </section>
-      <div className="feed-filter-row" role="group" aria-label={t("social.blog.title")}>
-        <button className={blogSubTab === "posts" ? "active" : ""} type="button" onClick={() => setBlogSubTab("posts")}>
-          {t("social.blog.tab.posts")}
-        </button>
-        <button className={blogSubTab === "drafts" ? "active" : ""} type="button" onClick={() => setBlogSubTab("drafts")}>
-          {t("social.blog.tab.drafts")}
-        </button>
-      </div>
-      {blogSubTab === "posts" ? (
-        <PostList
-          copyingWishId={copyingWishId}
-          currentUserId={currentUserId}
-          emptyText={t("social.blog.empty")}
-          loading={loading}
-          locale={locale}
-          posts={posts}
-          saving={saving}
-          showBlogAction={false}
-          t={t}
-          onCopyWish={onCopyWish}
-          onOpenAuthor={onOpenAuthor}
-          onOpenBlog={onOpenAuthor}
-          onOpenPost={onOpenPost}
-          onOpenSystemAccount={onOpenSystemAccount}
-          onDeletePost={onDeletePost}
-          onPublish={onPublish}
-        />
-      ) : (
-        <section className="feed-composer">
-          <ManualPostComposer
-            draft={manualDraft}
-            locale={locale}
-            saving={saving}
-            t={t}
-            onBodyChange={onManualBodyChange}
-            onCreate={onCreateManualPost}
-            onPublish={onPublish}
-            onUpload={onManualMediaUpload}
-            onVisibilityChange={onManualVisibilityChange}
-          />
-          <div className="section-heading-row">
-            <span>{t("social.feed.systemDrafts")}</span>
-            <button className="secondary-button" type="button" disabled={saving} onClick={onCreateDraft}>
-              <Newspaper size={16} />
-              {t("social.feed.createDraft")}
-            </button>
-          </div>
-          {dailyDraft ? (
-            <DailyDraftEditor
-              locale={locale}
-              post={dailyDraft}
-              saving={saving}
-              t={t}
-              onBodyChange={onDraftBodyChange}
-              onPublish={() => onPublish(dailyDraft)}
-              onToggleBlock={onToggleDraftBlock}
-              onUpdateCover={onUpdateCover}
-              onUploadCover={onUploadCover}
-            />
-          ) : null}
-          {systemDrafts.filter((post) => post.id !== dailyDraft?.id).map((post) => (
-            <SystemDraftEditor
-              key={post.id}
-              locale={locale}
-              post={post}
-              saving={saving}
-              t={t}
-              onBodyChange={(body) => onDraftBodyChangeForPost(post.id, body)}
-              onPublish={() => onPublish(post)}
-              onUpdateCover={onUpdateCover}
-              onUploadCover={onUploadCover}
-            />
-          ))}
-          <ExternalLinkComposer
-            open={linkComposerOpen}
-            saving={saving}
-            t={t}
-            url={externalLinkUrl}
-            onToggle={onLinkComposerToggle}
-            onSubmit={onCreateExternalLink}
-            onUrlChange={onExternalLinkUrlChange}
-          />
-        </section>
-      )}
-    </section>
-  );
-}
-
-function DailyDraftEditor({
-  locale,
-  post,
-  saving,
-  t,
-  onBodyChange,
-  onPublish,
-  onToggleBlock,
-  onUpdateCover,
-  onUploadCover
-}: {
-  locale: AppLocale;
-  post: FeedPost;
-  saving: boolean;
-  t: (key: MessageKey, values?: Record<string, string | number>) => string;
-  onBodyChange: (body: string) => void;
-  onPublish: () => void;
-  onToggleBlock: (blockKey: string) => void;
-  onUpdateCover: (post: FeedPost, templateKey: string) => void;
-  onUploadCover: (post: FeedPost, file: File) => void;
-}) {
-  return (
-    <div className="daily-draft-editor">
-      <textarea value={post.body ?? ""} maxLength={700} onChange={(event) => onBodyChange(event.target.value)} />
-      <SystemEventCoverPicker post={post} saving={saving} t={t} onUpdateCover={onUpdateCover} onUploadCover={onUploadCover} />
-      <div className="stat-block-picker-heading">
-        <span>{t("social.post.visibilitySettings")}</span>
-      </div>
-      <div className="stat-block-picker">
-        {post.statBlocks.map((block) => {
-          const isPublic = block.visibility === "public";
-          const blockLabel = t(statBlockLabelKey(block.block_key));
-          return (
-            <button
-              aria-label={t(isPublic ? "social.post.hideBlock" : "social.post.showBlock", { block: blockLabel })}
-              aria-pressed={isPublic}
-              className={statBlockClassName(block, "stat-block-toggle", isPublic)}
-              type="button"
-              key={block.id}
-              onClick={() => onToggleBlock(block.block_key)}
-            >
-              <span>{blockLabel}</span>
-              <strong>{formatStatBlockValue(block, locale)}</strong>
-              <small>
-                {isPublic ? <Eye size={13} /> : <EyeOff size={13} />}
-                {t(isPublic ? "social.post.publicBlock" : "social.post.privateBlock")}
-              </small>
-            </button>
-          );
-        })}
-      </div>
-      <button className="secondary-button primary-social-action" type="button" disabled={saving || post.status === "published"} onClick={onPublish}>
-        <Send size={16} />
-        {t("social.feed.publish")}
-      </button>
-    </div>
-  );
-}
-
-function SystemDraftEditor({ locale, post, saving, t, onBodyChange, onPublish, onUpdateCover, onUploadCover }: {
-  locale: AppLocale;
-  post: FeedPost;
-  saving: boolean;
-  t: (key: MessageKey, values?: Record<string, string | number>) => string;
-  onBodyChange: (body: string) => void;
-  onPublish: () => void;
-  onUpdateCover: (post: FeedPost, templateKey: string) => void;
-  onUploadCover: (post: FeedPost, file: File) => void;
-}) {
-  return (
-    <div className="daily-draft-editor system-event-draft-editor">
-      {post.system_verified ? (
-        <div className="verified-draft-note">
-          <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span>
-          {post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
-          <small>{t("social.feed.verifiedDraftHint")}</small>
-        </div>
-      ) : null}
-      <textarea value={post.body ?? ""} maxLength={700} onChange={(event) => onBodyChange(event.target.value)} />
-      <SystemEventCoverPicker post={post} saving={saving} t={t} onUpdateCover={onUpdateCover} onUploadCover={onUploadCover} />
-      <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
-      <button className="secondary-button primary-social-action" type="button" disabled={saving || post.status === "published"} onClick={onPublish}>
-        <Send size={16} />
-        {t("social.feed.publish")}
-      </button>
-    </div>
-  );
-}
-
 function SystemEventCoverPicker({ post, saving, t, onUpdateCover, onUploadCover }: {
   post: FeedPost;
   saving: boolean;
@@ -4013,23 +3609,6 @@ async function requestStoryWish(recommendedWishId: string, locale: AppLocale, to
   });
   const payload = await response.json().catch(() => ({})) as { wish?: { id: string }; error?: string };
   return { payload, response };
-}
-
-function getVideoDuration(file: File): Promise<number | null> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.onloadedmetadata = () => {
-      URL.revokeObjectURL(url);
-      resolve(Number.isFinite(video.duration) ? video.duration : null);
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(null);
-    };
-    video.src = url;
-  });
 }
 
 async function loadTeamRewardsHistory(since?: string): Promise<TeamRewardDay[]> {

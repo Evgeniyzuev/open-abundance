@@ -162,6 +162,7 @@ export type FeedPost = {
 };
 
 export type FeedPayload = {
+  blogHeader?: { bio: string | null; links: Array<{ id: string; label: string | null; url: string }> } | null;
   scope: "feed" | "blog" | "system";
   category?: "all" | "stories" | "system" | "reviews";
   postType?: "project_review" | null;

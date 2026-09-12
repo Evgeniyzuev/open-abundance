@@ -2214,3 +2214,41 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
   .primary-wish-path-cover { min-height: 190px; }
   .primary-wish-path-metrics { grid-template-columns: 1fr; }
 }
+/* Creator cabinet: fixed three-column gallery; one native modal editor. */
+.blog-workspace[hidden], .blog-workspace [hidden] { display: none !important; }
+.blog-workspace, .blog-public { min-width: 0; width: 100%; }
+.blog-workspace-tabs, .blog-workspace-actions, .blog-workspace-filters, .blog-editor-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.blog-workspace-tabs button, .blog-workspace-filters button { border: 1px solid var(--border, #d3d9e2); border-radius: 12px; padding: 10px 14px; background: var(--surface, #fff); color: inherit; cursor: pointer; }
+.blog-workspace-tabs .active, .blog-workspace-filters [aria-pressed="true"] { background: #234f8b; color: #fff; }
+.blog-draft-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.blog-draft-tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 0 0 8px; border: 1px solid var(--border, #d3d9e2); border-radius: 8px; overflow: hidden; background: var(--surface, #fff); color: inherit; text-align: left; cursor: pointer; }
+.blog-draft-cover { display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 5; overflow: hidden; background: #dbe6ef; color: #223e59; }
+.blog-draft-cover img { width: 100%; height: 100%; object-fit: cover; }
+.blog-draft-cover > span { padding: 8px; overflow-wrap: anywhere; max-height: 100%; overflow: hidden; }
+.blog-draft-tile > strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: .8rem; padding: 0 5px; }
+.blog-draft-tile > time, .blog-draft-tile > span:not(.blog-draft-cover) { font-size: .7rem; padding: 0 5px; overflow-wrap: anywhere; }
+.blog-draft-tile:focus-visible, .blog-workspace button:focus-visible, .blog-editor-dialog button:focus-visible { outline: 3px solid #427fcd; outline-offset: -3px; }
+.blog-author-header { display: grid; justify-items: center; gap: 8px; text-align: center; padding: 16px 0; }
+.blog-author-header h2, .blog-author-header p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.blog-author-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; overflow-wrap: anywhere; max-width: 100%; }
+.blog-collection-status { padding: 12px 0; text-align: center; }
+.blog-editor-dialog { width: min(640px, calc(100vw - 32px)); max-height: 90dvh; padding: 20px; border: 1px solid #c5cfda; border-radius: 16px; background: var(--surface, #fff); color: var(--text, #182c43); overscroll-behavior: contain; }
+.blog-editor-dialog::backdrop { background: #132033a6; }
+.blog-editor-dialog > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+.blog-editor-dialog h2 { font-size: 1.15rem; margin: 0; }
+.blog-editor-dialog form { display: grid; gap: 14px; min-width: 0; }
+.blog-material-file { display: inline-flex !important; justify-self: start; cursor: pointer; }
+.blog-material-divider { text-align: center; color: var(--text-muted, #687789); }
+.blog-editor-dialog label { display: grid; gap: 6px; min-width: 0; }
+.blog-editor-dialog input, .blog-editor-dialog textarea, .blog-editor-dialog select { font-size: 1rem; box-sizing: border-box; max-width: 100%; min-width: 0; }
+.blog-editor-dialog textarea, .blog-editor-dialog input[type="url"], .blog-editor-dialog select { width: 100%; border: 1px solid #a5b1c1; border-radius: 8px; padding: 10px; }
+.blog-editor-dialog fieldset { min-width: 0; border: 1px solid #c5cfda; border-radius: 8px; }
+.blog-editor-dialog .blog-block-option { display: flex; align-items: center; padding: 8px 0; }
+.blog-editor-preview { display: block; max-width: 100%; max-height: 260px; margin: auto; object-fit: contain; }
+.blog-cover-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.blog-cover-options button { min-width: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; padding: 4px; }
+.blog-cover-options button[aria-pressed="true"] { border-color: #234f8b; }
+.blog-cover-options img { width: 100%; max-height: 100px; object-fit: cover; }
+@media (max-width: 639px) {
+  .blog-editor-dialog { box-sizing: border-box; width: 100%; height: 100dvh; max-width: 100%; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; padding: max(16px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); }
+}

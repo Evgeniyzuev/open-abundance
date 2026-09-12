@@ -4,13 +4,13 @@ import { BookOpen, ExternalLink, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import FeedPostGallery from "@/components/FeedPostGallery";
+import { PublicBlog } from "@/components/BlogWorkspace";
 import { PostDetailModal } from "@/components/SocialApp";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
-import type { FeedPayload, FeedPost } from "@/lib/socialFeed";
+import type { FeedPost } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 type PublicUserView = "profile" | "blog";
@@ -36,7 +36,6 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
   const { user, loading, locale, t } = useUserContext();
   const router = useRouter();
   const [profilePayload, setProfilePayload] = useState<PublicProfilePayload | null>(null);
-  const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
   const [view, setView] = useState<PublicUserView>(initialView);
   const [pageLoading, setPageLoading] = useState(false);
@@ -65,39 +64,10 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
     }
   }, [user, userId]);
 
-  const loadBlog = useCallback(async () => {
-    if (!user) return;
-    setPageLoading(true);
-    setPageError(null);
-    try {
-      const token = await getAccessToken();
-      const params = new URLSearchParams({ scope: "blog", authorUserId: userId, ts: String(Date.now()) });
-      const response = await fetch(`/api/social/feed?${params.toString()}`, {
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache"
-        }
-      });
-      const payload = (await response.json()) as FeedPayload;
-      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load blog.");
-      setFeedPayload(payload);
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : "Failed to load blog.");
-    } finally {
-      setPageLoading(false);
-    }
-  }, [user, userId]);
-
   useEffect(() => {
-    if (!user) return;
+    if (!user || view !== "profile") return;
     void loadProfile();
-  }, [loadProfile, user]);
-
-  useEffect(() => {
-    if (!user || view !== "blog") return;
-    void loadBlog();
-  }, [loadBlog, user, view]);
+  }, [loadProfile, user, view]);
 
   useEffect(() => {
     setView(initialView);
@@ -121,6 +91,7 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
         {user ? (
           <>
             <header className="public-user-header">
+              {view === "profile" ? <>
               <div className="profile-avatar">
                 {profile?.avatar_url ? <img alt="" src={profile.avatar_url} style={{ objectPosition: profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={34} />}
               </div>
@@ -136,6 +107,7 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
                 {profilePayload?.relation.isTeam ? <span>{t("profile.visibility.team")}</span> : null}
                 {profilePayload?.relation.isContact ? <span>{t("profile.visibility.contacts")}</span> : null}
               </div>
+              </> : null}
               <nav className="public-user-tabs" aria-label={t("profile.public.title")}>
                 <Link className={view === "profile" ? "active" : ""} href={`/u/${userId}`}>
                   <UserRound size={15} />
@@ -148,12 +120,12 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
               </nav>
             </header>
             {pageError ? <p className="finance-error">{pageError}</p> : null}
-            {pageLoading && !profilePayload ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
+            {view === "profile" && pageLoading && !profilePayload ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
             {view === "profile" && profilePayload ? (
               <PublicProfileView locale={locale} payload={profilePayload} t={t} />
             ) : null}
             {view === "blog" ? (
-              <PublicBlogView loading={pageLoading} payload={feedPayload} t={t} onOpenPost={setSelectedPost} />
+              <PublicBlog key={userId} authorId={userId} locale={locale} t={t} onOpenPost={setSelectedPost} />
             ) : null}
             {selectedPost ? (
               <PostDetailModal
@@ -254,24 +226,6 @@ function PublicProfileView({
       ) : null}
     </section>
   );
-}
-
-function PublicBlogView({
-  loading,
-  payload,
-  t,
-  onOpenPost
-}: {
-  loading: boolean;
-  payload: FeedPayload | null;
-  t: (key: MessageKey, values?: Record<string, string | number>) => string;
-  onOpenPost: (post: FeedPost) => void;
-}) {
-  const posts = payload?.posts ?? [];
-  if (loading && !posts.length) return <p className="finance-error neutral">{t("app.common.loading")}</p>;
-  if (!posts.length) return <p className="feed-empty">{t("social.blog.empty")}</p>;
-
-  return <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={posts} onOpen={onOpenPost} />;
 }
 
 async function getAccessToken(): Promise<string> {

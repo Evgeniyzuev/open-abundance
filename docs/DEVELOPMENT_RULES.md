@@ -14,7 +14,8 @@ For small, localized changes, gather context with targeted searches before readi
 - read full files only when the targeted search does not reveal the needed structure or when the change touches broad behavior;
 - avoid repeating equivalent searches after the relevant owner, schema, or style block is found;
 - scale verification to risk: run `pnpm exec tsc --noEmit` for TypeScript/UI contract changes, add `pnpm lint` or broader checks when the change touches shared patterns or lint-sensitive code;
-- after a frontend change, attempt the in-app browser once as described below; if it is unavailable with a known environment error, switch to the fallback checks instead of spending time on repeated browser setup attempts.
+- after a frontend change, attempt one visual browser check as described below; in the Codex VS Code extension on Windows, use the configured Playwright MCP browser because the built-in Browser is not available there;
+- if the selected browser is unavailable or does not return a result within 30 seconds, switch to the fallback checks instead of spending time on repeated browser setup attempts.
 
 ## UTF-8 And PowerShell
 
@@ -93,25 +94,63 @@ This keeps navigation responsive and preserves local component state when users 
 
 ## Frontend Verification
 
-After frontend UI changes, try to verify the result visually in the in-app browser.
+After frontend UI changes, try to verify the affected route and state visually in a browser. Browser verification supplements the technical checks; it does not replace typechecking, linting, builds, or targeted deterministic tests when those checks are relevant.
 
-If the browser tool is unavailable, for example `Browser is not available: iab`:
+### Browser Use In Codex VS Code On Windows
+
+The built-in Browser is not available in the Codex CLI or Codex IDE extension. In VS Code on Windows, use the Playwright MCP server for interactive browser verification.
+
+Configure it once in `%USERPROFILE%\.codex\config.toml`:
+
+```toml
+[mcp_servers.playwright]
+command = "npx.cmd"
+args = ["-y", "@playwright/mcp@latest"]
+```
+
+Requirements and startup:
+
+- install Node.js so `npx.cmd` is available;
+- after adding or changing the MCP configuration, restart VS Code and start a new Codex chat so the MCP tool catalog is rebuilt;
+- confirm that Playwright browser tools are available, then perform one small navigation such as opening `https://example.com` or the relevant local route;
+- the first launch may need network access to download the MCP package;
+- do not expect this configuration to add an embedded browser panel to VS Code: it gives Codex browser-control tools backed by a separate Playwright browser.
+
+For a local UI check:
+
+1. Start or confirm the development server and identify its exact URL.
+2. Navigate the Playwright MCP browser directly to the affected route.
+3. Inspect the accessibility snapshot first; use a screenshot when visual layout, spacing, color, responsive behavior, or canvas output matters.
+4. Check console messages or network requests only when they are relevant to the reported behavior.
+5. Verify the specific desktop or mobile viewport required by the change, then close the browser or stop processes started only for verification.
+
+Keep the interactive browser run within 30 seconds. If Playwright MCP is absent from the tool catalog after restart, cannot launch, or produces no result within that budget, record the limitation and use the fallback checks below. Do not repeatedly reinstall packages, restart VS Code, reconnect the MCP server, or rerun the same browser check during the coding task.
+
+Playwright MCP browser verification and the repository's `pnpm test:e2e` command are separate:
+
+- Playwright MCP is an interactive Codex tool for inspecting a rendered page;
+- `pnpm test:e2e` runs the repository's committed automated test suite and follows the additional rules in "E2E Tests That Must Stay Fast" below;
+- a successful MCP navigation or screenshot does not prove that the automated e2e suite passes.
+
+Official references: [Browser availability](https://learn.chatgpt.com/docs/browser) and [Codex MCP configuration](https://developers.openai.com/codex/mcp).
+
+If the selected browser tool is unavailable:
 
 - state this clearly in the final result;
 - run the available technical checks instead, such as `tsc --noEmit`, `next build`, and an HTTP 200 check against the local dev server when relevant;
 - stop the dev server after the fallback check;
 - do not present the change as visually verified.
 
-Known Windows sandbox failure (observed 2026-07-20):
+Known built-in Browser Windows sandbox failure (observed 2026-07-20):
 
 ```text
 node_repl kernel exited unexpectedly
 windows sandbox failed: CreateProcessWithLogonW failed: 2
 ```
 
-Treat this exact failure as definitive browser unavailability for the current task. Do not retry browser bootstrap, reset the browser kernel, read additional browser troubleshooting, or switch to another browser automation mechanism. Go directly to the fallback checks above. If this failure has already occurred earlier in the same conversation/session, skip further in-app browser attempts for later UI changes in that session.
+Treat this exact failure as definitive built-in Browser unavailability for the current task. In the VS Code extension, do not attempt the built-in Browser because that surface is unsupported; use the already configured Playwright MCP server as described above. If Playwright MCP is also unavailable or has already failed in the same verification scope, go directly to the fallback checks.
 
-The same one-attempt rule applies when browser discovery returns no available browsers, an empty browser list, or another definitive environment-level unavailability result. Once that happens, record it for the final response and do not spend more tool calls reconnecting, rediscovering, resetting, or substituting another browser in the same session.
+The same one-attempt rule applies when browser discovery returns no available browsers, an empty browser list, or another definitive environment-level unavailability result. Once that happens, record it for the final response and do not spend more tool calls reconnecting, rediscovering, resetting, or substituting another browser in the same verification scope.
 
 ```text
 f:\git\

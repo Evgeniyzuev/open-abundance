@@ -8,7 +8,7 @@ docs/DEVELOPMENT_RULES.md
 
 Follow those project-specific rules even if the user did not mention them in the request.
 
-Verification is strictly time-boxed. Attempt the in-app browser at most once per session, never retry a browser that is unavailable, and stop any Playwright run that has no result within 30 seconds. Use the fallback checks and targeted deterministic tests defined in `docs/DEVELOPMENT_RULES.md`; do not spend repeated attempts on broken browser or test-server infrastructure.
+Verification is strictly time-boxed. In the Codex VS Code extension on Windows, use the configured Playwright MCP browser for interactive visual checks; the built-in Browser is not available in the IDE extension. Attempt browser verification at most once per scope, never retry an unavailable browser, and stop any Playwright MCP or repository Playwright run that has no result within 30 seconds. Use the fallback checks and targeted deterministic tests defined in `docs/DEVELOPMENT_RULES.md`; do not spend repeated attempts on broken browser or test-server infrastructure.
 
 ## FOUNDER OS Mode
 

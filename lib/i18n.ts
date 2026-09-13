@@ -39,6 +39,18 @@ export function storeLocalePreference(locale: AppLocale): void {
 
 export const messages = {
   ru: {
+    "journey.today": "Сегодня",
+    "journey.continueWish": "Продолжить путь",
+    "journey.growth": "Рост",
+    "journey.level": "Уровень {level}",
+    "journey.growthPlan": "План роста",
+    "journey.toNextLevel": "Ещё {amount} до уровня",
+    "journey.viewGrowth": "Посмотреть рост Core",
+    "journey.resume": "Продолжить челлендж",
+    "journey.resumeDescription": "Уже начато: {title}",
+    "journey.exploreDescription": "Можно попробовать: {title}",
+    "journey.feedEyebrow": "Идеи для своего пути",
+    "journey.feedTitle": "Посмотреть, что делают другие",
     "profile.currency": "Валюта",
     "profile.currency.usd": "Доллар США",
     "profile.currency.eur": "Евро",
@@ -1545,6 +1557,18 @@ export const messages = {
       "ai.chat.error": "Не удалось получить ответ. Попробуйте еще раз."
   },
   en: {
+    "journey.today": "Today",
+    "journey.continueWish": "Continue my path",
+    "journey.growth": "Growth",
+    "journey.level": "Level {level}",
+    "journey.growthPlan": "Growth plan",
+    "journey.toNextLevel": "{amount} to the next level",
+    "journey.viewGrowth": "View Core growth",
+    "journey.resume": "Continue challenge",
+    "journey.resumeDescription": "Already started: {title}",
+    "journey.exploreDescription": "Something to try: {title}",
+    "journey.feedEyebrow": "Ideas for your path",
+    "journey.feedTitle": "See what others are doing",
     "profile.currency": "Currency",
     "profile.currency.usd": "US dollar",
     "profile.currency.eur": "Euro",

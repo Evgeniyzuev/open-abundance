@@ -17,6 +17,23 @@ vm.runInThisContext(`(function(module,exports){${presentationCode}\n})`, {
 })(presentationModule, presentationModule.exports);
 
 const { parseChallengeRewardAmount } = presentationModule.exports;
+const journeyModule = { exports: {} };
+const journeyCode = ts.transpileModule(read("lib/journeyAction.ts"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+vm.runInThisContext(`(function(module,exports){${journeyCode}\n})`)(journeyModule, journeyModule.exports);
+const { selectJourneyChallenge } = journeyModule.exports;
+const available = { id: "available", title: { en: "Available" }, difficulty_level: 1, sort_order: 1 };
+const accepted = { ...available, id: "accepted", sort_order: 9, user_challenge_status: "accepted" };
+const choices = Object.freeze([Object.freeze(available), Object.freeze(accepted)]);
+assert.equal(selectJourneyChallenge(choices, 1)?.id, "accepted", "Continue accepted work before proposing new work");
+assert.equal(selectJourneyChallenge([], 1), null);
+assert.equal(selectJourneyChallenge([available], 0), null, "Do not recommend level-locked work");
+assert.equal(selectJourneyChallenge([{ ...available, user_challenge_status: "completed" }], 1), null);
+assert.equal(selectJourneyChallenge([{ ...available, prerequisite_completed: false }], 1), null, "Server eligibility also covers referral gates without a prerequisite id");
+assert.equal(selectJourneyChallenge([{ ...available, prerequisite_challenge_id: "prior" }], 1), null);
+assert.equal(selectJourneyChallenge([{ ...available, prerequisite_challenge_id: "prior", prerequisite_completed: true }], 1)?.id, "available");
+assert.equal(selectJourneyChallenge([{ ...available, id: "b" }, { ...available, id: "a" }], 1)?.id, "a");
 assert.equal(parseChallengeRewardAmount(0, "ru"), 0, "A zero reward must stay zero");
 assert.equal(parseChallengeRewardAmount({ ru: "Core +1 000$", en: "Core +1,000$" }, "ru"), 1000);
 assert.equal(parseChallengeRewardAmount({ ru: "Core +1 000$", en: "Core +1,000$" }, "en"), 1000);
@@ -77,9 +94,14 @@ for (const key of [
   "challenges.rewardUnknown",
   "challenges.prerequisiteRequired",
   "home.action.wishTitle",
-  "home.path.chooseAction"
+  "home.path.chooseAction",
+  "journey.today",
+  "journey.growth",
+  "journey.continueWish",
+  "journey.resume",
+  "journey.toNextLevel"
 ]) {
   assert.equal((translations.match(new RegExp(`"${key.replaceAll(".", "\\.")}"`, "g")) ?? []).length, 2, `${key} must exist in both locales`);
 }
 
-console.log("Engaging interface: reward, challenge-state, Home primary-action and editable Nova prompt contracts passed.");
+console.log("Engaging interface: rewards, challenge eligibility, Home continuation, translations and editable Nova prompt contracts passed.");

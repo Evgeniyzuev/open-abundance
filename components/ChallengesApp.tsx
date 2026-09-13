@@ -185,16 +185,18 @@ type ChallengesAppProps = {
   activeTab: ChallengeTab;
   challengesUnread?: boolean;
   focusNextChallengeNonce?: number;
+  focusChallengeId?: string | null;
   onChallengesViewed?: () => void;
   onTodayViewed?: () => void;
   onOpenFeedDrafts: () => void;
+  onOpenCore: () => void;
   onNavigateTesting: (target: AppTestingNavigationTarget) => void;
   refreshNonce: number;
   todayUnread?: boolean;
   onRefresh: () => Promise<void>;
 };
 
-export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, onChallengesViewed, onTodayViewed, onOpenFeedDrafts, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
+export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, focusChallengeId = null, onChallengesViewed, onTodayViewed, onOpenFeedDrafts, onOpenCore, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
@@ -388,21 +390,23 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   useEffect(() => {
     if (!active || !focusNextChallengeNonce || handledFocusNextChallengeRef.current === focusNextChallengeNonce) return;
 
-    const nextChallenge = availableChallenges
-      .filter((challenge) => challenge.difficulty_level <= userLevel)
-      .sort(compareRecommendedChallenges)[0];
+    const nextChallenge = focusChallengeId
+      ? [...acceptedChallenges, ...permanentChallenges, ...availableChallenges, ...completedChallenges].find((challenge) => challenge.id === focusChallengeId)
+      : [...acceptedChallenges, ...availableChallenges]
+        .filter((challenge) => challenge.difficulty_level <= userLevel && challenge.prerequisite_completed !== false && (!challenge.prerequisite_challenge_id || challenge.prerequisite_completed))
+        .sort((a, b) => Number(b.user_challenge_status === "accepted") - Number(a.user_challenge_status === "accepted") || compareRecommendedChallenges(a, b))[0];
     if (!nextChallenge) return;
 
     handledFocusNextChallengeRef.current = focusNextChallengeNonce;
-    setAcceptedOpen(false);
-    setCompletedOpen(false);
+    setAcceptedOpen(acceptedChallenges.some((challenge) => challenge.id === nextChallenge.id));
+    setCompletedOpen(completedChallenges.some((challenge) => challenge.id === nextChallenge.id));
     setExpandedChallengeId(nextChallenge.id);
     requestAnimationFrame(() => {
       const row = document.getElementById(`challenge-${nextChallenge.id}`);
       row?.scrollIntoView({ block: "start", behavior: "auto" });
       row?.querySelector("summary")?.focus();
     });
-  }, [active, availableChallenges, focusNextChallengeNonce, userLevel]);
+  }, [active, availableChallenges, acceptedChallenges, permanentChallenges, completedChallenges, focusChallengeId, focusNextChallengeNonce, userLevel]);
 
   useEffect(() => {
     if (!active) return;
@@ -627,7 +631,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           renderChallenge={renderChallenge}
         />
 
-        {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} /> : null}
+        {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} onOpenCore={onOpenCore} /> : null}
       </>
     );
   }
@@ -711,7 +715,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
         />
       ) : null}
 
-      {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} /> : null}
+      {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} onOpenCore={onOpenCore} /> : null}
     </section>
   );
 }
@@ -1392,7 +1396,7 @@ function ProjectDetailModal({
   );
 }
 
-function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenFeedDrafts }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void; onOpenFeedDrafts: () => void }) {
+function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenFeedDrafts, onOpenCore }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void; onOpenFeedDrafts: () => void; onOpenCore: () => void }) {
   const rewardSummary = formatRewardAmounts(reward.coreAmount, reward.walletAmount, locale);
 
   return (
@@ -1433,6 +1437,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
             {t("social.feed.openDrafts")}
           </button>
           <button className="challenge-secondary-action" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
+          {reward.coreAmount > 0 ? <button className="text-button" type="button" onClick={() => { onClose(); onOpenCore(); }}>{t("journey.viewGrowth")}</button> : null}
         </div>
       </div>
     </div>

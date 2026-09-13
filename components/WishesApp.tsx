@@ -748,9 +748,9 @@ function WishDetailModal({
               {selectedWish.wish.status === "active" ? (
                 <>
                   {!isPrimary ? <p className="wish-primary-hint">{t("wishes.primaryHint")}</p> : null}
-                  <button className={isPrimary ? "secondary-button" : "task-done-primary-button"} type="button" disabled={isPrimary} onClick={() => onMakePrimary(selectedWish.wish)}>
+                  <button className="task-done-primary-button" type="button" onClick={() => onMakePrimary(selectedWish.wish)}>
                     <Target size={16} />
-                    {isPrimary ? t("wishes.nearest") : t("wishes.makeNearest")}
+                    {isPrimary ? t("journey.continueWish") : t("wishes.makeNearest")}
                   </button>
                 </>
               ) : null}

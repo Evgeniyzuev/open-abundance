@@ -8,6 +8,8 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { getNotes, isReflectionDue, NOTES_CHANGED_EVENT } from "@/lib/notesStore";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { playUiSound } from "@/lib/ui/sound";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { selectJourneyChallenge, type JourneyChallenge } from "@/lib/journeyAction";
 import {
   calculateWishJourney,
   PRIMARY_WISH_CHANGED_EVENT,
@@ -73,6 +75,8 @@ type HomeTodayAppProps = {
   refreshNonce: number;
   onOpenCalculator: (draft: HomePlanDraft | null) => void;
   onOpenNextChallenge: () => void;
+  onOpenChallenge: (id: string) => void;
+  onOpenFeed: () => void;
   onOpenReflectionInbox: () => void;
   onOpenToday: () => void;
   onOpenTeams: () => void;
@@ -84,6 +88,8 @@ export default function HomeTodayApp({
   active,
   refreshNonce,
   onOpenNextChallenge,
+  onOpenChallenge,
+  onOpenFeed,
   onOpenReflectionInbox,
   onOpenToday,
   onOpenTeams,
@@ -92,6 +98,7 @@ export default function HomeTodayApp({
 }: HomeTodayAppProps) {
   const { core, locale, loading, t, user, wallet } = useUserContext();
   const [today, setToday] = useState<TodayPayload | null>(null);
+  const [journeyChallenges, setJourneyChallenges] = useState<{ userId: string; rows: JourneyChallenge[] } | null>(null);
   const [teamSummary, setTeamSummary] = useState<TeamDashboardSummary | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -105,6 +112,25 @@ export default function HomeTodayApp({
   const [agentNote, setAgentNote] = useState<string | null>(null);
   const [failedWishImageUrl, setFailedWishImageUrl] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+  const nextChallenge = useMemo(() => selectJourneyChallenge(
+    user && journeyChallenges?.userId === user.id ? journeyChallenges.rows : [], core?.level ?? 0
+  ), [journeyChallenges, user, core?.level]);
+
+  useEffect(() => {
+    if (!active || !user) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetchWithSupabaseAuth(`/api/challenges?auth=required&ts=${Date.now()}`, { cache: "no-store" }, { authRequired: true });
+        const payload = await response.json() as { challenges?: JourneyChallenge[]; authenticated?: boolean; viewerUserId?: string };
+        if (!response.ok || !payload.authenticated || payload.viewerUserId !== user.id) throw new Error("Journey unavailable");
+        if (!cancelled) setJourneyChallenges({ userId: user.id, rows: payload.challenges ?? [] });
+      } catch {
+        if (!cancelled) setJourneyChallenges(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [active, user, refreshNonce]);
   const wishJourney = useMemo(() => calculateWishJourney({
     coreBalance: core?.balance ?? 0,
     reinvestPercent: core?.reinvest_percent ?? 100,
@@ -331,9 +357,9 @@ export default function HomeTodayApp({
             {milestone ? (
               <>
                 <strong>{milestone}</strong>
-                <p>{t("home.path.continueDescription")}</p>
-                <button className="challenge-primary-action home-primary-action" type="button" onClick={onOpenNextChallenge}>
-                  {t("home.path.chooseAction")}<ArrowRight size={17} />
+                <p>{nextChallenge ? t(nextChallenge.user_challenge_status === "accepted" ? "journey.resumeDescription" : "journey.exploreDescription", { title: nextChallenge.title[locale] ?? nextChallenge.title.en ?? t("challenges.challenge") }) : t("home.path.continueDescription")}</p>
+                <button className="challenge-primary-action home-primary-action" type="button" onClick={() => nextChallenge ? onOpenChallenge(nextChallenge.id) : onOpenNextChallenge()}>
+                  {t(nextChallenge?.user_challenge_status === "accepted" ? "journey.resume" : "home.path.chooseAction")}<ArrowRight size={17} />
                 </button>
               </>
             ) : (
@@ -371,6 +397,11 @@ export default function HomeTodayApp({
           </button>
         </section>
       )}
+
+      <button className="journey-feed-entry" type="button" onClick={onOpenFeed}>
+        <span><small>{t("journey.feedEyebrow")}</small><strong>{t("journey.feedTitle")}</strong></span>
+        <ArrowRight size={20} aria-hidden="true" />
+      </button>
 
       <details className="home-card home-today-card home-secondary-disclosure">
         <summary>

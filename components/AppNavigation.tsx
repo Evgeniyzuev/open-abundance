@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Smile, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
+import CoreJourneyCard from "@/components/CoreJourneyCard";
 import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import GrowthMapApp from "@/components/GrowthMapApp";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
@@ -57,11 +58,11 @@ type NavigationState = {
 };
 
 const mainTabs: MainTab[] = [
-  { id: "home", titleKey: "app.nav.home", icon: House },
-  { id: "goals", titleKey: "app.nav.goals", icon: Target },
+  { id: "home", titleKey: "journey.today", icon: House },
+  { id: "people", titleKey: "social.feed.title", icon: Newspaper },
+  { id: "goals", titleKey: "app.nav.desires", icon: Heart },
   { id: "challenges", titleKey: "app.nav.challenges", icon: Trophy },
-  { id: "wallet", titleKey: "app.nav.wallet", icon: Wallet },
-  { id: "people", titleKey: "app.nav.people", icon: Smile }
+  { id: "wallet", titleKey: "journey.growth", icon: TrendingUp }
 ];
 
 const homeTabs: TopTab[] = [
@@ -122,6 +123,7 @@ export default function AppNavigation() {
   const [isPulling, setIsPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [challengeFocusNonce, setChallengeFocusNonce] = useState(0);
+  const [challengeFocusId, setChallengeFocusId] = useState<string | null>(null);
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
   const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
   const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
@@ -425,6 +427,7 @@ export default function AppNavigation() {
   }
 
   function openNextChallenge() {
+    setChallengeFocusId(null);
     setChallengeFocusNonce((value) => value + 1);
     setActiveChallengeTab("challenges");
     setActiveMainTab("challenges");
@@ -458,6 +461,32 @@ export default function AppNavigation() {
     setActiveMainTab("goals");
   }
 
+  function openJourneyChallenge(id: string) {
+    setChallengeFocusId(id);
+    setChallengeFocusNonce((value) => value + 1);
+    setActiveChallengeTab("challenges");
+    setActiveMainTab("challenges");
+  }
+
+  function openCore() {
+    setActiveWalletTab("core");
+    setActiveMainTab("wallet");
+  }
+
+  function openFeed() {
+    setActiveSocialTab("feed");
+    setActiveMainTab("people");
+  }
+
+  function openMainDestination(tab: MainTabId) {
+    if (tab === "home") setActiveHomeTab("home");
+    if (tab === "people") setActiveSocialTab("feed");
+    if (tab === "goals") setActiveGoalTab("desires");
+    if (tab === "challenges") setActiveChallengeTab("challenges");
+    if (tab === "wallet") setActiveWalletTab("core");
+    setActiveMainTab(tab);
+  }
+
   function openWishJourney(wishId: string) {
     setWishFocusRequest({ id: wishId, nonce: Date.now() });
     setActiveGoalTab("desires");
@@ -481,11 +510,14 @@ export default function AppNavigation() {
         onTabChange={handleTopTabChange}
       />
       <section className="app-content">
+        {showHome || (showChallenges && activeChallengeTab === "challenges") || (showPeople && activeSocialTab === "feed") ? <CoreJourneyCard onOpen={openCore} /> : null}
         <div className="app-view" hidden={!showHome}>
           <HomeTodayApp
             active={showHome}
             onOpenCalculator={openCalculator}
             onOpenNextChallenge={openNextChallenge}
+            onOpenChallenge={openJourneyChallenge}
+            onOpenFeed={openFeed}
             onOpenReflectionInbox={openReflectionInbox}
             onOpenToday={openToday}
             onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
@@ -521,10 +553,12 @@ export default function AppNavigation() {
             active={showChallenges}
             activeTab={activeChallengeTab}
             focusNextChallengeNonce={challengeFocusNonce}
+            focusChallengeId={challengeFocusId}
             challengesUnread={challengesUnread}
             onChallengesViewed={markChallengesSeen}
             onTodayViewed={markTodaySeen}
             onOpenFeedDrafts={openFeedDrafts}
+            onOpenCore={openCore}
             todayUnread={todayUnread}
             onNavigateTesting={navigateFromAppTesting}
             refreshNonce={refreshNonce}
@@ -552,7 +586,7 @@ export default function AppNavigation() {
         unreadChallenges={challengesUnread}
         unreadToday={todayUnread}
         onExpand={() => setBottomNavExpanded(true)}
-        onTabChange={setActiveMainTab}
+        onTabChange={openMainDestination}
       />
     </>
   );
@@ -609,12 +643,13 @@ type TabButtonProps = {
   active: boolean;
   icon: LucideIcon;
   title: string;
+  showLabel?: boolean;
   unread?: boolean;
   unreadLabel?: string;
   onClick: () => void;
 };
 
-function TabButton({ active, icon: Icon, title, unread = false, unreadLabel, onClick }: TabButtonProps) {
+function TabButton({ active, icon: Icon, title, showLabel = false, unread = false, unreadLabel, onClick }: TabButtonProps) {
   return (
     <button
       className={active ? "tab-button active" : "tab-button"}
@@ -627,6 +662,7 @@ function TabButton({ active, icon: Icon, title, unread = false, unreadLabel, onC
         <Icon size={28} strokeWidth={active ? 2.5 : 2} />
         {unread ? <i aria-hidden="true" className="tab-unread-dot" /> : null}
       </span>
+      {showLabel ? <span className="tab-button-label" aria-hidden="true">{title}</span> : null}
     </button>
   );
 }
@@ -663,6 +699,7 @@ function BottomTabBar({ activeTab, collapsed, t, unreadChallenges, unreadToday, 
             key={tab.id}
             title={t(tab.titleKey)}
             unread={(tab.id === "challenges" && unreadChallenges) || (tab.id === "home" && unreadToday)}
+            showLabel
             unreadLabel={t("app.nav.newActivity")}
             onClick={() => onTabChange(tab.id)}
           />

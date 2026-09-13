@@ -1,5 +1,7 @@
 # Open Abundance — увлекательный и послойный интерфейс
 
+Implemented: the action-sound preference is available in Profile → Appearance and remains stored locally with sounds disabled by default.
+
 Статус: базовый Home/Wishes/Core/Wallet/AI slice реализован 2026-09-13; мобильный User QA остаётся отдельным pending-gate. Версия 2 · 2026-09-12.
 
 Документ задаёт общий способ упрощения мобильного интерфейса перед закрытым пилотом и конкретизирует его для «Челленджей», Home и ИИ-навигатора. Фактическая очередь и готовность находятся только в [MASTER_KANBAN.md](MASTER_KANBAN.md).

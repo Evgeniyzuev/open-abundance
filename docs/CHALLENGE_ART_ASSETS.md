@@ -26,3 +26,5 @@ The following transparent 320 × 320 PNGs were generated with the built-in image
 | Skill Passport | `/challenges/skill-gem-key.png` | Short elegant key with a luminous blue-green gemstone |
 
 The catalog-backed covers are assigned by `20260913164832_challenge_art_covers.sql` to the selected active rows only. Today is a separate featured item and uses its local asset directly. Other challenges continue to use category-specific icon fallbacks.
+
+Status 2026-09-13: the migration is present in linked remote history. The public `/api/challenges` endpoint returned HTTP 200 with eight new cover paths and the two unchanged original paths; all nine local image paths returned HTTP 200 on the public site. TypeScript, lint, and production build passed with existing image and autoprefixer warnings. The one 390 px Playwright run remained in onboarding, so the actual Challenges layout still needs mobile User QA.

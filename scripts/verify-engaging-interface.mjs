@@ -17,6 +17,23 @@ vm.runInThisContext(`(function(module,exports){${presentationCode}\n})`, {
 })(presentationModule, presentationModule.exports);
 
 const { parseChallengeRewardAmount } = presentationModule.exports;
+const eligibilityModule = { exports: {} };
+const eligibilityCode = ts.transpileModule(read("lib/challengeEligibility.ts"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+vm.runInThisContext(`(function(module,exports){${eligibilityCode}\n})`, {
+  filename: "lib/challengeEligibility.ts"
+})(eligibilityModule, eligibilityModule.exports);
+const { canAcceptChallenge, getChallengeAccessReasons, hasFirstResult, isChallengeAlmostAvailable } = eligibilityModule.exports;
+assert.deepEqual(getChallengeAccessReasons({ difficulty_level: 1, verification_logic: "has_referral", prerequisite_completed: false }, 2), ["first_result"]);
+assert.deepEqual(getChallengeAccessReasons({ difficulty_level: 3, prerequisite_completed: false }, 1), ["core_level", "prerequisite"]);
+assert.equal(canAcceptChallenge({ difficulty_level: 2 }, 2), true);
+assert.equal(hasFirstResult([], [{ status: "completed", challenges: { category: "goals" } }]), true, "Legacy completed challenges count as a first result");
+assert.equal(hasFirstResult([], [{ status: "completed", challenges: { category: "onboarding" } }]), false);
+const prerequisite = { id: "prior", difficulty_level: 1, user_challenge_status: null };
+assert.equal(isChallengeAlmostAvailable({ id: "next", difficulty_level: 1, prerequisite_challenge_id: "prior", prerequisite_completed: false }, 1, [prerequisite]), true);
+assert.equal(isChallengeAlmostAvailable({ id: "far", difficulty_level: 3, prerequisite_completed: false }, 1, []), false);
+assert.equal(isChallengeAlmostAvailable({ id: "two-levels-away", difficulty_level: 3 }, 1, []), false);
 const journeyModule = { exports: {} };
 const journeyCode = ts.transpileModule(read("lib/journeyAction.ts"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
@@ -44,6 +61,7 @@ assert.equal(parseChallengeRewardAmount(null, "en"), null);
 
 const challenges = read("components/ChallengesApp.tsx");
 const challengeRoute = read("app/api/challenges/route.ts");
+const challengeAcceptRoute = read("app/api/challenges/accept/route.ts");
 const challengeCheckRoute = read("app/api/challenges/check/route.ts");
 const rewardMigration = read("supabase/migrations/20260912192306_challenge_dual_account_rewards.sql");
 const peerRewardMigration = read("supabase/migrations/20260913090000_peer_review_dual_account_rewards.sql");
@@ -75,6 +93,15 @@ assert.match(cleanupMigration, /settle_peer_review_answer/);
 assert.match(cleanupMigration, /audit_peer_review_answer/);
 assert.match(challenges, /challenge-row-state/, "Challenge rows must expose a visible state");
 assert.match(challenges, /prerequisiteRequired/, "Prerequisite failure must have a specific visible reason");
+assert.match(challenges, /almostAvailable/, "Challenges must expose the almost-available section");
+assert.match(challenges, /aria-expanded={open}/, "Challenge sections must be keyboard-expandable");
+assert.doesNotMatch(challenges, /ChallengeArchiveScreen/, "Challenge status lists must stay inline");
+assert.match(challengeRoute, /can_accept/, "Challenge API must return server eligibility");
+assert.match(challengeRoute, /viewerLevel/, "Challenge API must return the authoritative viewer level");
+assert.match(challengeRoute, /progressError \|\| snapshotError \|\| coreError/, "Eligibility data errors must fail closed");
+assert.match(challengeAcceptRoute, /difficulty_level/, "Challenge acceptance must enforce Core level");
+assert.match(challengeAcceptRoute, /progressError/, "Acceptance must fail closed when eligibility data cannot be read");
+assert.match(challengeCheckRoute, /getChallengeAccessReasons/, "Challenge checks must repeat server eligibility");
 assert.match(challenges, /onError=\{\(\) => setFailedImageUrl/, "Broken challenge images must fall back intentionally");
 
 const home = read("components/HomeTodayApp.tsx");

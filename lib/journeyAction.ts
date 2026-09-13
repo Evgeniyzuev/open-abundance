@@ -6,6 +6,7 @@ export type JourneyChallenge = {
   sort_order: number;
   prerequisite_challenge_id?: string | null;
   prerequisite_completed?: boolean;
+  can_accept?: boolean;
   user_challenge_status?: string | null;
   is_permanent?: boolean;
 };
@@ -13,6 +14,7 @@ export type JourneyChallenge = {
 export function selectJourneyChallenge(challenges: JourneyChallenge[], level: number): JourneyChallenge | null {
   const eligible = challenges.filter((challenge) =>
     challenge.user_challenge_status !== "completed"
+    && challenge.can_accept !== false
     && challenge.difficulty_level <= level
     && challenge.prerequisite_completed !== false
     && (!challenge.prerequisite_challenge_id || challenge.prerequisite_completed === true)

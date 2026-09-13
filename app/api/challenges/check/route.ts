@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { syncTodayForUser } from "@/lib/serverToday";
+import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 
 type CheckRequest = {
   challengeId?: string;
@@ -62,6 +63,30 @@ export async function POST(request: NextRequest) {
 
   if (challenge.verification_logic === "peer_reviews") {
     return NextResponse.json({ error: "Peer reviews are settled by review submissions." }, { status: 409 });
+  }
+
+  const [{ data: coreAccount, error: coreError }, { data: progressRows, error: progressError }, { data: snapshots, error: snapshotError }] = await Promise.all([
+    supabase.from("core_accounts").select("level").eq("user_id", user.id).maybeSingle(),
+    supabase.from("user_challenges").select("challenge_id,status,challenges(category)").eq("user_id", user.id),
+    supabase.from("challenge_completion_snapshots").select("challenge_category").eq("user_id", user.id)
+  ]);
+
+  if (coreError || progressError || snapshotError) {
+    return NextResponse.json({ error: coreError?.message ?? progressError?.message ?? snapshotError?.message ?? "Failed to load challenge eligibility." }, { status: 500 });
+  }
+
+  const progressStatuses = new Map((progressRows ?? []).map((row) => [row.challenge_id, String(row.status).trim().toLowerCase()]));
+  const prerequisiteCompleted = challenge.verification_logic === "has_referral"
+    ? hasFirstResult(snapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])
+    : !challenge.prerequisite_challenge_id || progressStatuses.get(challenge.prerequisite_challenge_id) === "completed";
+  const accessReasons = getChallengeAccessReasons({ ...challenge, prerequisite_completed: prerequisiteCompleted }, Number(coreAccount?.level ?? 1));
+  if (accessReasons.length > 0) {
+    const reason = accessReasons.includes("first_result")
+      ? "Publish your first non-onboarding result before inviting someone."
+      : accessReasons.includes("prerequisite")
+        ? "Complete the previous challenge first."
+        : `Challenge requires Core level ${challenge.difficulty_level}.`;
+    return NextResponse.json({ error: reason }, { status: 409 });
   }
 
   if (challenge.verification_logic !== "signup") {
@@ -529,7 +554,7 @@ async function verifyChallenge(
   }
 
   if (challenge.verification_logic === "has_referral") {
-    const [{ data: snapshots, error: snapshotError }, { data, error }] = await Promise.all([
+    const [{ data: snapshots, error: snapshotError }, { data, error }, { data: progressRows, error: progressError }] = await Promise.all([
       supabase
         .from("challenge_completion_snapshots")
         .select("challenge_category")
@@ -538,14 +563,18 @@ async function verifyChallenge(
         .from("referral_edges")
         .select("referral_user_id")
         .eq("referrer_user_id", userId)
-        .limit(1)
+        .limit(1),
+      supabase
+        .from("user_challenges")
+        .select("status,challenges(category)")
+        .eq("user_id", userId)
     ]);
 
-    if (snapshotError || error) {
+    if (snapshotError || error || progressError) {
       return { ok: false, reason: "Could not check referrals. Try again." };
     }
 
-    if (!(snapshots ?? []).some((snapshot) => Boolean(snapshot.challenge_category && snapshot.challenge_category !== "onboarding"))) {
+    if (!hasFirstResult(snapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])) {
       return { ok: false, reason: "Publish your first non-onboarding result before inviting someone." };
     }
 

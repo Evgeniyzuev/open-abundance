@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { canAcceptChallenge, getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -85,14 +86,23 @@ export async function GET(request: NextRequest) {
 
   let userChallengeCount = 0;
   let prerequisiteStatuses = new Map<string, string>();
-  let hasFirstResult = false;
+  let viewerHasFirstResult = false;
+  let viewerLevel = 1;
   if (viewerUserId) {
-    const [{ data: progressRows }, { data: snapshots }] = await Promise.all([
-      supabase.from("user_challenges").select("challenge_id,status").eq("user_id", viewerUserId),
-      supabase.from("challenge_completion_snapshots").select("challenge_category").eq("user_id", viewerUserId)
+    const [{ data: progressRows, error: progressError }, { data: snapshots, error: snapshotError }, { data: coreAccount, error: coreError }] = await Promise.all([
+      supabase.from("user_challenges").select("challenge_id,status,challenges(category)").eq("user_id", viewerUserId),
+      supabase.from("challenge_completion_snapshots").select("challenge_category").eq("user_id", viewerUserId),
+      supabase.from("core_accounts").select("level").eq("user_id", viewerUserId).maybeSingle()
     ]);
+    if (progressError || snapshotError || coreError) {
+      return NextResponse.json({ error: progressError?.message ?? snapshotError?.message ?? coreError?.message ?? "Failed to load challenge eligibility." }, { status: 500, headers: NO_STORE_HEADERS });
+    }
     prerequisiteStatuses = new Map((progressRows ?? []).map((row) => [row.challenge_id, String(row.status).trim().toLowerCase()]));
-    hasFirstResult = (snapshots ?? []).some((snapshot) => Boolean(snapshot.challenge_category && snapshot.challenge_category !== "onboarding"));
+    viewerHasFirstResult = hasFirstResult(
+      snapshots ?? [],
+      (progressRows ?? []) as unknown as ChallengeProgressWithCategory[]
+    );
+    viewerLevel = Number(coreAccount?.level ?? 1);
   }
   const challengeRows = (challenges ?? []) as unknown as ChallengeWithProgress[];
   const data = challengeRows.map((challenge) => {
@@ -100,12 +110,20 @@ export async function GET(request: NextRequest) {
     if (userChallenge?.status) userChallengeCount += 1;
     const { user_challenges: _userChallenges, ...publicChallenge } = challenge;
 
+    const prerequisiteCompleted = challenge.verification_logic === "has_referral"
+      ? viewerHasFirstResult
+      : !challenge.prerequisite_challenge_id || prerequisiteStatuses.get(challenge.prerequisite_challenge_id) === "completed";
+    const eligibility = {
+      ...challenge,
+      prerequisite_completed: prerequisiteCompleted
+    };
+
     return {
       ...publicChallenge,
       user_challenge_status: userChallenge?.status ? String(userChallenge.status).trim().toLowerCase() : null,
-      prerequisite_completed: challenge.verification_logic === "has_referral"
-        ? hasFirstResult
-        : !challenge.prerequisite_challenge_id || prerequisiteStatuses.get(challenge.prerequisite_challenge_id) === "completed"
+      prerequisite_completed: prerequisiteCompleted,
+      can_accept: canAcceptChallenge(eligibility, viewerLevel),
+      access_reasons: getChallengeAccessReasons(eligibility, viewerLevel)
     };
   });
 
@@ -117,6 +135,7 @@ export async function GET(request: NextRequest) {
       },
       authenticated: Boolean(viewerUserId),
       viewerUserId,
+      viewerLevel,
       userChallengeCount,
       challenges: data
     },

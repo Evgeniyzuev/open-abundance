@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 
 type AcceptRequest = {
   challengeId?: string;
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id,prerequisite_challenge_id,verification_logic")
+    .select("id,prerequisite_challenge_id,verification_logic,difficulty_level")
     .eq("id", body.challengeId)
     .eq("is_active", true)
     .maybeSingle();
@@ -56,16 +57,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
   }
 
-  if (challenge.verification_logic === "has_referral") {
-    const { data: snapshots, error: snapshotError } = await supabase
-      .from("challenge_completion_snapshots")
-      .select("challenge_category")
-      .eq("user_id", user.id);
+  const [{ data: coreAccount, error: coreError }, { data: snapshots, error: snapshotError }, { data: progressRows, error: progressError }] = await Promise.all([
+    supabase.from("core_accounts").select("level").eq("user_id", user.id).maybeSingle(),
+    supabase.from("challenge_completion_snapshots").select("challenge_category").eq("user_id", user.id),
+    supabase.from("user_challenges").select("status,challenges(category)").eq("user_id", user.id)
+  ]);
 
-    if (snapshotError) {
-      return NextResponse.json({ error: snapshotError.message }, { status: 500 });
-    }
-    if (!(snapshots ?? []).some((snapshot) => Boolean(snapshot.challenge_category && snapshot.challenge_category !== "onboarding"))) {
+  if (coreError || snapshotError || progressError) {
+    return NextResponse.json({ error: coreError?.message ?? snapshotError?.message ?? progressError?.message ?? "Failed to load challenge eligibility." }, { status: 500 });
+  }
+
+  const userLevel = Number(coreAccount?.level ?? 1);
+  if (challenge.difficulty_level > userLevel) {
+    return NextResponse.json({ error: `Challenge requires Core level ${challenge.difficulty_level}.` }, { status: 409 });
+  }
+
+  if (challenge.verification_logic === "has_referral") {
+    if (!hasFirstResult(snapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])) {
       return NextResponse.json({ error: "Complete your first non-onboarding result before inviting someone." }, { status: 409 });
     }
   }

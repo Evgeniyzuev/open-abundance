@@ -614,6 +614,13 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .challenges-header small { color: var(--muted); font-size: 0.75rem; font-weight: 800; }
 .challenge-section { display: grid; gap: 8px; margin: 0 0 16px; }
 .challenge-section h2 { margin: 0 4px; color: var(--muted); font-size: 0.8125rem; font-weight: 900; text-transform: uppercase; }
+.challenge-section-heading { min-width: 0; }
+.challenge-section-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.challenge-section-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.challenge-section-meta { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; text-transform: none; }
+.challenge-section-meta strong { min-width: 28px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--surface-muted); color: var(--muted); font-size: 0.8125rem; }
+.challenge-section-chevron { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; font-size: 1.25rem; line-height: 1; transform: rotate(0deg); transition: transform 160ms ease; }
+.challenge-section-chevron.is-open { transform: rotate(180deg); }
 .challenge-list { display: grid; gap: 0; overflow: hidden; border-radius: 14px; background: var(--surface-glass); box-shadow: var(--shadow-soft); }
 .challenge-list > * { position: relative; }
 .challenge-list > * + *::before { content: ""; position: absolute; z-index: 2; left: 82px; right: 0; top: 0; height: 1px; background: var(--line-subtle); }

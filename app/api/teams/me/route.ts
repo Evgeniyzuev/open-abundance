@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     }
 
-    const [membershipResult, directMembershipsResult, queueResult, leadershipResult, tasksResult, referralResult, firstResultResult, activatedResult, retainedResult] = await Promise.all([
+    const [membershipResult, directMembershipsResult, queueResult, leadershipResult, tasksResult, referralResult, firstResultResult, progressResult, activatedResult, retainedResult] = await Promise.all([
       supabase
         .from("team_memberships")
         .select("*")
@@ -44,6 +45,10 @@ export async function GET(request: NextRequest) {
         .from("challenge_completion_snapshots")
         .select("challenge_category")
         .eq("user_id", user.id),
+      supabase
+        .from("user_challenges")
+        .select("status,challenges(category)")
+        .eq("user_id", user.id),
       supabase.rpc("count_activated_referrals", { p_referrer_user_id: user.id }),
       supabase.rpc("count_retained_referrals", { p_referrer_user_id: user.id })
     ]);
@@ -69,6 +74,9 @@ export async function GET(request: NextRequest) {
     if (firstResultResult.error) {
       return NextResponse.json({ error: firstResultResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
+    if (progressResult.error) {
+      return NextResponse.json({ error: progressResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
     if (activatedResult.error) {
       return NextResponse.json({ error: activatedResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
@@ -81,7 +89,10 @@ export async function GET(request: NextRequest) {
     const queue = queueResult.data;
     const [leadership] = leadershipResult.data ?? [];
     const tasks = tasksResult.data ?? [];
-    const hasFirstResult = (firstResultResult.data ?? []).some((snapshot) => Boolean(snapshot.challenge_category && snapshot.challenge_category !== "onboarding"));
+    const firstResultCompleted = hasFirstResult(
+      firstResultResult.data ?? [],
+      (progressResult.data ?? []) as unknown as ChallengeProgressWithCategory[]
+    );
     const registeredReferrals = referralResult.count ?? 0;
     const activatedReferrals = Number(activatedResult.data ?? 0);
     const retainedReferrals = Number(retainedResult.data ?? 0);
@@ -94,11 +105,11 @@ export async function GET(request: NextRequest) {
     const isLeader = (directMemberships ?? []).length > 0 || leaderReview > 0 || leaderOpen > 0;
     const helpCompleted = leaderTasks.some((task) => task.status === "completed" && task.newcomer_eligible);
     const leaderPath = isLeader ? {
-        firstResultCompleted: hasFirstResult,
-        inviteUnlocked: hasFirstResult,
+        firstResultCompleted,
+        inviteUnlocked: firstResultCompleted,
         referralRegistered: registeredReferrals > 0,
         newcomerHelpCompleted: helpCompleted,
-        next: !hasFirstResult ? "publish_result" : registeredReferrals === 0 ? "invite_participant" : helpCompleted ? "complete" : "help_newcomer"
+        next: !firstResultCompleted ? "publish_result" : registeredReferrals === 0 ? "invite_participant" : helpCompleted ? "complete" : "help_newcomer"
       } as const : null;
 
     const leaderProfile = membership?.leader_user_id

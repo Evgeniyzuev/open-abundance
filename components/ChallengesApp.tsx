@@ -200,7 +200,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   const [permanentChallenges, setPermanentChallenges] = useState<Challenge[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [today, setToday] = useState<TodayPayload | null>(null);
-  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [expandedChallengeId, setExpandedChallengeId] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [completionReward, setCompletionReward] = useState<{ challenge: Challenge; reward: CompletionReward } | null>(null);
   const [acceptedOpen, setAcceptedOpen] = useState(false);
@@ -350,7 +350,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
 
   useEffect(() => {
     if (!active) return;
-    if (!selectedChallenge && !selectedProject && !completionReward) return;
+    if (!selectedProject && !completionReward) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -358,7 +358,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [active, completionReward, selectedChallenge, selectedProject]);
+  }, [active, completionReward, selectedProject]);
 
   useEffect(() => {
     if (!active) return;
@@ -393,7 +393,14 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     if (!nextChallenge) return;
 
     handledFocusNextChallengeRef.current = focusNextChallengeNonce;
-    setSelectedChallenge(nextChallenge);
+    setAcceptedOpen(false);
+    setCompletedOpen(false);
+    setExpandedChallengeId(nextChallenge.id);
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`challenge-${nextChallenge.id}`);
+      row?.scrollIntoView({ block: "start", behavior: "auto" });
+      row?.querySelector("summary")?.focus();
+    });
   }, [active, availableChallenges, focusNextChallengeNonce, userLevel]);
 
   useEffect(() => {
@@ -444,7 +451,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     }
 
     applyChallengeStatus(payload.challengeId ?? challenge.id, payload.status ?? "accepted");
-    setSelectedChallenge(null);
+    setExpandedChallengeId(null);
     await onRefresh();
     await loadChallenges();
   }
@@ -469,7 +476,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     }
 
     applyChallengeStatus(payload.challengeId ?? challenge.id, "declined");
-    setSelectedChallenge(null);
+    setExpandedChallengeId(null);
     await loadChallenges();
   }
 
@@ -499,7 +506,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
 
   function completeChallenge(challenge: Challenge, reward: CompletionReward) {
     applyChallengeStatus(challenge.id, "completed");
-    setSelectedChallenge({ ...challenge, user_challenge_status: "completed" });
+    setExpandedChallengeId(null);
     setCompletionReward({ challenge, reward });
     void loadChallenges();
     void loadToday();
@@ -540,6 +547,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     const currentChallenge = [...availableChallenges, ...acceptedChallenges, ...completedChallenges].find(isTarget);
     const nextChallenge = currentChallenge ? updateChallenge(currentChallenge) : undefined;
 
+    setPermanentChallenges((challenges) => challenges.map(updateChallenge));
     setAvailableChallenges((challenges) => {
       const nextChallenges = challenges.filter((challenge) => challenge.id !== challengeId).map(updateChallenge);
       return status === "declined"
@@ -568,6 +576,39 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setSelectedProject((project) => project && project.id === projectId ? updateProject(project) : project);
   }
 
+  function renderChallenge(challenge: Challenge) {
+    const expanded = expandedChallengeId === challenge.id;
+    return (
+      <ChallengeRow
+        challenge={challenge}
+        expanded={expanded}
+        key={challenge.id}
+        locale={locale}
+        userLevel={userLevel}
+        t={t}
+        onToggle={() => setExpandedChallengeId((current) => current === challenge.id ? null : challenge.id)}
+      >
+        <ChallengeDetailContent
+          author={{
+            avatarUrl: profile?.avatar_url ?? null,
+            displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
+            level: userLevel
+          }}
+          challenge={challenge}
+          locale={locale}
+          userLevel={userLevel}
+          t={t}
+          onAccept={() => acceptChallenge(challenge)}
+          onGiveUp={() => giveUpChallenge(challenge)}
+          onNavigateTesting={onNavigateTesting}
+          onComplete={completeChallenge}
+          onApplyServerData={applyServerData}
+          onRefreshUserData={onRefresh}
+        />
+      </ChallengeRow>
+    );
+  }
+
   if (acceptedOpen || completedOpen) {
     const archiveChallenges = acceptedOpen ? acceptedChallenges : completedChallenges;
     const archiveTitle = acceptedOpen ? t("challenges.accepted") : t("challenges.completedPlural");
@@ -575,38 +616,15 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
       <>
         <ChallengeArchiveScreen
           challenges={archiveChallenges}
-          locale={locale}
           title={archiveTitle}
-          userLevel={userLevel}
           t={t}
           onBack={() => {
             setAcceptedOpen(false);
             setCompletedOpen(false);
-            setSelectedChallenge(null);
+            setExpandedChallengeId(null);
           }}
-          onOpen={(challenge) => setSelectedChallenge(challenge)}
+          renderChallenge={renderChallenge}
         />
-
-        {selectedChallenge ? (
-          <ChallengeDetailModal
-            author={{
-              avatarUrl: profile?.avatar_url ?? null,
-              displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
-              level: userLevel
-            }}
-            challenge={selectedChallenge}
-            locale={locale}
-            userLevel={userLevel}
-            t={t}
-            onAccept={() => acceptChallenge(selectedChallenge)}
-            onGiveUp={() => giveUpChallenge(selectedChallenge)}
-            onNavigateTesting={onNavigateTesting}
-            onClose={() => setSelectedChallenge(null)}
-            onComplete={completeChallenge}
-            onApplyServerData={applyServerData}
-            onRefreshUserData={onRefresh}
-          />
-        ) : null}
 
         {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} /> : null}
       </>
@@ -633,6 +651,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
             emptyMessage={t("challenges.emptyArchive")}
             featured={today ? (
               <TodayChallengeCard
+                expanded={expandedChallengeId === "today"}
                 locale={locale}
                 message={todayMessage}
                 payload={today}
@@ -640,20 +659,20 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
                 todayUnread={todayUnread}
                 t={t}
                 onCheck={checkToday}
+                onToggle={() => setExpandedChallengeId((current) => current === "today" ? null : "today")}
               />
             ) : null}
-            locale={locale}
             title={t("challenges.available")}
             unread={challengesUnread || todayUnread}
-            userLevel={userLevel}
             t={t}
-            onOpen={(challenge) => setSelectedChallenge(challenge)}
+            renderChallenge={renderChallenge}
           />
 
-          <ChallengeSection challenges={permanentChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.permanent")} unread={false} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+          <ChallengeSection challenges={permanentChallenges} emptyMessage={t("challenges.emptyArchive")} title={t("challenges.permanent")} unread={false} t={t} renderChallenge={renderChallenge} />
 
           <section className="challenge-section">
             <button className="challenge-archive-link" type="button" onClick={() => {
+              setExpandedChallengeId(null);
               loadChallenges().then(() => setAcceptedOpen(true));
             }}>
               <span>{t("challenges.accepted")}</span>
@@ -663,6 +682,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
 
           <section className="challenge-section">
             <button className="challenge-archive-link" type="button" onClick={() => {
+              setExpandedChallengeId(null);
               loadChallenges().then(() => setCompletedOpen(true));
             }}>
               <span>{t("challenges.completedPlural")}</span>
@@ -678,27 +698,6 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           <ProjectSection projects={projects} emptyMessage={t("projects.no_projects")} locale={locale} t={t} onOpen={(project) => setSelectedProject(project)} />
         </>
       )}
-
-      {selectedChallenge ? (
-        <ChallengeDetailModal
-          author={{
-            avatarUrl: profile?.avatar_url ?? null,
-            displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
-            level: userLevel
-          }}
-          challenge={selectedChallenge}
-          locale={locale}
-          userLevel={userLevel}
-          t={t}
-          onAccept={() => acceptChallenge(selectedChallenge)}
-          onGiveUp={() => giveUpChallenge(selectedChallenge)}
-          onNavigateTesting={onNavigateTesting}
-          onClose={() => setSelectedChallenge(null)}
-          onComplete={completeChallenge}
-          onApplyServerData={applyServerData}
-          onRefreshUserData={onRefresh}
-        />
-      ) : null}
 
       {selectedProject ? (
         <ProjectDetailModal
@@ -718,22 +717,16 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
 
 function ChallengeArchiveScreen({
   challenges,
-  locale,
   title,
-  unread,
-  userLevel,
   t,
   onBack,
-  onOpen
+  renderChallenge
 }: {
   challenges: Challenge[];
-  locale: AppLocale;
   title: string;
-  unread?: boolean;
-  userLevel: number;
   t: TFunction;
   onBack: () => void;
-  onOpen: (challenge: Challenge) => void;
+  renderChallenge: (challenge: Challenge) => ReactNode;
 }) {
   return (
     <section className="challenges-screen challenge-archive-screen">
@@ -746,9 +739,7 @@ function ChallengeArchiveScreen({
         <div className="task-empty">{t("challenges.emptyArchive")}</div>
       ) : (
         <div className="challenge-list">
-          {challenges.map((challenge) => (
-            <ChallengeRow challenge={challenge} key={challenge.id} locale={locale} userLevel={userLevel} t={t} onOpen={() => onOpen(challenge)} />
-          ))}
+          {challenges.map(renderChallenge)}
         </div>
       )}
     </section>
@@ -759,22 +750,18 @@ function ChallengeSection({
   challenges,
   emptyMessage,
   featured,
-  locale,
   title,
   unread,
-  userLevel,
   t,
-  onOpen
+  renderChallenge
 }: {
   challenges: Challenge[];
   emptyMessage: string;
   featured?: ReactNode;
-  locale: AppLocale;
   title: string;
   unread?: boolean;
-  userLevel: number;
   t: TFunction;
-  onOpen: (challenge: Challenge) => void;
+  renderChallenge: (challenge: Challenge) => ReactNode;
 }) {
   return (
     <section className="challenge-section">
@@ -787,9 +774,7 @@ function ChallengeSection({
       ) : (
         <div className="challenge-list">
           {featured}
-          {challenges.map((challenge) => (
-            <ChallengeRow challenge={challenge} key={challenge.id} locale={locale} userLevel={userLevel} t={t} onOpen={() => onOpen(challenge)} />
-          ))}
+          {challenges.map(renderChallenge)}
         </div>
       )}
     </section>
@@ -814,20 +799,24 @@ function ProjectSection({ projects, emptyMessage, locale, t, onOpen }: { project
 
 function TodayChallengeCard({
   checking,
+  expanded,
   locale,
   message,
   payload,
   todayUnread,
   t,
-  onCheck
+  onCheck,
+  onToggle
 }: {
   checking: boolean;
+  expanded: boolean;
   locale: AppLocale;
   message: string | null;
   payload: TodayPayload;
   todayUnread: boolean;
   t: TFunction;
   onCheck: () => void;
+  onToggle: () => void;
 }) {
   const progress = Number(payload.today.progress_core ?? 0);
   const target = Math.max(0, Number(payload.today.target_core ?? 0));
@@ -835,8 +824,8 @@ function TodayChallengeCard({
   const percent = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 100;
 
   return (
-    <details className={complete ? "today-challenge-disclosure completed" : "today-challenge-disclosure"}>
-      <summary className="challenge-row today-challenge-row">
+    <details className={complete ? "challenge-disclosure completed" : "challenge-disclosure"} open={expanded}>
+      <summary className="challenge-row today-challenge-row" onClick={(event) => { event.preventDefault(); onToggle(); }}>
         <span className="challenge-thumb challenge-visual-gold challenge-art-fallback today-challenge-art" aria-hidden="true">
           <span className="challenge-art-icon"><Trophy size={26} /></span>
         </span>
@@ -908,30 +897,24 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
   );
 }
 
-function ChallengeVisual({ challenge, mode }: { challenge: Challenge; mode: "thumb" | "modal" }) {
+function ChallengeVisual({ challenge }: { challenge: Challenge }) {
   const Icon = getChallengeIcon(challenge);
   const tone = getChallengeTone(challenge);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const imageUrl = challenge.image_url && failedImageUrl !== challenge.image_url ? challenge.image_url : null;
 
-  if (mode === "thumb") {
-    return (
-      <span className={`challenge-thumb challenge-visual-${tone}${imageUrl ? "" : " challenge-art-fallback"}`}>
-        {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : <span className="challenge-art-icon"><Icon size={25} /></span>}
-      </span>
-    );
-  }
-
-  if (imageUrl) return <img className="challenge-modal-image" alt="" src={imageUrl} onError={() => setFailedImageUrl(imageUrl)} />;
-
   return (
-    <div className={`challenge-modal-image challenge-modal-fallback challenge-visual-${tone} challenge-art-fallback`}>
-      <span className="challenge-art-icon challenge-modal-art-icon"><Icon size={42} /></span>
-    </div>
+    <span className={`challenge-thumb challenge-visual-${tone}${imageUrl ? "" : " challenge-art-fallback"}`}>
+      {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : <span className="challenge-art-icon"><Icon size={25} /></span>}
+    </span>
   );
 }
 
-function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: Challenge; locale: AppLocale; userLevel: number; t: TFunction; onOpen: () => void }) {
+function ChallengeRow({ challenge, children, expanded, locale, userLevel, t, onToggle }: { challenge: Challenge; children: ReactNode; expanded: boolean; locale: AppLocale; userLevel: number; t: TFunction; onToggle: () => void }) {
+  const [openedOnce, setOpenedOnce] = useState(expanded);
+  useEffect(() => {
+    if (expanded) setOpenedOnce(true);
+  }, [expanded]);
   const accepted = isActiveChallenge(challenge);
   const completed = challenge.user_challenge_status === "completed";
   const locked = !accepted && !completed && (challenge.difficulty_level > userLevel || challenge.prerequisite_completed === false);
@@ -941,20 +924,23 @@ function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: 
   const state = getChallengeRowState(challenge, userLevel, t);
 
   return (
-    <button aria-label={[title, rewardLabel, state].filter(Boolean).join(". ")} className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
-      <ChallengeVisual challenge={challenge} mode="thumb" />
-      <span className="challenge-row-body">
-        <span className="challenge-row-title">{title}</span>
-        <span className="challenge-row-summary">
-          <span className={reward ? "challenge-row-reward" : "challenge-row-reward unknown"}>{rewardLabel}</span>
-          {state ? <span className="challenge-row-state">{state}</span> : null}
+    <details className="challenge-disclosure" id={`challenge-${challenge.id}`} open={expanded}>
+      <summary aria-label={[title, rewardLabel, state].filter(Boolean).join(". ")} className={locked ? "challenge-row locked" : "challenge-row"} onClick={(event) => { event.preventDefault(); onToggle(); }}>
+        <ChallengeVisual challenge={challenge} />
+        <span className="challenge-row-body">
+          <span className="challenge-row-title">{title}</span>
+          <span className="challenge-row-summary">
+            <span className={reward ? "challenge-row-reward" : "challenge-row-reward unknown"}>{rewardLabel}</span>
+            {state ? <span className="challenge-row-state">{state}</span> : null}
+          </span>
         </span>
-      </span>
-    </button>
+      </summary>
+      {expanded || openedOnce ? children : null}
+    </details>
   );
 }
 
-function ChallengeDetailModal({
+function ChallengeDetailContent({
   author,
   challenge,
   locale,
@@ -963,7 +949,6 @@ function ChallengeDetailModal({
   onAccept,
   onGiveUp,
   onNavigateTesting,
-  onClose,
   onComplete,
   onApplyServerData,
   onRefreshUserData
@@ -976,7 +961,6 @@ function ChallengeDetailModal({
   onAccept: () => Promise<void>;
   onGiveUp: () => Promise<void>;
   onNavigateTesting: (target: AppTestingNavigationTarget) => void;
-  onClose: () => void;
   onComplete: (challenge: Challenge, reward: CompletionReward) => void;
   onApplyServerData: (data: { core?: CoreAccount | null; wallet?: WalletAccount | null }) => void;
   onRefreshUserData: () => Promise<void>;
@@ -1140,138 +1124,122 @@ function ChallengeDetailModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet challenge-modal">
-        <div className="modal-header">
-          <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
-          <h2>{t("challenges.challenge")}</h2>
-          <span />
-        </div>
+    <div className="challenge-modal-body challenge-inline-detail">
+      {displayText(challenge.description, "", locale) ? <p>{displayText(challenge.description, "", locale)}</p> : null}
 
-        <ChallengeVisual challenge={challenge} mode="modal" />
-
-        <div className="challenge-modal-body">
-          <div>
-            <strong>{challenge.category}</strong>
-            <h3>{displayText(challenge.title, t("challenges.challenge"), locale)}</h3>
-            <p>{displayText(challenge.description, "", locale)}</p>
-          </div>
-
-          <div className="challenge-detail-grid">
-            <span>
-              <Trophy size={17} />
-              {challengeRewardText(challenge, locale) || t("challenges.rewardUnknown")}
-            </span>
-            <span>
-              <ShieldCheck size={17} />
-              {getVerificationLabel(challenge.verification_type, t)}
-            </span>
-            {challenge.duration_days ? (
-              <span>
-                <Clock3 size={17} />
-                {challenge.duration_days} {t("app.common.days.short")}
-              </span>
-            ) : null}
-          </div>
-
-          {displayText(challenge.requirements, "", locale) ? (
-            <section>
-              <h4>{t("challenges.requirements")}</h4>
-              <p>{displayText(challenge.requirements, "", locale)}</p>
-            </section>
-          ) : null}
-
-          {displayText(challenge.instructions, "", locale) ? (
-            <section>
-              <h4>{t("challenges.instructions")}</h4>
-              <p>{displayText(challenge.instructions, "", locale)}</p>
-            </section>
-          ) : null}
-
-          {completed ? (
-            <div className="challenge-access completed">
-              <CheckCircle2 size={17} />
-              {t("challenges.completed")}
-            </div>
-          ) : null}
-
-          {!completed && locked ? (
-            <div className="challenge-access locked">
-              {t("challenges.availableFrom", { level: challenge.difficulty_level })}
-            </div>
-          ) : null}
-
-          {needsCompoundQuiz ? (
-            <ChallengeQuiz
-              passScore={COMPOUND_QUIZ_PASS_SCORE}
-              questions={COMPOUND_QUIZ_QUESTIONS}
-              t={t}
-              onError={setCheckMessage}
-              onPass={recordCompoundQuizPass}
-              onPassedChange={setCompoundQuizPassed}
-            />
-          ) : null}
-
-          {needsAttentionChallenge ? (
-            <AttentionValueChallenge
-              locale={locale}
-              onPassedChange={setAttentionProofRecorded}
-              onProof={recordAttentionProof}
-              t={t}
-            />
-          ) : null}
-
-          {needsCoreLawChallenge ? (
-            <CoreLawGrowthChallenge
-              locale={locale}
-              onPassedChange={setCoreLawPassed}
-              onProof={recordCoreLawProof}
-              t={t}
-            />
-          ) : null}
-
-          {needsAcquisition && (accepted || completed) && !locked ? (
-            <AcquisitionChallengePanel challenge={challenge} locale={locale} readOnly={completed} onRefresh={onRefreshUserData} onComplete={(reward) => onComplete(challenge, reward)} />
-          ) : null}
-
-          {needsPeerReviews && (accepted || completed) && !locked ? (
-            <PeerReviewsPanel challenge={challenge} locale={locale} />
-          ) : null}
-
-          {needsAppTesting ? (
-            <AppTestingSurvey
-              author={author}
-              challengeReward={{ coreAmount: challenge.core_reward_amount, walletAmount: challenge.wallet_reward_amount }}
-              locale={locale}
-              t={t}
-              onApplyServerData={onApplyServerData}
-              onComplete={(reward) => onComplete(challenge, reward)}
-              onNavigate={onNavigateTesting}
-              onRefresh={onRefreshUserData}
-            />
-          ) : null}
-
-          {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews ? (
-            <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
-              {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
-            </button>
-          ) : null}
-
-          {!completed && accepted && !challenge.is_permanent ? (
-            <button className="challenge-secondary-action" type="button" disabled={giveUpStatus === "loading"} onClick={handleGiveUp}>
-              {giveUpStatus === "loading" ? t("app.common.loading") : t("challenges.giveUp")}
-            </button>
-          ) : null}
-
-          {!completed && !locked && !accepted ? (
-            <button className="challenge-primary-action" type="button" disabled={acceptStatus === "loading"} onClick={handleAccept}>
-              {acceptStatus === "loading" ? t("app.common.loading") : t("challenges.accept")}
-            </button>
-          ) : null}
-
-          {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" || giveUpStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
-        </div>
+      <div className="challenge-detail-grid">
+        <span>
+          <Trophy size={17} />
+          {challengeRewardText(challenge, locale) || t("challenges.rewardUnknown")}
+        </span>
+        <span>
+          <ShieldCheck size={17} />
+          {getVerificationLabel(challenge.verification_type, t)}
+        </span>
+        {challenge.duration_days ? (
+          <span>
+            <Clock3 size={17} />
+            {challenge.duration_days} {t("app.common.days.short")}
+          </span>
+        ) : null}
       </div>
+
+      {displayText(challenge.requirements, "", locale) ? (
+        <section>
+          <h4>{t("challenges.requirements")}</h4>
+          <p>{displayText(challenge.requirements, "", locale)}</p>
+        </section>
+      ) : null}
+
+      {displayText(challenge.instructions, "", locale) ? (
+        <section>
+          <h4>{t("challenges.instructions")}</h4>
+          <p>{displayText(challenge.instructions, "", locale)}</p>
+        </section>
+      ) : null}
+
+      {completed ? (
+        <div className="challenge-access completed">
+          <CheckCircle2 size={17} />
+          {t("challenges.completed")}
+        </div>
+      ) : null}
+
+      {!completed && locked ? (
+        <div className="challenge-access locked">
+          {t("challenges.availableFrom", { level: challenge.difficulty_level })}
+        </div>
+      ) : null}
+
+      {needsCompoundQuiz ? (
+        <ChallengeQuiz
+          passScore={COMPOUND_QUIZ_PASS_SCORE}
+          questions={COMPOUND_QUIZ_QUESTIONS}
+          t={t}
+          onError={setCheckMessage}
+          onPass={recordCompoundQuizPass}
+          onPassedChange={setCompoundQuizPassed}
+        />
+      ) : null}
+
+      {needsAttentionChallenge ? (
+        <AttentionValueChallenge
+          locale={locale}
+          onPassedChange={setAttentionProofRecorded}
+          onProof={recordAttentionProof}
+          t={t}
+        />
+      ) : null}
+
+      {needsCoreLawChallenge ? (
+        <CoreLawGrowthChallenge
+          locale={locale}
+          onPassedChange={setCoreLawPassed}
+          onProof={recordCoreLawProof}
+          t={t}
+        />
+      ) : null}
+
+      {needsAcquisition && (accepted || completed) && !locked ? (
+        <AcquisitionChallengePanel challenge={challenge} locale={locale} readOnly={completed} onRefresh={onRefreshUserData} onComplete={(reward) => onComplete(challenge, reward)} />
+      ) : null}
+
+      {needsPeerReviews && (accepted || completed) && !locked ? (
+        <PeerReviewsPanel challenge={challenge} locale={locale} />
+      ) : null}
+
+      {needsAppTesting ? (
+        <AppTestingSurvey
+          author={author}
+          challengeReward={{ coreAmount: challenge.core_reward_amount, walletAmount: challenge.wallet_reward_amount }}
+          locale={locale}
+          t={t}
+          onApplyServerData={onApplyServerData}
+          onComplete={(reward) => onComplete(challenge, reward)}
+          onNavigate={onNavigateTesting}
+          onRefresh={onRefreshUserData}
+        />
+      ) : null}
+
+      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews ? (
+        <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
+          {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
+        </button>
+      ) : null}
+
+      {!completed && accepted && !challenge.is_permanent ? (
+        <button className="challenge-secondary-action" type="button" disabled={giveUpStatus === "loading"} onClick={handleGiveUp}>
+          {giveUpStatus === "loading" ? t("app.common.loading") : t("challenges.giveUp")}
+        </button>
+      ) : null}
+
+      {!completed && !locked && !accepted ? (
+        <button className="challenge-primary-action" type="button" disabled={acceptStatus === "loading"} onClick={handleAccept}>
+          {acceptStatus === "loading" ? t("app.common.loading") : t("challenges.accept")}
+        </button>
+      ) : null}
+
+      {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" || giveUpStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { getNotes, isReflectionDue, NOTES_CHANGED_EVENT } from "@/lib/notesStore";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
+import { playUiSound } from "@/lib/ui/sound";
 import {
   calculateWishJourney,
   PRIMARY_WISH_CHANGED_EVENT,
@@ -130,6 +131,7 @@ export default function HomeTodayApp({
     storeWishMilestone(user.id, primaryWish.id, nextMilestone);
     setMilestone(nextMilestone);
     setAgentNote(t("home.path.milestoneSaved"));
+    playUiSound("action");
   }
 
   const loadDueReflections = useCallback(async () => {

@@ -13,6 +13,7 @@ import { signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
+import { playUiSound } from "@/lib/ui/sound";
 import { parseChallengeRewardAmount } from "@/lib/challengePresentation";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
@@ -1038,6 +1039,7 @@ function ChallengeDetailContent({
       };
       onApplyServerData({ core: payload.core, wallet: payload.wallet });
       onComplete(challenge, reward);
+      if (reward.claimed) playUiSound("reward");
       await onRefreshUserData();
       setCheckStatus("idle");
     } catch (error) {

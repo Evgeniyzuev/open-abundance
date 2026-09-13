@@ -26,6 +26,10 @@ The migrations `20260912192306_challenge_dual_account_rewards.sql` and `20260913
 
 The rollout compatibility layer has now been removed from the application code and `/api/challenges` serves only the numeric reward contract. Migration `20260913100000_challenge_rewards_cleanup.sql` updated the economy and peer-review RPCs, removed the old `complete_user_challenge` wrapper, and dropped only the challenge reward compatibility columns. It was applied to project `bsikxrsguwketlloflgi` on 2026-09-13. `lib/database.types.ts` now reflects the removed challenge mirrors while preserving the repository's existing string-backed TON numeric conventions; a full generator refresh would introduce unrelated type changes in those routes.
 
+## Core and Wallet history
+
+`/api/core/accrual-history` remains the narrow daily-accrual contract used by notifications. `/api/core/history` is the owner-scoped mixed read model for daily accruals, challenge and peer-review Core rewards, Wallet → Core topups, and team Core bonuses. It reads existing settlement facts, applies a bounded newest-first limit, and does not create or settle ledger rows. `/api/wallet/history` includes `challenge_reward` and `wallet_core_topup` ledger operations alongside its existing Wallet operations. This slice adds no Supabase migration and treats a missing or unreliable source as absent instead of inventing an operation.
+
 ## Common Commands
 
 Authenticate the CLI first:

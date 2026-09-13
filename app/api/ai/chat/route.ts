@@ -26,6 +26,8 @@ export const dynamic = "force-dynamic";
 type ChatRequest = {
   messages?: unknown;
   locale?: string;
+  context?: unknown;
+  feedback?: unknown;
 };
 
 const MAX_MESSAGES = 40;
@@ -51,7 +53,11 @@ export async function POST(request: NextRequest) {
   }
 
   const locale: AppLocale = body.locale === "ru" ? "ru" : "en";
-  const systemPrompt = buildAiSystemPrompt({ locale, capability: "chat.general" });
+  const systemPrompt = appendPersonalContext(
+    buildAiSystemPrompt({ locale, capability: "chat.general" }),
+    body.context,
+    body.feedback
+  );
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
 
@@ -204,6 +210,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function estimateChatInputTokens(systemPrompt: string, messages: AiConversationMessage[]): number {
   return estimateAiTokens([systemPrompt, ...messages.map((message) => message.content)].join("\n"));
+}
+
+function appendPersonalContext(basePrompt: string, context: unknown, feedback: unknown): string {
+  const allowedContextPrefixes = ["language:", "display name:", "nearest wish:", "active wish:", "goal:", "interest:", "preference:", "reaction:", "feeling:"];
+  const contextText = typeof context === "string"
+    ? context.split(/\r?\n/).map((line) => line.trim()).filter((line) => allowedContextPrefixes.some((prefix) => line.toLowerCase().startsWith(prefix))).join("\n").slice(0, 4_000)
+    : "";
+  const ratings = Array.isArray(feedback)
+    ? feedback.filter((item): item is { rating: number } => Boolean(item) && typeof item === "object" && typeof (item as { rating?: unknown }).rating === "number").slice(-10)
+    : [];
+  const ratingText = ratings.map((item) => `${Math.max(1, Math.min(5, Math.round(item.rating)))}/5`).join(", ");
+  return `${basePrompt}${contextText ? `\n\n## User-approved context\n${contextText}` : ""}${ratingText ? `\n\n## Response usefulness feedback\nPrevious assistant responses were rated: ${ratingText}. Adjust clarity and usefulness; do not infer emotions.` : ""}`;
 }
 
 function readProvider(value: string | null): AiResponseProvider | undefined {

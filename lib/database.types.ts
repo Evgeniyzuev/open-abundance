@@ -1183,6 +1183,81 @@ export type Database = {
           },
         ]
       }
+      peer_review_answers: {
+        Row: {
+          id: string
+          task_id: string
+          reviewer_user_id: string
+          status: string
+          declined_after_accept: boolean
+          decline_reason: string | null
+          verdict: string | null
+          checklist: Json
+          notes: string | null
+          quality_status: string
+          score_delta: number
+          trust_penalty: number
+          reward_status: string
+          reward_amount: number
+          core_reward_amount: number
+          wallet_reward_amount: number
+          offered_at: string
+          accepted_at: string | null
+          submitted_at: string | null
+          settled_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          reviewer_user_id: string
+          status?: string
+          declined_after_accept?: boolean
+          decline_reason?: string | null
+          verdict?: string | null
+          checklist?: Json
+          notes?: string | null
+          quality_status?: string
+          score_delta?: number
+          trust_penalty?: number
+          reward_status?: string
+          reward_amount?: number
+          core_reward_amount?: number
+          wallet_reward_amount?: number
+          offered_at?: string
+          accepted_at?: string | null
+          submitted_at?: string | null
+          settled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          reviewer_user_id?: string
+          status?: string
+          declined_after_accept?: boolean
+          decline_reason?: string | null
+          verdict?: string | null
+          checklist?: Json
+          notes?: string | null
+          quality_status?: string
+          score_delta?: number
+          trust_penalty?: number
+          reward_status?: string
+          reward_amount?: number
+          core_reward_amount?: number
+          wallet_reward_amount?: number
+          offered_at?: string
+          accepted_at?: string | null
+          submitted_at?: string | null
+          settled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mutual_confirmations: {
         Row: {
           confirmation_type: string

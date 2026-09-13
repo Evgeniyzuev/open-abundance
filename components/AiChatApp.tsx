@@ -2,11 +2,10 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CircleHelp, History, Plus, Send, Settings2, Trash2, X } from "lucide-react";
+import { CircleHelp, History, Plus, Send, Settings2, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
 import {
   NOVA_NAME,
-  QUICK_ACTIONS,
   SUGGESTED_PROMPTS,
   WELCOME_MESSAGES,
   type AiPrompt,
@@ -14,17 +13,26 @@ import {
 } from "@/lib/ai/clientContent";
 import {
   consumeLocalMessage,
+  clearMemory,
   deleteChat,
   getDraftChat,
+  getMemoryItems,
+  getMemorySettings,
   getLocalQuota,
   getSavedChats,
+  saveMemoryItem,
+  setMemoryEnabled,
+  deleteMemoryItem,
   saveChat,
   type AiLocalChat,
+  type AiMemoryItem,
   type AiLocalMessage,
   type LocalQuota
 } from "@/lib/ai/localChatStore";
 import type { MessageKey } from "@/lib/i18n";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { getSoundsEnabled, playUiSound, setSoundsEnabled } from "@/lib/ui/sound";
+import { readPrimaryWish } from "@/lib/wishJourney";
 
 type ChatMessage = AiLocalMessage;
 
@@ -56,7 +64,7 @@ type AiChatSettings = {
 };
 
 export default function AiChatApp({ active }: AiChatAppProps) {
-  const { locale, t, user } = useUserContext();
+  const { locale, profile, t, user } = useUserContext();
   const userId = user?.id ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeChat, setActiveChat] = useState<AiLocalChat | null>(null);
@@ -75,15 +83,32 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingChatAction | null>(null);
+  const [suggestedPrompts, setSuggestedPrompts] = useState<AiPrompt[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [contextDialogOpen, setContextDialogOpen] = useState(false);
+  const [pendingInput, setPendingInput] = useState<string | null>(null);
+  const [memoryItems, setMemoryItems] = useState<AiMemoryItem[]>([]);
+  const [activeWishTitles, setActiveWishTitles] = useState<string[]>([]);
+  const [memoryEnabled, setMemoryEnabledState] = useState(true);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [memoryCandidate, setMemoryCandidate] = useState<string | null>(null);
+  const [soundsOn, setSoundsOn] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  const contextConsentRef = useRef(false);
+  const contextDecisionRef = useRef(false);
+  const skipContextRef = useRef(false);
 
   const suggestions = SUGGESTED_PROMPTS[locale] ?? SUGGESTED_PROMPTS.en;
-  const quickActions = QUICK_ACTIONS[locale] ?? QUICK_ACTIONS.en;
+  // Keep the compact starting set available for accessibility/analytics without
+  // rendering prompt chips in the empty state. The Questions button owns them.
+  const quickActions = suggestions;
   const welcome = WELCOME_MESSAGES[locale] ?? WELCOME_MESSAGES.en;
   const novaName = NOVA_NAME[locale] ?? NOVA_NAME.en;
+  const nearestWish = readPrimaryWish(userId ?? undefined);
+  const additionalWishTitles = activeWishTitles.filter((title) => title !== nearestWish?.title);
   const persistableMessages = useMemo(() => messages.filter((message) => message.content.trim()), [messages]);
   const isByok = aiSettings?.routeMode === "byok";
   const quotaBlocked = !isByok && Boolean(quota && (quota.dayRemaining <= 0 || quota.monthRemaining <= 0));
@@ -105,25 +130,44 @@ export default function AiChatApp({ active }: AiChatAppProps) {
     inFlightRef.current = false;
     setIsLoading(false);
     setIsRestoring(true);
+    setActiveWishTitles([]);
 
     if (!userId) {
       setMessages([]);
       setActiveChat(null);
       setSavedChats([]);
       setQuota(null);
+      setMemoryItems([]);
+      setActiveWishTitles([]);
+      setMemoryEnabledState(true);
+      contextConsentRef.current = false;
+      contextDecisionRef.current = false;
       setIsRestoring(false);
       return () => {
         cancelled = true;
       };
     }
 
-    void Promise.all([getDraftChat(userId), getSavedChats(userId), getLocalQuota(userId)])
-      .then(([draft, saved, nextQuota]) => {
+    const consentKey = userId ? `oa-ai-context-consent:${userId}` : "";
+    const storedContextDecision = consentKey ? window.localStorage.getItem(consentKey) : null;
+    const hasContextConsent = storedContextDecision === "allowed";
+    contextConsentRef.current = hasContextConsent;
+    contextDecisionRef.current = Boolean(storedContextDecision);
+    setSoundsOn(getSoundsEnabled());
+
+    void loadAiWishContext(userId)
+      .then((nextWishes) => { if (!cancelled) setActiveWishTitles(nextWishes); })
+      .catch(() => { if (!cancelled) setActiveWishTitles([]); });
+
+    void Promise.all([getDraftChat(userId), getSavedChats(userId), getLocalQuota(userId), getMemoryItems(userId), getMemorySettings(userId)])
+      .then(([draft, saved, nextQuota, nextMemory, nextMemorySettings]) => {
         if (cancelled) return;
         setActiveChat(draft);
         setMessages(draft?.messages ?? []);
         setSavedChats(saved);
         setQuota(nextQuota);
+        setMemoryItems(nextMemory);
+        setMemoryEnabledState(nextMemorySettings.enabled);
       })
       .catch((error) => {
         if (!cancelled) console.warn("AI local chat restore failed.", error);
@@ -211,9 +255,19 @@ export default function AiChatApp({ active }: AiChatAppProps) {
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || isLoading || inFlightRef.current || isRestoring) return;
+      if (contextDialogOpen && !contextDecisionRef.current && !skipContextRef.current) return;
+
+      if (userId && !contextDecisionRef.current && !skipContextRef.current) {
+        setPendingInput(trimmed);
+        setContextDialogOpen(true);
+        return;
+      }
 
       inFlightRef.current = true;
       setIsLoading(true);
+      setSuggestedPrompts([]);
+      const includeContext = contextConsentRef.current && !skipContextRef.current;
+      skipContextRef.current = false;
 
       try {
         if (userId && !isByok) {
@@ -226,6 +280,20 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         const aiMsg: ChatMessage = { role: "assistant", content: "" };
         const nextChat = activeChat ?? (userId ? createDraftChat(userId) : null);
         const allMsgs = [...messages.filter((message) => message.content.trim()), userMsg];
+        const feedback = messages
+          .map((message, index) => message.role === "assistant" && message.rating ? { index, rating: message.rating } : null)
+          .filter((item): item is { index: number; rating: 1 | 2 | 3 | 4 | 5 } => Boolean(item));
+
+        if (userId && memoryEnabled) {
+          const explicit = extractExplicitMemory(trimmed);
+          if (explicit) {
+            const now = new Date().toISOString();
+            const item: AiMemoryItem = { id: `explicit:${userId}:${crypto.randomUUID()}`, userId, ...explicit, createdAt: now, updatedAt: now };
+            void saveMemoryItem(item).then(() => setMemoryItems((current) => [item, ...current].slice(0, 40)));
+          }
+          const feeling = detectFeelingCandidate(trimmed);
+          if (feeling) setMemoryCandidate(feeling);
+        }
 
         if (nextChat) setActiveChat(nextChat);
         setMessages((prev) => [...prev, userMsg, aiMsg]);
@@ -243,7 +311,9 @@ export default function AiChatApp({ active }: AiChatAppProps) {
           headers,
           body: JSON.stringify({
             messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
-            locale
+            locale,
+            feedback,
+            context: includeContext ? buildAiContext(locale, profile, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined
           }),
           signal: abortRef.current.signal
         });
@@ -294,7 +364,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         abortRef.current = null;
       }
     },
-    [activeChat, isByok, isLoading, isRestoring, locale, messages, recordAiChallengeProgress, t, userId]
+    [activeChat, activeWishTitles, contextDialogOpen, isByok, isLoading, isRestoring, locale, memoryEnabled, memoryItems, messages, profile, recordAiChallengeProgress, t, userId]
   );
 
   const updateAiSettings = useCallback(async (routeMode: "system" | "byok", modelId = aiSettings?.modelId) => {
@@ -367,6 +437,8 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   const resetChat = useCallback(() => {
     setMessages([]);
     setInput("");
+    setSuggestedPrompts([]);
+    setSuggestionsLoading(false);
     setActiveChat(null);
     setQuestionsOpen(false);
     setHistoryOpen(false);
@@ -377,6 +449,8 @@ export default function AiChatApp({ active }: AiChatAppProps) {
     setActiveChat(chat);
     setMessages(chat.messages);
     setInput("");
+    setSuggestedPrompts([]);
+    setSuggestionsLoading(false);
     setQuestionsOpen(false);
     setHistoryOpen(false);
   }, []);
@@ -472,6 +546,107 @@ export default function AiChatApp({ active }: AiChatAppProps) {
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
 
+  const openQuestions = useCallback(() => {
+    const nextOpen = !questionsOpen;
+    setQuestionsOpen(nextOpen);
+    if (!nextOpen || suggestionsLoading || suggestedPrompts.length > 0) return;
+
+    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant" && message.content.trim());
+    if (!lastAssistant) return;
+    const previousUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content ?? "";
+    setSuggestionsLoading(true);
+    void loadSuggestedPrompts(lastAssistant.content, previousUserMessage, locale)
+      .then(setSuggestedPrompts)
+      .finally(() => setSuggestionsLoading(false));
+  }, [locale, messages, questionsOpen, suggestedPrompts.length, suggestionsLoading]);
+
+  const rateMessage = useCallback(async (index: number, rating: 1 | 2 | 3 | 4 | 5) => {
+    const nextRating = messages[index]?.rating === rating ? null : rating;
+    setMessages((current) => current.map((message, messageIndex) => messageIndex === index ? { ...message, rating: nextRating } : message));
+    if (!userId) return;
+    const reactionId = `reaction:${userId}:${index}`;
+    if (nextRating === null) {
+      await deleteMemoryItem(reactionId, userId);
+      setMemoryItems((current) => current.filter((memory) => memory.id !== reactionId));
+      return;
+    }
+    if (!memoryEnabled) return;
+    const now = new Date().toISOString();
+    const item: AiMemoryItem = {
+      id: reactionId,
+      userId,
+      kind: "reaction",
+      content: locale === "ru" ? `Ответ Новы получил оценку ${nextRating}/5` : `Nova's answer received a ${nextRating}/5 rating`,
+      sensitivity: "ordinary",
+      confirmed: true,
+      createdAt: now,
+      updatedAt: now
+    };
+    await saveMemoryItem(item);
+    setMemoryItems((current) => [item, ...current.filter((memory) => memory.id !== item.id)]);
+  }, [locale, memoryEnabled, messages, userId]);
+
+  const saveMemoryCandidate = useCallback(async () => {
+    if (!userId || !memoryCandidate || !memoryEnabled) return;
+    const now = new Date().toISOString();
+    const item: AiMemoryItem = {
+      id: `feeling:${userId}:${crypto.randomUUID()}`,
+      userId,
+      kind: "feeling",
+      content: memoryCandidate,
+      sensitivity: "sensitive",
+      confirmed: true,
+      createdAt: now,
+      updatedAt: now
+    };
+    await saveMemoryItem(item);
+    setMemoryItems((current) => [item, ...current.filter((memory) => memory.id !== item.id)]);
+    setMemoryCandidate(null);
+  }, [memoryCandidate, memoryEnabled, userId]);
+
+  const toggleMemory = useCallback(async () => {
+    if (!userId) return;
+    const next = !memoryEnabled;
+    await setMemoryEnabled(userId, next);
+    setMemoryEnabledState(next);
+    if (!next) setMemoryCandidate(null);
+  }, [memoryEnabled, userId]);
+
+  const clearAllMemory = useCallback(async () => {
+    if (!userId || !window.confirm(t("ai.chat.memory.clearConfirm"))) return;
+    await clearMemory(userId);
+    setMemoryItems([]);
+  }, [t, userId]);
+
+  const allowContext = useCallback(() => {
+    if (!userId) return;
+    window.localStorage.setItem(`oa-ai-context-consent:${userId}`, "allowed");
+    contextConsentRef.current = true;
+    contextDecisionRef.current = true;
+    setContextDialogOpen(false);
+    const nextInput = pendingInput;
+    setPendingInput(null);
+    if (nextInput) window.setTimeout(() => void sendMessage(nextInput), 0);
+  }, [pendingInput, sendMessage, userId]);
+
+  const continueWithoutContext = useCallback(() => {
+    if (userId) window.localStorage.setItem(`oa-ai-context-consent:${userId}`, "denied");
+    contextConsentRef.current = false;
+    contextDecisionRef.current = true;
+    setContextDialogOpen(false);
+    skipContextRef.current = true;
+    const nextInput = pendingInput;
+    setPendingInput(null);
+    if (nextInput) window.setTimeout(() => void sendMessage(nextInput), 0);
+  }, [pendingInput, sendMessage, userId]);
+
+  const toggleSounds = useCallback(() => {
+    const next = !soundsOn;
+    setSoundsEnabled(next);
+    setSoundsOn(next);
+    if (next) playUiSound("action");
+  }, [soundsOn]);
+
   return (
     <section className="ai-chat-screen">
       <header className="ai-chat-header">
@@ -525,6 +700,34 @@ export default function AiChatApp({ active }: AiChatAppProps) {
             <button className="ai-chat-close-btn" type="button" onClick={() => setSettingsOpen(false)} aria-label={t("app.common.close")}>
               <X size={16} />
             </button>
+          </div>
+
+          <div className="ai-chat-settings-section ai-chat-preferences">
+            <div className="ai-chat-preference-row">
+              <div>
+                <strong>{t("ai.chat.memory.title")}</strong>
+                <small>{t("ai.chat.memory.description")}</small>
+              </div>
+              <button className="ai-chat-icon-btn" type="button" onClick={() => void toggleMemory()} aria-pressed={memoryEnabled} aria-label={t("ai.chat.memory.toggle")}>
+                {memoryEnabled ? "✓" : "—"}
+              </button>
+            </div>
+            <button className="text-button" type="button" onClick={() => setMemoryOpen((open) => !open)}>{t("ai.chat.memory.manage")}</button>
+            {memoryOpen ? (
+              <div className="ai-chat-memory-list">
+                {memoryItems.length ? memoryItems.map((item) => (
+                  <div className="ai-chat-memory-row" key={item.id}>
+                    <span>{item.content}</span>
+                    <button className="text-button" type="button" onClick={() => void deleteMemoryItem(item.id, item.userId).then(() => setMemoryItems((current) => current.filter((memory) => memory.id !== item.id)))} aria-label={t("ai.chat.memory.delete")}><Trash2 size={14} /></button>
+                  </div>
+                )) : <small>{t("ai.chat.memory.empty")}</small>}
+                {memoryItems.length ? <button className="text-button" type="button" onClick={() => void clearAllMemory()}>{t("ai.chat.memory.clear")}</button> : null}
+              </div>
+            ) : null}
+            <div className="ai-chat-preference-row">
+              <div><strong>{t("ai.chat.sound.title")}</strong><small>{t("ai.chat.sound.description")}</small></div>
+              <button className="ai-chat-icon-btn" type="button" onClick={toggleSounds} aria-pressed={soundsOn} aria-label={t("ai.chat.sound.toggle")}>{soundsOn ? <Volume2 size={17} /> : <VolumeX size={17} />}</button>
+            </div>
           </div>
 
           <div className="ai-chat-mode-grid" aria-label={t("ai.openrouter.settings.mode")}>
@@ -650,19 +853,12 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         <div className="ai-chat-loading">{t("ai.chat.loading")}</div>
       ) : messages.length === 0 ? (
         <div className="ai-chat-empty">
-          <div className="ai-chat-welcome-icon">
-            <Image src="/icons/nova-avatar.svg" alt="" width={96} height={96} priority />
+          <div className="ai-chat-welcome-hero" data-starting-prompt-count={quickActions.slice(0, 3).length}>
+            <Image src="/nova-fox-robot.png" alt="" width={640} height={760} priority />
           </div>
           <span className="ai-chat-kicker">{t("ai.chat.novaLabel")}</span>
           <h1 className="ai-chat-empty-title">{novaName}</h1>
-          <p className="ai-chat-welcome-text">{welcome}</p>
-          <div className="ai-chat-quick-actions" aria-label={t("ai.chat.quickActions")}>
-            {quickActions.slice(0, 3).map((prompt) => (
-              <button key={prompt.id} className="ai-suggestion-chip" type="button" onClick={() => selectPrompt(prompt.text)}>
-                {prompt.text}
-              </button>
-            ))}
-          </div>
+          <p className="ai-chat-welcome-text">{nearestWish?.title ? t("ai.chat.proactiveNext", { wish: nearestWish.title }) : welcome}</p>
           <p className="ai-chat-local-note">{t("ai.chat.localOnly")}</p>
         </div>
       ) : (
@@ -672,15 +868,34 @@ export default function AiChatApp({ active }: AiChatAppProps) {
               {message.role === "assistant" ? (
                 <Image className="ai-msg-avatar" src="/icons/nova-avatar.svg" alt="" width={28} height={28} />
               ) : null}
-              <div className="ai-msg-bubble">
-                {message.content}
-                {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing">...</span> : null}
+              <div className="ai-msg-content">
+                <div className="ai-msg-bubble">
+                  {message.content}
+                  {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing">...</span> : null}
+                </div>
+                {message.role === "assistant" && message.content.trim() ? (
+                  <div className="ai-msg-rating" aria-label={t("ai.chat.rating.label")}>
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <button key={rating} type="button" disabled={isLoading} className={message.rating === rating ? "is-selected" : ""} onClick={() => void rateMessage(index, rating as 1 | 2 | 3 | 4 | 5)} aria-label={`${t("ai.chat.rating.option", { rating })}: ${t(`ai.chat.rating.${rating}` as MessageKey)}`} title={t(`ai.chat.rating.${rating}` as MessageKey)}>
+                        {rating === 1 ? "😕" : rating === 2 ? "🙁" : rating === 3 ? "😐" : rating === 4 ? "🙂" : "🤩"}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}
           <div ref={messagesEndRef} />
         </div>
       )}
+
+      {memoryCandidate ? (
+        <div className="ai-chat-memory-candidate" role="status">
+          <span>{t("ai.chat.memory.candidate", { value: memoryCandidate })}</span>
+          <button className="text-button" type="button" onClick={() => void saveMemoryCandidate()}>{t("ai.chat.memory.save")}</button>
+          <button className="text-button" type="button" onClick={() => setMemoryCandidate(null)}>{t("app.common.close")}</button>
+        </div>
+      ) : null}
 
       {questionsOpen ? (
         <div className="ai-chat-question-panel">
@@ -690,6 +905,13 @@ export default function AiChatApp({ active }: AiChatAppProps) {
               <X size={16} />
             </button>
           </div>
+          {suggestionsLoading ? <p className="ai-chat-settings-muted">...</p> : null}
+          {suggestedPrompts.length ? (
+            <div className="ai-chat-question-group ai-chat-generated-questions">
+              <span>{t("ai.chat.followUps")}</span>
+              {suggestedPrompts.map((prompt) => <PromptButton key={prompt.id} prompt={prompt} onSelect={selectPrompt} />)}
+            </div>
+          ) : null}
           {groupedSuggestions.map(({ category, prompts }) => (
             <div className="ai-chat-question-group" key={category}>
               <span>{t(`ai.chat.category.${category}` as MessageKey)}</span>
@@ -703,7 +925,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         <button
           className="ai-chat-icon-btn ai-chat-help-btn"
           type="button"
-          onClick={() => setQuestionsOpen((open) => !open)}
+          onClick={openQuestions}
           aria-label={questionsOpen ? t("ai.chat.questions.close") : t("ai.chat.questions.open")}
           aria-expanded={questionsOpen}
         >
@@ -736,6 +958,40 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         {!isByok && quotaBlocked ? <strong>{t("ai.chat.quotaLimited")}</strong> : null}
         {!isByok && quota ? <small>{t("ai.chat.quotaReset")}</small> : null}
       </div>
+
+      {contextDialogOpen ? (
+        <div className="ai-chat-modal-backdrop" role="presentation">
+          <section className="ai-chat-modal" role="dialog" aria-modal="true" aria-labelledby="ai-chat-context-title">
+            <h2 id="ai-chat-context-title">{t("ai.chat.context.title")}</h2>
+            <p>{t("ai.chat.context.description")}</p>
+            <ul className="ai-chat-context-list">
+              <li>{t("ai.chat.context.profile", { value: profile?.display_name || profile?.username || t("profile.guest") })}</li>
+              <li>{t("ai.chat.context.wish", { value: readPrimaryWish(user?.id)?.title || t("ai.chat.context.none") })}</li>
+              <li>
+                {t("ai.chat.context.activeWishes", { count: additionalWishTitles.length })}
+                {additionalWishTitles.length ? (
+                  <ul className="ai-chat-context-memory-details">
+                    {additionalWishTitles.map((title) => <li key={title}>{title}</li>)}
+                  </ul>
+                ) : null}
+              </li>
+              <li>
+                {t("ai.chat.context.memory", { count: memoryEnabled ? memoryItems.filter((item) => item.confirmed).length : 0 })}
+                {memoryEnabled && memoryItems.some((item) => item.confirmed) ? (
+                  <ul className="ai-chat-context-memory-details">
+                    {memoryItems.filter((item) => item.confirmed).slice(0, 20).map((item) => <li key={item.id}>{item.content}</li>)}
+                  </ul>
+                ) : null}
+              </li>
+              <li>{t("ai.chat.context.language", { value: locale.toUpperCase() })}</li>
+            </ul>
+            <div className="ai-chat-modal-actions">
+              <button className="primary-button" type="button" onClick={allowContext}>{t("ai.chat.context.allow")}</button>
+              <button className="secondary-button" type="button" onClick={continueWithoutContext}>{t("ai.chat.context.continue")}</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {pendingAction ? (
         <div className="ai-chat-modal-backdrop" role="presentation">
@@ -822,4 +1078,78 @@ function formatChatDate(value: string, locale: "ru" | "en"): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(date);
+}
+
+async function loadAiWishContext(userId: string | null): Promise<string[]> {
+  if (!userId) return [];
+  const token = await getAiAccessToken();
+  if (!token) return [];
+  const response = await fetch("/api/wishes?status=active&includeRecommended=false", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store"
+  });
+  if (!response.ok) return [];
+  const payload = (await response.json()) as { wishes?: unknown };
+  if (!Array.isArray(payload.wishes)) return [];
+  return payload.wishes
+    .map((wish) => (wish && typeof wish === "object" && typeof (wish as { title?: unknown }).title === "string" ? (wish as { title: string }).title.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
+function buildAiContext(locale: "ru" | "en", profile: ReturnType<typeof useUserContext>["profile"], userId: string | null, memoryItems: AiMemoryItem[], activeWishTitles: string[]): string {
+  const wish = readPrimaryWish(userId ?? undefined);
+  const profileName = profile?.display_name || profile?.username || "";
+  const lines = [`language: ${locale}`, profileName ? `display name: ${profileName}` : ""];
+  if (wish?.title) lines.push(`nearest wish: ${wish.title}`);
+  for (const title of activeWishTitles.filter((item) => item && item !== wish?.title).slice(0, 10)) lines.push(`active wish: ${title}`);
+  for (const item of memoryItems.filter((memory) => memory.confirmed).slice(0, 20)) lines.push(`${item.kind}: ${item.content}`);
+  return lines.filter(Boolean).join("\n");
+}
+
+async function loadSuggestedPrompts(answer: string, previousUserMessage: string, locale: "ru" | "en"): Promise<AiPrompt[]> {
+  const fallback = fallbackPrompts(answer, locale);
+  try {
+    const token = await getAiAccessToken();
+    if (!token) return fallback;
+    const response = await fetch("/api/ai/suggestions", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ answer, previousUserMessage, locale })
+    });
+    const payload = (await response.json()) as { suggestions?: unknown };
+    if (!response.ok || !Array.isArray(payload.suggestions)) return fallback;
+    const items = payload.suggestions.filter((item): item is string => typeof item === "string" && item.trim().length > 0).slice(0, 5);
+    return items.length >= 3 ? items.map((text, index) => ({ id: `generated-${index}-${text.slice(0, 12)}`, category: "route", text })) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function fallbackPrompts(answer: string, locale: "ru" | "en"): AiPrompt[] {
+  const lower = answer.toLowerCase();
+  const ru = locale === "ru";
+  const prompts = lower.includes(ru ? "желан" : "wish")
+    ? (ru ? ["Помоги уточнить моё желание", "Какой первый шаг сделать сегодня?", "Как понять, что я продвинулся?"] : ["Help me clarify my wish", "What first step can I take today?", "How will I know I moved forward?"])
+    : (ru ? ["Объясни это проще", "Как это применить сегодня?", "Какие есть варианты дальше?"] : ["Explain this more simply", "How can I use this today?", "What options do I have next?"]);
+  return prompts.map((text, index) => ({ id: `fallback-${index}`, category: "route", text }));
+}
+
+function extractExplicitMemory(content: string): Pick<AiMemoryItem, "kind" | "content" | "sensitivity" | "confirmed"> | null {
+  const patterns: Array<{ kind: AiMemoryItem["kind"]; expression: RegExp }> = [
+    { kind: "interest", expression: /(?:я люблю|мне нравится|i like|i love)\s+(.+)/i },
+    { kind: "goal", expression: /(?:моя цель|я хочу|my goal is|i want to)\s+(.+)/i },
+    { kind: "preference", expression: /(?:я предпочитаю|мне важно|i prefer|it matters to me)\s+(.+)/i }
+  ];
+  for (const pattern of patterns) {
+    const match = content.match(pattern.expression);
+    if (match?.[1]) return { kind: pattern.kind, content: match[1].trim().slice(0, 180), sensitivity: "ordinary", confirmed: true };
+  }
+  return null;
+}
+
+function detectFeelingCandidate(content: string): string | null {
+  const match = content.match(/(?:меня радует|меня беспокоит|я переживаю из-за|makes me happy|i(?:'m| am) worried about)\s+(.+)/i);
+  return match?.[0]?.trim().slice(0, 180) ?? null;
 }

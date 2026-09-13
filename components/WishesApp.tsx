@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Archive, ArrowRight, Check, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
+import { Archive, Check, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
@@ -9,13 +9,14 @@ import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { AppLocale } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { findDaysToTarget, formatDurationParts } from "@/lib/coreCalculator";
+import { playUiSound } from "@/lib/ui/sound";
 import {
   FIRST_WISH_CATEGORIES,
   FIRST_WISH_DAILY_ADDITIONS,
   type FirstWishCategory,
   type FirstWishOption
 } from "@/lib/firstWishGuide";
-import { calculateWishJourney, PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
+import { PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -85,7 +86,7 @@ type SavedWishResult = {
 };
 
 export default function WishesApp({ active, focusNonce = 0, focusWishId = null, onOpenPrimaryWish, refreshNonce }: WishesAppProps) {
-  const { core, loading: userLoading, locale, profile, t, user, wallet } = useUserContext();
+  const { core, loading: userLoading, locale, profile, t, user } = useUserContext();
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [recommendedWishes, setRecommendedWishes] = useState<RecommendedWish[]>([]);
   const [activeTab, setActiveTab] = useState<WishTab>("recommended");
@@ -104,12 +105,6 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
 
   const myWishes = useMemo(() => wishes.filter((wish) => wish.status !== "completed"), [wishes]);
   const completedWishes = useMemo(() => wishes.filter((wish) => wish.status === "completed"), [wishes]);
-  const journey = useMemo(() => calculateWishJourney({
-    coreBalance: core?.balance ?? 0,
-    reinvestPercent: core?.reinvest_percent ?? 100,
-    targetAmount: primaryWish?.target_amount ?? null,
-    walletBalance: wallet?.balance ?? 0
-  }), [core?.balance, core?.reinvest_percent, primaryWish?.target_amount, wallet?.balance]);
 
   useEffect(() => {
     setPrimaryWish(readPrimaryWish(user?.id));
@@ -117,7 +112,6 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
     window.addEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
     return () => window.removeEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
   }, [user?.id]);
-
   useEffect(() => {
     if (!active || !focusNonce || focusNonce === lastFocusNonceRef.current || !focusWishId) return;
     const wish = wishes.find((item) => item.id === focusWishId);
@@ -266,6 +260,7 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
     storePrimaryWish(user.id, wish);
     setSelectedWish(null);
     setActiveTab("mine");
+    playUiSound("action");
     onOpenPrimaryWish?.();
   }
 
@@ -306,27 +301,6 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
 
   return (
     <section className="wishes-screen">
-      {primaryWish ? (
-        <section className="wish-journey-card" aria-label={locale === "ru" ? "Мой путь" : "My path"}>
-          <div className="wish-journey-heading">
-            <span><Target size={17} />{locale === "ru" ? "Ближайшее желание" : "Nearest wish"}</span>
-            <strong>{primaryWish.title}</strong>
-          </div>
-          {journey.targetAmount !== null ? (
-            <>
-              <div className="wish-journey-progress" aria-label={locale === "ru" ? "Прогресс" : "Progress"}>
-                <span style={{ width: `${Math.min(100, journey.targetAmount > 0 ? journey.savedAmount / journey.targetAmount * 100 : 0)}%` }} />
-              </div>
-              <p>{locale === "ru"
-                ? `${formatAmount(journey.savedAmount, primaryWish.target_currency, locale)} из ${formatAmount(journey.targetAmount, primaryWish.target_currency, locale)}`
-                : `${formatAmount(journey.savedAmount, primaryWish.target_currency, locale)} of ${formatAmount(journey.targetAmount, primaryWish.target_currency, locale)}`}</p>
-            </>
-          ) : <p>{locale === "ru" ? "Сначала определим первый заметный результат." : "First, define the first visible result."}</p>}
-          <button className="task-done-primary-button" type="button" onClick={onOpenPrimaryWish}>
-            {locale === "ru" ? "Продолжить путь" : "Continue the path"}<ArrowRight size={16} />
-          </button>
-        </section>
-      ) : null}
       {status !== "unauthenticated" ? (
         <nav className="wish-tabs" role="tablist" aria-label={t("wishes.tabs.label")}>
           {(["recommended", "mine", "completed"] as const).map((tab) => (

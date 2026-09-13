@@ -24,21 +24,20 @@ export type WalletCalculatorRequest = {
   nonce: number;
   targetCore?: number;
 };
-type CoreAccrualRow = {
-  accrual_date: string;
-  core_before: number;
-  daily_rate: number;
-  gross_amount: number;
-  reinvest_percent: number;
-  core_amount: number;
-  wallet_amount: number;
-  core_after: number;
-  created_at: string;
+type CoreHistoryRow = {
+  id: string;
+  occurred_at: string;
+  kind: "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus";
+  amount: number;
+  source_id: string;
+  challenge_id?: string;
+  challenge_title?: string;
+  metadata?: Record<string, unknown>;
 };
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund";
+  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -301,7 +300,7 @@ type EconomyMetricRow = Pick<Tables<"user_economy_metrics">,
 export default function WalletApp({ active, activeTab, calculatorRequest, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; calculatorRequest?: WalletCalculatorRequest | null; refreshNonce: number; onRefresh: () => Promise<void> }) {
   const { core, wallet, user, loading, error, locale, applyServerData, t } = useUserContext();
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyRows, setHistoryRows] = useState<CoreAccrualRow[] | null>(null);
+  const [historyRows, setHistoryRows] = useState<CoreHistoryRow[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [walletHistoryOpen, setWalletHistoryOpen] = useState(false);
@@ -453,7 +452,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
 
       setHistoryLoading(true);
       try {
-        const rows = await loadCoreAccrualHistory();
+        const rows = await loadCoreHistory();
         if (mounted) setHistoryRows(rows);
       } catch (loadError) {
         console.warn("Core accrual history load failed", loadError);
@@ -894,7 +893,11 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 <article className="payout-row" key={row.id}>
                   <div>
                     <strong>{formatDay(row.operation_date, locale)}</strong>
-                    <span>{row.kind === "wallet_transfer"
+                    <span>{row.kind === "challenge_reward"
+                      ? t("wallet.history.challengeReward")
+                      : row.kind === "wallet_core_topup"
+                        ? t("wallet.history.walletCoreTopup")
+                        : row.kind === "wallet_transfer"
                       ? t("wallet.history.transfer")
                       : row.kind === "marketplace_escrow_hold"
                         ? t("wallet.history.marketplaceHold")
@@ -915,7 +918,9 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                     <span>{t("wallet.wallet")}</span>
                   </div>
                   <p>
-                    {row.kind === "wallet_transfer"
+                    {row.kind === "challenge_reward" || row.kind === "wallet_core_topup"
+                      ? `${t("wallet.history.source")}: ${shortId(row.sourceId ?? row.id)}`
+                      : row.kind === "wallet_transfer"
                       ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.source")}: ${shortId(row.sourceId)}` : ""}`
                       : row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund"
                         ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.deal")}: ${shortId(row.sourceId)}` : ""}`
@@ -1014,16 +1019,16 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
             >
               <div className="payout-list">
                 {(historyRows ?? []).map((row) => (
-                  <article className="payout-row" key={`${row.accrual_date}-${row.created_at}`}>
+                  <article className="payout-row" key={row.id}>
                     <div>
-                      <strong>{formatDay(row.accrual_date, locale)}</strong>
-                      <span>{t("wallet.dailyRate")} {formatPercent(row.daily_rate * 100, locale)}</span>
+                      <strong>{formatHistoryDay(row.occurred_at, locale)}</strong>
+                      <span>{coreHistoryLabel(row, t)}</span>
                     </div>
                     <div>
-                      <strong>+{formatAdaptiveMoney(row.core_amount, locale)}</strong>
+                      <strong>+{formatAdaptiveMoney(row.amount, locale)}</strong>
                       <span>{t("wallet.toCore")}</span>
                     </div>
-                    <p>{`${formatAdaptiveMoney(row.core_before, locale)} -> ${formatAdaptiveMoney(row.core_after, locale)} · ${t("wallet.wallet")} +${formatAdaptiveMoney(row.wallet_amount, locale)}`}</p>
+                    <p>{row.challenge_title ?? `${t("wallet.history.source")}: ${shortId(row.source_id)}`}</p>
                   </article>
                 ))}
               </div>
@@ -1609,18 +1614,31 @@ function TargetResult({ calculation, locale, t }: { calculation: ReturnType<type
   );
 }
 
-async function loadCoreAccrualHistory(): Promise<CoreAccrualRow[]> {
+async function loadCoreHistory(): Promise<CoreHistoryRow[]> {
   const token = await getAccessToken();
-  const response = await fetch(`/api/core/accrual-history?limit=30&ts=${Date.now()}`, {
+  const response = await fetch(`/api/core/history?limit=50&ts=${Date.now()}`, {
     cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
       "Cache-Control": "no-cache"
     }
   });
-  const payload = (await response.json()) as { rows?: CoreAccrualRow[]; error?: string };
+  const payload = (await response.json()) as { rows?: CoreHistoryRow[]; error?: string };
   if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load core history.");
   return payload.rows ?? [];
+}
+
+function formatHistoryDay(value: string, locale: AppLocale): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
+}
+
+function coreHistoryLabel(row: CoreHistoryRow, t: TFunction): string {
+  if (row.kind === "daily_accrual") return t("wallet.history.coreDailyAccrual");
+  if (row.kind === "challenge_reward") return row.challenge_title ?? t("wallet.history.challengeReward");
+  if (row.kind === "peer_review_reward") return t("wallet.history.peerReviewReward");
+  if (row.kind === "wallet_core_topup") return t("wallet.history.walletCoreTopup");
+  return t("wallet.history.teamBonus");
 }
 
 async function loadWalletHistory(): Promise<WalletHistoryRow[]> {

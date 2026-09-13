@@ -71,7 +71,8 @@ begin
       end,
 $legacy$,
     '');
-  if position('reward_account =' in definition) > 0 or position('reward_amount =' in definition) > 0 then
+  if position(E'\n      reward_account =' in definition) > 0
+     or position(E'\n      reward_amount =' in definition) > 0 then
     raise exception 'Legacy reward mirrors remain in settle_user_challenge_rewards';
   end if;
   execute definition;
@@ -86,7 +87,8 @@ $legacy$,
   definition := replace(definition, E'\r\n', E'\n');
   definition := replace(definition, 'answer_row.reward_amount', 'coalesce(answer_row.core_reward_amount, 0) + coalesce(answer_row.wallet_reward_amount, 0)');
   definition := replace(definition, E'      reward_amount = reward,\n', '');
-  if position('answer_row.reward_amount' in definition) > 0 or position('reward_amount = reward' in definition) > 0 then
+  if position('answer_row.reward_amount' in definition) > 0
+     or position(E'\n      reward_amount = reward' in definition) > 0 then
     raise exception 'Legacy peer-review reward field remains in settle_peer_review_answer';
   end if;
   execute definition;
@@ -99,7 +101,8 @@ $legacy$,
   definition := replace(definition, E'\r\n', E'\n');
   definition := replace(definition, 'answer_row.reward_amount', 'coalesce(answer_row.core_reward_amount, 0) + coalesce(answer_row.wallet_reward_amount, 0)');
   definition := replace(definition, E'        reward_amount = 0,\n', '');
-  if position('answer_row.reward_amount' in definition) > 0 or position('reward_amount = 0' in definition) > 0 then
+  if position('answer_row.reward_amount' in definition) > 0
+     or position(E'\n        reward_amount = 0' in definition) > 0 then
     raise exception 'Legacy peer-review reward field remains in audit_peer_review_answer';
   end if;
   execute definition;

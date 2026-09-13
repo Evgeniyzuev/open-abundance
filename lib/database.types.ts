@@ -210,7 +210,6 @@ export type Database = {
           is_active: boolean
           prerequisite_challenge_id: string | null
           requirements: Json
-          reward_label: Json
           sort_order: number
           title: Json
           track_key: string | null
@@ -233,7 +232,6 @@ export type Database = {
           is_active?: boolean
           prerequisite_challenge_id?: string | null
           requirements?: Json
-          reward_label?: Json
           sort_order?: number
           title?: Json
           track_key?: string | null
@@ -256,7 +254,6 @@ export type Database = {
           is_active?: boolean
           prerequisite_challenge_id?: string | null
           requirements?: Json
-          reward_label?: Json
           sort_order?: number
           title?: Json
           track_key?: string | null
@@ -2129,8 +2126,6 @@ export type Database = {
           core_reward_amount: number
           created_at: string
           id: string
-          reward_account: string | null
-          reward_amount: number | null
           reward_idempotency_key: string | null
           reward_settled_at: string | null
           status: string
@@ -2144,8 +2139,6 @@ export type Database = {
           core_reward_amount?: number
           created_at?: string
           id?: string
-          reward_account?: string | null
-          reward_amount?: number | null
           reward_idempotency_key?: string | null
           reward_settled_at?: string | null
           status?: string
@@ -2159,8 +2152,6 @@ export type Database = {
           core_reward_amount?: number
           created_at?: string
           id?: string
-          reward_account?: string | null
-          reward_amount?: number | null
           reward_idempotency_key?: string | null
           reward_settled_at?: string | null
           status?: string
@@ -3348,20 +3339,6 @@ export type Database = {
       complete_reminder_job: {
         Args: { p_error?: string; p_job_id: string; p_success: boolean }
         Returns: undefined
-      }
-      complete_user_challenge: {
-        Args: {
-          p_challenge_id: string
-          p_reward_account: string
-          p_reward_amount: number
-          p_user_id: string
-        }
-        Returns: {
-          challenge_status: string
-          reward_claimed: boolean
-          rewarded_account: string
-          rewarded_amount: number
-        }[]
       }
       audit_peer_review_answer: {
         Args: { p_answer_id: string; p_quality_status: string; p_reason?: string | null }

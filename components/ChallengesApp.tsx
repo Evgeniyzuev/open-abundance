@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Bot, CheckCircle2, Clock3, Compass, HandHeart, PenLine, Rocket, Send, ShieldCheck, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
+import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
@@ -823,6 +823,7 @@ function TodayChallengeCard({
   onCheck: () => void;
   onToggle: () => void;
 }) {
+  const [artFailed, setArtFailed] = useState(false);
   const progress = Number(payload.today.progress_core ?? 0);
   const target = Math.max(0, Number(payload.today.target_core ?? 0));
   const complete = payload.today.status === "completed";
@@ -831,8 +832,10 @@ function TodayChallengeCard({
   return (
     <details className={complete ? "challenge-disclosure completed" : "challenge-disclosure"} open={expanded}>
       <summary className="challenge-row today-challenge-row" onClick={(event) => { event.preventDefault(); onToggle(); }}>
-        <span className="challenge-thumb challenge-visual-gold challenge-art-fallback today-challenge-art" aria-hidden="true">
-          <span className="challenge-art-icon"><Trophy size={26} /></span>
+        <span className={`challenge-thumb challenge-visual-gold today-challenge-art${artFailed ? " challenge-art-fallback" : " challenge-art-object"}`} aria-hidden="true">
+          {artFailed
+            ? <span className="challenge-art-icon"><Trophy size={26} /></span>
+            : <img alt="" src="/challenges/today-medallion.png" onError={() => setArtFailed(true)} />}
         </span>
         <span className="challenge-row-body">
           <span className="challenge-row-title">
@@ -907,9 +910,11 @@ function ChallengeVisual({ challenge }: { challenge: Challenge }) {
   const tone = getChallengeTone(challenge);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const imageUrl = challenge.image_url && failedImageUrl !== challenge.image_url ? challenge.image_url : null;
+  const objectArt = Boolean(imageUrl && ((imageUrl.startsWith("/challenges/") && imageUrl.endsWith(".png")) || imageUrl === "/core/core-reactor-pearl.webp"));
+  const visualClass = imageUrl ? (objectArt ? " challenge-art-object" : "") : " challenge-art-fallback";
 
   return (
-    <span className={`challenge-thumb challenge-visual-${tone}${imageUrl ? "" : " challenge-art-fallback"}`}>
+    <span className={`challenge-thumb challenge-visual-${tone}${visualClass}`}>
       {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : <span className="challenge-art-icon"><Icon size={25} /></span>}
     </span>
   );
@@ -1516,12 +1521,26 @@ function getChallengeRowState(challenge: Challenge, userLevel: number, t: TFunct
 }
 
 function getChallengeIcon(challenge: Challenge): LucideIcon {
+  if (challenge.verification_logic?.startsWith("acquisition_metric_") || challenge.verification_logic === "acquisition_publications_milestone") return Megaphone;
   switch (challenge.verification_logic) {
     case "signup":
       return UserRoundCheck;
     case "has_wish":
     case "wish_steps_created":
       return Target;
+    case "profile_strengths_filled":
+      return Compass;
+    case "skill_profile_completed":
+      return KeyRound;
+    case "attention_value_audit":
+      return Hourglass;
+    case "core_law_understood":
+      return BookOpen;
+    case "today_completion_streak_7":
+    case "today_completion_total_30":
+    case "three_day_focus":
+    case "day_2_return":
+      return CalendarDays;
     case "calculate_time_to_goal":
     case "reinvest_enabled":
     case "today_core_target_reached":
@@ -1541,13 +1560,20 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "trust_event_confirmed:proof_added":
       return HandHeart;
     default:
-      return challenge.category === "focus" ? Compass : Trophy;
+      if (challenge.category === "marketplace") return Store;
+      if (challenge.category === "skills") return BadgeCheck;
+      if (challenge.category === "core_education") return BookOpen;
+      if (challenge.category === "social") return Users;
+      if (challenge.category === "trust") return HandHeart;
+      if (challenge.category === "focus") return CalendarDays;
+      return Trophy;
   }
 }
 
 function getChallengeTone(challenge: Challenge): "blue" | "green" | "gold" | "violet" | "rose" {
-  if (challenge.category === "finance") return "green";
-  if (challenge.category === "social" || challenge.category === "trust") return "violet";
+  if (challenge.category === "finance" || challenge.category === "core_education" || challenge.category === "marketplace") return "green";
+  if (challenge.category === "social" || challenge.category === "trust" || challenge.category === "acquisition") return "violet";
+  if (challenge.category === "self_discovery" || challenge.category === "skills") return "blue";
   if (challenge.category === "quality_assurance") return "rose";
   return "gold";
 }

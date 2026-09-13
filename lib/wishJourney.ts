@@ -13,7 +13,12 @@ const STORY_WISH_RECOMMENDATIONS: Record<string, string> = {
   "reality_demo:first-product-launch": "b9100000-0000-4000-8000-000000000005",
   "reality_demo:traveling-consultant": "b9100000-0000-4000-8000-000000000007",
   "reality_demo:parent-flexible-income": "b9100000-0000-4000-8000-000000000008",
-  "reality_demo:dream-home-project": "b9100000-0000-4000-8000-000000000002"
+  "reality_demo:dream-home-project": "b9100000-0000-4000-8000-000000000002",
+  "editorial_story:front-row": "b9100000-0000-4000-8000-000000000004",
+  "editorial_story:first-order": "b9100000-0000-4000-8000-000000000005",
+  "editorial_story:sea-for-mom": "b9100000-0000-4000-8000-000000000008",
+  "editorial_story:our-own-key": "b9100000-0000-4000-8000-000000000002",
+  "editorial_story:drawing-again": "b9100000-0000-4000-8000-000000000004"
 };
 
 export function recommendedWishIdForStory(sourceKey: string | null): string | null {

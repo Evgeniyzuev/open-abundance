@@ -16,7 +16,7 @@ vm.runInThisContext(`(function(module,exports){${presentationCode}\n})`, {
   filename: "lib/challengePresentation.ts"
 })(presentationModule, presentationModule.exports);
 
-const { parseChallengeRewardAmount } = presentationModule.exports;
+const { parseChallengeRewardAmount, resolveChallengeRewardAmounts } = presentationModule.exports;
 assert.equal(parseChallengeRewardAmount(0, "ru"), 0, "A zero reward must stay zero");
 assert.equal(parseChallengeRewardAmount({ ru: "Core +1 000$", en: "Core +1,000$" }, "ru"), 1000);
 assert.equal(parseChallengeRewardAmount({ ru: "Core +1 000$", en: "Core +1,000$" }, "en"), 1000);
@@ -24,6 +24,11 @@ assert.equal(parseChallengeRewardAmount("Core +1,000,000$", "en"), 1_000_000);
 assert.equal(parseChallengeRewardAmount("Core +1,5$", "ru"), 1.5);
 assert.equal(parseChallengeRewardAmount({ ru: "Не указана", en: "Not specified" }, "ru"), null);
 assert.equal(parseChallengeRewardAmount(null, "en"), null);
+assert.deepEqual(resolveChallengeRewardAmounts({ core_reward_amount: 2, wallet_reward_amount: 3, reward_amount: 99 }, "ru"), { core_reward_amount: 2, wallet_reward_amount: 3 });
+assert.deepEqual(resolveChallengeRewardAmounts({ reward_amount: 5, reward_account: "wallet" }, "ru"), { core_reward_amount: 0, wallet_reward_amount: 5 });
+assert.deepEqual(resolveChallengeRewardAmounts({ reward_amount: null, reward_label: { en: "Core +1$", ru: "Core +1$" } }, "ru"), { core_reward_amount: 1, wallet_reward_amount: 0 });
+assert.deepEqual(resolveChallengeRewardAmounts({ reward_amount: 0, reward_label: { en: "Core +1$" } }, "en"), { core_reward_amount: 0, wallet_reward_amount: 0 });
+assert.deepEqual(resolveChallengeRewardAmounts({ reward_amount: null, reward_label: null }, "en"), { core_reward_amount: 0, wallet_reward_amount: 0 });
 
 const challenges = read("components/ChallengesApp.tsx");
 const challengeRoute = read("app/api/challenges/route.ts");
@@ -33,9 +38,9 @@ const peerRewardMigration = read("supabase/migrations/20260913090000_peer_review
 assert.doesNotMatch(challenges, /amount\s*\|\|\s*1/, "Unknown or zero rewards must not become $1");
 assert.match(challenges, /core_reward_amount/);
 assert.match(challenges, /wallet_reward_amount/);
-assert.doesNotMatch(challenges, /challenge\.reward_label/, "Challenge UI must use numeric reward columns");
+assert.match(challenges, /resolveChallengeRewardAmounts/, "Old API payloads must be normalized to numeric reward columns");
 assert.match(challengeRoute, /core_reward_amount,wallet_reward_amount/);
-assert.doesNotMatch(challengeRoute, /reward_label/);
+assert.match(challengeRoute, /reward_label,reward_amount,reward_account/, "Old frontend bundles must retain a compatible API response");
 assert.match(challengeCheckRoute, /settle_user_challenge_rewards/);
 assert.doesNotMatch(challengeCheckRoute, /p_reward_account|p_reward_amount/);
 assert.match(rewardMigration, /create or replace function public\.settle_user_challenge_rewards/);

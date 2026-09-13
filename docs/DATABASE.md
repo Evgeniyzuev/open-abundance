@@ -24,6 +24,8 @@ Challenge completion rewards use two numeric columns: `challenges.core_reward_am
 
 The migrations `20260912192306_challenge_dual_account_rewards.sql` and `20260913090000_peer_review_dual_account_rewards.sql` are an expand/contract change. Legacy `reward_label`, `reward_amount`, `reward_account`, and `review_reward_amount` columns remain temporarily so an already deployed API can continue serving traffic. Peer-review answers also keep `reward_amount` as a compatibility mirror while their Core/Wallet snapshots are stored separately. Remove the legacy columns only after the new application version is deployed and the three reward cases (Core, Wallet, and both) have been manually verified.
 
+During the application rollout, `/api/challenges` also returns the three legacy reward fields for older frontend bundles. The new client normalizes an older API response to Core/Wallet amounts only when the two new fields are absent. Once every running API and client is on the numeric contract, remove these compatibility paths together with the legacy columns.
+
 ## Common Commands
 
 Authenticate the CLI first:

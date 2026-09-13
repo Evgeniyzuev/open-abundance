@@ -15,8 +15,10 @@ type ChallengeProgress = {
 
 type ChallengeWithProgress = Pick<
   Database["public"]["Tables"]["challenges"]["Row"],
-  "id" | "title" | "description" | "instructions" | "requirements" | "core_reward_amount" | "wallet_reward_amount" | "category" | "difficulty_level" | "duration_days" | "image_url" | "verification_type" | "verification_logic" | "sort_order" | "track_key" | "track_step" | "action_view"
+  "id" | "title" | "description" | "instructions" | "requirements" | "core_reward_amount" | "wallet_reward_amount" | "reward_label" | "category" | "difficulty_level" | "duration_days" | "image_url" | "verification_type" | "verification_logic" | "sort_order" | "track_key" | "track_step" | "action_view"
 > & {
+  reward_amount?: number | null;
+  reward_account?: string | null;
   prerequisite_challenge_id?: string | null;
   acquisition_series?: string | null;
   acquisition_target?: number | null;
@@ -62,12 +64,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Keep legacy reward fields in the response while older frontend bundles are active.
   const query = supabase
     .from("challenges")
     .select(
       viewerUserId
-        ? "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent,user_challenges(status,updated_at,user_id)"
-        : "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent"
+        ? "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,reward_label,reward_amount,reward_account,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent,user_challenges(status,updated_at,user_id)"
+        : "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,reward_label,reward_amount,reward_account,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent"
     )
     .eq("is_active", true)
     .order("sort_order", { ascending: true })

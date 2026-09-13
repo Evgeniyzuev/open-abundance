@@ -13,7 +13,7 @@ import { signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
-import { parseChallengeRewardAmount } from "@/lib/challengePresentation";
+import { parseChallengeRewardAmount, resolveChallengeRewardAmounts } from "@/lib/challengePresentation";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type LocaleText = Record<string, string> | null;
@@ -53,7 +53,13 @@ type Challenge = {
 type ChallengesResponse = {
   authenticated?: boolean;
   viewerUserId?: string | null;
-  challenges?: Challenge[];
+  challenges?: (Omit<Challenge, "core_reward_amount" | "wallet_reward_amount"> & {
+    core_reward_amount?: number | null;
+    wallet_reward_amount?: number | null;
+    reward_amount?: number | null;
+    reward_account?: string | null;
+    reward_label?: RewardLabel;
+  })[];
   error?: string;
 };
 
@@ -281,7 +287,10 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
       if (requestId !== loadRequestIdRef.current) return;
       if (mutationVersionAtStart !== challengeMutationVersionRef.current) return;
 
-      const nextChallenges = payload.challenges ?? [];
+      const nextChallenges: Challenge[] = (payload.challenges ?? []).map((challenge) => ({
+        ...challenge,
+        ...resolveChallengeRewardAmounts(challenge, locale)
+      }));
       const serverPermanentChallenges = nextChallenges.filter((challenge) => challenge.is_permanent && (isActiveChallenge(challenge) || isCompletedChallenge(challenge)));
       const serverCompletedChallenges = nextChallenges.filter((challenge) => !challenge.is_permanent && isCompletedChallenge(challenge));
       const serverAcceptedChallenges = nextChallenges.filter((challenge) => !challenge.is_permanent && isActiveChallenge(challenge));
@@ -301,7 +310,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     } finally {
       if (isMounted() && requestId === loadRequestIdRef.current) setIsRefreshing(false);
     }
-  }, [user]);
+  }, [locale, user]);
 
   const loadProjects = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
     const requestId = projectLoadRequestIdRef.current + 1;

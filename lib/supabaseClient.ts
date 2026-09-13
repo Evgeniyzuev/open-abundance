@@ -11,9 +11,10 @@ export const POST_AUTH_REWARD_STORAGE_KEY = "openAbundancePostAuthReward";
 export type AuthMethod = "google" | "email";
 
 export type RegistrationReward = {
-  account: "core" | "wallet";
-  amount: number;
-  balanceAfter: number | null;
+  coreAmount: number;
+  walletAmount: number;
+  coreBalanceAfter: number | null;
+  walletBalanceAfter: number | null;
   claimed: boolean;
 };
 
@@ -142,13 +143,15 @@ export function consumePostAuthReward(): RegistrationReward | null {
     window.sessionStorage.removeItem(POST_AUTH_REWARD_STORAGE_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<RegistrationReward>;
-    if (!value.claimed || (value.account !== "core" && value.account !== "wallet") || typeof value.amount !== "number") {
-      return null;
-    }
+    if (!value.claimed) return null;
+    const legacy = value as Partial<RegistrationReward> & { account?: "core" | "wallet"; amount?: number; balanceAfter?: number | null };
+    const coreAmount = typeof value.coreAmount === "number" ? value.coreAmount : legacy.account === "core" ? Number(legacy.amount ?? 0) : 0;
+    const walletAmount = typeof value.walletAmount === "number" ? value.walletAmount : legacy.account === "wallet" ? Number(legacy.amount ?? 0) : 0;
     return {
-      account: value.account,
-      amount: value.amount,
-      balanceAfter: typeof value.balanceAfter === "number" ? value.balanceAfter : null,
+      coreAmount,
+      walletAmount,
+      coreBalanceAfter: typeof value.coreBalanceAfter === "number" ? value.coreBalanceAfter : legacy.account === "core" && typeof legacy.balanceAfter === "number" ? legacy.balanceAfter : null,
+      walletBalanceAfter: typeof value.walletBalanceAfter === "number" ? value.walletBalanceAfter : legacy.account === "wallet" && typeof legacy.balanceAfter === "number" ? legacy.balanceAfter : null,
       claimed: true
     };
   } catch {

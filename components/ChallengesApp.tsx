@@ -9,11 +9,12 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
-import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
+import { signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { parseChallengeRewardAmount } from "@/lib/challengePresentation";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type LocaleText = Record<string, string> | null;
 type RewardLabel = LocaleText | string | number | null;
@@ -28,7 +29,8 @@ type Challenge = {
   description: LocaleText;
   instructions: LocaleText;
   requirements: LocaleText;
-  reward_label: RewardLabel;
+  core_reward_amount: number;
+  wallet_reward_amount: number;
   category: string;
   difficulty_level: number;
   duration_days: number | null;
@@ -44,10 +46,7 @@ type Challenge = {
   acquisition_series?: string | null;
   acquisition_target?: number | null;
   acquisition_metric_key?: string | null;
-  reward_amount?: number | null;
-  reward_account?: string | null;
   is_permanent?: boolean;
-  review_reward_amount?: number | null;
   user_challenge_status?: ChallengeStatus | null;
 };
 
@@ -101,17 +100,18 @@ type CheckChallengeResponse = {
   core?: CoreAccount | null;
   wallet?: WalletAccount | null;
   message?: string;
-  rewardAmount?: number;
-  rewardAccount?: string;
+  coreRewardAmount?: number;
+  walletRewardAmount?: number;
   rewardClaimed?: boolean;
   error?: string;
 };
 
 type CompletionReward = {
-  amount: number;
-  account: string;
+  coreAmount: number;
+  walletAmount: number;
   claimed: boolean;
   coreBalanceAfter?: number | null;
+  walletBalanceAfter?: number | null;
 };
 type TodayItem = {
   id: string;
@@ -229,23 +229,16 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     }
 
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
-
       const params = new URLSearchParams({
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         ts: String(Date.now())
       });
-      const response = await fetch(`/api/today?${params.toString()}`, {
+      const response = await fetchWithSupabaseAuth(`/api/today?${params.toString()}`, {
         cache: "no-store",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
           "Cache-Control": "no-cache"
         }
-      });
+      }, { authRequired: true });
       const payload = (await response.json()) as TodayPayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load Today.");
       if (isMounted()) setToday(payload);
@@ -268,28 +261,12 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setIsRefreshing(true);
 
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-      if (user && !session?.access_token) {
-        throw new Error("Missing Supabase session for authenticated challenges.");
-      }
-
       const params = new URLSearchParams({ ts: String(Date.now()) });
       if (user) params.set("auth", "required");
-      const headers = new Headers({
-        "Cache-Control": "no-cache"
-      });
-
-      if (session?.access_token) {
-        headers.set("Authorization", `Bearer ${session.access_token}`);
-      }
-
-      const response = await fetch(`/api/challenges?${params.toString()}`, {
+      const response = await fetchWithSupabaseAuth(`/api/challenges?${params.toString()}`, {
         cache: "no-store",
-        headers
-      });
+        headers: { "Cache-Control": "no-cache" }
+      }, { authRequired: Boolean(user) });
       const payload = (await response.json()) as ChallengesResponse;
 
       if (!response.ok || payload.error) {
@@ -340,28 +317,12 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setIsProjectsRefreshing(true);
 
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-      if (user && !session?.access_token) {
-        throw new Error("Missing Supabase session for authenticated projects.");
-      }
-
       const params = new URLSearchParams({ ts: String(Date.now()) });
       if (user) params.set("auth", "required");
-      const headers = new Headers({
-        "Cache-Control": "no-cache"
-      });
-
-      if (session?.access_token) {
-        headers.set("Authorization", `Bearer ${session.access_token}`);
-      }
-
-      const response = await fetch(`/api/projects?${params.toString()}`, {
+      const response = await fetchWithSupabaseAuth(`/api/projects?${params.toString()}`, {
         cache: "no-store",
-        headers
-      });
+        headers: { "Cache-Control": "no-cache" }
+      }, { authRequired: Boolean(user) });
       const payload = (await response.json()) as ProjectsResponse;
 
       if (!response.ok || payload.error) {
@@ -464,16 +425,14 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   }, [active, activeTab, loadChallenges, loadProjects, loadToday]);
 
   async function acceptChallenge(challenge: Challenge) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/accept", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/accept", {
       method: "POST",
       cache: "no-store",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({ challengeId: challenge.id })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { userId?: string; challengeId?: string; status?: ChallengeStatus; error?: string };
 
     if (!response.ok || payload.error) {
@@ -491,16 +450,14 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   }
 
   async function giveUpChallenge(challenge: Challenge) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/giveup", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/giveup", {
       method: "POST",
       cache: "no-store",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({ challengeId: challenge.id })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { userId?: string; challengeId?: string; status?: ChallengeStatus; error?: string };
 
     if (!response.ok || payload.error) {
@@ -517,16 +474,14 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   }
 
   async function applyToProject(project: Project, message: string) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/projects/apply", {
+    const response = await fetchWithSupabaseAuth("/api/projects/apply", {
       method: "POST",
       cache: "no-store",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({ projectId: project.id, message })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { userId?: string; projectId?: string; status?: ProjectApplicationStatus; error?: string };
 
     if (!response.ok || payload.error) {
@@ -556,27 +511,16 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setTodayChecking(true);
     setTodayMessage(null);
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-
-      if (!session?.access_token) {
-        setTodayMessage(t("challenges.signInFirst"));
-        return;
-      }
-
-      const response = await fetch("/api/today/check", {
+      const response = await fetchWithSupabaseAuth("/api/today/check", {
         method: "POST",
         cache: "no-store",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         })
-      });
+      }, { authRequired: true });
       const payload = (await response.json()) as TodayPayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("today.checkFailed"));
 
@@ -992,7 +936,7 @@ function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: 
   const completed = challenge.user_challenge_status === "completed";
   const locked = !accepted && !completed && (challenge.difficulty_level > userLevel || challenge.prerequisite_completed === false);
   const title = displayText(challenge.title, t("challenges.challenge"), locale);
-  const reward = rewardText(challenge.reward_label, locale, challenge.reward_amount);
+  const reward = challengeRewardText(challenge, locale);
   const rewardLabel = reward || t("challenges.rewardUnknown");
   const state = getChallengeRowState(challenge, userLevel, t);
 
@@ -1082,27 +1026,13 @@ function ChallengeDetailModal({
     setCheckStatus("loading");
     setCheckMessage(null);
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session },
-        error
-      } = await supabase.auth.getSession();
-
-      if (error) throw error;
-      if (!session?.access_token) {
-        setCheckMessage(t("challenges.signInFirst"));
-        setCheckStatus("idle");
-        return;
-      }
-
-      const response = await fetch("/api/challenges/check", {
+      const response = await fetchWithSupabaseAuth("/api/challenges/check", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ challengeId: challenge.id })
-      });
+      }, { authRequired: true });
       const payload = (await response.json()) as CheckChallengeResponse;
 
       if (!response.ok || payload.error) {
@@ -1116,10 +1046,11 @@ function ChallengeDetailModal({
       }
 
       const reward = {
-        amount: payload.rewardAmount ?? parseChallengeRewardAmount(challenge.reward_label, locale) ?? 0,
-        account: payload.rewardAccount ?? "core",
+        coreAmount: payload.coreRewardAmount ?? challenge.core_reward_amount,
+        walletAmount: payload.walletRewardAmount ?? challenge.wallet_reward_amount,
         claimed: Boolean(payload.rewardClaimed),
-        coreBalanceAfter: payload.core?.balance ?? null
+        coreBalanceAfter: payload.core?.balance ?? null,
+        walletBalanceAfter: payload.wallet?.balance ?? null
       };
       onApplyServerData({ core: payload.core, wallet: payload.wallet });
       onComplete(challenge, reward);
@@ -1162,20 +1093,18 @@ function ChallengeDetailModal({
 
   async function recordCompoundQuizPass(score: number) {
     setCheckMessage(null);
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/progress", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
       method: "POST",
       cache: "no-store",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         verificationLogic: "calculate_time_to_goal",
         proofKey: "compound_quiz_passed",
         score
       })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { error?: string };
 
     if (!response.ok || payload.error) {
@@ -1184,30 +1113,28 @@ function ChallengeDetailModal({
   }
 
   async function recordAttentionProof(minutesPerDay: number, hourlyValueUsd: number) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/progress", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
       method: "POST",
       cache: "no-store",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         verificationLogic: "attention_value_audit",
         proofKey: "attention_audit_completed",
         minutesPerDay,
         hourlyValueUsd
       })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? t("challenges.attention.saveFailed"));
   }
 
   async function recordCoreLawProof(score: number) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/progress", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
       method: "POST",
       cache: "no-store",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ verificationLogic: "core_law_understood", proofKey: "core_law_understood", score })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? t("challenges.coreQuiz.recordFailed"));
   }
@@ -1233,7 +1160,7 @@ function ChallengeDetailModal({
           <div className="challenge-detail-grid">
             <span>
               <Trophy size={17} />
-              {rewardText(challenge.reward_label, locale, challenge.reward_amount) || t("challenges.rewardUnknown")}
+              {challengeRewardText(challenge, locale) || t("challenges.rewardUnknown")}
             </span>
             <span>
               <ShieldCheck size={17} />
@@ -1314,6 +1241,7 @@ function ChallengeDetailModal({
           {needsAppTesting ? (
             <AppTestingSurvey
               author={author}
+              challengeReward={{ coreAmount: challenge.core_reward_amount, walletAmount: challenge.wallet_reward_amount }}
               locale={locale}
               t={t}
               onApplyServerData={onApplyServerData}
@@ -1452,7 +1380,7 @@ function ProjectDetailModal({
                   <article className="project-task" key={task.id}>
                     <strong>{displayText(task.title, t("tasks.task"), locale)}</strong>
                     <p>{displayText(task.description, "", locale)}</p>
-                    <span>{rewardText(task.reward_label, locale) || t("challenges.rewardUnknown")} - {getVerificationLabel(task.verification_type, t)}</span>
+                    <span>{projectRewardText(task.reward_label, locale) || t("challenges.rewardUnknown")} - {getVerificationLabel(task.verification_type, t)}</span>
                   </article>
                 ))}
               </div>
@@ -1495,12 +1423,14 @@ function ProjectDetailModal({
 }
 
 function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenFeedDrafts }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void; onOpenFeedDrafts: () => void }) {
+  const rewardSummary = formatRewardAmounts(reward.coreAmount, reward.walletAmount, locale);
+
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="challenge-receipt-title">
         <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
-        <p>{reward.claimed ? t("challenges.rewardClaimed", { amount: formatTodayMoney(reward.amount, locale), account: reward.account === "core" ? "Core" : "Wallet" }) : t("challenges.rewardAlreadyClaimed")}</p>
+        <p>{reward.claimed ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : t("challenges.rewardAlreadyClaimed")}</p>
         <div className="challenge-receipt">
           <div className="challenge-receipt-row">
             <span>{t("challenges.receipt.challenge")}</span>
@@ -1512,12 +1442,18 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
           </div>
           <div className="challenge-receipt-row emphasis">
             <span>{t("challenges.receipt.reward")}</span>
-            <strong>+{formatTodayMoney(reward.amount, locale)}</strong>
+            <strong>{rewardSummary}</strong>
           </div>
-          {reward.account === "core" && typeof reward.coreBalanceAfter === "number" ? (
+          {reward.coreAmount > 0 && typeof reward.coreBalanceAfter === "number" ? (
             <div className="challenge-receipt-row">
               <span>{t("challenges.receipt.balanceAfter")}</span>
               <strong>{formatTodayMoney(reward.coreBalanceAfter, locale)}</strong>
+            </div>
+          ) : null}
+          {reward.walletAmount > 0 && typeof reward.walletBalanceAfter === "number" ? (
+            <div className="challenge-receipt-row">
+              <span>{t("challenges.receipt.walletBalanceAfter")}</span>
+              <strong>{formatTodayMoney(reward.walletBalanceAfter, locale)}</strong>
             </div>
           ) : null}
         </div>
@@ -1566,11 +1502,22 @@ function parseUsdTextAmount(value: string): number {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-function rewardText(value: RewardLabel, locale: AppLocale, explicitAmount?: number | null): string {
-  const amount = typeof explicitAmount === "number" && Number.isFinite(explicitAmount)
-    ? explicitAmount
-    : parseChallengeRewardAmount(value, locale);
+function projectRewardText(value: RewardLabel, locale: AppLocale): string {
+  const amount = parseChallengeRewardAmount(value, locale);
   return amount === null ? "" : formatTodayMoney(amount, locale);
+}
+
+function challengeRewardText(challenge: Pick<Challenge, "core_reward_amount" | "wallet_reward_amount">, locale: AppLocale): string {
+  return formatRewardAmounts(challenge.core_reward_amount, challenge.wallet_reward_amount, locale);
+}
+
+function formatRewardAmounts(coreAmount: number, walletAmount: number, locale: AppLocale): string {
+  const core = Number.isFinite(Number(coreAmount)) ? Number(coreAmount) : 0;
+  const wallet = Number.isFinite(Number(walletAmount)) ? Number(walletAmount) : 0;
+  const rewards: string[] = [];
+  if (core > 0) rewards.push(`Core +${formatTodayMoney(core, locale)}`);
+  if (wallet > 0) rewards.push(`Wallet +${formatTodayMoney(wallet, locale)}`);
+  return rewards.length > 0 ? rewards.join(" · ") : `Core +${formatTodayMoney(0, locale)}`;
 }
 
 function formatTodayMoney(value: number, locale: AppLocale): string {
@@ -1668,16 +1615,4 @@ function compareRecommendedChallenges(left: Challenge, right: Challenge): number
   const sortOrder = left.sort_order - right.sort_order;
   if (sortOrder !== 0) return sortOrder;
   return left.difficulty_level - right.difficulty_level;
-}
-
-async function getAccessToken(): Promise<string> {
-  const supabase = getBrowserSupabaseClient();
-  const {
-    data: { session },
-    error
-  } = await supabase.auth.getSession();
-
-  if (error) throw error;
-  if (!session?.access_token) throw new Error("Supabase session is missing.");
-  return session.access_token;
 }

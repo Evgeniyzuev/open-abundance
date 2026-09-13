@@ -199,6 +199,7 @@ export type Database = {
         Row: {
           action_view: string | null
           category: string
+          core_reward_amount: number
           created_at: string
           description: Json
           difficulty_level: number
@@ -216,10 +217,12 @@ export type Database = {
           track_step: number | null
           verification_logic: string | null
           verification_type: string
+          wallet_reward_amount: number
         }
         Insert: {
           action_view?: string | null
           category?: string
+          core_reward_amount?: number
           created_at?: string
           description?: Json
           difficulty_level?: number
@@ -237,10 +240,12 @@ export type Database = {
           track_step?: number | null
           verification_logic?: string | null
           verification_type?: string
+          wallet_reward_amount?: number
         }
         Update: {
           action_view?: string | null
           category?: string
+          core_reward_amount?: number
           created_at?: string
           description?: Json
           difficulty_level?: number
@@ -258,6 +263,7 @@ export type Database = {
           track_step?: number | null
           verification_logic?: string | null
           verification_type?: string
+          wallet_reward_amount?: number
         }
         Relationships: [
           {
@@ -2120,6 +2126,7 @@ export type Database = {
       user_challenges: {
         Row: {
           challenge_id: string
+          core_reward_amount: number
           created_at: string
           id: string
           reward_account: string | null
@@ -2130,9 +2137,11 @@ export type Database = {
           updated_at: string
           user_id: string
           verification_data: Json
+          wallet_reward_amount: number
         }
         Insert: {
           challenge_id: string
+          core_reward_amount?: number
           created_at?: string
           id?: string
           reward_account?: string | null
@@ -2143,9 +2152,11 @@ export type Database = {
           updated_at?: string
           user_id: string
           verification_data?: Json
+          wallet_reward_amount?: number
         }
         Update: {
           challenge_id?: string
+          core_reward_amount?: number
           created_at?: string
           id?: string
           reward_account?: string | null
@@ -2156,6 +2167,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verification_data?: Json
+          wallet_reward_amount?: number
         }
         Relationships: [
           {
@@ -3349,6 +3361,40 @@ export type Database = {
           reward_claimed: boolean
           rewarded_account: string
           rewarded_amount: number
+        }[]
+      }
+      audit_peer_review_answer: {
+        Args: { p_answer_id: string; p_quality_status: string; p_reason?: string | null }
+        Returns: {
+          answer_id: string
+          reviewer_user_id: string
+          quality_status: string
+          score_delta: number
+          trust_penalty: number
+          reward_status: string
+          reward_amount: number
+        }[]
+      }
+      settle_peer_review_answer: {
+        Args: { p_answer_id: string; p_quality_status: string; p_reason?: string | null }
+        Returns: {
+          answer_id: string
+          reviewer_user_id: string
+          quality_status: string
+          score_delta: number
+          trust_penalty: number
+          reward_status: string
+          reward_amount: number
+          review_score: number
+        }[]
+      }
+      settle_user_challenge_rewards: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: {
+          challenge_status: string
+          reward_claimed: boolean
+          rewarded_core_amount: number
+          rewarded_wallet_amount: number
         }[]
       }
       count_activated_referrals: {

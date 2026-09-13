@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { ACQUISITION_PLATFORM_RULES } from "@/lib/acquisitionChallenges";
 
 type Challenge = {
+  core_reward_amount: number;
   id: string;
   verification_logic: string | null;
   acquisition_target?: number | null;
   acquisition_metric_key?: string | null;
   user_challenge_status?: string | null;
+  wallet_reward_amount: number;
 };
 
 type Submission = {
@@ -38,7 +40,7 @@ export default function AcquisitionChallengePanel({
   challenge: Challenge;
   locale: "ru" | "en";
   onRefresh: () => Promise<void>;
-  onComplete: (reward: { amount: number; account: string; claimed: boolean }) => void;
+  onComplete: (reward: { coreAmount: number; walletAmount: number; claimed: boolean; coreBalanceAfter?: number | null; walletBalanceAfter?: number | null }) => void;
   readOnly?: boolean;
 }) {
   const ru = locale === "ru";
@@ -80,9 +82,7 @@ export default function AcquisitionChallengePanel({
   const approvedPublications = useMemo(() => submissions.filter((submission) => submission.submission_type === "publication" && submission.status === "approved"), [submissions]);
 
   async function load() {
-    const token = await getToken();
-    if (!token) return;
-    const response = await fetch("/api/challenges/acquisition", { cache: "no-store", headers: { Authorization: "Bearer " + token } });
+    const response = await fetchWithSupabaseAuth("/api/challenges/acquisition", { cache: "no-store" }, { authRequired: true });
     const payload = await response.json();
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Could not load acquisition status.");
 setSubmissions(payload.submissions ?? []);
@@ -96,12 +96,11 @@ setSubmissions(payload.submissions ?? []);
     setBusy(true);
     setMessage("");
     try {
-      const token = await getToken();
-      const response = await fetch("/api/challenges/acquisition", {
+      const response = await fetchWithSupabaseAuth("/api/challenges/acquisition", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "prepare", challengeId: challenge.id })
-      });
+      }, { authRequired: true });
       const payload = await response.json();
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Could not prepare link.");
       setTrackedUrl(payload.trackedUrl ?? "");
@@ -117,15 +116,14 @@ setSubmissions(payload.submissions ?? []);
     setBusy(true);
     setMessage("");
     try {
-      const token = await getToken();
       const body = isMetric
         ? { action: "submit", challengeId: challenge.id, submissionType: "metric", canonicalUrl: evidenceUrl, platform, publicationSubmissionId: publicationId, metricValue: Number(metricValue), metricEvidenceUrl: evidenceUrl }
         : { action: "submit", challengeId: challenge.id, submissionType: "publication", canonicalUrl: url, platform, title, coverUrl, referralUrl, bodyExcerpt: context };
-      const response = await fetch("/api/challenges/acquisition", {
+      const response = await fetchWithSupabaseAuth("/api/challenges/acquisition", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
-      });
+      }, { authRequired: true });
       const payload = await response.json();
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Could not submit evidence.");
       setMessage(ru ? "Отправлено. Материал передан на проверку." : "Submitted. It will be reviewed by three participants.");
@@ -144,14 +142,19 @@ setSubmissions(payload.submissions ?? []);
       await load();
       await onRefresh();
       if (readOnly) return;
-      const token = await getToken();
-      const response = await fetch("/api/challenges/check", {
+      const response = await fetchWithSupabaseAuth("/api/challenges/check", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ challengeId: challenge.id })
-      });
+      }, { authRequired: true });
       const payload = await response.json();
-      if (payload.completed) onComplete({ amount: Number(payload.rewardAmount ?? 0), account: payload.rewardAccount ?? "core", claimed: Boolean(payload.rewardClaimed) });
+      if (payload.completed) onComplete({
+        coreAmount: Number(payload.coreRewardAmount ?? challenge.core_reward_amount),
+        walletAmount: Number(payload.walletRewardAmount ?? challenge.wallet_reward_amount),
+        claimed: Boolean(payload.rewardClaimed),
+        coreBalanceAfter: payload.core?.balance ?? null,
+        walletBalanceAfter: payload.wallet?.balance ?? null
+      });
       else if (payload.message) setMessage(payload.message);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not refresh status.");
@@ -203,10 +206,4 @@ setSubmissions(payload.submissions ?? []);
       {message ? <p className="challenge-note">{message}</p> : null}
     </section>
   );
-}
-
-async function getToken(): Promise<string> {
-  const supabase = getBrowserSupabaseClient();
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? "";
 }

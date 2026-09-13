@@ -134,9 +134,10 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     registrationReward: {
-      account: registrationReward.account,
-      amount: registrationReward.amount,
-      balanceAfter: registrationReward.balanceAfter,
+      coreAmount: registrationReward.coreAmount,
+      walletAmount: registrationReward.walletAmount,
+      coreBalanceAfter: registrationReward.coreBalanceAfter,
+      walletBalanceAfter: registrationReward.walletBalanceAfter,
       claimed: registrationReward.claimed
     },
     userId: user.id
@@ -146,43 +147,40 @@ export async function POST(request: NextRequest) {
 async function grantRegistrationReward(
   supabase: ReturnType<typeof createClient<Database>>,
   userId: string
-): Promise<{ account: "core"; amount: number; balanceAfter: number | null; claimed: boolean; error?: string }> {
+): Promise<{ coreAmount: number; walletAmount: number; coreBalanceAfter: number | null; walletBalanceAfter: number | null; claimed: boolean; error?: string }> {
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id,reward_label")
+    .select("id,core_reward_amount,wallet_reward_amount")
     .eq("verification_logic", "signup")
     .order("sort_order", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  const emptyReward = { account: "core" as const, amount: 0, balanceAfter: null, claimed: false };
+  const emptyReward = { coreAmount: 0, walletAmount: 0, coreBalanceAfter: null, walletBalanceAfter: null, claimed: false };
   if (challengeError) return { ...emptyReward, error: challengeError.message };
   if (!challenge) return emptyReward;
 
-  const rewardAmount = getRewardAmount(challenge.reward_label);
-
-  const { data: completionRows, error: completionError } = await supabase.rpc("complete_user_challenge", {
+  const { data: completionRows, error: completionError } = await supabase.rpc("settle_user_challenge_rewards", {
     p_user_id: userId,
-    p_challenge_id: challenge.id,
-    p_reward_account: "core",
-    p_reward_amount: rewardAmount
+    p_challenge_id: challenge.id
   });
 
-  if (completionError) return { ...emptyReward, amount: rewardAmount, error: completionError.message };
+  if (completionError) return { ...emptyReward, error: completionError.message };
 
-  const { data: core, error: coreError } = await supabase
-    .from("core_accounts")
-    .select("balance")
-    .eq("user_id", userId)
-    .single();
+  const [{ data: core, error: coreError }, { data: wallet, error: walletError }] = await Promise.all([
+    supabase.from("core_accounts").select("balance").eq("user_id", userId).single(),
+    supabase.from("wallet_accounts").select("balance").eq("user_id", userId).single()
+  ]);
 
-  if (coreError) return { ...emptyReward, amount: rewardAmount, error: coreError.message };
+  if (coreError) return { ...emptyReward, error: coreError.message };
+  if (walletError) return { ...emptyReward, error: walletError.message };
 
   const [completion] = completionRows ?? [];
   return {
-    account: "core",
-    amount: Number(completion?.rewarded_amount ?? rewardAmount),
-    balanceAfter: Number(core.balance),
+    coreAmount: Number(completion?.rewarded_core_amount ?? challenge.core_reward_amount),
+    walletAmount: Number(completion?.rewarded_wallet_amount ?? challenge.wallet_reward_amount),
+    coreBalanceAfter: Number(core.balance),
+    walletBalanceAfter: Number(wallet.balance),
     claimed: Boolean(completion?.reward_claimed)
   };
 }
@@ -193,26 +191,6 @@ function readObject(value: unknown): Record<string, unknown> {
 
 function textMetadata(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function getRewardAmount(value: Database["public"]["Tables"]["challenges"]["Row"]["reward_label"]): number {
-  const raw = rewardLabelText(value);
-  const amount = raw.match(/(\d+(?:[.,]\d+)?)\s*\$/)?.[1] ?? raw.match(/\+(\d+(?:[.,]\d+)?)/)?.[1] ?? raw.match(/(\d+(?:[.,]\d+)?)/)?.[1];
-  return amount ? Number(amount.replace(",", ".")) : 1;
-}
-
-function rewardLabelText(value: Database["public"]["Tables"]["challenges"]["Row"]["reward_label"]): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const record = value as Record<string, unknown>;
-    const en = record.en;
-    const ru = record.ru;
-    if (typeof en === "string") return en;
-    if (typeof ru === "string") return ru;
-  }
-
-  return "2$";
 }
 
 async function readJsonBody(request: NextRequest): Promise<{

@@ -18,6 +18,12 @@ Supabase project ref: `bsikxrsguwketlloflgi`
 - `supabase/seed.sql` stores optional local seed data.
 - `lib/database.types.ts` should be generated from the remote schema when the API surface changes.
 
+## Challenge reward amounts
+
+Challenge completion rewards use two numeric columns: `challenges.core_reward_amount` and `challenges.wallet_reward_amount`. The UI adds the `Core`/`Wallet` labels and currency formatting. `settle_user_challenge_rewards(user_id, challenge_id)` reads the stored values and settles both balances in one transaction; `user_challenges` keeps both amounts as the completion snapshot.
+
+The migrations `20260912192306_challenge_dual_account_rewards.sql` and `20260913090000_peer_review_dual_account_rewards.sql` are an expand/contract change. Legacy `reward_label`, `reward_amount`, `reward_account`, and `review_reward_amount` columns remain temporarily so an already deployed API can continue serving traffic. Peer-review answers also keep `reward_amount` as a compatibility mirror while their Core/Wallet snapshots are stored separately. Remove the legacy columns only after the new application version is deployed and the three reward cases (Core, Wallet, and both) have been manually verified.
+
 ## Common Commands
 
 Authenticate the CLI first:
@@ -40,10 +46,10 @@ Pull the current remote schema into a migration:
 pnpm db:pull
 ```
 
-Create a new migration:
+Create a new migration with the globally installed CLI:
 
 ```bash
-pnpm dlx supabase migration new <name>
+supabase migration new <name>
 ```
 
 Apply local migrations to the linked remote project:

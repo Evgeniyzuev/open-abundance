@@ -142,14 +142,28 @@ export async function POST(request: NextRequest) {
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
     const settlement = await settleTaskIfReady(db, answer.task_id);
-    const { data: settledAnswer } = await db.from("peer_review_answers").select("reward_amount,reward_status").eq("id", answer.id).maybeSingle();
+    const { data: settledAnswer } = await db.from("peer_review_answers").select("reward_amount,core_reward_amount,wallet_reward_amount,reward_status").eq("id", answer.id).maybeSingle();
     const ownReward = Number(settledAnswer?.reward_amount ?? 0);
-    await recordProductEvent({ entityId: answer.id, entityType: "peer_review_answer", eventName: "peer_review_submitted", properties: { verdict: body.verdict, task_status: settlement.taskStatus }, source: "server", userId: user.id });
+    await recordProductEvent({
+      entityId: answer.id,
+      entityType: "peer_review_answer",
+      eventName: "peer_review_submitted",
+      properties: {
+        verdict: body.verdict,
+        task_status: settlement.taskStatus,
+        core_reward_amount: Number(settledAnswer?.core_reward_amount ?? 0),
+        wallet_reward_amount: Number(settledAnswer?.wallet_reward_amount ?? 0)
+      },
+      source: "server",
+      userId: user.id
+    });
 
     return NextResponse.json({
       status: "submitted",
       taskStatus: settlement.taskStatus,
       reward: ownReward,
+      coreRewardAmount: Number(settledAnswer?.core_reward_amount ?? 0),
+      walletRewardAmount: Number(settledAnswer?.wallet_reward_amount ?? 0),
       rewardStatus: settledAnswer?.reward_status ?? "pending",
       authorCompleted: settlement.authorCompleted,
       progress: await getProgress(db, user.id),
@@ -282,19 +296,25 @@ async function operatorFinalize(db: any, taskId: string, verdict: "pass" | "fail
 }
 
 async function completeAuthorChallenge(db: any, submission: any): Promise<boolean> {
-  const { data: challenge } = await db.from("challenges").select("id,reward_amount,reward_account,reward_label").eq("id", submission.challenge_id).maybeSingle();
-  const rewardAmount = Number(challenge?.reward_amount ?? parseRewardAmount(challenge?.reward_label));
-  const rewardAccount = challenge?.reward_account ?? "core";
-  const { data, error } = await db.rpc("complete_user_challenge", {
+  const { data, error } = await db.rpc("settle_user_challenge_rewards", {
     p_user_id: submission.user_id,
-    p_challenge_id: submission.challenge_id,
-    p_reward_account: rewardAccount,
-    p_reward_amount: rewardAmount
+    p_challenge_id: submission.challenge_id
   });
   if (error) return false;
   const result = data?.[0];
   if (result?.reward_claimed) {
-    await recordProductEvent({ entityId: submission.challenge_id, entityType: "challenge", eventName: "challenge_completed", properties: { reward_account: rewardAccount, reward_amount: rewardAmount, via: "peer_review" }, source: "server", userId: submission.user_id });
+    await recordProductEvent({
+      entityId: submission.challenge_id,
+      entityType: "challenge",
+      eventName: "challenge_completed",
+      properties: {
+        core_reward_amount: Number(result.rewarded_core_amount ?? 0),
+        wallet_reward_amount: Number(result.rewarded_wallet_amount ?? 0),
+        via: "peer_review"
+      },
+      source: "server",
+      userId: submission.user_id
+    });
   }
   return Boolean(result?.reward_claimed);
 }
@@ -330,12 +350,6 @@ async function getProgress(db: any, userId: string) {
     nextRewardBlocked: Boolean(verificationData.next_reward_blocked),
     lastRewardAt: verificationData.last_reward_at ?? null
   };
-}
-
-function parseRewardAmount(value: unknown): number {
-  const text = typeof value === "string" ? value : value && typeof value === "object" && !Array.isArray(value) ? String((value as any).en ?? (value as any).ru ?? "") : String(value ?? "");
-  const match = text.match(/(\d+(?:[.,]\d+)?)\s*\$|\+(\d+(?:[.,]\d+)?)/);
-  return Number(String(match?.[1] ?? match?.[2] ?? 1).replace(",", "."));
 }
 
 function isUuid(value: string): boolean {

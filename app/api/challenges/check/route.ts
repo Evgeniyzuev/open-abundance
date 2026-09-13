@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import type { Database, Json } from "@/lib/database.types";
+import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { syncTodayForUser } from "@/lib/serverToday";
 
@@ -106,13 +106,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const rewardAmount = Number((challenge as any).reward_amount ?? getRewardAmount(challenge.reward_label));
-  const rewardAccount = String((challenge as any).reward_account ?? "core");
-  const { data: completion, error: completionError } = await supabase.rpc("complete_user_challenge", {
+  const { data: completion, error: completionError } = await supabase.rpc("settle_user_challenge_rewards", {
     p_user_id: user.id,
-    p_challenge_id: challenge.id,
-    p_reward_account: rewardAccount,
-    p_reward_amount: rewardAmount
+    p_challenge_id: challenge.id
   });
 
   if (completionError) {
@@ -126,7 +122,10 @@ export async function POST(request: NextRequest) {
       entityId: challenge.id,
       entityType: "challenge",
       eventName: "challenge_completed",
-      properties: { reward_account: result.rewarded_account ?? "core", reward_amount: Number(result.rewarded_amount ?? rewardAmount) },
+      properties: {
+        core_reward_amount: Number(result.rewarded_core_amount ?? challenge.core_reward_amount),
+        wallet_reward_amount: Number(result.rewarded_wallet_amount ?? challenge.wallet_reward_amount)
+      },
       source: "server",
       userId: user.id
     });
@@ -194,8 +193,8 @@ export async function POST(request: NextRequest) {
     wallet: walletResult.data,
     rewardClaimed: Boolean(result?.reward_claimed),
     feedPostId,
-    rewardAccount: result?.rewarded_account ?? rewardAccount,
-    rewardAmount: Number(result?.rewarded_amount ?? rewardAmount)
+    coreRewardAmount: Number(result?.rewarded_core_amount ?? challenge.core_reward_amount),
+    walletRewardAmount: Number(result?.rewarded_wallet_amount ?? challenge.wallet_reward_amount)
   });
 }
 
@@ -726,26 +725,6 @@ function hasThreeSteps(value: string | null | undefined): boolean {
 
   const numbered = text.match(/(?:^|\s)(?:[1-3][.)]|шаг\s*[1-3]|step\s*[1-3])/gi) ?? [];
   return new Set(numbered.map((item) => item.replace(/\s+/g, "").toLowerCase())).size >= 3;
-}
-
-function getRewardAmount(value: Json): number {
-  const raw = rewardLabelText(value);
-  const amount = raw.match(/(\d+(?:[.,]\d+)?)\s*\$/)?.[1] ?? raw.match(/\+(\d+(?:[.,]\d+)?)/)?.[1] ?? raw.match(/(\d+(?:[.,]\d+)?)/)?.[1];
-  return amount ? Number(amount.replace(",", ".")) : 1;
-}
-
-function rewardLabelText(value: Json): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const record = value as Record<string, Json | undefined>;
-    const en = record.en;
-    const ru = record.ru;
-    if (typeof en === "string") return en;
-    if (typeof ru === "string") return ru;
-  }
-
-  return "1$";
 }
 
 function isUuid(value: string): boolean {

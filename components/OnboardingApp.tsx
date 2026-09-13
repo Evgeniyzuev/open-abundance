@@ -59,8 +59,8 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     if (reward) {
       setRegistrationReward(reward);
       trackProductEvent("registration_reward_viewed", {
-        account: reward.account,
-        amount: reward.amount,
+        core_amount: reward.coreAmount,
+        wallet_amount: reward.walletAmount,
         version: "abundance_mission_v3"
       });
     }
@@ -90,8 +90,8 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
           t={t}
           onClose={() => {
             trackProductEvent("registration_reward_closed", {
-              account: registrationReward.account,
-              amount: registrationReward.amount,
+              core_amount: registrationReward.coreAmount,
+              wallet_amount: registrationReward.walletAmount,
               version: "abundance_mission_v3"
             });
             setRegistrationReward(null);
@@ -594,14 +594,24 @@ function FirstRewardModal({
         <h2 id="first-reward-title">{t("onboarding.reward.title")}</h2>
         <p>{t("onboarding.reward.description")}</p>
         <div className="challenge-receipt">
-          <div className="challenge-receipt-row emphasis">
+          {reward.coreAmount > 0 ? <div className="challenge-receipt-row emphasis">
             <span>{t("onboarding.reward.added")}</span>
-            <strong>+{money.formatRounded(reward.amount)}</strong>
-          </div>
-          {typeof reward.balanceAfter === "number" ? (
+            <strong>Core +{money.formatRounded(reward.coreAmount)}</strong>
+          </div> : null}
+          {reward.walletAmount > 0 ? <div className="challenge-receipt-row emphasis">
+            <span>{t("onboarding.reward.added")}</span>
+            <strong>Wallet +{money.formatRounded(reward.walletAmount)}</strong>
+          </div> : null}
+          {typeof reward.coreBalanceAfter === "number" ? (
             <div className="challenge-receipt-row">
-              <span>{t("onboarding.reward.balance")}</span>
-              <strong>{money.formatRounded(reward.balanceAfter)}</strong>
+              <span>Core</span>
+              <strong>{money.formatRounded(reward.coreBalanceAfter)}</strong>
+            </div>
+          ) : null}
+          {typeof reward.walletBalanceAfter === "number" ? (
+            <div className="challenge-receipt-row">
+              <span>Wallet</span>
+              <strong>{money.formatRounded(reward.walletBalanceAfter)}</strong>
             </div>
           ) : null}
         </div>

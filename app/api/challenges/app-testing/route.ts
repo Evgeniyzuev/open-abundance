@@ -154,12 +154,21 @@ export async function POST(request: NextRequest) {
     const result = data?.[0];
     await syncTodayForUser(supabase, user.id).catch(() => undefined);
 
+    const { data: rewardSnapshot } = await supabase
+      .from("user_challenges")
+      .select("core_reward_amount,wallet_reward_amount")
+      .eq("user_id", user.id)
+      .eq("challenge_id", APP_TESTING_CHALLENGE_ID)
+      .maybeSingle();
+    const coreRewardAmount = Number(rewardSnapshot?.core_reward_amount ?? 0);
+    const walletRewardAmount = Number(rewardSnapshot?.wallet_reward_amount ?? 0);
+
     if (result?.reward_claimed) {
       await recordProductEvent({
         entityId: APP_TESTING_CHALLENGE_ID,
         entityType: "challenge",
         eventName: "challenge_completed",
-        properties: { reward_account: "core", reward_amount: Number(result.rewarded_amount ?? 3) },
+        properties: { core_reward_amount: coreRewardAmount, wallet_reward_amount: walletRewardAmount },
         source: "server",
         userId: user.id
       });
@@ -187,12 +196,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { data: core, error: coreError } = await supabase
-      .from("core_accounts")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const [{ data: core, error: coreError }, { data: wallet, error: walletError }] = await Promise.all([
+      supabase.from("core_accounts").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("wallet_accounts").select("*").eq("user_id", user.id).maybeSingle()
+    ]);
     if (coreError) return NextResponse.json({ error: coreError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    if (walletError) return NextResponse.json({ error: walletError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
     return NextResponse.json(
       {
@@ -202,9 +211,10 @@ export async function POST(request: NextRequest) {
         submissionId: result?.submission_id ?? null,
         feedPostId: result?.feed_post_id ?? null,
         rewardClaimed: Boolean(result?.reward_claimed),
-        rewardAccount: "core",
-        rewardAmount: Number(result?.rewarded_amount ?? 3),
-        core
+        coreRewardAmount,
+        walletRewardAmount,
+        core,
+        wallet
       },
       { headers: NO_STORE_HEADERS }
     );

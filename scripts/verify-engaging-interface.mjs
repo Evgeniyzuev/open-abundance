@@ -26,7 +26,27 @@ assert.equal(parseChallengeRewardAmount({ ru: "Не указана", en: "Not sp
 assert.equal(parseChallengeRewardAmount(null, "en"), null);
 
 const challenges = read("components/ChallengesApp.tsx");
+const challengeRoute = read("app/api/challenges/route.ts");
+const challengeCheckRoute = read("app/api/challenges/check/route.ts");
+const rewardMigration = read("supabase/migrations/20260912192306_challenge_dual_account_rewards.sql");
+const peerRewardMigration = read("supabase/migrations/20260913090000_peer_review_dual_account_rewards.sql");
 assert.doesNotMatch(challenges, /amount\s*\|\|\s*1/, "Unknown or zero rewards must not become $1");
+assert.match(challenges, /core_reward_amount/);
+assert.match(challenges, /wallet_reward_amount/);
+assert.doesNotMatch(challenges, /challenge\.reward_label/, "Challenge UI must use numeric reward columns");
+assert.match(challengeRoute, /core_reward_amount,wallet_reward_amount/);
+assert.doesNotMatch(challengeRoute, /reward_label/);
+assert.match(challengeCheckRoute, /settle_user_challenge_rewards/);
+assert.doesNotMatch(challengeCheckRoute, /p_reward_account|p_reward_amount/);
+assert.match(rewardMigration, /create or replace function public\.settle_user_challenge_rewards/);
+assert.match(rewardMigration, /core_reward_amount numeric/);
+assert.match(rewardMigration, /wallet_reward_amount numeric/);
+assert.match(peerRewardMigration, /alter table public\.peer_review_answers/);
+assert.match(peerRewardMigration, /core_reward_amount numeric/);
+assert.match(peerRewardMigration, /wallet_reward_amount numeric/);
+assert.match(peerRewardMigration, /create or replace function public\.settle_peer_review_answer/);
+assert.match(peerRewardMigration, /create or replace function public\.audit_peer_review_answer/);
+assert.doesNotMatch(peerRewardMigration, /review_reward_amount/);
 assert.match(challenges, /challenge-row-state/, "Challenge rows must expose a visible state");
 assert.match(challenges, /prerequisiteRequired/, "Prerequisite failure must have a specific visible reason");
 assert.match(challenges, /onError=\{\(\) => setFailedImageUrl/, "Broken challenge images must fall back intentionally");

@@ -17,6 +17,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
 import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
 import { ACCENT_THEMES, COLOR_THEMES, UI_SCALES, type AccentTheme, type ColorTheme, type UiScale } from "@/lib/appearance";
 import { DISPLAY_CURRENCIES, DISPLAY_CURRENCY_SYMBOLS, type DisplayCurrency } from "@/lib/displayCurrency";
@@ -499,11 +500,10 @@ export default function SocialApp({
 
   const loadTeamChallenges = useCallback(async () => {
     if (!user) return;
-    const token = await getAccessToken();
-    const response = await fetch(`/api/challenges?auth=required&ts=${Date.now()}`, {
+    const response = await fetchWithSupabaseAuth(`/api/challenges?auth=required&ts=${Date.now()}`, {
       cache: "no-store",
-      headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
-    });
+      headers: { "Cache-Control": "no-cache" }
+    }, { authRequired: true });
     const payload = (await response.json()) as { challenges?: Array<{ id: string; title: Record<string, string>; verification_logic?: string | null }>; error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load challenges.");
     setTeamChallenges((payload.challenges ?? [])

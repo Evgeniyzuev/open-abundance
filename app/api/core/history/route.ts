@@ -7,6 +7,7 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 type CoreHistoryKind = "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus";
+type HistoryLocale = "ru" | "en";
 
 export type CoreHistoryRow = {
   id: string;
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     if (error || !user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
 
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
+    const locale: HistoryLocale = request.nextUrl.searchParams.get("locale") === "ru" ? "ru" : "en";
     const [accruals, challenges, reviews, topups, teamBonuses] = await Promise.all([
       supabase
         .from("daily_core_accruals")
@@ -78,14 +80,14 @@ export async function GET(request: NextRequest) {
         amount: Number(row.core_amount),
         source_id: row.accrual_date
       })),
-      ...((challenges.data ?? []) as Array<{ id: string; challenge_id: string; core_reward_amount: number; reward_settled_at: string | null; updated_at: string; challenges?: { title?: string } | Array<{ title?: string }> | null }>).map((row) => ({
+      ...((challenges.data ?? []) as Array<{ id: string; challenge_id: string; core_reward_amount: number; reward_settled_at: string | null; updated_at: string; challenges?: unknown }>).map((row) => ({
         id: `challenge:${row.id}`,
         occurred_at: row.reward_settled_at ?? row.updated_at,
         kind: "challenge_reward" as const,
         amount: Number(row.core_reward_amount),
         source_id: row.id,
         challenge_id: row.challenge_id,
-        challenge_title: Array.isArray(row.challenges) ? row.challenges[0]?.title : row.challenges?.title
+        challenge_title: readChallengeTitle(row.challenges, locale)
       })),
       ...((reviews.data ?? []) as Array<{ id: string; core_reward_amount: number; settled_at: string | null; reward_status: string }>).map((row) => ({
         id: `peer-review:${row.id}`,
@@ -133,4 +135,20 @@ function clampLimit(value: string | null): number {
 function safeTimestamp(value: string): number {
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function readChallengeTitle(value: unknown, locale: HistoryLocale): string | undefined {
+  const relation = Array.isArray(value) ? value[0] : value;
+  if (!isRecord(relation)) return undefined;
+
+  const title = relation.title;
+  if (typeof title === "string") return title;
+  if (!isRecord(title)) return undefined;
+
+  const localized = title[locale] ?? title.en ?? title.ru;
+  return typeof localized === "string" ? localized : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

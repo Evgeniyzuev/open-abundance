@@ -452,7 +452,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
 
       setHistoryLoading(true);
       try {
-        const rows = await loadCoreHistory();
+        const rows = await loadCoreHistory(locale);
         if (mounted) setHistoryRows(rows);
       } catch (loadError) {
         console.warn("Core accrual history load failed", loadError);
@@ -466,7 +466,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     return () => {
       mounted = false;
     };
-  }, [active, activeTab, historyOpen, refreshNonce, user]);
+  }, [active, activeTab, historyOpen, locale, refreshNonce, user]);
 
   useEffect(() => {
     let mounted = true;
@@ -1022,13 +1022,13 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                   <article className="payout-row" key={row.id}>
                     <div>
                       <strong>{formatHistoryDay(row.occurred_at, locale)}</strong>
-                      <span>{coreHistoryLabel(row, t)}</span>
+                      <span>{coreHistoryLabel(row, locale, t)}</span>
                     </div>
                     <div>
                       <strong>+{formatAdaptiveMoney(row.amount, locale)}</strong>
                       <span>{t("wallet.toCore")}</span>
                     </div>
-                    <p>{row.challenge_title ?? `${t("wallet.history.source")}: ${shortId(row.source_id)}`}</p>
+                    <p>{coreHistoryDetail(row, locale, t)}</p>
                   </article>
                 ))}
               </div>
@@ -1614,9 +1614,9 @@ function TargetResult({ calculation, locale, t }: { calculation: ReturnType<type
   );
 }
 
-async function loadCoreHistory(): Promise<CoreHistoryRow[]> {
+async function loadCoreHistory(locale: AppLocale): Promise<CoreHistoryRow[]> {
   const token = await getAccessToken();
-  const response = await fetch(`/api/core/history?limit=50&ts=${Date.now()}`, {
+  const response = await fetch(`/api/core/history?limit=50&locale=${locale}&ts=${Date.now()}`, {
     cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -1633,12 +1633,24 @@ function formatHistoryDay(value: string, locale: AppLocale): string {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
 }
 
-function coreHistoryLabel(row: CoreHistoryRow, t: TFunction): string {
+function coreHistoryLabel(row: CoreHistoryRow, locale: AppLocale, t: TFunction): string {
   if (row.kind === "daily_accrual") return t("wallet.history.coreDailyAccrual");
-  if (row.kind === "challenge_reward") return row.challenge_title ?? t("wallet.history.challengeReward");
+  if (row.kind === "challenge_reward") return localizedHistoryTitle(row.challenge_title, locale) ?? t("wallet.history.challengeReward");
   if (row.kind === "peer_review_reward") return t("wallet.history.peerReviewReward");
   if (row.kind === "wallet_core_topup") return t("wallet.history.walletCoreTopup");
   return t("wallet.history.teamBonus");
+}
+
+function coreHistoryDetail(row: CoreHistoryRow, locale: AppLocale, t: TFunction): string {
+  return localizedHistoryTitle(row.challenge_title, locale) ?? `${t("wallet.history.source")}: ${shortId(row.source_id)}`;
+}
+
+function localizedHistoryTitle(value: unknown, locale: AppLocale): string | undefined {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const localized = record[locale] ?? record.en ?? record.ru;
+  return typeof localized === "string" ? localized : undefined;
 }
 
 async function loadWalletHistory(): Promise<WalletHistoryRow[]> {

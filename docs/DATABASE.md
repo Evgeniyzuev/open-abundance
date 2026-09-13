@@ -28,7 +28,7 @@ The rollout compatibility layer has now been removed from the application code a
 
 ## Core and Wallet history
 
-`/api/core/accrual-history` remains the narrow daily-accrual contract used by notifications. `/api/core/history` is the owner-scoped mixed read model for daily accruals, challenge and peer-review Core rewards, Wallet → Core topups, and team Core bonuses. It reads existing settlement facts, applies a bounded newest-first limit, and does not create or settle ledger rows. `/api/wallet/history` includes `challenge_reward` and `wallet_core_topup` ledger operations alongside its existing Wallet operations. This slice adds no Supabase migration and treats a missing or unreliable source as absent instead of inventing an operation.
+`/api/core/accrual-history` remains the narrow daily-accrual contract used by notifications. `/api/core/history` is the owner-scoped mixed read model for daily accruals, challenge and peer-review Core rewards, Wallet → Core topups, and team Core bonuses. It reads existing settlement facts, applies a bounded newest-first limit, and does not create or settle ledger rows. Challenge titles are normalized from the stored `{ en, ru }` JSON value to the requested locale before reaching the UI. `/api/wallet/history` includes `challenge_reward` and `wallet_core_topup` ledger operations alongside its existing Wallet operations. This slice adds no Supabase migration and treats a missing or unreliable source as absent instead of inventing an operation.
 
 ## Common Commands
 

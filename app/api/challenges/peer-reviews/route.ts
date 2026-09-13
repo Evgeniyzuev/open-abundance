@@ -142,8 +142,8 @@ export async function POST(request: NextRequest) {
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500, headers: NO_STORE_HEADERS });
 
     const settlement = await settleTaskIfReady(db, answer.task_id);
-    const { data: settledAnswer } = await db.from("peer_review_answers").select("reward_amount,core_reward_amount,wallet_reward_amount,reward_status").eq("id", answer.id).maybeSingle();
-    const ownReward = Number(settledAnswer?.reward_amount ?? 0);
+    const { data: settledAnswer } = await db.from("peer_review_answers").select("core_reward_amount,wallet_reward_amount,reward_status").eq("id", answer.id).maybeSingle();
+    const ownReward = Number(settledAnswer?.core_reward_amount ?? 0) + Number(settledAnswer?.wallet_reward_amount ?? 0);
     await recordProductEvent({
       entityId: answer.id,
       entityType: "peer_review_answer",

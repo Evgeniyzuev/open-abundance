@@ -127,6 +127,8 @@ Requirements and startup:
 
 Use the persistent profile only for a dedicated test account without administrator privileges, real funds, production secrets, or personal data. The user enters the email address, one-time code, password, or provider confirmation directly in the Playwright browser window. Never ask for those values in chat, place them in a prompt, print browser-storage values, or write them to repository files or logs.
 
+For this project, an authorized authenticated session is available in the configured Chrome/Playwright profile for User QA. Reuse that session when it is present: do not restart the sign-in flow, ask the user to provide credentials, or fall back to a guest session when the requested check requires authenticated data. Keep the origin fixed at `http://127.0.0.1:3100`; browser storage for `localhost`, another port, Edge, and deployed environments is separate. If the configured Chrome session is unavailable, empty, expired, or the browser surface cannot be selected, record the limitation and use the documented technical fallback instead of attempting repeated sign-in or profile recovery.
+
 Use this workflow:
 
 1. Start or confirm the local application at one fixed origin. For the current profile, use `http://127.0.0.1:3100`; `localhost`, another port, and a deployed URL have separate browser storage and may require separate login.

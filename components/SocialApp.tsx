@@ -310,6 +310,7 @@ export default function SocialApp({
   const [teamTaskSubmission, setTeamTaskSubmission] = useState<Record<string, string>>({});
   const [teamTaskTitle, setTeamTaskTitle] = useState("");
   const [teamTaskDescription, setTeamTaskDescription] = useState("");
+  const [teamTaskDueAt, setTeamTaskDueAt] = useState("");
   const [teamTaskMemberId, setTeamTaskMemberId] = useState("");
   const [teamTaskKind, setTeamTaskKind] = useState<"manual" | "challenge">("manual");
   const [teamTaskChallengeId, setTeamTaskChallengeId] = useState("");
@@ -394,6 +395,7 @@ export default function SocialApp({
     setTeamTaskSubmission({});
     setTeamTaskTitle("");
     setTeamTaskDescription("");
+    setTeamTaskDueAt("");
     setTeamTaskMemberId("");
     setTeamTaskKind("manual");
     setTeamTaskChallengeId("");
@@ -555,6 +557,7 @@ export default function SocialApp({
           taskKind: teamTaskKind,
           title,
           description: teamTaskDescription,
+          dueAt: teamTaskDueAt ? new Date(teamTaskDueAt).toISOString() : null,
           challengeId: teamTaskKind === "challenge" ? teamTaskChallengeId : null
         })
       });
@@ -562,6 +565,7 @@ export default function SocialApp({
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to create task.");
       setTeamTaskTitle("");
       setTeamTaskDescription("");
+      setTeamTaskDueAt("");
       setTeamTaskMemberId("");
       setTeamTaskChallengeId("");
       await Promise.all([loadTeamTasks(), loadTeamContext()]);
@@ -571,7 +575,7 @@ export default function SocialApp({
     } finally {
       setTeamTaskCreating(false);
     }
-  }, [loadTeamContext, loadTeamTasks, teamTaskChallengeId, teamTaskDescription, teamTaskKind, teamTaskMemberId, teamTaskTitle]);
+  }, [loadTeamContext, loadTeamTasks, teamTaskChallengeId, teamTaskDescription, teamTaskDueAt, teamTaskKind, teamTaskMemberId, teamTaskTitle]);
 
   const loadSocialProfile = useCallback(async () => {
     if (!user) return;
@@ -801,6 +805,7 @@ export default function SocialApp({
       setReferralLocked(false);
       setTeamContext(null);
       setTeamTasks([]);
+      setTeamTaskDueAt("");
       setTeamRewards(null);
       setTeamRewardsOpen(false);
       setNotifications(null);
@@ -1658,6 +1663,18 @@ export default function SocialApp({
           {!user && !loading ? <p>{t("profile.registrationRequired")}</p> : null}
           {user ? (
             <>
+              <TeamsGrowthHero
+                currentUserId={user.id}
+                context={teamContext}
+                tasks={teamTasks}
+                locale={locale}
+                t={t}
+                onMessage={(userId) => { void openDirectMessage(userId); }}
+                onOpenChallenge={onOpenChallenge}
+                onOpenInvite={() => setReferralQrOpen(true)}
+                onOpenProfile={openPublicProfile}
+                canInvite={Boolean(referralLink) && !referralLocked}
+              />
               <div className="team-summary">
                 <span>{t("profile.teams.leader")}</span>
                 {teamContext?.leader.type === "user" && teamContext.membership?.leader_user_id ? (
@@ -1751,6 +1768,7 @@ export default function SocialApp({
                 createState={{
                   title: teamTaskTitle,
                   description: teamTaskDescription,
+                  dueAt: teamTaskDueAt,
                   memberId: teamTaskMemberId,
                   kind: teamTaskKind,
                   challengeId: teamTaskChallengeId,
@@ -1765,6 +1783,7 @@ export default function SocialApp({
                 onCreateStateChange={(field, value) => {
                   if (field === "title") setTeamTaskTitle(value);
                   if (field === "description") setTeamTaskDescription(value);
+                  if (field === "dueAt") setTeamTaskDueAt(value);
                   if (field === "memberId") setTeamTaskMemberId(value);
                   if (field === "kind") setTeamTaskKind(value as "manual" | "challenge");
                   if (field === "challengeId") setTeamTaskChallengeId(value);
@@ -2052,6 +2071,127 @@ export default function SocialApp({
   );
 }
 
+function TeamsGrowthHero({
+  currentUserId,
+  context,
+  tasks,
+  locale,
+  t,
+  onMessage,
+  onOpenChallenge,
+  onOpenInvite,
+  onOpenProfile,
+  canInvite
+}: {
+  currentUserId: string;
+  context: TeamContext | null;
+  tasks: TeamTask[];
+  locale: AppLocale;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onMessage: (userId: string) => void;
+  onOpenChallenge: () => void;
+  onOpenInvite: () => void;
+  onOpenProfile: (userId: string) => void;
+  canInvite: boolean;
+}) {
+  const [focus, setFocus] = useState<"mine" | "help">("mine");
+  const memberTasks = tasks.filter((task) => task.member_user_id === currentUserId);
+  const leaderTasks = tasks.filter((task) => task.leader_user_id === currentUserId);
+  const isMentor = Boolean(context?.directMembers.length) || leaderTasks.length > 0;
+  const activeMemberTasks = memberTasks.filter((task) => ["proposed", "accepted", "returned"].includes(task.status));
+  const reviewTasks = leaderTasks.filter((task) => ["submitted", "proposed", "accepted", "returned"].includes(task.status));
+  const attentionTasks = focus === "help" ? reviewTasks : activeMemberTasks;
+  const leadProfile = context?.leader.type === "user" ? context.leader.profile : null;
+  const roomPeople = [
+    ...(leadProfile ? [{ id: leadProfile.user_id, profile: leadProfile, role: "mentor" as const }] : []),
+    ...(context?.directMembers ?? []).map((member) => ({ id: member.userId, profile: member.profile, role: "member" as const }))
+  ].filter((person) => person.profile);
+  const firstTask = attentionTasks[0] ?? null;
+  const taskTargetId = firstTask ? (firstTask.member_user_id === currentUserId ? firstTask.leader_user_id : firstTask.member_user_id) : null;
+  const taskTarget = taskTargetId
+    ? (taskTargetId === leadProfile?.user_id ? leadProfile : context?.directMembers.find((member) => member.userId === taskTargetId)?.profile)
+    : null;
+  const pendingCount = focus === "help" ? reviewTasks.length : activeMemberTasks.length;
+  const completedCount = tasks.filter((task) => task.member_user_id === currentUserId && task.status === "completed").length;
+
+  return (
+    <section className="team-growth-hero" aria-labelledby="team-growth-title">
+      <div className="team-growth-heading">
+        <div>
+          <span className="team-growth-eyebrow"><Sparkles size={14} /> {t("social.teams.circleEyebrow")}</span>
+          <h2 id="team-growth-title">{t("social.teams.circleTitle")}</h2>
+          <p>{t("social.teams.circleSubtitle")}</p>
+        </div>
+        <span className="team-growth-spark" aria-hidden="true"><Star size={18} fill="currentColor" /></span>
+      </div>
+
+      <div className="team-focus-switch" role="group" aria-label={t("social.teams.focusLabel")}>
+        <button className={focus === "mine" ? "active" : ""} type="button" aria-pressed={focus === "mine"} onClick={() => setFocus("mine")}>
+          <UserRound size={15} /> {t("social.teams.focusMine")}
+        </button>
+        {isMentor ? (
+          <button className={focus === "help" ? "active" : ""} type="button" aria-pressed={focus === "help"} onClick={() => setFocus("help")}>
+            <Users size={15} /> {t("social.teams.focusHelp")}
+            {reviewTasks.length ? <b>{reviewTasks.length}</b> : null}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="team-growth-grid">
+        <div className="team-circle-card">
+          <div className="team-card-kicker"><span>{t("social.teams.roomTitle")}</span><span>{roomPeople.length + 1}</span></div>
+          <div className="team-circle-scene" aria-label={t("social.teams.roomTable")}>
+            <span className="team-circle-halo" aria-hidden="true" />
+            <span className="team-circle-table" aria-hidden="true"><span>{t("social.teams.roomTable")}</span></span>
+            <span className="team-circle-self" title={t("social.teams.youHere")}><Sparkles size={20} /><small>{t("social.teams.youHere")}</small></span>
+            {roomPeople.slice(0, 6).map((person, index) => (
+              <button
+                className={`team-circle-person person-${index + 1}`}
+                key={person.id}
+                type="button"
+                title={formatProfileName(person.profile, person.id)}
+                onClick={() => onOpenProfile(person.id)}
+              >
+                <span className="team-circle-avatar">
+                  {person.profile?.avatar_url ? <img alt="" src={normalizeAvatarPreviewUrl(person.profile.avatar_url) ?? undefined} style={{ objectPosition: person.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={16} />}
+                </span>
+                <small>{formatProfileName(person.profile, person.id)}</small>
+              </button>
+            ))}
+          </div>
+          <div className="team-room-actions">
+            <button className="team-room-chip" type="button" disabled={!canInvite} onClick={onOpenInvite}><Sparkles size={14} /> {t("social.teams.roomInvite")}</button>
+            <button className="team-room-chip" type="button" onClick={() => firstTask && taskTargetId ? onMessage(taskTargetId) : undefined} disabled={!taskTargetId}>
+              <MessageCircle size={14} /> {t("social.teams.roomTalk")}
+            </button>
+          </div>
+        </div>
+
+        <div className="team-agenda-card">
+          <div className="team-card-kicker"><span><Sparkles size={14} /> {t("social.teams.todayTitle")}</span><span className="team-agenda-count">{pendingCount}</span></div>
+          <h3>{focus === "help" ? t("social.teams.todayHelpTitle") : t("social.teams.todayMineTitle")}</h3>
+          {firstTask ? (
+            <article className="team-agenda-next">
+              <span className="team-agenda-dot" aria-hidden="true"><Check size={14} /></span>
+              <div>
+                <strong>{firstTask.title}</strong>
+                <p>{firstTask.status === "submitted" ? t("social.teams.todayReview") : firstTask.due_at ? t("social.teams.todayDue", { date: formatDate(firstTask.due_at, locale) }) : t("social.teams.todayNext")}</p>
+                {taskTarget ? <button className="text-button" type="button" onClick={() => onOpenProfile(taskTargetId ?? "")}>{formatProfileName(taskTarget, taskTargetId ?? "")}</button> : null}
+              </div>
+            </article>
+          ) : (
+            <div className="team-agenda-empty"><span aria-hidden="true">✦</span><p>{t("social.teams.todayEmpty")}</p></div>
+          )}
+          <div className="team-agenda-footer">
+            <span>{t("social.teams.completedMine", { count: completedCount })}</span>
+            {focus === "help" && !reviewTasks.length ? <button className="secondary-button" type="button" onClick={onOpenChallenge}>{t("social.teams.findStep")}</button> : null}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function TeamTaskBoard({
   currentUserId,
   context,
@@ -2084,6 +2224,7 @@ function TeamTaskBoard({
   createState: {
     title: string;
     description: string;
+    dueAt: string;
     memberId: string;
     kind: "manual" | "challenge";
     challengeId: string;
@@ -2095,7 +2236,7 @@ function TeamTaskBoard({
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onAction: (task: TeamTask, action: string, submission?: string) => void;
   onCreate: () => void;
-  onCreateStateChange: (field: "title" | "description" | "memberId" | "kind" | "challengeId", value: string) => void;
+  onCreateStateChange: (field: "title" | "description" | "dueAt" | "memberId" | "kind" | "challengeId", value: string) => void;
   onSubmissionChange: (taskId: string, value: string) => void;
   onOpenChallenge: () => void;
   onOpenInvite: () => void;
@@ -2157,7 +2298,7 @@ function TeamTaskBoard({
                   <strong>{task.title}</strong>
                   <span>{t(statusKey(task.status))}{task.task_kind === "challenge" && challengeName(task.challenge_id) ? ` · ${challengeName(task.challenge_id)}` : ""}</span>
                 </div>
-                <small>{formatDate(task.updated_at, locale)}</small>
+                <small>{task.due_at ? `${t("social.teams.taskDueShort")}: ${formatDate(task.due_at, locale)}` : formatDate(task.updated_at, locale)}</small>
               </div>
               {task.description ? <p>{task.description}</p> : null}
               {task.submission ? <p className="team-task-submission"><strong>{t("social.teams.submission")}:</strong> {task.submission}</p> : null}
@@ -2200,6 +2341,10 @@ function TeamTaskBoard({
             ) : null}
             <input value={createState.title} onChange={(event) => onCreateStateChange("title", event.target.value)} placeholder={t("social.teams.taskTitle")} maxLength={160} />
             <textarea value={createState.description} onChange={(event) => onCreateStateChange("description", event.target.value)} placeholder={t("social.teams.taskDescription")} maxLength={4000} />
+            <label className="team-task-due-field">
+              <span>{t("social.teams.taskDue")}</span>
+              <input type="datetime-local" value={createState.dueAt} onChange={(event) => onCreateStateChange("dueAt", event.target.value)} />
+            </label>
             <button className="secondary-button" type="button" disabled={createState.creating || !createState.memberId || !createState.title.trim() || (createState.kind === "challenge" && !createState.challengeId)} onClick={onCreate}>{t("social.teams.assign")}</button>
           </div>
         </section>

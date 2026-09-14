@@ -734,7 +734,7 @@ export default function SocialApp({
     else setFeedLoading(true);
     try {
       const token = await getAccessToken();
-      const params = new URLSearchParams({ scope: "feed", locale, limit: "20", ts: String(Date.now()) });
+      const params = new URLSearchParams({ scope: "feed", locale, limit: "21", ts: String(Date.now()) });
       if (requestedFilter !== "all") params.set("category", requestedFilter);
       if (append && feedCursorRef.current[requestedFilter]) params.set("cursor", feedCursorRef.current[requestedFilter]!);
       const response = await fetch(`/api/social/feed?${params.toString()}`, {

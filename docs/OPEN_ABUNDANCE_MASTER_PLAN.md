@@ -180,6 +180,7 @@ coverage_ratio =
 - Внутренний DB-only Marketplace теперь имеет buyer Wallet hold, atomic item/payment settlement, refund/expiry/dispute RPC и reviews. User-level settled balance/counterparty projection и ranking read model отложены до отдельного этапа после QA; remote migration применена, buyer/seller User QA остаётся обязательным до экономического запуска. TON smart contracts и blockchain settlement не входят в этот этап.
 - Mutual credit учитывает только legitimate settled deals без возврата/спора. `spent - earned` даёт ограниченный мягкий boost, но релевантность и качество доминируют; отрицательного штрафа и прямой награды за оборот нет.
 - Цель алгоритма — балансировать возможность взаимного продвижения и увеличивать полезный GMV, а не создавать искусственный оборот. Self-deals, связанные аккаунты, круговые сделки и дробление исключаются.
+- Wallet ↔ RUB P2P является отдельным будущим закрытым пилотом: Wallet продавца резервируется, RUB переводится напрямую, фонд реально обеспечивает покрытие, а Core pledge служит только механизмом будущего взыскания. Канонический контракт и настраиваемые лимиты: [P2P Wallet ↔ RUB Plan](P2P_WALLET_FIAT_PLAN.md).
 
 ## 8. Достоверность и anti-abuse
 
@@ -234,7 +235,9 @@ coverage_ratio =
 - Навыки и automatic checks: docs/SKILLS_SYSTEM_PLAN.md.
 - Crypto deposit/withdrawal и новые сети: `docs/WALLET_CRYPTO_RAILS_PLAN.md`; реализация native TON deposit — `docs/TON_DEPOSIT_MVP_PLAN.md`.
 - Trust-lite и Trust v2: `docs/TRUST_RECIPROCITY_MARKET_PLAN.md`.
+- Wallet ↔ RUB P2P, фонд, Core pledge и споры: `docs/P2P_WALLET_FIAT_PLAN.md`.
 - Сделки и escrow: `docs/MARKETPLACE_ESCROW_PLAN.md`; user economy metrics и private participation shadow: `docs/MUTUAL_CREDIT_MARKET_PLAN.md`.
+- Центр уведомлений и Web Push: `docs/NOTIFICATIONS_PLAN.md`.
 - Лента, media и внешние соцсети: `docs/FEED_POSTING_RECOMMENDATIONS_PLAN.md`.
 - Future Sim: `docs/FUTURE_SIM_PLAN.md`.
 - Правила разработки: `docs/DEVELOPMENT_RULES.md`.

@@ -436,3 +436,5 @@ Future Trust v2 decision gates after Shadow analysis:
 - минимальное доказательство двустороннего взаимодействия для cancelled/incomplete rating;
 - окно rating/edit, обязательные причины и evidence для экстремальных оценок;
 - correction/dispute SLA и критерии выхода из shadow/private в public pilot.
+
+Использование Trust для реальных финансовых лимитов Wallet ↔ RUB не входит в текущий Shadow v1. Предлагаемые коэффициенты, жалобы, доказанное нарушение и обратимые corrections описаны в [P2P Wallet ↔ RUB Plan](P2P_WALLET_FIAT_PLAN.md); их включение требует отдельной калибровки и допуска после private explanation/appeal.

@@ -47,6 +47,8 @@ Daily-review settings migrate from `open-abundance:reflection-settings:v1` to `o
 
 The server stores subscription keys, schedule, timezone, locale, opaque local IDs and delivery state. It never stores the reflection body, AI proposal or task title. Notification copy is deliberately generic.
 
+Расширение reminder-инфраструктуры до общего in-app центра, категорий, устройств и событий из других подсистем описано в [Notifications And Web Push Plan](NOTIFICATIONS_PLAN.md). Оно остаётся отдельным будущим этапом и не меняет local-first границы reflection content.
+
 ## Verification
 
 - `pnpm exec tsc --noEmit`;

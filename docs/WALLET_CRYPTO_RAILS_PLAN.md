@@ -104,4 +104,6 @@ requested
 - Пользователь видит курс, обе суммы, полный fee, статус и explorer link до/после подтверждения.
 - Custody и ответственный оператор явно определены.
 
-Связанные документы: `TON_DEPOSIT_MVP_PLAN.md`, `OPEN_ABUNDANCE_MASTER_PLAN.md`, `MASTER_KANBAN.md`.
+Wallet ↔ RUB через прямой банковский перевод не является crypto rail или вариантом текущего TON deposit. Отдельный escrow, фонд покрытия, Core pledge, Trust-лимиты и ручной арбитраж описаны в [P2P Wallet ↔ RUB Plan](P2P_WALLET_FIAT_PLAN.md).
+
+Связанные документы: `TON_DEPOSIT_MVP_PLAN.md`, `OPEN_ABUNDANCE_MASTER_PLAN.md`, `MASTER_KANBAN.md`, `P2P_WALLET_FIAT_PLAN.md`.

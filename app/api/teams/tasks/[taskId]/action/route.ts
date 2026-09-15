@@ -12,6 +12,7 @@ type ActionRequest = {
   action?: string;
   expectedVersion?: number | null;
   submission?: string | null;
+  feedback?: string | null;
 };
 
 export async function POST(request: NextRequest, { params }: { params: { taskId: string } }) {
@@ -40,13 +41,18 @@ export async function POST(request: NextRequest, { params }: { params: { taskId:
     if (submission && submission.length > 4000) {
       return NextResponse.json({ error: "Submission is too long." }, { status: 400, headers: NO_STORE_HEADERS });
     }
+    const feedback = typeof body.feedback === "string" ? body.feedback.trim() : null;
+    if (feedback && feedback.length > 4000) {
+      return NextResponse.json({ error: "Feedback is too long." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
 
     const { data, error: transitionError } = await supabase.rpc("transition_team_task", {
       p_actor_user_id: user.id,
       p_task_id: params.taskId,
       p_action: action,
       p_expected_version: expectedVersion,
-      p_submission: submission
+      p_submission: submission,
+      p_feedback: feedback
     });
 
     if (transitionError) {

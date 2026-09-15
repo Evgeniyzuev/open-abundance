@@ -1990,6 +1990,100 @@ export type Database = {
           }
         ]
       }
+      team_task_help_requests: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          reason: string
+          requester_user_id: string
+          resolved_at: string | null
+          resolved_by_user_id: string | null
+          status: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          comment?: string
+          created_at?: string
+          id?: string
+          reason: string
+          requester_user_id: string
+          resolved_at?: string | null
+          resolved_by_user_id?: string | null
+          status?: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          requester_user_id?: string
+          resolved_at?: string | null
+          resolved_by_user_id?: string | null
+          status?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_task_help_requests_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "team_tasks"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      team_task_revisions: {
+        Row: {
+          base_version: number
+          changes: Json
+          created_at: string
+          id: string
+          proposer_user_id: string
+          responded_at: string | null
+          response_user_id: string | null
+          status: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_version: number
+          changes?: Json
+          created_at?: string
+          id?: string
+          proposer_user_id: string
+          responded_at?: string | null
+          response_user_id?: string | null
+          status?: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_version?: number
+          changes?: Json
+          created_at?: string
+          id?: string
+          proposer_user_id?: string
+          responded_at?: string | null
+          response_user_id?: string | null
+          status?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_task_revisions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "team_tasks"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       team_tasks: {
         Row: {
           accepted_at: string | null
@@ -1998,7 +2092,12 @@ export type Database = {
           created_at: string
           description: string
           due_at: string | null
+          estimated_minutes: number | null
+          expected_result: string | null
+          first_step: string | null
+          goal_context: string | null
           id: string
+          leader_review_due_at: string | null
           leader_user_id: string
           member_user_id: string
           newcomer_eligible: boolean
@@ -2006,6 +2105,10 @@ export type Database = {
           submission: string | null
           task_kind: string
           title: string
+          verification_criteria: string | null
+          review_feedback: string | null
+          reviewed_at: string | null
+          reviewer_user_id: string | null
           submitted_at: string | null
           updated_at: string
           version: number
@@ -2017,7 +2120,12 @@ export type Database = {
           created_at?: string
           description?: string
           due_at?: string | null
+          estimated_minutes?: number | null
+          expected_result?: string | null
+          first_step?: string | null
+          goal_context?: string | null
           id?: string
+          leader_review_due_at?: string | null
           leader_user_id: string
           member_user_id: string
           newcomer_eligible?: boolean
@@ -2025,6 +2133,10 @@ export type Database = {
           submission?: string | null
           task_kind?: string
           title: string
+          verification_criteria?: string | null
+          review_feedback?: string | null
+          reviewed_at?: string | null
+          reviewer_user_id?: string | null
           submitted_at?: string | null
           updated_at?: string
           version?: number
@@ -2036,7 +2148,12 @@ export type Database = {
           created_at?: string
           description?: string
           due_at?: string | null
+          estimated_minutes?: number | null
+          expected_result?: string | null
+          first_step?: string | null
+          goal_context?: string | null
           id?: string
+          leader_review_due_at?: string | null
           leader_user_id?: string
           member_user_id?: string
           newcomer_eligible?: boolean
@@ -2044,6 +2161,10 @@ export type Database = {
           submission?: string | null
           task_kind?: string
           title?: string
+          verification_criteria?: string | null
+          review_feedback?: string | null
+          reviewed_at?: string | null
+          reviewer_user_id?: string | null
           submitted_at?: string | null
           updated_at?: string
           version?: number
@@ -3463,10 +3584,32 @@ export type Database = {
           p_challenge_id?: string | null
           p_description?: string
           p_due_at?: string | null
+          p_estimated_minutes?: number | null
+          p_expected_result?: string | null
+          p_first_step?: string | null
+          p_goal_context?: string | null
+          p_leader_review_due_at?: string | null
           p_member_user_id: string
           p_task_kind: string
           p_title: string
+          p_verification_criteria?: string | null
         }
+        Returns: Json
+      }
+      request_team_task_help: {
+        Args: { p_actor_user_id: string; p_comment?: string; p_reason: string; p_task_id: string }
+        Returns: Json
+      }
+      resolve_team_task_help: {
+        Args: { p_actor_user_id: string; p_help_request_id: string }
+        Returns: Json
+      }
+      propose_team_task_revision: {
+        Args: { p_actor_user_id: string; p_changes: Json; p_task_id: string }
+        Returns: Json
+      }
+      respond_team_task_revision: {
+        Args: { p_action: string; p_actor_user_id: string; p_expected_version?: number | null; p_revision_id: string }
         Returns: Json
       }
       rebuild_user_economy_metrics: {
@@ -3612,6 +3755,7 @@ export type Database = {
           p_action: string
           p_actor_user_id: string
           p_expected_version?: number | null
+          p_feedback?: string | null
           p_submission?: string | null
           p_task_id: string
         }

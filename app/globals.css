@@ -1099,6 +1099,17 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .team-task-card-header span, .team-task-card-header small { color: var(--muted); font-size: 0.75rem; font-weight: 750; }
 .team-task-card p { margin: 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
 .team-task-submission { padding: 8px; border-radius: 9px; background: var(--surface); }
+.team-task-agreement { display: grid; gap: 4px; border-left: 3px solid var(--blue); border-radius: 8px; padding: 8px 10px; background: color-mix(in srgb, var(--blue) 7%, var(--surface)); }
+.team-task-agreement p, .team-task-feedback { font-size: 0.78rem; }
+.team-task-feedback { border-left: 3px solid var(--green); border-radius: 8px; padding: 8px 10px; background: color-mix(in srgb, var(--green) 7%, var(--surface)); }
+.team-task-revision { display: grid; gap: 5px; border: 1px dashed color-mix(in srgb, var(--blue) 34%, var(--line)); border-radius: 10px; padding: 9px; background: color-mix(in srgb, var(--blue) 5%, var(--surface)); }
+.team-task-revision > strong { color: var(--blue); font-size: 0.78rem; }
+.team-task-revision > span { color: var(--muted); font-size: 0.75rem; }
+.team-task-revision-form { display: grid; gap: 7px; border-radius: 10px; padding: 10px; background: var(--surface-soft); }
+.team-task-revision-form input, .team-task-revision-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; outline: 0; padding: 9px 10px; background: var(--surface); color: var(--text); font: inherit; font-size: 1rem; }
+.team-task-revision-form textarea { min-height: 68px; resize: vertical; }
+.team-help-reason, .team-help-comment { min-height: 32px; border: 1px solid var(--line); border-radius: 8px; outline: 0; padding: 5px 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 1rem; }
+.team-help-comment { flex: 1 1 180px; min-width: 140px; }
 .team-task-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .team-task-actions textarea { flex: 1 1 100%; min-height: 68px; resize: vertical; }
 .team-task-actions .secondary-button { min-height: 34px; padding: 0 10px; font-size: 0.75rem; }

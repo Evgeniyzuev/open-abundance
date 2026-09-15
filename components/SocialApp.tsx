@@ -36,14 +36,49 @@ type TeamTask = {
   task_kind: "manual" | "challenge";
   title: string;
   description: string;
+  goal_context: string | null;
+  expected_result: string | null;
+  first_step: string | null;
+  estimated_minutes: number | null;
+  verification_criteria: string | null;
   due_at: string | null;
+  leader_review_due_at: string | null;
   status: "proposed" | "accepted" | "submitted" | "completed" | "returned" | "declined" | "cancelled";
   submission: string | null;
+  review_feedback: string | null;
+  reviewed_at: string | null;
+  reviewer_user_id: string | null;
   newcomer_eligible: boolean;
   version: number;
   accepted_at: string | null;
   submitted_at: string | null;
   completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  help_requests: TeamTaskHelpRequest[];
+  revisions: TeamTaskRevision[];
+};
+type TeamTaskHelpRequest = {
+  id: string;
+  task_id: string;
+  requester_user_id: string;
+  reason: "blocked" | "clarification" | "feedback" | "other";
+  comment: string;
+  status: "open" | "resolved";
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+type TeamTaskRevision = {
+  id: string;
+  task_id: string;
+  proposer_user_id: string;
+  base_version: number;
+  changes: Record<string, unknown>;
+  status: "open" | "accepted" | "declined" | "superseded";
+  response_user_id: string | null;
+  responded_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -308,8 +343,19 @@ export default function SocialApp({
   const [teamTasksLoading, setTeamTasksLoading] = useState(false);
   const [teamTaskSavingId, setTeamTaskSavingId] = useState<string | null>(null);
   const [teamTaskSubmission, setTeamTaskSubmission] = useState<Record<string, string>>({});
+  const [teamTaskReviewFeedback, setTeamTaskReviewFeedback] = useState<Record<string, string>>({});
+  const [teamTaskHelpDraft, setTeamTaskHelpDraft] = useState<Record<string, string>>({});
+  const [teamTaskHelpReason, setTeamTaskHelpReason] = useState<Record<string, TeamTaskHelpRequest["reason"]>>({});
+  const [teamTaskRevisionTaskId, setTeamTaskRevisionTaskId] = useState<string | null>(null);
+  const [teamTaskRevisionDraft, setTeamTaskRevisionDraft] = useState({ firstStep: "", expectedResult: "", dueAt: "" });
   const [teamTaskTitle, setTeamTaskTitle] = useState("");
   const [teamTaskDescription, setTeamTaskDescription] = useState("");
+  const [teamTaskGoalContext, setTeamTaskGoalContext] = useState("");
+  const [teamTaskExpectedResult, setTeamTaskExpectedResult] = useState("");
+  const [teamTaskFirstStep, setTeamTaskFirstStep] = useState("");
+  const [teamTaskEstimatedMinutes, setTeamTaskEstimatedMinutes] = useState("");
+  const [teamTaskVerificationCriteria, setTeamTaskVerificationCriteria] = useState("");
+  const [teamTaskLeaderReviewDueAt, setTeamTaskLeaderReviewDueAt] = useState("");
   const [teamTaskDueAt, setTeamTaskDueAt] = useState("");
   const [teamTaskMemberId, setTeamTaskMemberId] = useState("");
   const [teamTaskKind, setTeamTaskKind] = useState<"manual" | "challenge">("manual");
@@ -393,8 +439,19 @@ export default function SocialApp({
     setTeamTasksLoading(false);
     setTeamTaskSavingId(null);
     setTeamTaskSubmission({});
+    setTeamTaskReviewFeedback({});
+    setTeamTaskHelpDraft({});
+    setTeamTaskHelpReason({});
+    setTeamTaskRevisionTaskId(null);
+    setTeamTaskRevisionDraft({ firstStep: "", expectedResult: "", dueAt: "" });
     setTeamTaskTitle("");
     setTeamTaskDescription("");
+    setTeamTaskGoalContext("");
+    setTeamTaskExpectedResult("");
+    setTeamTaskFirstStep("");
+    setTeamTaskEstimatedMinutes("");
+    setTeamTaskVerificationCriteria("");
+    setTeamTaskLeaderReviewDueAt("");
     setTeamTaskDueAt("");
     setTeamTaskMemberId("");
     setTeamTaskKind("manual");
@@ -514,7 +571,7 @@ export default function SocialApp({
       .map((challenge) => ({ id: challenge.id, title: challenge.title, verification_logic: challenge.verification_logic })));
   }, [user]);
 
-  const actOnTeamTask = useCallback(async (task: TeamTask, action: string, submission?: string) => {
+  const actOnTeamTask = useCallback(async (task: TeamTask, action: string, submission?: string, feedback?: string) => {
     setTeamTaskSavingId(task.id);
     setSocialError(null);
     try {
@@ -523,7 +580,7 @@ export default function SocialApp({
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action, expectedVersion: task.version, submission: submission ?? null })
+        body: JSON.stringify({ action, expectedVersion: task.version, submission: submission ?? null, feedback: feedback ?? null })
       });
       const payload = (await response.json()) as { task?: TeamTask; error?: string };
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to update task.");
@@ -535,6 +592,96 @@ export default function SocialApp({
       console.warn("Team task action failed", taskError);
       setSocialError(taskError instanceof Error ? taskError.message : "Failed to update task.");
       await loadTeamTasks().catch(() => undefined);
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const requestTeamTaskHelp = useCallback(async (task: TeamTask, reason: TeamTaskHelpRequest["reason"], comment: string) => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/tasks/${task.id}/help`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason, comment })
+      });
+      const payload = (await response.json()) as { helpRequest?: TeamTaskHelpRequest; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to request help.");
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (helpError) {
+      console.warn("Team task help request failed", helpError);
+      setSocialError(helpError instanceof Error ? helpError.message : "Failed to request help.");
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const resolveTeamTaskHelp = useCallback(async (task: TeamTask, helpRequestId: string) => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/tasks/${task.id}/help`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "resolve", helpRequestId })
+      });
+      const payload = (await response.json()) as { helpRequest?: TeamTaskHelpRequest; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to resolve help.");
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (helpError) {
+      console.warn("Team task help resolution failed", helpError);
+      setSocialError(helpError instanceof Error ? helpError.message : "Failed to resolve help.");
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const proposeTeamTaskRevision = useCallback(async (task: TeamTask, changes: Record<string, unknown>) => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/tasks/${task.id}/revision`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ changes })
+      });
+      const payload = (await response.json()) as { revision?: TeamTaskRevision; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to propose changes.");
+      setTeamTaskRevisionTaskId(null);
+      setTeamTaskRevisionDraft({ firstStep: "", expectedResult: "", dueAt: "" });
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (revisionError) {
+      console.warn("Team task revision proposal failed", revisionError);
+      setSocialError(revisionError instanceof Error ? revisionError.message : "Failed to propose changes.");
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const respondToTeamTaskRevision = useCallback(async (task: TeamTask, revision: TeamTaskRevision, action: "accept" | "decline") => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/revisions/${revision.id}/action`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, expectedVersion: task.version })
+      });
+      const payload = (await response.json()) as { revision?: TeamTaskRevision; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to respond to changes.");
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (revisionError) {
+      console.warn("Team task revision response failed", revisionError);
+      setSocialError(revisionError instanceof Error ? revisionError.message : "Failed to respond to changes.");
     } finally {
       setTeamTaskSavingId(null);
     }
@@ -557,7 +704,13 @@ export default function SocialApp({
           taskKind: teamTaskKind,
           title,
           description: teamTaskDescription,
+          goalContext: teamTaskGoalContext,
+          expectedResult: teamTaskExpectedResult,
+          firstStep: teamTaskFirstStep,
+          estimatedMinutes: teamTaskEstimatedMinutes ? Number(teamTaskEstimatedMinutes) : null,
+          verificationCriteria: teamTaskVerificationCriteria,
           dueAt: teamTaskDueAt ? new Date(teamTaskDueAt).toISOString() : null,
+          leaderReviewDueAt: teamTaskLeaderReviewDueAt ? new Date(teamTaskLeaderReviewDueAt).toISOString() : null,
           challengeId: teamTaskKind === "challenge" ? teamTaskChallengeId : null
         })
       });
@@ -565,6 +718,12 @@ export default function SocialApp({
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to create task.");
       setTeamTaskTitle("");
       setTeamTaskDescription("");
+      setTeamTaskGoalContext("");
+      setTeamTaskExpectedResult("");
+      setTeamTaskFirstStep("");
+      setTeamTaskEstimatedMinutes("");
+      setTeamTaskVerificationCriteria("");
+      setTeamTaskLeaderReviewDueAt("");
       setTeamTaskDueAt("");
       setTeamTaskMemberId("");
       setTeamTaskChallengeId("");
@@ -575,7 +734,7 @@ export default function SocialApp({
     } finally {
       setTeamTaskCreating(false);
     }
-  }, [loadTeamContext, loadTeamTasks, teamTaskChallengeId, teamTaskDescription, teamTaskDueAt, teamTaskKind, teamTaskMemberId, teamTaskTitle]);
+  }, [loadTeamContext, loadTeamTasks, teamTaskChallengeId, teamTaskDescription, teamTaskDueAt, teamTaskEstimatedMinutes, teamTaskExpectedResult, teamTaskFirstStep, teamTaskGoalContext, teamTaskKind, teamTaskLeaderReviewDueAt, teamTaskMemberId, teamTaskTitle, teamTaskVerificationCriteria]);
 
   const loadSocialProfile = useCallback(async () => {
     if (!user) return;
@@ -1765,9 +1924,20 @@ export default function SocialApp({
                 loading={teamTasksLoading}
                 savingId={teamTaskSavingId}
                 submissions={teamTaskSubmission}
+                reviewFeedback={teamTaskReviewFeedback}
+                helpDrafts={teamTaskHelpDraft}
+                helpReasons={teamTaskHelpReason}
+                revisionTaskId={teamTaskRevisionTaskId}
+                revisionDraft={teamTaskRevisionDraft}
                 createState={{
                   title: teamTaskTitle,
                   description: teamTaskDescription,
+                  goalContext: teamTaskGoalContext,
+                  expectedResult: teamTaskExpectedResult,
+                  firstStep: teamTaskFirstStep,
+                  estimatedMinutes: teamTaskEstimatedMinutes,
+                  verificationCriteria: teamTaskVerificationCriteria,
+                  leaderReviewDueAt: teamTaskLeaderReviewDueAt,
                   dueAt: teamTaskDueAt,
                   memberId: teamTaskMemberId,
                   kind: teamTaskKind,
@@ -1778,17 +1948,33 @@ export default function SocialApp({
                 referralLocked={referralLocked}
                 locale={locale}
                 t={t}
-                onAction={(task, action, submission) => { void actOnTeamTask(task, action, submission); }}
+                onAction={(task, action, submission, feedback) => { void actOnTeamTask(task, action, submission, feedback); }}
                 onCreate={() => { void createTeamTask(); }}
                 onCreateStateChange={(field, value) => {
                   if (field === "title") setTeamTaskTitle(value);
                   if (field === "description") setTeamTaskDescription(value);
+                  if (field === "goalContext") setTeamTaskGoalContext(value);
+                  if (field === "expectedResult") setTeamTaskExpectedResult(value);
+                  if (field === "firstStep") setTeamTaskFirstStep(value);
+                  if (field === "estimatedMinutes") setTeamTaskEstimatedMinutes(value);
+                  if (field === "verificationCriteria") setTeamTaskVerificationCriteria(value);
+                  if (field === "leaderReviewDueAt") setTeamTaskLeaderReviewDueAt(value);
                   if (field === "dueAt") setTeamTaskDueAt(value);
                   if (field === "memberId") setTeamTaskMemberId(value);
                   if (field === "kind") setTeamTaskKind(value as "manual" | "challenge");
                   if (field === "challengeId") setTeamTaskChallengeId(value);
                 }}
                 onSubmissionChange={(taskId, value) => setTeamTaskSubmission((current) => ({ ...current, [taskId]: value }))}
+                onReviewFeedbackChange={(taskId, value) => setTeamTaskReviewFeedback((current) => ({ ...current, [taskId]: value }))}
+                onHelpDraftChange={(taskId, value) => setTeamTaskHelpDraft((current) => ({ ...current, [taskId]: value }))}
+                onHelpReasonChange={(taskId, value) => setTeamTaskHelpReason((current) => ({ ...current, [taskId]: value }))}
+                onRequestHelp={(task, reason, comment) => { void requestTeamTaskHelp(task, reason, comment); }}
+                onResolveHelp={(task, helpRequestId) => { void resolveTeamTaskHelp(task, helpRequestId); }}
+                onOpenRevision={(taskId) => setTeamTaskRevisionTaskId(taskId)}
+                onCloseRevision={() => setTeamTaskRevisionTaskId(null)}
+                onRevisionDraftChange={(field, value) => setTeamTaskRevisionDraft((current) => ({ ...current, [field]: value }))}
+                onProposeRevision={(task, changes) => { void proposeTeamTaskRevision(task, changes); }}
+                onRespondRevision={(task, revision, action) => { void respondToTeamTaskRevision(task, revision, action); }}
                 onOpenChallenge={onOpenChallenge}
                 onOpenInvite={() => setReferralQrOpen(true)}
                 onOpenProfile={openPublicProfile}
@@ -2200,6 +2386,11 @@ function TeamTaskBoard({
   loading,
   savingId,
   submissions,
+  reviewFeedback,
+  helpDrafts,
+  helpReasons,
+  revisionTaskId,
+  revisionDraft,
   createState,
   referralLink,
   referralLocked,
@@ -2209,6 +2400,16 @@ function TeamTaskBoard({
   onCreate,
   onCreateStateChange,
   onSubmissionChange,
+  onReviewFeedbackChange,
+  onHelpDraftChange,
+  onHelpReasonChange,
+  onRequestHelp,
+  onResolveHelp,
+  onOpenRevision,
+  onCloseRevision,
+  onRevisionDraftChange,
+  onProposeRevision,
+  onRespondRevision,
   onOpenChallenge,
   onOpenInvite,
   onOpenProfile,
@@ -2221,9 +2422,20 @@ function TeamTaskBoard({
   loading: boolean;
   savingId: string | null;
   submissions: Record<string, string>;
+  reviewFeedback: Record<string, string>;
+  helpDrafts: Record<string, string>;
+  helpReasons: Record<string, TeamTaskHelpRequest["reason"]>;
+  revisionTaskId: string | null;
+  revisionDraft: { firstStep: string; expectedResult: string; dueAt: string };
   createState: {
     title: string;
     description: string;
+    goalContext: string;
+    expectedResult: string;
+    firstStep: string;
+    estimatedMinutes: string;
+    verificationCriteria: string;
+    leaderReviewDueAt: string;
     dueAt: string;
     memberId: string;
     kind: "manual" | "challenge";
@@ -2234,10 +2446,20 @@ function TeamTaskBoard({
   referralLocked: boolean;
   locale: AppLocale;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
-  onAction: (task: TeamTask, action: string, submission?: string) => void;
+  onAction: (task: TeamTask, action: string, submission?: string, feedback?: string) => void;
   onCreate: () => void;
-  onCreateStateChange: (field: "title" | "description" | "dueAt" | "memberId" | "kind" | "challengeId", value: string) => void;
+  onCreateStateChange: (field: "title" | "description" | "goalContext" | "expectedResult" | "firstStep" | "estimatedMinutes" | "verificationCriteria" | "leaderReviewDueAt" | "dueAt" | "memberId" | "kind" | "challengeId", value: string) => void;
   onSubmissionChange: (taskId: string, value: string) => void;
+  onReviewFeedbackChange: (taskId: string, value: string) => void;
+  onHelpDraftChange: (taskId: string, value: string) => void;
+  onHelpReasonChange: (taskId: string, value: TeamTaskHelpRequest["reason"]) => void;
+  onRequestHelp: (task: TeamTask, reason: TeamTaskHelpRequest["reason"], comment: string) => void;
+  onResolveHelp: (task: TeamTask, helpRequestId: string) => void;
+  onOpenRevision: (taskId: string) => void;
+  onCloseRevision: () => void;
+  onRevisionDraftChange: (field: "firstStep" | "expectedResult" | "dueAt", value: string) => void;
+  onProposeRevision: (task: TeamTask, changes: Record<string, unknown>) => void;
+  onRespondRevision: (task: TeamTask, revision: TeamTaskRevision, action: "accept" | "decline") => void;
   onOpenChallenge: () => void;
   onOpenInvite: () => void;
   onOpenProfile: (userId: string) => void;
@@ -2253,6 +2475,7 @@ function TeamTaskBoard({
     const challenge = challenges.find((item) => item.id === challengeId);
     return challenge ? challenge.title[locale] ?? challenge.title.en ?? challenge.id : challengeId;
   };
+  const helpReasonKey = (reason: TeamTaskHelpRequest["reason"]): MessageKey => `social.teams.helpReason.${reason}` as MessageKey;
 
   return (
     <>
@@ -2300,8 +2523,34 @@ function TeamTaskBoard({
                 </div>
                 <small>{task.due_at ? `${t("social.teams.taskDueShort")}: ${formatDate(task.due_at, locale)}` : formatDate(task.updated_at, locale)}</small>
               </div>
+              {(task.goal_context || task.expected_result || task.first_step || task.estimated_minutes || task.verification_criteria || task.leader_review_due_at) ? (
+                <div className="team-task-agreement">
+                  {task.goal_context ? <p><strong>{t("social.teams.goalContext")}:</strong> {task.goal_context}</p> : null}
+                  {task.expected_result ? <p><strong>{t("social.teams.expectedResult")}:</strong> {task.expected_result}</p> : null}
+                  {task.first_step ? <p><strong>{t("social.teams.firstStep")}:</strong> {task.first_step}</p> : null}
+                  {task.estimated_minutes ? <p><strong>{t("social.teams.estimatedMinutes")}:</strong> {task.estimated_minutes} {t("social.teams.minutes")}</p> : null}
+                  {task.verification_criteria ? <p><strong>{t("social.teams.verificationCriteria")}:</strong> {task.verification_criteria}</p> : null}
+                  {task.leader_review_due_at ? <p><strong>{t("social.teams.reviewDue")}:</strong> {formatDate(task.leader_review_due_at, locale)}</p> : null}
+                </div>
+              ) : null}
               {task.description ? <p>{task.description}</p> : null}
               {task.submission ? <p className="team-task-submission"><strong>{t("social.teams.submission")}:</strong> {task.submission}</p> : null}
+              {task.review_feedback ? <p className="team-task-feedback"><strong>{t("social.teams.reviewFeedback")}:</strong> {task.review_feedback}</p> : null}
+              {(task.revisions ?? []).filter((revision) => revision.status === "open").map((revision) => (
+                <div className="team-task-revision" key={revision.id}>
+                  <strong>{t("social.teams.revisionOpen")}</strong>
+                  <span>{revision.proposer_user_id === currentUserId ? t("social.teams.revisionWaiting") : t("social.teams.revisionNeedsResponse")}</span>
+                  {revision.changes.firstStep ? <p><strong>{t("social.teams.firstStep")}:</strong> {String(revision.changes.firstStep)}</p> : null}
+                  {revision.changes.expectedResult ? <p><strong>{t("social.teams.expectedResult")}:</strong> {String(revision.changes.expectedResult)}</p> : null}
+                  {revision.changes.dueAt ? <p><strong>{t("social.teams.taskDueShort")}:</strong> {formatDate(String(revision.changes.dueAt), locale)}</p> : null}
+                  {revision.proposer_user_id !== currentUserId ? (
+                    <div className="team-task-actions">
+                      <button className="secondary-button" type="button" disabled={pending} onClick={() => onRespondRevision(task, revision, "accept")}>{t("social.teams.revisionAccept")}</button>
+                      <button className="text-button" type="button" disabled={pending} onClick={() => onRespondRevision(task, revision, "decline")}>{t("social.teams.revisionDecline")}</button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
               <div className="team-task-actions">
                 {targetProfile ? <button className="text-button" type="button" onClick={() => onOpenProfile(otherUserId)}>{formatProfileName(targetProfile, otherUserId)}</button> : null}
                 <button className="text-button" type="button" onClick={() => onMessage(otherUserId)}>{mine ? t("social.teams.messageLeader") : t("social.teams.messageMember")}</button>
@@ -2312,10 +2561,44 @@ function TeamTaskBoard({
                     <button className="secondary-button" type="button" disabled={pending || !(submissions[task.id] ?? "").trim()} onClick={() => onAction(task, "submit", submissions[task.id])}>{t("social.teams.submit")}</button>
                   </>
                 ) : null}
-                {!mine && task.status === "submitted" ? <><button className="secondary-button" type="button" disabled={pending} onClick={() => onAction(task, "complete")}>{t("social.teams.complete")}</button><button className="secondary-button" type="button" disabled={pending} onClick={() => onAction(task, "return")}>{t("social.teams.return")}</button></> : null}
+                {!mine && task.status === "submitted" ? (
+                  <>
+                    <textarea value={reviewFeedback[task.id] ?? ""} onChange={(event) => onReviewFeedbackChange(task.id, event.target.value)} placeholder={t("social.teams.reviewFeedbackPlaceholder")} maxLength={4000} />
+                    <button className="secondary-button" type="button" disabled={pending} onClick={() => onAction(task, "complete", undefined, reviewFeedback[task.id])}>{t("social.teams.complete")}</button>
+                    <button className="secondary-button" type="button" disabled={pending || !(reviewFeedback[task.id] ?? "").trim()} onClick={() => onAction(task, "return", undefined, reviewFeedback[task.id])}>{t("social.teams.return")}</button>
+                  </>
+                ) : null}
                 {!mine && ["proposed", "accepted", "submitted", "returned"].includes(task.status) ? <button className="text-button" type="button" disabled={pending} onClick={() => onAction(task, "cancel")}>{t("social.teams.cancel")}</button> : null}
                 {mine && task.task_kind === "challenge" && ["accepted", "returned"].includes(task.status) ? <button className="secondary-button" type="button" onClick={onOpenChallenge}>{t("social.feed.openChallenge")}</button> : null}
+                {mine && ["proposed", "accepted", "returned"].includes(task.status) && !(task.revisions ?? []).some((revision) => revision.status === "open") ? <button className="text-button" type="button" disabled={pending} onClick={() => onOpenRevision(task.id)}><Edit3 size={14} /> {t("social.teams.proposeChange")}</button> : null}
+                {(["proposed", "accepted", "submitted", "returned"].includes(task.status)) ? (
+                  <>
+                    {(task.help_requests ?? []).some((help) => help.status === "open") ? (
+                      <button className="text-button" type="button" disabled={pending} onClick={() => onResolveHelp(task, (task.help_requests ?? []).find((help) => help.status === "open")?.id ?? "")}><Check size={14} /> {t("social.teams.helpResolve")}</button>
+                    ) : (
+                      <>
+                        <select className="team-help-reason" value={helpReasons[task.id] ?? "blocked"} onChange={(event) => onHelpReasonChange(task.id, event.target.value as TeamTaskHelpRequest["reason"])} aria-label={t("social.teams.helpReasonLabel")}>
+                          {["blocked", "clarification", "feedback", "other"].map((reason) => <option value={reason} key={reason}>{t(helpReasonKey(reason as TeamTaskHelpRequest["reason"]))}</option>)}
+                        </select>
+                        <input className="team-help-comment" value={helpDrafts[task.id] ?? ""} onChange={(event) => onHelpDraftChange(task.id, event.target.value)} placeholder={t("social.teams.helpCommentPlaceholder")} maxLength={2000} />
+                        <button className="text-button" type="button" disabled={pending} onClick={() => onRequestHelp(task, helpReasons[task.id] ?? "blocked", helpDrafts[task.id] ?? "")}><MessageCircle size={14} /> {t("social.teams.helpRequest")}</button>
+                      </>
+                    )}
+                  </>
+                ) : null}
               </div>
+              {revisionTaskId === task.id ? (
+                <div className="team-task-revision-form">
+                  <strong>{t("social.teams.revisionTitle")}</strong>
+                  <input value={revisionDraft.firstStep} onChange={(event) => onRevisionDraftChange("firstStep", event.target.value)} placeholder={t("social.teams.firstStep")} maxLength={1200} />
+                  <textarea value={revisionDraft.expectedResult} onChange={(event) => onRevisionDraftChange("expectedResult", event.target.value)} placeholder={t("social.teams.expectedResult")} maxLength={2000} />
+                  <label className="team-task-due-field"><span>{t("social.teams.taskDue")}</span><input type="datetime-local" value={revisionDraft.dueAt} onChange={(event) => onRevisionDraftChange("dueAt", event.target.value)} /></label>
+                  <div className="team-task-actions">
+                    <button className="secondary-button" type="button" disabled={pending || (!revisionDraft.firstStep.trim() && !revisionDraft.expectedResult.trim() && !revisionDraft.dueAt)} onClick={() => onProposeRevision(task, { ...(revisionDraft.firstStep.trim() ? { firstStep: revisionDraft.firstStep.trim() } : {}), ...(revisionDraft.expectedResult.trim() ? { expectedResult: revisionDraft.expectedResult.trim() } : {}), ...(revisionDraft.dueAt ? { dueAt: new Date(revisionDraft.dueAt).toISOString() } : {}) })}>{t("social.teams.revisionSend")}</button>
+                    <button className="text-button" type="button" disabled={pending} onClick={onCloseRevision}>{t("app.common.cancel")}</button>
+                  </div>
+                </div>
+              ) : null}
             </article>
           );
         })}
@@ -2341,9 +2624,18 @@ function TeamTaskBoard({
             ) : null}
             <input value={createState.title} onChange={(event) => onCreateStateChange("title", event.target.value)} placeholder={t("social.teams.taskTitle")} maxLength={160} />
             <textarea value={createState.description} onChange={(event) => onCreateStateChange("description", event.target.value)} placeholder={t("social.teams.taskDescription")} maxLength={4000} />
+            <input value={createState.goalContext} onChange={(event) => onCreateStateChange("goalContext", event.target.value)} placeholder={t("social.teams.goalContext")} maxLength={1200} />
+            <input value={createState.expectedResult} onChange={(event) => onCreateStateChange("expectedResult", event.target.value)} placeholder={t("social.teams.expectedResult")} maxLength={2000} />
+            <input value={createState.firstStep} onChange={(event) => onCreateStateChange("firstStep", event.target.value)} placeholder={t("social.teams.firstStep")} maxLength={1200} />
+            <input type="number" min="1" max="1440" value={createState.estimatedMinutes} onChange={(event) => onCreateStateChange("estimatedMinutes", event.target.value)} placeholder={t("social.teams.estimatedMinutes")} />
+            <textarea value={createState.verificationCriteria} onChange={(event) => onCreateStateChange("verificationCriteria", event.target.value)} placeholder={t("social.teams.verificationCriteria")} maxLength={2000} />
             <label className="team-task-due-field">
               <span>{t("social.teams.taskDue")}</span>
               <input type="datetime-local" value={createState.dueAt} onChange={(event) => onCreateStateChange("dueAt", event.target.value)} />
+            </label>
+            <label className="team-task-due-field">
+              <span>{t("social.teams.reviewDue")}</span>
+              <input type="datetime-local" value={createState.leaderReviewDueAt} onChange={(event) => onCreateStateChange("leaderReviewDueAt", event.target.value)} />
             </label>
             <button className="secondary-button" type="button" disabled={createState.creating || !createState.memberId || !createState.title.trim() || (createState.kind === "challenge" && !createState.challengeId)} onClick={onCreate}>{t("social.teams.assign")}</button>
           </div>

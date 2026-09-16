@@ -150,6 +150,9 @@ type PayoutNotification = {
   id: string;
   title: string;
   body: string;
+  readAt?: string | null;
+  createdAt?: string;
+  deep_link?: string;
 };
 type ProfileLinkRow = {
   id: string;
@@ -370,6 +373,7 @@ export default function SocialApp({
   const [teamRewardsLoading, setTeamRewardsLoading] = useState(false);
   const [teamRewardsError, setTeamRewardsError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<PayoutNotification[] | null>(null);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [socialProfile, setSocialProfile] = useState<SocialProfilePayload | null>(null);
   const [profileAction, setProfileAction] = useState<ProfileAction>(null);
@@ -462,6 +466,7 @@ export default function SocialApp({
     setTeamRewardsLoading(false);
     setTeamRewardsError(null);
     setNotifications(null);
+    setNotificationUnreadCount(0);
     setNotificationsLoading(false);
     setSocialProfile(null);
     setProfileAction(null);
@@ -968,6 +973,7 @@ export default function SocialApp({
       setTeamRewards(null);
       setTeamRewardsOpen(false);
       setNotifications(null);
+      setNotificationUnreadCount(0);
       return;
     }
 
@@ -1655,17 +1661,45 @@ export default function SocialApp({
     setNotificationsLoading(true);
     setSocialError(null);
     try {
-      const [coreRows, rewardRows] = await Promise.all([
+      const [notificationPage, coreRows, rewardRows] = await Promise.all([
+        loadNotificationCenter(locale).catch(() => ({ notifications: [], unreadCount: 0 })),
         loadCoreNotifications(),
         loadTeamRewardsHistory()
       ]);
-      setNotifications(buildPayoutNotifications(coreRows, rewardRows, locale));
+      setNotifications([...notificationPage.notifications, ...buildPayoutNotifications(coreRows, rewardRows, locale)]);
+      setNotificationUnreadCount(notificationPage.unreadCount);
     } catch (loadError) {
       console.warn("Payout notifications load failed", loadError);
       setSocialError(loadError instanceof Error ? loadError.message : "Failed to load notifications.");
     } finally {
       setNotificationsLoading(false);
     }
+  }
+
+  async function markAllNotificationsRead() {
+    if (!notificationUnreadCount) return;
+    try {
+      await markNotificationsRead();
+      const readAt = new Date().toISOString();
+      setNotifications((current) => current?.map((item) => item.createdAt ? { ...item, readAt } : item) ?? null);
+      setNotificationUnreadCount(0);
+    } catch (markError) {
+      setSocialError(markError instanceof Error ? markError.message : "Failed to update notifications.");
+    }
+  }
+
+  async function openNotification(item: PayoutNotification) {
+    if (!item.deep_link) return;
+    if (item.createdAt && !item.readAt) {
+      try {
+        await markNotificationsRead([item.id]);
+        setNotifications((current) => current?.map((row) => row.id === item.id ? { ...row, readAt: new Date().toISOString() } : row) ?? null);
+        setNotificationUnreadCount((count) => Math.max(0, count - 1));
+      } catch (readError) {
+        setSocialError(readError instanceof Error ? readError.message : "Failed to update notification.");
+      }
+    }
+    window.location.assign(item.deep_link);
   }
 
   return (
@@ -2052,7 +2086,7 @@ export default function SocialApp({
               <span>{t("profile.actions.skills")}</span>
             </button>
             <button className="profile-action-button" type="button" aria-label={t("profile.actions.activity")} aria-expanded={profileAction === "activity"} onClick={openPayoutNotifications}>
-              <span className="profile-action-icon-with-badge"><Bell size={18} />{pendingIncomingConfirmations > 0 ? <i>{pendingIncomingConfirmations}</i> : null}</span>
+              <span className="profile-action-icon-with-badge"><Bell size={18} />{pendingIncomingConfirmations + notificationUnreadCount > 0 ? <i>{pendingIncomingConfirmations + notificationUnreadCount}</i> : null}</span>
               <span>{t("profile.actions.activity")}</span>
             </button>
           </div>
@@ -2126,9 +2160,13 @@ export default function SocialApp({
         <ActivityDialog
           notifications={notifications}
           notificationsLoading={notificationsLoading}
+          unreadCount={notificationUnreadCount}
           pendingConfirmations={pendingIncomingConfirmations}
+          locale={locale}
           t={t}
           onClose={() => setProfileAction(null)}
+          onMarkAllRead={() => void markAllNotificationsRead()}
+          onOpenNotification={(item) => void openNotification(item)}
           onOpenConfirmations={() => { setProfileAction(null); setPeopleSection("confirmations"); onTabChange("people"); }}
         />
       ) : null}
@@ -2844,19 +2882,84 @@ function AppearanceDialog({ accentTheme, colorTheme, displayCurrency, locale, t,
   );
 }
 
-function ActivityDialog({ notifications, notificationsLoading, pendingConfirmations, t, onClose, onOpenConfirmations }: { notifications: PayoutNotification[] | null; notificationsLoading: boolean; pendingConfirmations: number; t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void; onOpenConfirmations: () => void }) {
+function ActivityDialog({ notifications, notificationsLoading, unreadCount, pendingConfirmations, locale, t, onClose, onMarkAllRead, onOpenNotification, onOpenConfirmations }: { notifications: PayoutNotification[] | null; notificationsLoading: boolean; unreadCount: number; pendingConfirmations: number; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void; onMarkAllRead: () => void; onOpenNotification: (item: PayoutNotification) => void; onOpenConfirmations: () => void }) {
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section className="modal-sheet profile-action-modal activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-title" onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
-        <div className="modal-header"><span>{t("profile.actions.activity")}</span><h2 id="activity-title">{t("profile.activity.title")}</h2></div>
+        <div className="modal-header"><span>{t("profile.actions.activity")}</span><h2 id="activity-title">{t("profile.activity.title")}</h2>{unreadCount ? <small>{t("notifications.unreadCount", { count: unreadCount })}</small> : null}</div>
+        {unreadCount ? <button className="text-button activity-mark-read" type="button" onClick={onMarkAllRead}>{t("profile.activity.markAllRead")}</button> : null}
         {pendingConfirmations ? <button className="activity-confirmation-link" type="button" onClick={onOpenConfirmations}><Bell size={16} /><span>{t("profile.activity.pendingConfirmations", { count: pendingConfirmations })}</span><ChevronDown size={16} /></button> : null}
         {notificationsLoading ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
-        {!notificationsLoading && notifications?.length ? <div className="notification-list">{notifications.map((item) => <article className="notification-row" key={item.id}><strong>{item.title}</strong><p>{item.body}</p></article>)}</div> : null}
+        {!notificationsLoading && notifications?.length ? <div className="notification-list">{notifications.map((item) => <article className={`notification-row${item.readAt ? "" : item.createdAt ? " unread" : ""}`} key={item.id}>{item.deep_link ? <button type="button" onClick={() => onOpenNotification(item)}><strong>{item.title}</strong><p>{item.body}</p></button> : <><strong>{item.title}</strong><p>{item.body}</p></>}</article>)}</div> : null}
         {!notificationsLoading && !pendingConfirmations && notifications && notifications.length === 0 ? <p className="feed-empty">{t("profile.activity.empty")}</p> : null}
+        <NotificationControls locale={locale} t={t} />
       </section>
     </div>
   );
+}
+
+const NOTIFICATION_CATEGORIES = ["deals", "disputes", "wallet", "rewards", "team", "confirmations", "reminders", "system"] as const;
+const REQUIRED_IN_APP_NOTIFICATION_CATEGORIES = new Set<NotificationCategory>(["deals", "disputes", "wallet", "rewards", "system"]);
+type NotificationCategory = typeof NOTIFICATION_CATEGORIES[number];
+type NotificationPreference = { category: NotificationCategory; in_app_enabled: boolean; push_enabled: boolean };
+type NotificationDevice = { id: string; device_label: string | null; user_agent: string | null; enabled: boolean; last_seen_at: string };
+
+function NotificationControls({ locale, t }: { locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string }) {
+  const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
+  const [devices, setDevices] = useState<NotificationDevice[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        const [preferenceResponse, deviceResponse] = await Promise.all([
+          fetch(`/api/notifications/preferences?ts=${Date.now()}`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/notifications/subscriptions?ts=${Date.now()}`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        const preferencePayload = await preferenceResponse.json() as { preferences?: NotificationPreference[]; error?: string };
+        const devicePayload = await deviceResponse.json() as { devices?: NotificationDevice[]; error?: string };
+        if (!preferenceResponse.ok || !deviceResponse.ok) throw new Error(preferencePayload.error ?? devicePayload.error ?? "Failed to load notification settings.");
+        if (mounted) { setPreferences(preferencePayload.preferences ?? []); setDevices(devicePayload.devices ?? []); }
+      } catch (loadError) {
+        if (mounted) setError(loadError instanceof Error ? loadError.message : "Failed to load notification settings.");
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const preferenceFor = (category: NotificationCategory) => preferences.find((item) => item.category === category) ?? { category, in_app_enabled: true, push_enabled: true };
+
+  async function updatePreference(category: NotificationCategory, field: "in_app_enabled" | "push_enabled", enabled: boolean) {
+    const current = preferenceFor(category);
+    const next = { ...current, [field]: enabled };
+    setPreferences((items) => [...items.filter((item) => item.category !== category), next]);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/notifications/preferences", { method: "PUT", cache: "no-store", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ category, inAppEnabled: next.in_app_enabled, pushEnabled: next.push_enabled, locale }) });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to save notification setting.");
+    } catch (saveError) {
+      setPreferences((items) => [...items.filter((item) => item.category !== category), current]);
+      setError(saveError instanceof Error ? saveError.message : "Failed to save notification setting.");
+    }
+  }
+
+  async function disableDevice(subscriptionId: string) {
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/notifications/subscriptions", { method: "DELETE", cache: "no-store", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ subscriptionId }) });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to disable push device.");
+      setDevices((items) => items.map((item) => item.id === subscriptionId ? { ...item, enabled: false } : item));
+    } catch (disableError) {
+      setError(disableError instanceof Error ? disableError.message : "Failed to disable push device.");
+    }
+  }
+
+  return <details className="notification-settings"><summary>{t("notifications.settings")}</summary><div className="notification-settings-body">{error ? <p className="finance-error">{error}</p> : null}<div className="notification-preferences">{NOTIFICATION_CATEGORIES.map((category) => { const preference = preferenceFor(category); return <div className="notification-preference-row" key={category}><strong>{t(`notifications.category.${category}` as MessageKey)}</strong><label><input type="checkbox" checked={preference.in_app_enabled} disabled={REQUIRED_IN_APP_NOTIFICATION_CATEGORIES.has(category)} onChange={(event) => void updatePreference(category, "in_app_enabled", event.target.checked)} /> {t("notifications.inApp")}</label><label><input type="checkbox" checked={preference.push_enabled} onChange={(event) => void updatePreference(category, "push_enabled", event.target.checked)} /> Push</label></div>; })}</div><div className="notification-devices"><strong>{t("notifications.devices")}</strong>{devices.length ? devices.map((device) => <div key={device.id}><span>{device.device_label ?? t("notifications.deviceUnknown")}</span><button className="text-button" type="button" disabled={!device.enabled} onClick={() => void disableDevice(device.id)}>{device.enabled ? t("notifications.disable") : t("notifications.disabled")}</button></div>) : <small>{t("notifications.devicesEmpty")}</small>}</div></div></details>;
 }
 
 function SkillPassportDialog({ t, onClose }: { t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void }) {
@@ -4127,6 +4230,29 @@ async function loadCoreNotifications(since?: string): Promise<CoreNotificationRo
   const payload = (await response.json()) as { rows?: CoreNotificationRow[]; error?: string };
   if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load core payouts.");
   return payload.rows ?? [];
+}
+
+async function loadNotificationCenter(locale: AppLocale): Promise<{ notifications: PayoutNotification[]; unreadCount: number }> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/notifications?limit=50&locale=${locale}&ts=${Date.now()}`, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+  });
+  const payload = await response.json() as { notifications?: PayoutNotification[]; unreadCount?: number; error?: string };
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load notifications.");
+  return { notifications: payload.notifications ?? [], unreadCount: payload.unreadCount ?? 0 };
+}
+
+async function markNotificationsRead(ids?: string[]): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch("/api/notifications", {
+    method: "PATCH",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(ids ? { ids } : { all: true })
+  });
+  const payload = await response.json() as { error?: string };
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to update notifications.");
 }
 
 function buildPayoutNotifications(coreRows: CoreNotificationRow[], rewardRows: TeamRewardDay[], locale: AppLocale): PayoutNotification[] {

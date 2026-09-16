@@ -20,6 +20,7 @@ type ScheduleBody = {
   localTime?: string;
   timezone?: string;
   deepLink?: string;
+  deviceLabel?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -30,6 +31,23 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createAdminClient();
     const ownerKey = await getOwnerKey(request, validated.guestId, supabase);
+    const { data: previousSubscription } = await supabase
+      .from("push_subscriptions")
+      .select("id,owner_key")
+      .eq("endpoint", validated.subscription.endpoint)
+      .maybeSingle();
+    if (previousSubscription && previousSubscription.owner_key !== ownerKey) {
+      await Promise.all([
+        supabase.from("reminder_jobs")
+          .update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("subscription_id", previousSubscription.id)
+          .in("status", ["scheduled", "processing"]),
+        supabase.from("notification_deliveries")
+          .update({ status: "cancelled", updated_at: new Date().toISOString(), last_error: "Subscription owner changed" })
+          .eq("subscription_id", previousSubscription.id)
+          .in("status", ["queued", "processing"])
+      ]);
+    }
     const { data: subscription, error: subscriptionError } = await supabase
       .from("push_subscriptions")
       .upsert({
@@ -38,7 +56,9 @@ export async function POST(request: NextRequest) {
         p256dh: validated.subscription.keys.p256dh,
         auth: validated.subscription.keys.auth,
         user_agent: request.headers.get("user-agent")?.slice(0, 500) ?? null,
+        device_label: validated.deviceLabel,
         enabled: true,
+        last_seen_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }, { onConflict: "endpoint" })
       .select("id")
@@ -102,6 +122,7 @@ function validateBody(body: ScheduleBody | null) {
   const localTime = recurring && /^([01]\d|2[0-3]):[0-5]\d$/.test(body?.localTime ?? "") ? body?.localTime : null;
   const timezone = cleanTimezone(body?.timezone);
   const deepLink = cleanDeepLink(body?.deepLink);
+  const deviceLabel = cleanToken(body?.deviceLabel, 100);
   if (!endpoint || !p256dh || !auth || !guestId || !clientReminderId || !kind || !dueDate || Number.isNaN(dueDate.getTime()) || !timezone || !deepLink) return null;
   if (recurring && !localTime) return null;
   return {
@@ -114,7 +135,8 @@ function validateBody(body: ScheduleBody | null) {
     recurring,
     localTime,
     timezone,
-    deepLink
+    deepLink,
+    deviceLabel
   };
 }
 

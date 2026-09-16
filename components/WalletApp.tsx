@@ -6,6 +6,7 @@ import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from
 import { QRCodeSVG } from "qrcode.react";
 import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
+import P2PWalletPanel from "@/components/P2PWalletPanel";
 import { TonUsdtDepositModal, TonUsdtWithdrawalModal } from "@/components/TonUsdtWalletModals";
 import { WalletCryptoMethodModal, type WalletCryptoMethod } from "@/components/WalletCryptoMethodModal";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
@@ -18,7 +19,7 @@ import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
 import { isUuid } from "@/lib/uuid";
 
-type WalletTab = "wallet" | "core" | "market";
+type WalletTab = "wallet" | "core" | "market" | "p2p";
 export type WalletCalculatorRequest = {
   dailyAdditions?: number;
   nonce: number;
@@ -37,7 +38,7 @@ type CoreHistoryRow = {
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund";
+  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -905,6 +906,20 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                           ? t("wallet.history.marketplacePayment")
                           : row.kind === "marketplace_refund"
                             ? t("wallet.history.marketplaceRefund")
+                            : row.kind === "p2p_escrow_hold"
+                              ? t("wallet.history.p2pHold")
+                              : row.kind === "p2p_escrow_release"
+                                ? t("wallet.history.p2pRelease")
+                                : row.kind === "p2p_escrow_refund"
+                                  ? t("wallet.history.p2pRefund")
+                                  : row.kind === "p2p_compensation"
+                                    ? t("wallet.history.p2pCompensation")
+                                    : row.kind === "p2p_recovery"
+                                      ? t("wallet.history.p2pRecovery")
+                                    : row.kind === "p2p_collateral_hold"
+                                      ? t("wallet.history.p2pCollateralHold")
+                                    : row.kind === "p2p_collateral_release"
+                                      ? t("wallet.history.p2pCollateralRelease")
                             : row.kind === "crypto_deposit"
                       ? row.assetCode === "USDT" ? t("wallet.history.usdtDeposit") : t("wallet.history.cryptoDeposit")
                       : row.kind === "crypto_withdrawal"
@@ -922,7 +937,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                       ? `${t("wallet.history.source")}: ${shortId(row.sourceId ?? row.id)}`
                       : row.kind === "wallet_transfer"
                       ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.source")}: ${shortId(row.sourceId)}` : ""}`
-                      : row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund"
+                      : row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund" || row.kind.startsWith("p2p_")
                         ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.deal")}: ${shortId(row.sourceId)}` : ""}`
                     : row.kind === "crypto_deposit"
                       ? formatCryptoDepositDetails(row, locale)
@@ -1146,6 +1161,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           onCreate={handleCreateListing}
         />
       ) : null}
+
+      {user && activeTab === "p2p" ? <P2PWalletPanel active={active} /> : null}
       {marketDetailListing ? (
         <MarketplaceListingDetailModal
           listing={marketDetailListing}

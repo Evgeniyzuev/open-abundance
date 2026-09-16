@@ -128,9 +128,14 @@ async function submitReminder(subscription: PushSubscription, reminder: Reminder
       "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
     },
-    body: JSON.stringify({ subscription: subscription.toJSON(), guestId: guest.guestId, ...reminder })
+    body: JSON.stringify({ subscription: subscription.toJSON(), guestId: guest.guestId, deviceLabel: getDeviceLabel(), ...reminder })
   });
   if (!response.ok) throw new Error("Reminder was not scheduled.");
+}
+
+function getDeviceLabel(): string {
+  const platform = navigator.userAgent.match(/iPhone|iPad|Android/i)?.[0] ?? navigator.platform ?? "Web";
+  return `${platform} · ${navigator.userAgent.includes("CriOS") || navigator.userAgent.includes("Chrome") ? "Chrome" : navigator.userAgent.includes("Safari") ? "Safari" : "Browser"}`.slice(0, 100);
 }
 
 async function cancelReminder(subscription: PushSubscription, clientReminderId: string) {

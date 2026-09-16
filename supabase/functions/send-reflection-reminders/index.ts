@@ -21,6 +21,18 @@ type PushSubscriptionRow = {
   owner_key: string;
 };
 
+type NotificationDelivery = {
+  delivery_id: string;
+  subscription_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  locale: "ru" | "en";
+  event_type: string;
+  category: string;
+  deep_link: string;
+};
+
 type SupabaseAdminClient = ReturnType<typeof createClient<any>>;
 
 Deno.serve(async (request) => {
@@ -81,8 +93,52 @@ Deno.serve(async (request) => {
     }
   }
 
-  return Response.json({ claimed: jobs?.length ?? 0, sent });
+  const { data: deliveries, error: deliveryClaimError } = await supabase.rpc("claim_notification_deliveries", { p_limit: 100 });
+  if (deliveryClaimError) return new Response(deliveryClaimError.message, { status: 500 });
+
+  let notificationSent = 0;
+  for (const delivery of (deliveries ?? []) as NotificationDelivery[]) {
+    try {
+      const { data: allowed, error: accessError } = await supabase.rpc("notification_delivery_allowed", { p_delivery_id: delivery.delivery_id });
+      if (accessError) throw accessError;
+      if (!allowed) {
+        await supabase.from("notification_deliveries").update({ status: "cancelled", last_error: "Subscription or source access changed", updated_at: new Date().toISOString() }).eq("id", delivery.delivery_id);
+        continue;
+      }
+      await webpush.sendNotification({
+        endpoint: delivery.endpoint,
+        keys: { p256dh: delivery.p256dh, auth: delivery.auth }
+      }, JSON.stringify(buildNotificationPayload(delivery)), { TTL: 3600 });
+      await finishNotificationDelivery(supabase, delivery.delivery_id, true, null);
+      await supabase.from("push_subscriptions").update({ last_success_at: new Date().toISOString() }).eq("id", delivery.subscription_id);
+      notificationSent += 1;
+    } catch (error) {
+      const statusCode = typeof error === "object" && error && "statusCode" in error ? Number(error.statusCode) : 0;
+      if (statusCode === 404 || statusCode === 410) {
+        await supabase.from("push_subscriptions").update({ enabled: false }).eq("id", delivery.subscription_id);
+        await supabase.from("notification_deliveries").update({ status: "failed", last_error: "Push subscription expired", updated_at: new Date().toISOString() }).eq("id", delivery.delivery_id);
+        continue;
+      }
+      await finishNotificationDelivery(supabase, delivery.delivery_id, false, error instanceof Error ? error.message : "Push delivery failed");
+    }
+  }
+
+  return Response.json({
+    reminders: { claimed: jobs?.length ?? 0, sent },
+    notifications: { claimed: deliveries?.length ?? 0, sent: notificationSent }
+  });
 });
+
+function buildNotificationPayload(delivery: NotificationDelivery) {
+  const isRussian = delivery.locale === "ru";
+  return {
+    title: "Open Abundance",
+    body: isRussian ? "Откройте приложение, чтобы посмотреть обновление." : "Open the app to view an update.",
+    deepLink: delivery.deep_link,
+    tag: `open-abundance-notification:${delivery.delivery_id}`,
+    data: { category: delivery.category, eventType: delivery.event_type }
+  };
+}
 
 function buildPayload(job: ReminderJob) {
   const isRussian = job.locale === "ru";
@@ -122,4 +178,8 @@ function getLocalDate(date: Date, timezone: string): string {
 
 async function finishJob(supabase: SupabaseAdminClient, jobId: string, success: boolean, error: string | null) {
   await supabase.rpc("complete_reminder_job", { p_job_id: jobId, p_success: success, p_error: error });
+}
+
+async function finishNotificationDelivery(supabase: SupabaseAdminClient, deliveryId: string, success: boolean, error: string | null) {
+  await supabase.rpc("complete_notification_delivery", { p_delivery_id: deliveryId, p_success: success, p_error: error });
 }

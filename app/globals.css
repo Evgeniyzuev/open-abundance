@@ -995,6 +995,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .note-body-field { width: 100%; }
 .appearance-dialog-body { margin-top: 2px; }
 .activity-modal { gap: 12px; }
+.activity-mark-read { justify-self: end; }
 .activity-confirmation-link { min-height: 44px; display: flex; align-items: center; gap: 8px; border-radius: 11px; padding: 0 11px; background: var(--accent-soft); color: var(--blue); font-size: 0.8125rem; font-weight: 850; text-align: left; }
 .activity-confirmation-link span { min-width: 0; flex: 1; }
 .notification-list { display: grid; gap: 7px; }
@@ -1262,6 +1263,20 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .transfer-contact small { color: var(--muted); font-size: 0.625rem; font-weight: 750; }
 .transfer-summary { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--blue); font-size: 0.75rem; font-weight: 850; }
 .market-panel { display: grid; gap: 10px; margin: 0 4px; }
+.p2p-panel input, .p2p-panel select { font-size: 1rem; }
+.p2p-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.p2p-metrics article { display: grid; gap: 3px; border-radius: 12px; padding: 11px; background: var(--surface-soft); }
+.p2p-metrics span, .p2p-policy-note { color: var(--muted); font-size: 0.75rem; }
+.p2p-metrics strong { font-size: 0.9375rem; }
+.p2p-form-card { border: 1px solid var(--line); border-radius: 12px; padding: 11px; background: var(--surface); }
+.p2p-form-card summary { cursor: pointer; font-weight: 850; }
+.p2p-form-grid { display: grid; gap: 9px; margin-top: 11px; }
+.p2p-form-grid select { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; background: var(--surface-soft); color: var(--text); }
+.p2p-terms { display: flex; align-items: flex-start; gap: 9px; line-height: 1.4; font-size: 0.8125rem; }
+.p2p-terms input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; }
+.p2p-payment-details { display: grid; gap: 3px; border-radius: 10px; padding: 10px; background: var(--accent-soft); }
+.p2p-dispute-row { display: grid; gap: 7px; margin-top: 7px; }
+.p2p-dispute-row input { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; background: var(--surface-soft); color: var(--text); }
 .market-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; border-radius: 14px; padding: 13px; background: var(--surface); box-shadow: var(--shadow); }
 .market-head div { min-width: 0; display: grid; gap: 2px; }
 .market-head span { color: var(--muted); font-size: 0.75rem; font-weight: 850; text-transform: uppercase; }
@@ -1299,6 +1314,15 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .notification-panel { width: 100%; display: grid; gap: 8px; margin-top: 8px; border-radius: 12px; padding: 10px; background: var(--surface-soft); }
 .notification-panel > p { margin: 0; color: var(--muted); font-size: 0.875rem; }
 .notification-row { display: grid; gap: 3px; border-radius: 10px; padding: 10px 11px; background: var(--surface); text-align: left; box-shadow: 0 8px 18px rgba(25,25,35,0.05); }
+.notification-row.unread { border-left: 3px solid var(--blue); }
+.notification-row > button { width: 100%; display: grid; gap: 3px; padding: 0; background: transparent; color: inherit; text-align: left; }
+.notification-settings { border-top: 1px solid var(--line); padding-top: 10px; }
+.notification-settings > summary { cursor: pointer; font-size: 0.8125rem; font-weight: 850; }
+.notification-settings-body, .notification-preferences, .notification-devices { display: grid; gap: 8px; margin-top: 9px; }
+.notification-preference-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; border-radius: 9px; padding: 8px; background: var(--surface-soft); }
+.notification-preference-row strong, .notification-preference-row label, .notification-devices { font-size: 0.75rem; }
+.notification-preference-row label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.notification-devices > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .notification-row strong { font-size: 0.9375rem; }
 .notification-row p { margin: 0; color: var(--muted); font-size: 0.8125rem; }
 .people-layout { display: grid; gap: 10px; margin: 0 4px; }

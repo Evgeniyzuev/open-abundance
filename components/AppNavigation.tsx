@@ -27,7 +27,7 @@ import { readPrimaryWish } from "@/lib/wishJourney";
 type MainTabId = "home" | "goals" | "challenges" | "wallet" | "people";
 type HomeTabId = "home" | "ideas";
 type GoalTabId = "desires" | "notes" | "checks" | "map" | "results";
-type WalletTabId = "wallet" | "core" | "market";
+type WalletTabId = "wallet" | "core" | "market" | "p2p";
 type SocialTabId = "feed" | "people" | "blog" | "teams" | "profile";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -81,7 +81,8 @@ const goalTabs: GoalTab[] = [
 const walletTabs: TopTab[] = [
   { id: "wallet", titleKey: "app.nav.wallet", icon: Wallet },
   { id: "core", titleKey: "wallet.core", icon: CoreSeedIcon },
-  { id: "market", titleKey: "app.nav.market", icon: ShoppingBag }
+  { id: "market", titleKey: "app.nav.market", icon: ShoppingBag },
+  { id: "p2p", titleKey: "app.nav.p2p", icon: Wallet }
 ];
 
 const challengeTabs: TopTab[] = [
@@ -902,7 +903,7 @@ function isGoalTabId(value: string | undefined): value is GoalTabId {
 }
 
 function isWalletTabId(value: string | undefined): value is WalletTabId {
-  return value === "wallet" || value === "core" || value === "market";
+  return value === "wallet" || value === "core" || value === "market" || value === "p2p";
 }
 
 function isSocialTabId(value: string | undefined): value is SocialTabId {

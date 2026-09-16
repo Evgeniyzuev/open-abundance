@@ -9,6 +9,8 @@ Reflection content remains local-only. Migration `20260721120000_reflection_push
 
 Both tables have RLS enabled with no client policies. Due jobs are claimed idempotently through service-role functions and dispatched by the scheduled `send-reflection-reminders` Edge Function. No note body, AI answer, possible cause or task title is stored in these tables.
 
+As of 2026-09-16, the notification-center migration `20260915181547` is applied to project `bsikxrsguwketlloflgi`, and `send-reflection-reminders` is deployed as active version 3. Its VAPID and cron secrets are configured, both cron values are stored in Vault, and manual plus minute-cron calls returned HTTP 200 with empty queues. The public VAPID endpoint returned HTTP 200 with the configured key; publication of the updated web client and real-device delivery remain unverified. See [Notifications And Web Push Plan](NOTIFICATIONS_PLAN.md) before claiming Web Push is live.
+
 Supabase project ref: `bsikxrsguwketlloflgi`
 
 ## Source Of Truth

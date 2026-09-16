@@ -36,6 +36,21 @@ type NotificationDelivery = {
 type SupabaseAdminClient = ReturnType<typeof createClient<any>>;
 
 Deno.serve(async (request) => {
+  if (new URL(request.url).pathname.replace(/\/+$/, "").endsWith("/vapid-public-key")) {
+    const headers = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "content-type",
+      "Cache-Control": "no-store"
+    };
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+    if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405, headers });
+    const publicKey = Deno.env.get("WEB_PUSH_VAPID_PUBLIC_KEY");
+    if (!publicKey) return new Response("Web Push is not configured", { status: 503, headers });
+    return Response.json({ publicKey }, { headers });
+  }
+
+  if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
   const cronSecret = Deno.env.get("REMINDER_CRON_SECRET");
   if (!cronSecret || request.headers.get("x-cron-secret") !== cronSecret) {
     return new Response("Unauthorized", { status: 401 });

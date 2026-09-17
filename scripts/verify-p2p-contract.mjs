@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 
 const migration = await readFile("supabase/migrations/20260915181558_p2p_wallet_rub_foundation_v1.sql", "utf8");
 const openAccessMigration = await readFile("supabase/migrations/20260917100000_p2p_open_access_and_notification_defaults_v1.sql", "utf8");
+const marketMigration = await readFile("supabase/migrations/20260918100000_p2p_wallet_market_v2.sql", "utf8");
 const api = await readFile("app/api/p2p/route.ts", "utf8");
 const encryption = await readFile("lib/p2pPaymentDetails.ts", "utf8");
 
@@ -38,5 +39,10 @@ assert.doesNotMatch(api, /normalizePersonName\(member\.verified_name\).*normaliz
 assert.match(api, /body\.acceptCoreRecovery !== true/, "trade creation must require Core recovery consent");
 assert.match(encryption, /aes-256-gcm/, "payment details must use authenticated encryption");
 assert.match(encryption, /key\.length !== 32/, "payment encryption key length must be checked");
+assert.match(marketMigration, /pending_acceptance/, "market requests must wait for ad owner acceptance");
+assert.match(marketMigration, /p2p_create_ad_v2/, "both buy and sell ad creation must be supported");
+assert.match(marketMigration, /p2p_create_order_v2/, "both directions must use the new order path");
+assert.match(marketMigration, /p2p_order_messages/, "deals must have a private message ledger");
+assert.match(marketMigration, /p2p-order-attachments/, "deal attachments must use a private bucket");
 
 console.log("P2P contract checks passed.");

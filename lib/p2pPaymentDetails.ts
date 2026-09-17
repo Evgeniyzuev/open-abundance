@@ -7,6 +7,16 @@ type EncryptedPaymentDetails = {
   keyVersion: string;
 };
 
+export function isPaymentDetailsEncryptionConfigured(): boolean {
+  const raw = process.env.P2P_PAYMENT_DETAILS_KEY;
+  if (!raw) return false;
+  try {
+    return Buffer.from(raw, "base64").length === 32;
+  } catch {
+    return false;
+  }
+}
+
 function encryptionKey(): Buffer {
   const raw = process.env.P2P_PAYMENT_DETAILS_KEY;
   if (!raw) throw new Error("P2P payment detail encryption is not configured.");

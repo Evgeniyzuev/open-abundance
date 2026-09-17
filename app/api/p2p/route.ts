@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import { encryptPaymentDetails, maskPaymentTarget, normalizePersonName } from "@/lib/p2pPaymentDetails";
+import { encryptPaymentDetails, maskPaymentTarget } from "@/lib/p2pPaymentDetails";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { isUuid } from "@/lib/uuid";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+
+// Keep an explicit environment kill switch, while making authenticated P2P
+// access available by default after the open-access migration.
+const p2pTradingEnabled = process.env.P2P_TRADING_ENABLED !== "false";
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,14 +30,16 @@ export async function GET(request: NextRequest) {
     for (const result of [memberResult, limitResult, methodsResult, adsResult, buyingResult, sellingResult, fundResult, collateralResult]) {
       if (result.error) return json({ error: result.error.message }, 500);
     }
+    const member = memberResult.data ?? { status: "active" };
+    const memberBlocked = ["suspended", "revoked"].includes(member.status);
     const orders = Array.from(new Map([...(buyingResult.data ?? []), ...(sellingResult.data ?? [])].map((order: any) => [order.id, order])).values());
     return json({
-      tradingEnabled: process.env.P2P_TRADING_ENABLED === "true",
-      member: memberResult.data ?? { status: "not_invited" },
+      tradingEnabled: p2pTradingEnabled,
+      member,
       limit: limitResult.data,
       collateral: collateralResult.data ?? { amount: 0, reserved_amount: 0 },
       paymentMethods: methodsResult.data ?? [],
-      ads: memberResult.data?.status === "active" ? adsResult.data ?? [] : [],
+      ads: memberBlocked ? [] : adsResult.data ?? [],
       orders,
       fund: fundResult.data ? {
         availableAmount: Number(fundResult.data.wallet_balance) - Number(fundResult.data.reserved_amount),
@@ -63,10 +69,9 @@ export async function POST(request: NextRequest) {
       const paymentTarget = cleanText(body.paymentTarget, 160);
       const bankName = cleanText(body.bankName, 120);
       if (!methodType || !label || !holderName || !paymentTarget || !bankName) return json({ error: "Complete all payment method fields." }, 400);
-      const { data: member, error: memberError } = await db.from("p2p_pilot_members").select("status,verified_name").eq("user_id", user.id).maybeSingle();
+      const { data: member, error: memberError } = await db.from("p2p_pilot_members").select("status").eq("user_id", user.id).maybeSingle();
       if (memberError) return json({ error: memberError.message }, 500);
-      if (!member || member.status !== "active") return json({ error: "P2P pilot access is required." }, 403);
-      if (!member.verified_name || normalizePersonName(member.verified_name) !== normalizePersonName(holderName)) return json({ error: "Payment details must belong to the verified participant." }, 400);
+      if (["suspended", "revoked"].includes(member?.status)) return json({ error: "P2P access is restricted." }, 403);
       const encrypted = encryptPaymentDetails({ holderName, paymentTarget, bankName });
       const { data, error: insertError } = await db.from("p2p_payment_methods").insert({
         user_id: user.id,
@@ -83,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "create_ad") {
-      if (process.env.P2P_TRADING_ENABLED !== "true") return json({ error: "P2P trading is not enabled." }, 503);
+      if (!p2pTradingEnabled) return json({ error: "P2P trading is not enabled." }, 503);
       if (body.acceptCoreRecovery !== true) return json({ error: "Core recovery terms must be accepted." }, 400);
       const paymentMethodId = typeof body.paymentMethodId === "string" && isUuid(body.paymentMethodId) ? body.paymentMethodId : null;
       if (!paymentMethodId) return json({ error: "Payment method is required." }, 400);
@@ -102,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "create_order") {
-      if (process.env.P2P_TRADING_ENABLED !== "true") return json({ error: "P2P trading is not enabled." }, 503);
+      if (!p2pTradingEnabled) return json({ error: "P2P trading is not enabled." }, 503);
       if (body.acceptCoreRecovery !== true) return json({ error: "Core recovery terms must be accepted." }, 400);
       const adId = typeof body.adId === "string" && isUuid(body.adId) ? body.adId : null;
       if (!adId) return json({ error: "P2P ad is required." }, 400);
@@ -126,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "change_collateral") {
-      if (numberValue(body.amount) > 0 && process.env.P2P_TRADING_ENABLED !== "true") return json({ error: "P2P trading is not enabled." }, 503);
+      if (numberValue(body.amount) > 0 && !p2pTradingEnabled) return json({ error: "P2P trading is not enabled." }, 503);
       const { data, error: rpcError } = await db.rpc("p2p_change_collateral", {
         p_user_id: user.id,
         p_amount: numberValue(body.amount),

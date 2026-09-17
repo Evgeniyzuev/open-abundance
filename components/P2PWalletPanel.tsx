@@ -85,7 +85,7 @@ export default function P2PWalletPanel({ active }: { active: boolean }) {
   if (loading && !data) return <section className="market-panel p2p-panel"><p className="finance-error neutral">{t("app.common.loading")}</p></section>;
   if (!data) return <section className="market-panel p2p-panel">{error ? <p className="finance-error">{error}</p> : null}</section>;
 
-  const memberActive = data.member.status === "active";
+  const memberActive = !["suspended", "revoked"].includes(data.member.status);
   return (
     <section className="market-panel p2p-panel">
       <div className="market-head"><div><span>{t("p2p.kicker")}</span><strong>{t("p2p.title")}</strong><small>{t("p2p.closedPilot")}</small></div><button className="text-button" type="button" onClick={() => void load()}>{t("app.common.refresh")}</button></div>

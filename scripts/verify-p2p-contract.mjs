@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const migration = await readFile("supabase/migrations/20260915181558_p2p_wallet_rub_foundation_v1.sql", "utf8");
+const openAccessMigration = await readFile("supabase/migrations/20260917100000_p2p_open_access_and_notification_defaults_v1.sql", "utf8");
 const api = await readFile("app/api/p2p/route.ts", "utf8");
 const encryption = await readFile("lib/p2pPaymentDetails.ts", "utf8");
 
@@ -29,7 +30,11 @@ assert.match(migration, /p2p_apply_core_recovery\(account\.user_id, gross_amount
 assert.ok(migration.indexOf("recovery_result := public.p2p_apply_core_recovery") < migration.lastIndexOf("core_amount := round(distributable_amount"), "recovery must happen before reinvestment");
 assert.match(migration, /p2p_recovery_events[\s\S]*idempotency_key text not null unique/, "recovery events must be idempotent");
 assert.match(migration, /trust_enforcement_enabled boolean not null default false/, "Trust v2 must remain shadow-gated by default");
-assert.match(api, /normalizePersonName\(member\.verified_name\).*normalizePersonName\(holderName\)/, "payment details must belong to the verified participant");
+assert.match(openAccessMigration, /insert into public\.p2p_pilot_members[\s\S]*'active'/, "existing accounts must receive open P2P access");
+assert.match(openAccessMigration, /provision_account_defaults_on_signup/, "new accounts must receive open P2P access and defaults");
+assert.match(openAccessMigration, /push_enabled, locale\)\s*select[\s\S]*true, true, 'en'/, "new notification preferences must enable push by default");
+assert.match(api, /process\.env\.P2P_TRADING_ENABLED !== \"false\"/, "P2P must be enabled by default with an explicit kill switch");
+assert.doesNotMatch(api, /normalizePersonName\(member\.verified_name\).*normalizePersonName\(holderName\)/, "open P2P access must not require an operator-verified name");
 assert.match(api, /body\.acceptCoreRecovery !== true/, "trade creation must require Core recovery consent");
 assert.match(encryption, /aes-256-gcm/, "payment details must use authenticated encryption");
 assert.match(encryption, /key\.length !== 32/, "payment encryption key length must be checked");

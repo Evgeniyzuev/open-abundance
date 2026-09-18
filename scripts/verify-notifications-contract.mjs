@@ -17,6 +17,7 @@ for (const source of ["wallet_ledger", "daily_core_accruals", "team_core_growth_
   assert.match(migration, new RegExp(`on public\\.${source}`, "i"), `${source} must emit notification events`);
 }
 assert.match(sender, /Open the app to view an update\./, "push payload must use neutral lock-screen copy");
+assert.doesNotMatch(sender, /\u0420[\u0400-\u04ff]/u, "push source must not contain UTF-8 mojibake literals");
 assert.doesNotMatch(sender, /wallet_amount|rub_amount|price_amount/i, "push payload must not include financial amounts");
 assert.match(sender, /claim_notification_deliveries/, "sender must claim notification deliveries");
 assert.match(sender, /notification_delivery_allowed/, "sender must recheck source access before each push");

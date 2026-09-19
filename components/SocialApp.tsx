@@ -4,7 +4,7 @@ import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, 
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import FeedPostGallery from "@/components/FeedPostGallery";
+import FeedPostGallery, { getFeedPostCover } from "@/components/FeedPostGallery";
 import FeedPostInteractions from "@/components/FeedPostInteractions";
 import LegalDisclosure from "@/components/LegalDisclosure";
 import BlogWorkspace from "@/components/BlogWorkspace";
@@ -3722,7 +3722,9 @@ export function PostDetailModal({
   storyWishSaving?: boolean;
 }) {
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
-  const hasVisualMedia = post.media.some((item) => item.media_type === "image" || item.media_type === "video");
+  const hasVisualMedia = post.media.some((item) => (item.media_type === "image" || item.media_type === "video") && Boolean(item.media_url));
+  const fallbackCover = hasVisualMedia ? null : getFeedPostCover(post);
+  const hasDetailCover = hasVisualMedia || Boolean(fallbackCover);
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewDraft, setReviewDraft] = useState<ReviewEditPayload>({
@@ -3762,11 +3764,12 @@ export function PostDetailModal({
 
   return (
     <div className="modal-backdrop post-detail-backdrop" role="presentation" onClick={onClose}>
-      <section className={`modal-sheet post-detail-modal${hasVisualMedia ? " has-media" : ""}`} role="dialog" aria-modal="true" aria-label={t("social.post.detail")} onClick={(event) => event.stopPropagation()}>
+      <section className={`modal-sheet post-detail-modal${hasDetailCover ? " has-media" : ""}`} role="dialog" aria-modal="true" aria-label={t("social.post.detail")} onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}>
           <X size={18} />
         </button>
-        <PostMedia media={post.media} locale={locale} showSource />
+        {hasVisualMedia ? <PostMedia media={post.media} locale={locale} showSource /> : null}
+        {fallbackCover ? <div className="post-detail-cover"><img alt="" src={fallbackCover} /></div> : null}
         <div className="post-detail-content">
           <div className="post-detail-author-row">
             <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
@@ -4062,7 +4065,7 @@ function PostAuthor({
 }
 
 function PostMedia({ media, locale, onOpen, portrait = false, showSource = false }: { media: FeedMedia[]; locale: AppLocale; onOpen?: () => void; portrait?: boolean; showSource?: boolean }) {
-  const playableMedia = media.filter((item) => item.media_type === "image" || item.media_type === "video");
+  const playableMedia = media.filter((item) => (item.media_type === "image" || item.media_type === "video") && Boolean(item.media_url));
   if (!playableMedia.length) return null;
 
   return (

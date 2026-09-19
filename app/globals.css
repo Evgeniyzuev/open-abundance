@@ -1544,6 +1544,8 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .post-detail-modal > .feed-post-media img,
 .post-detail-modal > .feed-post-media video { width: auto; max-width: 100%; height: auto; max-height: 70dvh; border-radius: 0; aspect-ratio: auto; object-fit: contain; }
 .post-detail-modal > .feed-post-media figcaption { width: 100%; padding: 6px 10px; }
+.post-detail-cover { width: min(100%, 900px); display: grid; place-items: center; justify-self: center; overflow: hidden; background: var(--surface-muted); }
+.post-detail-cover img { width: auto; max-width: 100%; height: auto; max-height: 70dvh; display: block; object-fit: contain; }
 .post-detail-content { width: min(calc(100% - 32px), 720px); display: grid; justify-self: center; gap: 12px; padding: 18px 0 max(28px, env(safe-area-inset-bottom)); }
 .post-detail-modal:not(.has-media) .post-detail-content { padding-top: max(64px, calc(env(safe-area-inset-top) + 52px)); }
 .post-detail-body { max-width: 100%; margin: 0; overflow-wrap: anywhere; word-break: break-word; color: var(--text); font-size: 1.0625rem; line-height: 1.45; white-space: pre-wrap; }

@@ -3722,6 +3722,7 @@ export function PostDetailModal({
   storyWishSaving?: boolean;
 }) {
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
+  const hasVisualMedia = post.media.some((item) => item.media_type === "image" || item.media_type === "video");
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewDraft, setReviewDraft] = useState<ReviewEditPayload>({
@@ -3744,126 +3745,143 @@ export function PostDetailModal({
     }
   }
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet post-detail-modal" role="dialog" aria-modal="true" aria-label={t("social.post.detail")} onClick={(event) => event.stopPropagation()}>
+    <div className="modal-backdrop post-detail-backdrop" role="presentation" onClick={onClose}>
+      <section className={`modal-sheet post-detail-modal${hasVisualMedia ? " has-media" : ""}`} role="dialog" aria-modal="true" aria-label={t("social.post.detail")} onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}>
           <X size={18} />
         </button>
-        <div className="post-detail-author-row">
-          <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
-          {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
-          {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
-          {post.post_type === "abundance_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
-          {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
-        </div>
-        {post.system_verified && post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
-        {post.projectReview && !editingReview ? (
-          <div className="project-review-detail-meta">
-            <ReviewStars value={post.projectReview.overall_rating} />
-            <span>{t("social.review.mission", { rating: post.projectReview.mission_rating })}</span>
-            <span>{t(`appTesting.attitude.${post.projectReview.attitude}` as MessageKey)}</span>
-            <span>{t(`appTesting.area.${post.projectReview.most_useful_area}` as MessageKey)}</span>
+        <PostMedia media={post.media} locale={locale} showSource />
+        <div className="post-detail-content">
+          <div className="post-detail-author-row">
+            <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+            {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
+            {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
+            {post.post_type === "abundance_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
+            {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
           </div>
-        ) : null}
-        {editingReview && post.projectReview ? (
-          <div className="project-review-editor">
-            <label>
-              <span>{t("appTesting.overallRating")}</span>
-              <select value={reviewDraft.overallRating} onChange={(event) => setReviewDraft((current) => ({ ...current, overallRating: Number(event.target.value) }))}>
-                {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("appTesting.missionRating")}</span>
-              <select value={reviewDraft.missionRating} onChange={(event) => setReviewDraft((current) => ({ ...current, missionRating: Number(event.target.value) }))}>
-                {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("appTesting.attitude")}</span>
-              <select value={reviewDraft.attitude} onChange={(event) => setReviewDraft((current) => ({ ...current, attitude: event.target.value }))}>
-                {APP_TESTING_ATTITUDES.map((attitude) => <option value={attitude} key={attitude}>{t(`appTesting.attitude.${attitude}` as MessageKey)}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("appTesting.mostUseful")}</span>
-              <select value={reviewDraft.mostUsefulArea} onChange={(event) => setReviewDraft((current) => ({ ...current, mostUsefulArea: event.target.value }))}>
-                {APP_TESTING_USEFUL_AREAS.map((area) => <option value={area} key={area}>{t(`appTesting.area.${area}` as MessageKey)}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("appTesting.publicReview")}</span>
-              <textarea maxLength={1500} value={reviewDraft.body} onChange={(event) => setReviewDraft((current) => ({ ...current, body: event.target.value }))} />
-            </label>
-            <div className="project-review-editor-actions">
-              <button className="secondary-button" type="button" onClick={() => setEditingReview(false)}>{t("social.review.cancel")}</button>
-              <button className="primary-button" type="button" disabled={reviewSaving || reviewDraft.body.trim().length < 100} onClick={() => { void saveReview(); }}>
-                {reviewSaving ? t("app.common.loading") : t("social.review.save")}
-              </button>
-            </div>
-          </div>
-        ) : <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>}
-        {post.projectReview && !editingReview ? <small className="project-review-reward-note">{t("social.review.rewarded", { reward: formatMoney(3, locale) })}</small> : null}
-        <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
-        <RepostSourcePreview post={post} locale={locale} t={t} />
-        <PostMedia media={post.media} locale={locale} portrait={post.post_type === "abundance_story"} showSource />
-        <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
-        <WishPostPreview
-          copyingWishId={copyingWishId}
-          currentUserId={currentUserId}
-          hideCopy={readOnly}
-          locale={locale}
-          post={post}
-          t={t}
-          onCopyWish={onCopyWish}
-        />
-        <ExternalLinkPreview post={post} />
-        <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
-        <div className="post-detail-actions">
-          {!readOnly && onAddStoryWish && recommendedWishIdForStory(post.source_key) ? (
-            <div className="story-wish-action-wrap">
-              <button aria-describedby={storyWishError ? "story-wish-error" : undefined} className="primary-button story-wish-action" type="button" disabled={storyWishSaving} onClick={() => onAddStoryWish(post)}>
-                <Heart size={16} />
-                {storyWishSaving ? t("app.common.loading") : locale === "ru" ? "Хочу так же" : "I want this too"}
-              </button>
-              {storyWishError ? <p className="finance-error inline" id="story-wish-error" role="alert">{storyWishError}</p> : null}
+          {post.system_verified && post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
+          {post.projectReview && !editingReview ? (
+            <div className="project-review-detail-meta">
+              <ReviewStars value={post.projectReview.overall_rating} />
+              <span>{t("social.review.mission", { rating: post.projectReview.mission_rating })}</span>
+              <span>{t(`appTesting.attitude.${post.projectReview.attitude}` as MessageKey)}</span>
+              <span>{t(`appTesting.area.${post.projectReview.most_useful_area}` as MessageKey)}</span>
             </div>
           ) : null}
-          {post.system_verified && post.verifiedChallenge ? (
-            <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
-              <Check size={15} />
-              {t("social.feed.openChallenge")}
-            </button>
-          ) : null}
-          {post.author_user_id ? (
-            <button className="secondary-button" type="button" onClick={() => onOpenBlog(post.author_user_id!)}>
-              <BookOpen size={16} />
-              {t("social.feed.openBlog")}
-            </button>
-          ) : null}
-          {post.systemStory ? (
-            <button className="system-story-profile-link" type="button" onClick={() => onOpenSystemAccount(post.systemStory!.system_account_key)}>
-              <BookOpen size={14} />
-              {t("social.systemProfile.allChapters")}
-            </button>
-          ) : null}
-          {canDelete && post.projectReview && !editingReview ? (
-            <button className="secondary-button" type="button" onClick={() => setEditingReview(true)}>
-              <Edit3 size={15} />
-              {t("social.review.edit")}
-            </button>
-          ) : null}
-          {!readOnly && post.status === "draft" ? (
-            <button className="finance-small-icon-button primary" type="button" aria-label={t("social.feed.publish")} onClick={() => onPublish(post)}>
-              <Send size={15} />
-            </button>
-          ) : null}
-          {canDelete ? (
-            <button className="finance-small-icon-button danger" type="button" aria-label={t("social.post.delete")} onClick={() => onDeletePost(post)}>
-              <Trash2 size={15} />
-            </button>
-          ) : null}
+          {editingReview && post.projectReview ? (
+            <div className="project-review-editor">
+              <label>
+                <span>{t("appTesting.overallRating")}</span>
+                <select value={reviewDraft.overallRating} onChange={(event) => setReviewDraft((current) => ({ ...current, overallRating: Number(event.target.value) }))}>
+                  {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("appTesting.missionRating")}</span>
+                <select value={reviewDraft.missionRating} onChange={(event) => setReviewDraft((current) => ({ ...current, missionRating: Number(event.target.value) }))}>
+                  {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("appTesting.attitude")}</span>
+                <select value={reviewDraft.attitude} onChange={(event) => setReviewDraft((current) => ({ ...current, attitude: event.target.value }))}>
+                  {APP_TESTING_ATTITUDES.map((attitude) => <option value={attitude} key={attitude}>{t(`appTesting.attitude.${attitude}` as MessageKey)}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("appTesting.mostUseful")}</span>
+                <select value={reviewDraft.mostUsefulArea} onChange={(event) => setReviewDraft((current) => ({ ...current, mostUsefulArea: event.target.value }))}>
+                  {APP_TESTING_USEFUL_AREAS.map((area) => <option value={area} key={area}>{t(`appTesting.area.${area}` as MessageKey)}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("appTesting.publicReview")}</span>
+                <textarea maxLength={1500} value={reviewDraft.body} onChange={(event) => setReviewDraft((current) => ({ ...current, body: event.target.value }))} />
+              </label>
+              <div className="project-review-editor-actions">
+                <button className="secondary-button" type="button" onClick={() => setEditingReview(false)}>{t("social.review.cancel")}</button>
+                <button className="primary-button" type="button" disabled={reviewSaving || reviewDraft.body.trim().length < 100} onClick={() => { void saveReview(); }}>
+                  {reviewSaving ? t("app.common.loading") : t("social.review.save")}
+                </button>
+              </div>
+            </div>
+          ) : <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>}
+          {post.projectReview && !editingReview ? <small className="project-review-reward-note">{t("social.review.rewarded", { reward: formatMoney(3, locale) })}</small> : null}
+          <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
+          <RepostSourcePreview post={post} locale={locale} t={t} />
+          <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
+          <WishPostPreview
+            copyingWishId={copyingWishId}
+            currentUserId={currentUserId}
+            hideCopy={readOnly}
+            locale={locale}
+            post={post}
+            t={t}
+            onCopyWish={onCopyWish}
+          />
+          <ExternalLinkPreview post={post} />
+          <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
+          <div className="post-detail-actions">
+            {!readOnly && onAddStoryWish && recommendedWishIdForStory(post.source_key) ? (
+              <div className="story-wish-action-wrap">
+                <button aria-describedby={storyWishError ? "story-wish-error" : undefined} className="primary-button story-wish-action" type="button" disabled={storyWishSaving} onClick={() => onAddStoryWish(post)}>
+                  <Heart size={16} />
+                  {storyWishSaving ? t("app.common.loading") : locale === "ru" ? "Хочу так же" : "I want this too"}
+                </button>
+                {storyWishError ? <p className="finance-error inline" id="story-wish-error" role="alert">{storyWishError}</p> : null}
+              </div>
+            ) : null}
+            {post.system_verified && post.verifiedChallenge ? (
+              <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
+                <Check size={15} />
+                {t("social.feed.openChallenge")}
+              </button>
+            ) : null}
+            {post.author_user_id ? (
+              <button className="secondary-button" type="button" onClick={() => onOpenBlog(post.author_user_id!)}>
+                <BookOpen size={16} />
+                {t("social.feed.openBlog")}
+              </button>
+            ) : null}
+            {post.systemStory ? (
+              <button className="system-story-profile-link" type="button" onClick={() => onOpenSystemAccount(post.systemStory!.system_account_key)}>
+                <BookOpen size={14} />
+                {t("social.systemProfile.allChapters")}
+              </button>
+            ) : null}
+            {canDelete && post.projectReview && !editingReview ? (
+              <button className="secondary-button" type="button" onClick={() => setEditingReview(true)}>
+                <Edit3 size={15} />
+                {t("social.review.edit")}
+              </button>
+            ) : null}
+            {!readOnly && post.status === "draft" ? (
+              <button className="finance-small-icon-button primary" type="button" aria-label={t("social.feed.publish")} onClick={() => onPublish(post)}>
+                <Send size={15} />
+              </button>
+            ) : null}
+            {canDelete ? (
+              <button className="finance-small-icon-button danger" type="button" aria-label={t("social.post.delete")} onClick={() => onDeletePost(post)}>
+                <Trash2 size={15} />
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
     </div>

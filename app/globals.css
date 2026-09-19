@@ -1535,7 +1535,17 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .verified-challenge-meta span { color: var(--muted); }
 .verified-draft-note { display: grid; gap: 7px; border: 1px solid rgba(8,116,93,0.22); border-radius: 12px; padding: 10px; background: rgba(8,116,93,0.05); }
 .verified-draft-note > small { color: var(--muted); font-size: 0.75rem; line-height: 1.35; }
-.post-detail-modal { position: relative; max-height: min(88vh, 760px); overflow: auto; }
+.modal-backdrop.post-detail-backdrop { place-items: stretch; padding: 0; background: var(--surface); backdrop-filter: none; }
+.modal-sheet.post-detail-modal { position: relative; width: 100%; max-width: none; height: 100dvh; max-height: none; align-content: start; gap: 0; overflow-y: auto; overscroll-behavior: contain; border-radius: 0; padding: 0 0 env(safe-area-inset-bottom); box-shadow: none; }
+.post-detail-modal > .modal-close { position: fixed; z-index: 2; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); border: 1px solid rgba(255,255,255,0.68); background: rgba(24,24,32,0.58); color: white; box-shadow: 0 6px 20px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+.post-detail-modal > .feed-post-media { width: min(100%, 900px); justify-self: center; border-radius: 0; background: var(--surface-muted); }
+.post-detail-modal > .feed-post-media.multiple { gap: 1px; }
+.post-detail-modal > .feed-post-media figure { place-items: center; }
+.post-detail-modal > .feed-post-media img,
+.post-detail-modal > .feed-post-media video { width: auto; max-width: 100%; height: auto; max-height: 70dvh; border-radius: 0; aspect-ratio: auto; object-fit: contain; }
+.post-detail-modal > .feed-post-media figcaption { width: 100%; padding: 6px 10px; }
+.post-detail-content { width: min(calc(100% - 32px), 720px); display: grid; justify-self: center; gap: 12px; padding: 18px 0 max(28px, env(safe-area-inset-bottom)); }
+.post-detail-modal:not(.has-media) .post-detail-content { padding-top: max(64px, calc(env(safe-area-inset-top) + 52px)); }
 .post-detail-body { max-width: 100%; margin: 0; overflow-wrap: anywhere; word-break: break-word; color: var(--text); font-size: 1.0625rem; line-height: 1.45; white-space: pre-wrap; }
 .post-detail-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .detail-author { justify-self: start; max-width: calc(100% - 42px); }

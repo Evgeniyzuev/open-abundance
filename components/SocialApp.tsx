@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -15,7 +15,7 @@ import SkillPassportApp from "@/components/SkillPassportApp";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
-import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
+import type { FeedCategory, FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
@@ -217,7 +217,7 @@ type PublicProfilePayload = {
   visibleBlocks: Record<string, boolean>;
   error?: string;
 };
-type FeedFilter = "all" | "stories" | "system" | "reviews";
+type FeedFilter = FeedCategory;
 type FeedCacheEntry = {
   payload: FeedPayload;
   fetchedAt: number;
@@ -228,15 +228,15 @@ type FeedCache = Record<FeedFilter, FeedCacheEntry | null>;
 const FEED_CACHE_TTL_MS = 60_000;
 
 function createFeedCache(): FeedCache {
-  return { all: null, stories: null, system: null, reviews: null };
+  return { all: null, stories: null, opportunities: null, system: null, reviews: null };
 }
 
 function createFeedCursors(): Record<FeedFilter, string | null> {
-  return { all: null, stories: null, system: null, reviews: null };
+  return { all: null, stories: null, opportunities: null, system: null, reviews: null };
 }
 
 function createFeedRequestIds(): Record<FeedFilter, number> {
-  return { all: 0, stories: 0, system: 0, reviews: 0 };
+  return { all: 0, stories: 0, opportunities: 0, system: 0, reviews: 0 };
 }
 type ReviewEditPayload = {
   body: string;
@@ -3318,19 +3318,23 @@ function FeedView({
   return (
     <section className="feed-layout">
       <div className="feed-filter-row" role="group" aria-label={t("social.feed.title")}>
-        <button className={filter === "all" ? "active" : ""} type="button" onClick={() => onFilterChange("all")}>
+        <button aria-pressed={filter === "all"} className={filter === "all" ? "active" : ""} type="button" onClick={() => onFilterChange("all")}>
           {t("social.feed.filter.all")}
         </button>
-        <button className={filter === "stories" ? "active" : ""} type="button" onClick={() => onFilterChange("stories")}>
+        <button aria-pressed={filter === "stories"} className={filter === "stories" ? "active" : ""} type="button" onClick={() => onFilterChange("stories")}>
           {t("social.feed.filter.stories")}
         </button>
-        <button className={filter === "system" ? "active" : ""} type="button" onClick={() => onFilterChange("system")}>
+        <button aria-pressed={filter === "opportunities"} className={filter === "opportunities" ? "active" : ""} type="button" onClick={() => onFilterChange("opportunities")}>
+          {t("social.feed.filter.opportunities")}
+        </button>
+        <button aria-pressed={filter === "system"} className={filter === "system" ? "active" : ""} type="button" onClick={() => onFilterChange("system")}>
           {t("social.feed.filter.system")}
         </button>
-        <button className={filter === "reviews" ? "active" : ""} type="button" onClick={() => onFilterChange("reviews")}>
+        <button aria-pressed={filter === "reviews"} className={filter === "reviews" ? "active" : ""} type="button" onClick={() => onFilterChange("reviews")}>
           {t("social.feed.filter.reviews")}
         </button>
       </div>
+      {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
       ) : null}
@@ -3346,10 +3350,6 @@ function FeedView({
           <div className="feed-empty-action">
             <p>{t("social.feed.empty")}</p>
             <small>{t("social.feed.emptyHint")}</small>
-            <button className="primary-button" type="button" onClick={onOpenChallenge}>
-              <Check size={15} />
-              {t("social.feed.openChallenge")}
-            </button>
           </div>
         ) : undefined}
         showBlogAction={true}
@@ -3368,6 +3368,9 @@ function FeedView({
           {loadingMore ? t("app.common.loading") : t("social.review.loadMore")}
         </button>
       ) : null}
+      <button className="secondary-button feed-today-action" type="button" onClick={onOpenChallenge}>
+        {t("social.feed.takeStep")} <ArrowRight size={15} />
+      </button>
     </section>
   );
 }
@@ -3520,7 +3523,7 @@ function PostList(props: {
   }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} wishActionLabel={t("wishes.addToMine")} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({
@@ -3845,7 +3848,7 @@ export function PostDetailModal({
               <div className="story-wish-action-wrap">
                 <button aria-describedby={storyWishError ? "story-wish-error" : undefined} className="primary-button story-wish-action" type="button" disabled={storyWishSaving} onClick={() => onAddStoryWish(post)}>
                   <Heart size={16} />
-                  {storyWishSaving ? t("app.common.loading") : locale === "ru" ? "Хочу так же" : "I want this too"}
+                  {storyWishSaving ? t("app.common.loading") : t("social.feed.wantThis")}
                 </button>
                 {storyWishError ? <p className="finance-error inline" id="story-wish-error" role="alert">{storyWishError}</p> : null}
               </div>

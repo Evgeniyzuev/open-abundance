@@ -44,7 +44,7 @@ function load(path) {
   if (modules.has(path)) return modules.get(path);
   const module = { exports: {} };
   modules.set(path, module.exports);
-  const code = ts.transpileModule(readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const code = ts.transpileModule(readFileSync(path, "utf8"), { fileName: path, compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const localRequire = (name) => {
     if (name === "@/lib/serverSupabase") return { getAuthenticatedUser: async () => ({ supabase, user: viewer ? { id: viewer } : null, error: viewer ? null : "No session" }) };
     if (name.startsWith("@/")) return load(`${name.slice(2)}.ts`);
@@ -107,4 +107,47 @@ assert.equal((await get({ view: "public" })).status, 401);
 viewer = owner;
 fixtures.feed_posts = [];
 assert.equal((await get({ view: "public" })).body.author.display_name, "Author", "An empty blog still has its author header");
-console.log("Blog workspace: pagination, deduplication, ownership and public projection passed.");
+
+// Opportunities are the same published posts, filtered before pagination using
+// the same source mapping as the actual story-to-wish action.
+const { storyWishSourceKeys, recommendedWishIdForStory } = load("lib/wishJourney.ts");
+const sourceKeys = storyWishSourceKeys();
+assert.ok(sourceKeys.some((key) => key.startsWith("editorial_story:")));
+assert.ok(sourceKeys.some((key) => key.startsWith("reality_demo:")));
+fixtures.feed_posts = Array.from({ length: 24 }, (_, n) => makePost(100 + n, {
+  status: "published", visibility: "public", source_key: sourceKeys[n % sourceKeys.length],
+  created_at: new Date(Date.parse(date) - n * 1000).toISOString()
+}));
+fixtures.feed_posts.push(
+  makePost(200, { status: "published", visibility: "public", source_key: "unmapped" }),
+  makePost(201, { source_key: sourceKeys[0] }),
+  makePost(202, { status: "published", source_key: sourceKeys[0] }),
+  makePost(203, { status: "published", visibility: "public", source_key: sourceKeys[0], deleted_at: date })
+);
+const first = await get({ scope: "feed", category: "opportunities", limit: "21" });
+assert.equal(first.status, 200);
+assert.equal(first.body.category, "opportunities");
+assert.equal(first.body.posts.length, 21);
+assert.ok(first.body.posts.every((post) => recommendedWishIdForStory(post.source_key)));
+const second = await get({ scope: "feed", category: "opportunities", limit: "21", cursor: first.body.nextCursor });
+assert.equal(second.body.posts.length, 3);
+assert.equal(second.body.nextCursor, null);
+assert.equal(new Set([...first.body.posts, ...second.body.posts].map((post) => post.id)).size, 24);
+assert.ok((await get({ scope: "feed", category: "all", limit: "50" })).body.posts.some((post) => post.id === id(200)), "Other posts remain available in the same feed");
+viewer = null;
+assert.equal((await get({ scope: "feed", category: "opportunities" })).status, 401);
+
+const { createElement } = require("react");
+const { renderToStaticMarkup } = require("react-dom/server");
+const Gallery = load("components/FeedPostGallery.tsx").default;
+const galleryPost = { ...first.body.posts[0], post_type: "reality_demo", system_verified: true };
+const galleryProps = { fallbackTitle: "Story", onOpen: () => {}, onAddStoryWish: () => {}, wishActionLabel: "Want this", evidenceLabels: { demo: "Demo evidence", verified: "Verified evidence" } };
+const renderGallery = (post, extra = {}) => renderToStaticMarkup(createElement(Gallery, { ...galleryProps, posts: [post], ...extra }));
+const demoHtml = renderGallery(galleryPost, { addingStoryWishKey: galleryPost.source_key });
+assert.match(demoHtml, /Demo evidence/);
+assert.doesNotMatch(demoHtml, /Verified evidence/, "Demo must not imply an achieved verified outcome");
+assert.match(demoHtml, /aria-busy="true"[^>]*disabled=""/, "In-flight wish creation disables the action");
+assert.match(renderGallery({ ...galleryPost, post_type: "manual" }), /Verified evidence/);
+const ordinaryHtml = renderGallery({ ...galleryPost, source_key: "unmapped", post_type: "manual", system_verified: false });
+assert.doesNotMatch(ordinaryHtml, /Demo evidence|Verified evidence|Want this/, "Unmapped stories get neither invented evidence nor an inert wish action");
+console.log("Blog and feed: pagination, ownership, public projection, opportunity filtering and gallery actions passed.");

@@ -11,25 +11,27 @@ type FeedPostGalleryProps = {
   onAddStoryWish?: (post: FeedPost) => void;
   addingStoryWishKey?: string | null;
   wishActionLabel?: string;
+  evidenceLabels?: { demo: string; verified: string };
   showAuthor?: boolean;
 };
 
-export default function FeedPostGallery({ addingStoryWishKey, fallbackTitle, onAddStoryWish, posts, showAuthor = true, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
+export default function FeedPostGallery({ addingStoryWishKey, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
   return (
     <div className="feed-post-gallery">
       {posts.map((post) => (
-        <FeedPostTile adding={addingStoryWishKey === post.source_key} fallbackTitle={fallbackTitle} key={post.id} post={post} showAuthor={showAuthor} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} />
+        <FeedPostTile adding={Boolean(addingStoryWishKey && addingStoryWishKey === post.source_key)} evidenceLabels={evidenceLabels} fallbackTitle={fallbackTitle} key={post.id} post={post} showAuthor={showAuthor} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} />
       ))}
     </div>
   );
 }
 
-function FeedPostTile({ adding, fallbackTitle, post, showAuthor, wishActionLabel, onAddStoryWish, onOpen }: { adding: boolean; fallbackTitle: string; post: FeedPost; showAuthor: boolean; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void }) {
+function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, showAuthor, wishActionLabel, onAddStoryWish, onOpen }: { adding: boolean; evidenceLabels?: FeedPostGalleryProps["evidenceLabels"]; fallbackTitle: string; post: FeedPost; showAuthor: boolean; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void }) {
   const title = getFeedPostTitle(post, fallbackTitle);
   const cover = getFeedPostCover(post);
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
   const author = getTileAuthor(post);
   const canAddWish = Boolean(onAddStoryWish && recommendedWishIdForStory(post.source_key));
+  const evidence = post.post_type === "reality_demo" ? evidenceLabels?.demo : post.system_verified ? evidenceLabels?.verified : null;
 
   return (
     <article className={`feed-post-tile-shell ${canAddWish ? "has-wish-action" : ""}`}>
@@ -43,11 +45,13 @@ function FeedPostTile({ adding, fallbackTitle, post, showAuthor, wishActionLabel
           </span>
         ) : null}
         {imageCount > 1 ? <span className="feed-post-tile-count">{imageCount}</span> : null}
+        {evidence ? <span className="feed-post-tile-evidence" title={evidence}>{evidence}</span> : null}
         <span className="feed-post-tile-copy">{title}</span>
       </button>
       {canAddWish ? (
         <button aria-busy={adding} aria-label={wishActionLabel} className="feed-post-tile-wish" type="button" disabled={adding} onClick={() => onAddStoryWish?.(post)}>
           {adding ? <span aria-hidden="true">…</span> : <Heart aria-hidden="true" size={15} />}
+          <span>{wishActionLabel}</span>
         </button>
       ) : null}
     </article>

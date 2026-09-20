@@ -3,7 +3,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Database, Tables, TablesInsert } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
-import type { FeedRepostSource } from "@/lib/socialFeed";
+import type { FeedCategory, FeedRepostSource } from "@/lib/socialFeed";
+import { storyWishSourceKeys } from "@/lib/wishJourney";
 import { decodeBlogCursor, encodeBlogCursor, isPublicBlogPost } from "@/lib/blogWorkspace";
 import { normalizeProfileVisibilitySettings } from "@/lib/socialProfile";
 
@@ -113,6 +114,7 @@ export async function GET(request: NextRequest) {
       query = query.eq("status", "published").eq("visibility", "public");
       if (postType) query = query.eq("post_type", postType);
       if (category === "stories") query = query.in("post_type", ["manual", "external_link", "wish", "reality_demo", "abundance_story"]);
+      if (category === "opportunities") query = query.in("source_key", storyWishSourceKeys());
       if (category === "system") query = query.in("post_type", ["daily_progress", "level_up", "wish_completed", "challenge"]);
       if (category === "reviews") query = query.eq("post_type", "project_review");
       if (cursor) query = query.lt("created_at", cursor);
@@ -813,8 +815,8 @@ function normalizeCursor(value: unknown): string | null {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
 }
 
-function normalizeFeedCategory(value: unknown): "all" | "stories" | "system" | "reviews" {
-  return value === "stories" || value === "system" || value === "reviews" ? value : "all";
+function normalizeFeedCategory(value: unknown): FeedCategory {
+  return value === "stories" || value === "opportunities" || value === "system" || value === "reviews" ? value : "all";
 }
 
 function isString(value: string | null): value is string {

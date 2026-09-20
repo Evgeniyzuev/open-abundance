@@ -1,5 +1,7 @@
 import type { Json } from "@/lib/database.types";
 
+export type FeedCategory = "all" | "stories" | "opportunities" | "system" | "reviews";
+
 export type FeedAuthor = {
   user_id: string;
   username: string | null;
@@ -164,7 +166,7 @@ export type FeedPost = {
 export type FeedPayload = {
   blogHeader?: { bio: string | null; links: Array<{ id: string; label: string | null; url: string }> } | null;
   scope: "feed" | "blog" | "system";
-  category?: "all" | "stories" | "system" | "reviews";
+  category?: FeedCategory;
   postType?: "project_review" | null;
   author: FeedAuthor | null;
   systemAccount: FeedSystemAccount | null;

@@ -25,6 +25,10 @@ export function recommendedWishIdForStory(sourceKey: string | null): string | nu
   return sourceKey ? STORY_WISH_RECOMMENDATIONS[sourceKey] ?? null : null;
 }
 
+export function storyWishSourceKeys(): string[] {
+  return Object.keys(STORY_WISH_RECOMMENDATIONS);
+}
+
 export function readPrimaryWish(userId: string | null | undefined): PrimaryWishSummary | null {
   if (!userId || typeof window === "undefined") return null;
   try {

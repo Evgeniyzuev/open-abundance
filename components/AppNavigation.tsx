@@ -511,7 +511,7 @@ export default function AppNavigation() {
         onTabChange={handleTopTabChange}
       />
       <section className="app-content">
-        {showHome || (showChallenges && activeChallengeTab === "challenges") || (showPeople && activeSocialTab === "feed") ? <CoreJourneyCard onOpen={openCore} /> : null}
+        {showHome || (showChallenges && activeChallengeTab === "challenges") ? <CoreJourneyCard onOpen={openCore} /> : null}
         <div className="app-view" hidden={!showHome}>
           <HomeTodayApp
             active={showHome}

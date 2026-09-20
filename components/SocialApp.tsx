@@ -420,6 +420,8 @@ export default function SocialApp({
   const feedCacheRef = useRef<FeedCache>(createFeedCache());
   const feedCursorRef = useRef<Record<FeedFilter, string | null>>(createFeedCursors());
   const feedRequestIdsRef = useRef<Record<FeedFilter, number>>(createFeedRequestIds());
+  const feedLoadInFlightRef = useRef(new Map<string, Promise<void>>());
+  const feedLoadGenerationRef = useRef(0);
   const systemDraftsLoadedRef = useRef(false);
   const systemDraftsLoadingRef = useRef(false);
   const systemDraftsLocaleRef = useRef<AppLocale | null>(null);
@@ -509,6 +511,8 @@ export default function SocialApp({
     feedCacheRef.current = createFeedCache();
     feedCursorRef.current = createFeedCursors();
     feedRequestIdsRef.current = createFeedRequestIds();
+    feedLoadInFlightRef.current.clear();
+    feedLoadGenerationRef.current += 1;
     systemDraftsLoadedRef.current = false;
     systemDraftsLoadingRef.current = false;
     systemDraftsLocaleRef.current = null;
@@ -885,8 +889,6 @@ export default function SocialApp({
     const cacheIsFresh = Boolean(cachedEntry && hasUsableCache && Date.now() - cachedEntry.fetchedAt < FEED_CACHE_TTL_MS);
 
     if (!append) {
-      void ensureDailyDraft();
-      if (!systemDraftsLoadedRef.current || systemDraftsLocaleRef.current !== locale) void loadSystemDrafts();
       if (hasUsableCache && cachedEntry && feedFilterRef.current === requestedFilter) {
         setFeedPayload(cachedEntry.payload);
       }
@@ -896,40 +898,57 @@ export default function SocialApp({
       }
     }
 
-    const requestId = feedRequestIdsRef.current[requestedFilter] + 1;
-    feedRequestIdsRef.current[requestedFilter] = requestId;
-    if (append) setFeedLoadingMore(true);
-    else setFeedLoading(true);
-    try {
-      const token = await getAccessToken();
-      const params = new URLSearchParams({ scope: "feed", locale, limit: "21", ts: String(Date.now()) });
-      if (requestedFilter !== "all") params.set("category", requestedFilter);
-      if (append && feedCursorRef.current[requestedFilter]) params.set("cursor", feedCursorRef.current[requestedFilter]!);
-      const response = await fetch(`/api/social/feed?${params.toString()}`, {
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache"
-        }
-      });
-      const payload = (await response.json()) as FeedPayload;
-      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load feed.");
-      if (feedRequestIdsRef.current[requestedFilter] !== requestId) return;
+    const requestKey = `${user.id}:${locale}:${requestedFilter}:${append ? "append" : "replace"}`;
+    const currentRequest = feedLoadInFlightRef.current.get(requestKey);
+    if (currentRequest) return currentRequest;
 
-      const currentEntry = feedCacheRef.current[requestedFilter];
-      const currentPayload = currentEntry?.locale === locale ? currentEntry.payload : null;
-      const nextPayload = append && currentPayload
-        ? { ...payload, posts: [...currentPayload.posts, ...payload.posts] }
-        : payload;
-      feedCursorRef.current[requestedFilter] = payload.nextCursor ?? null;
-      feedCacheRef.current[requestedFilter] = { payload: nextPayload, fetchedAt: Date.now(), locale };
-      if (feedFilterRef.current === requestedFilter) setFeedPayload(nextPayload);
+    const request = (async () => {
+      const requestGeneration = feedLoadGenerationRef.current;
+      const requestId = feedRequestIdsRef.current[requestedFilter] + 1;
+      feedRequestIdsRef.current[requestedFilter] = requestId;
+      if (append) setFeedLoadingMore(true);
+      else setFeedLoading(true);
+      try {
+        const token = await getAccessToken();
+        const params = new URLSearchParams({ scope: "feed", locale, limit: "21", ts: String(Date.now()) });
+        if (requestedFilter !== "all") params.set("category", requestedFilter);
+        if (append && feedCursorRef.current[requestedFilter]) params.set("cursor", feedCursorRef.current[requestedFilter]!);
+        const response = await fetch(`/api/social/feed?${params.toString()}`, {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-cache"
+          }
+        });
+        const payload = (await response.json()) as FeedPayload;
+        if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load feed.");
+        if (feedLoadGenerationRef.current !== requestGeneration || feedRequestIdsRef.current[requestedFilter] !== requestId) return;
+
+        const currentEntry = feedCacheRef.current[requestedFilter];
+        const currentPayload = currentEntry?.locale === locale ? currentEntry.payload : null;
+        const nextPayload = append && currentPayload
+          ? { ...payload, posts: [...currentPayload.posts, ...payload.posts] }
+          : payload;
+        feedCursorRef.current[requestedFilter] = payload.nextCursor ?? null;
+        feedCacheRef.current[requestedFilter] = { payload: nextPayload, fetchedAt: Date.now(), locale };
+        if (feedFilterRef.current === requestedFilter) setFeedPayload(nextPayload);
+      } finally {
+        if (feedLoadGenerationRef.current === requestGeneration && feedRequestIdsRef.current[requestedFilter] === requestId) {
+          if (append) setFeedLoadingMore(false);
+          else setFeedLoading(false);
+        }
+      }
+    })();
+
+    feedLoadInFlightRef.current.set(requestKey, request);
+    try {
+      await request;
     } finally {
-      if (feedRequestIdsRef.current[requestedFilter] !== requestId) return;
-      if (append) setFeedLoadingMore(false);
-      else if (feedFilterRef.current === requestedFilter) setFeedLoading(false);
+      if (feedLoadInFlightRef.current.get(requestKey) === request) {
+        feedLoadInFlightRef.current.delete(requestKey);
+      }
     }
-  }, [ensureDailyDraft, feedFilter, loadSystemDrafts, locale, user]);
+  }, [feedFilter, locale, user]);
 
   const loadBlog = useCallback(async () => {
     if (!selectedBlogAuthorId) await ensureDailyDraft();

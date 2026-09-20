@@ -124,11 +124,16 @@ fixtures.feed_posts.push(
   makePost(202, { status: "published", source_key: sourceKeys[0] }),
   makePost(203, { status: "published", visibility: "public", source_key: sourceKeys[0], deleted_at: date })
 );
+const opportunityQueryStart = queries.length;
 const first = await get({ scope: "feed", category: "opportunities", limit: "21" });
 assert.equal(first.status, 200);
 assert.equal(first.body.category, "opportunities");
 assert.equal(first.body.posts.length, 21);
 assert.ok(first.body.posts.every((post) => recommendedWishIdForStory(post.source_key)));
+const opportunityTables = new Set(queries.slice(opportunityQueryStart).map((query) => query.table));
+for (const unusedTable of ["feed_system_story_metadata", "feed_post_stat_blocks", "feed_post_external_links", "feed_post_entities", "feed_project_review_metadata", "challenge_completion_snapshots"]) {
+  assert.equal(opportunityTables.has(unusedTable), false, `Opportunity cards should not query ${unusedTable}`);
+}
 const second = await get({ scope: "feed", category: "opportunities", limit: "21", cursor: first.body.nextCursor });
 assert.equal(second.body.posts.length, 3);
 assert.equal(second.body.nextCursor, null);

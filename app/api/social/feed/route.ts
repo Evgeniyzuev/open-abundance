@@ -145,26 +145,34 @@ export async function GET(request: NextRequest) {
     const hasMore = scope !== "system" && (posts?.length ?? 0) > limit;
     const rawPostRows = ((posts ?? []) as FeedPostRow[]).slice(0, limit);
     if (scope !== "system") {
-      systemStoryMetadata = await loadSystemStoryMetadata(supabase, rawPostRows.map((post) => post.id));
+      systemStoryMetadata = await loadSystemStoryMetadata(
+        supabase,
+        rawPostRows.filter((post) => post.post_type === "abundance_story").map((post) => post.id)
+      );
     }
     const systemStoryMetadataByPostId = new Map(systemStoryMetadata.map((item) => [item.post_id, item]));
     const postRows = scope === "system"
       ? [...rawPostRows].sort((left, right) => (systemStoryMetadataByPostId.get(left.id)?.series_order ?? 0) - (systemStoryMetadataByPostId.get(right.id)?.series_order ?? 0))
       : publicBlog ? rawPostRows.filter(isPublicBlogPost) : rawPostRows;
     const postIds = postRows.map((post) => post.id);
+    const statBlockPostIds = postRows.filter((post) => Boolean(post.snapshot_id)).map((post) => post.id);
+    const externalLinkPostIds = category === "opportunities" ? [] : postIds;
+    const wishPostIds = postRows.filter((post) => post.post_type === "wish" || post.post_type === "wish_completed").map((post) => post.id);
+    const reviewPostIds = postRows.filter((post) => post.post_type === "project_review").map((post) => post.id);
+    const challengePostIds = postRows.filter((post) => post.post_type === "challenge").map((post) => post.id);
     const repostSourceIds = Array.from(new Set(postRows.map((post) => post.repost_of_post_id).filter(isString)));
     const systemAccountKeys = Array.from(new Set(systemStoryMetadata.map((item) => item.system_account_key)));
     const [profiles, statBlocks, externalLinks, wishPosts, translations, media, systemAccounts, reviewMetadata, reviewSummary, challengeSnapshots, repostSources] = await Promise.all([
       loadProfiles(supabase, Array.from(new Set([...postRows.map((post) => post.author_user_id), authorUserId].filter(isString)))),
-      loadStatBlocks(supabase, postRows.map((post) => post.id), cabinet || systemDraftsOnly),
-      loadExternalLinks(supabase, postIds),
-      loadWishPosts(supabase, postIds, publicBlog ? null : user.id, cabinet),
+      loadStatBlocks(supabase, statBlockPostIds, cabinet || systemDraftsOnly),
+      loadExternalLinks(supabase, externalLinkPostIds),
+      loadWishPosts(supabase, wishPostIds, publicBlog ? null : user.id, cabinet),
       cabinet ? Promise.resolve(new Map<string, FeedTranslationRow>()) : loadTranslations(supabase, postIds, locale),
       loadMedia(supabase, postIds),
       loadSystemAccounts(supabase, systemAccountKeys),
-      loadProjectReviewMetadata(supabase, postIds),
+      loadProjectReviewMetadata(supabase, reviewPostIds),
       category === "reviews" || postType === "project_review" ? loadProjectReviewSummary(supabase) : Promise.resolve(null),
-      loadChallengeCompletionSnapshots(supabase, postIds),
+      loadChallengeCompletionSnapshots(supabase, challengePostIds),
       loadRepostSources(supabase, repostSourceIds, locale)
     ]);
     const systemAccountsByKey = new Map(systemAccounts.map((account) => [account.account_key, account]));

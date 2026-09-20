@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart } from "lucide-react";
+import Image from "next/image";
 import type { FeedPost } from "@/lib/socialFeed";
 import { recommendedWishIdForStory } from "@/lib/wishJourney";
 
@@ -18,14 +19,14 @@ type FeedPostGalleryProps = {
 export default function FeedPostGallery({ addingStoryWishKey, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
   return (
     <div className="feed-post-gallery">
-      {posts.map((post) => (
-        <FeedPostTile adding={Boolean(addingStoryWishKey && addingStoryWishKey === post.source_key)} evidenceLabels={evidenceLabels} fallbackTitle={fallbackTitle} key={post.id} post={post} showAuthor={showAuthor} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} />
+      {posts.map((post, index) => (
+        <FeedPostTile adding={Boolean(addingStoryWishKey && addingStoryWishKey === post.source_key)} evidenceLabels={evidenceLabels} fallbackTitle={fallbackTitle} key={post.id} post={post} priority={index < 3} showAuthor={showAuthor} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} />
       ))}
     </div>
   );
 }
 
-function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, showAuthor, wishActionLabel, onAddStoryWish, onOpen }: { adding: boolean; evidenceLabels?: FeedPostGalleryProps["evidenceLabels"]; fallbackTitle: string; post: FeedPost; showAuthor: boolean; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void }) {
+function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, priority, showAuthor, wishActionLabel, onAddStoryWish, onOpen }: { adding: boolean; evidenceLabels?: FeedPostGalleryProps["evidenceLabels"]; fallbackTitle: string; post: FeedPost; priority: boolean; showAuthor: boolean; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void }) {
   const title = getFeedPostTitle(post, fallbackTitle);
   const cover = getFeedPostCover(post);
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
@@ -36,7 +37,7 @@ function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, showAuthor,
   return (
     <article className={`feed-post-tile-shell ${canAddWish ? "has-wish-action" : ""}`}>
       <button aria-label={title} className="feed-post-tile" type="button" onClick={() => onOpen(post)}>
-        {cover ? <img alt="" loading="lazy" src={cover} /> : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
+        {cover ? <FeedCover priority={priority} src={cover} /> : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
         {showAuthor && author ? (
           <span aria-label={author.name} className="feed-post-tile-author">
             <span className="feed-post-tile-avatar">
@@ -56,6 +57,13 @@ function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, showAuthor,
       ) : null}
     </article>
   );
+}
+
+function FeedCover({ priority, src }: { priority: boolean; src: string }) {
+  if (src.startsWith("/")) {
+    return <Image alt="" fill priority={priority} sizes="(max-width: 720px) 33vw, 260px" src={src} />;
+  }
+  return <img alt="" decoding="async" fetchPriority={priority ? "high" : "auto"} loading={priority ? "eager" : "lazy"} src={src} />;
 }
 
 export function getFeedPostCover(post: FeedPost): string | null {

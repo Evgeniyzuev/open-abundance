@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import FeedPostGallery, { getFeedPostCover, getFeedPostTitle } from "@/components/FeedPostGallery";
+import ProtectedImage from "@/components/ProtectedImage";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { BLOG_PAGE_SIZE, mergeBlogPosts } from "@/lib/blogWorkspace";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
-import type { FeedMedia, FeedPayload, FeedPost } from "@/lib/socialFeed";
+import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost } from "@/lib/socialFeed";
+import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
 
-async function request<T extends { error?: string }>(url: string, init?: RequestInit): Promise<T> {
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const { data, error } = await getBrowserSupabaseClient().auth.getSession();
   if (error) throw error;
   if (!data.session) throw new Error("Please sign in again.");
@@ -16,17 +18,17 @@ async function request<T extends { error?: string }>(url: string, init?: Request
     ...init, cache: "no-store", signal: AbortSignal.timeout(30000),
     headers: { Authorization: `Bearer ${data.session.access_token}`, ...init?.headers }
   });
-  const payload = await response.json() as T;
+  const payload = await response.json() as T & { error?: string };
   if (!response.ok || payload.error) throw new Error(payload.error ?? `Request failed (${response.status})`);
   return payload;
 }
 
-function useBlogCollection(authorId: string, view: "public" | "cabinet", status: string, locale: AppLocale, active: boolean, revision: string) {
+function useBlogCollection(authorId: string, view: "public" | "cabinet", status: string, locale: AppLocale, active: boolean, revision: string, search = "", provider = "") {
   const [cache, setCache] = useState<Record<string, FeedPayload>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const inFlight = useRef(new Set<string>());
-  const key = `${authorId}:${view}:${status}:${locale}:${revision}`;
+  const key = `${authorId}:${view}:${status}:${locale}:${search}:${provider}:${revision}`;
   const payload = cache[key];
   const load = useCallback(async (cursor?: string | null) => {
     if (inFlight.current.has(key)) return;
@@ -35,6 +37,8 @@ function useBlogCollection(authorId: string, view: "public" | "cabinet", status:
     setErrors((value) => ({ ...value, [key]: "" }));
     try {
       const params = new URLSearchParams({ scope: "blog", view, status, authorUserId: authorId, locale, limit: String(BLOG_PAGE_SIZE), ts: String(Date.now()) });
+      if (search.trim()) params.set("search", search.trim());
+      if (provider) params.set("provider", provider);
       if (cursor) params.set("cursor", cursor);
       const result = await request<FeedPayload>(`/api/social/feed?${params}`);
       setCache((current) => ({ ...current, [key]: { ...result, posts: mergeBlogPosts(cursor ? current[key]?.posts ?? [] : [], result.posts) } }));
@@ -44,13 +48,14 @@ function useBlogCollection(authorId: string, view: "public" | "cabinet", status:
       inFlight.current.delete(key);
       setPending((value) => ({ ...value, [key]: false }));
     }
-  }, [authorId, key, locale, status, view]);
+  }, [authorId, key, locale, provider, search, status, view]);
   useEffect(() => { if (active && !payload && !errors[key]) void load(); }, [active, errors, key, load, payload]);
   const update = (post: FeedPost, deleted = false) => setCache((current) => {
     const next = { ...current };
     for (const [cacheKey, entry] of Object.entries(next)) {
       if (!cacheKey.startsWith(`${authorId}:cabinet:`)) continue;
-      const matches = cacheKey.split(":")[2] === post.status && !deleted;
+      const activeStatus = cacheKey.split(":")[2];
+      const matches = !deleted && (activeStatus === "saved" ? post.post_type === "external_link" : activeStatus === post.status);
       next[cacheKey] = { ...entry, posts: mergeBlogPosts(entry.posts.filter((item) => item.id !== post.id), matches ? [post] : []) };
     }
     return next;
@@ -85,8 +90,8 @@ function CollectionStatus({ loading, error, more, t, onRetry, onMore }: { loadin
   </div>;
 }
 
-type EditState = { post: FeedPost | null; body: string; visibility: string; file: File | null; template: string | null; error: string; message: string };
-const newEdit = (): EditState => ({ post: null, body: "", visibility: "public", file: null, template: null, error: "", message: "" });
+type EditState = { post: FeedPost | null; sourceUrl: string; title: string; body: string; visibility: string; file: File | null; template: string | null; error: string; message: string };
+const newEdit = (): EditState => ({ post: null, sourceUrl: "", title: "", body: "", visibility: "public", file: null, template: null, error: "", message: "" });
 const templates = ["daily_progress", "level_up", "wish_completed", "challenge_completed"] as const;
 const templateKeys = ["social.feed.cover.template.daily_progress", "social.feed.cover.template.level_up", "social.feed.cover.template.wish_completed", "social.feed.cover.template.challenge_completed"] as const;
 
@@ -98,6 +103,9 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
   const own = !authorId || authorId === userId;
   const [tab, setTab] = useState<"cabinet" | "posts">("cabinet");
   const [filter, setFilter] = useState("draft");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [provider, setProvider] = useState("");
   const scrollPositions = useRef<Record<string, number>>({});
   const positionKey = `${tab}:${filter}`;
   const selectTab = (next: "cabinet" | "posts") => { scrollPositions.current[positionKey] = window.scrollY; setTab(next); };
@@ -106,7 +114,7 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
     if (active && own) window.scrollTo({ top: scrollPositions.current[positionKey] ?? 0, behavior: "instant" });
   }, [active, own, positionKey]);
   const [revision, setRevision] = useState(0);
-  const collection = useBlogCollection(userId, "cabinet", filter, locale, active && own && tab === "cabinet", refreshKey);
+  const collection = useBlogCollection(userId, "cabinet", filter, locale, active && own && tab === "cabinet", refreshKey, search, provider);
   const [edits, setEdits] = useState<Record<string, EditState>>({});
   const [editorKey, setEditorKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,13 +122,42 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
   const [link, setLink] = useState("");
   const [linkError, setLinkError] = useState("");
   const editor = editorKey ? edits[editorKey] : undefined;
+  const startAddLink = (incoming?: { title?: unknown; text?: unknown; url?: unknown }) => {
+    if (!SHARE_TO_OA_ENABLED) return;
+    const selectedUrl = typeof incoming?.url === "string" ? incoming.url : "";
+    const sharedText = typeof incoming?.text === "string" ? incoming.text.trim() : "";
+    const bodyText = sharedText && sharedText !== selectedUrl ? sharedText.replace(selectedUrl, "").trim() : "";
+    setTab("cabinet");
+    setEdits((current) => ({ ...current, link: { ...newEdit(), sourceUrl: selectedUrl, title: typeof incoming?.title === "string" ? incoming.title.slice(0, 120) : "", body: bodyText, visibility: "private" } }));
+    setLink(selectedUrl);
+    setLinkError("");
+    setEditorKey("link");
+  };
+  useEffect(() => {
+    const onIncoming = (event: Event) => {
+      const detail = (event as CustomEvent<{ title?: unknown; text?: unknown; url?: unknown }>).detail;
+      if (detail) startAddLink(detail);
+    };
+    window.addEventListener("oa:share-target-draft", onIncoming);
+    try {
+      const stored = window.localStorage.getItem("oa.shareTargetDraft.v1");
+      if (stored) {
+        const draft = JSON.parse(stored) as { title?: unknown; text?: unknown; url?: unknown };
+        if (typeof draft.url === "string" && draft.url.startsWith("http")) startAddLink(draft);
+      }
+    } catch { /* An unreadable incoming share remains on device for a later attempt. */ }
+    return () => window.removeEventListener("oa:share-target-draft", onIncoming);
+  }, []);
   useEffect(() => { if (openCabinetNonce) setTab("cabinet"); }, [openCabinetNonce]);
   const updateEdit = (change: Partial<EditState>) => {
     if (editorKey) setEdits((current) => ({ ...current, [editorKey]: { ...current[editorKey], ...change, message: "" } }));
   };
   const open = (post?: FeedPost) => {
     const key = (post ? Object.keys(edits).find((key) => edits[key].post?.id === post.id) : undefined) ?? post?.id ?? "new";
-    setEdits((current) => current[key] ? current : { ...current, [key]: post ? { ...newEdit(), post, body: post.body ?? "", visibility: post.visibility } : newEdit() });
+    setEdits((current) => current[key] ? current : { ...current, [key]: post ? {
+      ...newEdit(), post, title: post.title ?? "", body: post.body ?? "", visibility: post.visibility,
+      sourceUrl: post.externalLinks.find((item) => item.relation === "source")?.external_url ?? ""
+    } : newEdit() });
     setEditorKey(key);
   };
   const openFile = (file: File | null) => {
@@ -139,7 +176,9 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
     const remember = () => setEdits((current) => ({ ...current, [editorKey]: working }));
     try {
       if (!working.post) {
-        const result = await request<{ post: FeedPost; error?: string }>("/api/social/feed/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: working.body, visibility: working.visibility }) });
+        const result = editorKey === "link"
+          ? await request<{ post: FeedPost; error?: string }>("/api/social/feed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: working.sourceUrl || link, title: working.title }) })
+          : await request<{ post: FeedPost; error?: string }>("/api/social/feed/posts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: working.title, body: working.body, visibility: working.visibility }) });
         working = { ...working, post: result.post };
         remember(); collection.update(result.post); // Keep the id if a later upload fails.
       }
@@ -147,19 +186,28 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
       const patch = async (action?: string) => {
         const result = await request<{ post: FeedPost; error?: string }>(`/api/social/feed/posts/${post.id}`, {
           method: "PATCH", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action, body: working.body, visibility: working.visibility, statBlocks: post.statBlocks.map((block) => ({ blockKey: block.block_key, visibility: block.visibility })) })
+          body: JSON.stringify({ action, title: working.title, body: working.body, visibility: action === "publish" ? "public" : working.visibility, statBlocks: post.statBlocks.map((block) => ({ blockKey: block.block_key, visibility: block.visibility })) })
         });
         post = { ...post, ...result.post, statBlocks: post.statBlocks };
         working = { ...working, post }; remember(); collection.update(post);
       };
       await patch();
+      if (post.post_type === "external_link" && post.externalLinks[0]?.metadata_status === "pending") {
+        try {
+          const previewResult = await request<{ preview: { title: string | null; description: string | null; authorName: string | null; thumbnailUrl: string | null; canonicalUrl: string | null; status: string } }>(`/api/social/feed/posts/${post.id}/preview`, { method: "POST" });
+          const source = post.externalLinks[0];
+          const preview = previewResult.preview;
+          post = { ...post, externalLinks: [{ ...source, title: preview.title ?? source.title, description: preview.description, author_name: preview.authorName, thumbnail_url: preview.thumbnailUrl ? `/api/social/content/${post.id}/thumbnail` : null, canonical_url: preview.canonicalUrl, metadata_status: preview.status }, ...post.externalLinks.slice(1)] };
+          working = { ...working, post }; remember(); collection.update(post);
+        } catch { /* Saving the user's card must succeed even if the source is temporarily unavailable. */ }
+      }
       if (working.file || working.template) {
         const form = new FormData();
         if (working.file) {
           form.set("file", working.file);
           if (working.file.type === "video/mp4") form.set("durationSeconds", String(await videoDuration(working.file)));
         }
-        const result = await request<{ media: FeedMedia; error?: string }>(`/api/social/feed/posts/${post.id}/${post.post_type === "manual" ? "media" : "cover"}`, working.file
+        const result = await request<{ media: FeedMedia; error?: string }>(`/api/social/feed/posts/${post.id}/${post.post_type === "manual" || post.post_type === "external_link" ? "media" : "cover"}`, working.file
           ? { method: "POST", body: form }
           : { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateKey: working.template }) });
         post = { ...post, media: [result.media, ...post.media.filter((item) => item.sort_order !== 0)] };
@@ -167,6 +215,10 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
       }
       if (publish) await patch("publish");
       working = { ...working, error: "", message: t("social.blog.saved") }; remember();
+      try {
+        const pendingShare = window.localStorage.getItem("oa.shareTargetDraft.v1");
+        if (pendingShare && working.sourceUrl && pendingShare.includes(working.sourceUrl)) window.localStorage.removeItem("oa.shareTargetDraft.v1");
+      } catch { /* The server save has succeeded even if browser storage is unavailable. */ }
       // Move a newly created editor to its server id; reopening its tile keeps this state.
       setEdits((current) => { const next = { ...current, [post.id]: working }; if (editorKey !== post.id) delete next[editorKey]; return next; });
       setEditorKey(post.id);
@@ -186,17 +238,22 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
     } catch (error) { updateEdit({ error: error instanceof Error ? error.message : String(error) }); }
     finally { busyRef.current = false; setBusy(false); }
   }
-  async function publishLink() {
-    if (busyRef.current) return;
-    busyRef.current = true; setBusy(true); setLinkError("");
+  async function unpublish() {
+    if (!editor?.post || busyRef.current) return;
+    busyRef.current = true; setBusy(true);
     try {
-      const result = await request<{ post: FeedPost; error?: string }>("/api/social/feed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: link }) });
-      collection.update(result.post); setLink(""); setEditorKey(null); changed();
-    } catch (error) { setLinkError(error instanceof Error ? error.message : String(error)); }
+      const result = await request<{ post: FeedPost }>(`/api/social/feed/posts/${editor.post.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "draft", visibility: "private", title: editor.title, body: editor.body })
+      });
+      const next = { ...editor, post: { ...editor.post, ...result.post }, visibility: "private", message: t("social.blog.saved") };
+      setEdits((current) => ({ ...current, [editor.post!.id]: next }));
+      collection.update(next.post); changed();
+    } catch (error) { updateEdit({ error: error instanceof Error ? error.message : String(error) }); }
     finally { busyRef.current = false; setBusy(false); }
   }
   const system = Boolean(editor?.post && ["daily_progress", "level_up", "wish_completed", "challenge"].includes(editor.post.post_type));
-  const canChangeMedia = !editor?.post || editor.post.status === "draft" && (system || editor.post.post_type === "manual");
+  const canChangeMedia = !editor?.post || editor.post.post_type === "external_link" || editor.post.status === "draft" && (system || editor.post.post_type === "manual");
   return <section className="blog-workspace" hidden={!active}>
     {own ? <div className="blog-workspace-tabs" role="tablist" aria-label={t("social.blog.mine")}>
       {(["cabinet", "posts"] as const).map((item, index) => <button key={item} id={`blog-tab-${item}`} aria-controls={`blog-panel-${item}`} role="tab" type="button" aria-selected={tab === item} tabIndex={tab === item ? 0 : -1} className={tab === item ? "active" : ""} onClick={() => selectTab(item)} onKeyDown={(event) => {
@@ -206,12 +263,20 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
     <div id="blog-panel-cabinet" role="tabpanel" aria-labelledby="blog-tab-cabinet" hidden={!own || tab !== "cabinet"}>
       <div className="blog-workspace-actions">
         <button type="button" className="primary-button" onClick={() => open()}>{t("social.blog.create")}</button>
-        <button type="button" className="secondary-button" onClick={() => setEditorKey("link")}>{t("social.blog.addMaterial")}</button>
+        {SHARE_TO_OA_ENABLED ? <button type="button" className="secondary-button" onClick={() => startAddLink()}>{t("social.blog.addMaterial")}</button> : null}
       </div>
       <div className="blog-workspace-filters" aria-label={t("social.blog.materials")}>
         <button type="button" aria-pressed={filter === "draft"} onClick={() => selectFilter("draft")}>{t("social.blog.tab.drafts")}</button>
         <button type="button" aria-pressed={filter === "published"} onClick={() => selectFilter("published")}>{t("social.blog.published")}</button>
+        <button type="button" aria-pressed={filter === "saved"} onClick={() => selectFilter("saved")}>{t("social.share.saved")}</button>
       </div>
+      {filter === "saved" ? <form className="blog-workspace-filters" onSubmit={(event) => { event.preventDefault(); setSearch(searchInput.trim()); }}>
+        <label>{t("social.share.search")}<input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></label>
+        <label>{t("social.share.sourceFilter")}<select value={provider} onChange={(event) => setProvider(event.target.value)}>
+          <option value="">{t("social.share.sourceAll")}</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="telegram">Telegram</option><option value="x">X</option><option value="website">Website</option>
+        </select></label>
+        <button type="submit" className="secondary-button">{t("social.share.searchAction")}</button>
+      </form> : null}
       <div className="blog-draft-gallery">{collection.payload?.posts.map((post) => {
         const title = getFeedPostTitle(post, t("social.blog.materialFallback"));
         const date = new Date(post.created_at).toLocaleDateString(ru ? "ru-RU" : "en-GB");
@@ -219,7 +284,7 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
         const visibility = post.visibility === "public" ? t("social.feed.public") : post.visibility === "private" ? t("social.blog.onlyMe") : post.visibility;
         const cover = getFeedPostCover(post);
         return <button key={post.id} type="button" className="blog-draft-tile" aria-label={`${title}, ${date}, ${state}, ${visibility}`} onClick={() => open(post)}>
-          <span className="blog-draft-cover">{cover ? <img alt="" loading="lazy" src={cover} /> : <span>{title.slice(0, 80)}</span>}</span>
+          <span className="blog-draft-cover">{cover ? cover.startsWith("/api/social/content/") ? <ProtectedImage alt="" src={cover} /> : <img alt="" loading="lazy" src={cover} /> : <span>{title.slice(0, 80)}</span>}</span>
           <strong>{title}</strong><time dateTime={post.created_at}>{date}</time><span>{state}</span><span>{visibility}</span>
         </button>;
       })}</div>
@@ -230,25 +295,25 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
       <PublicBlog authorId={authorId ?? userId} locale={locale} active={active && (!own || tab === "posts")} revision={String(revision)} t={t} onOpenPost={onOpenPost} />
     </div>
     {active && own && editorKey ? <EditorDialog title={editorKey === "link" ? t("social.blog.addMaterialTitle") : t("social.blog.editorTitle")} closeLabel={t("app.common.close")} busy={busy} onClose={() => setEditorKey(null)}>
-      {editorKey === "link" ? <form onSubmit={(event) => { event.preventDefault(); void publishLink(); }}>
-        <p>{t("social.blog.addMaterialHelp")}</p>
-        <label className="secondary-button blog-material-file">
-          <span>{t("social.blog.chooseFile")}</span>
-          <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,video/mp4" disabled={busy} onChange={(event) => {
-            openFile(event.target.files?.[0] ?? null);
-            event.currentTarget.value = "";
-          }} />
-        </label>
-        <span className="blog-material-divider">{t("social.blog.or")}</span>
-        <label>{t("social.blog.materialUrl")}<input type="url" required value={link} disabled={busy} onChange={(event) => setLink(event.target.value)} /></label>
-        {linkError ? <p className="finance-error" role="alert">{linkError}</p> : null}
-        <button className="primary-button" type="submit" disabled={busy || !link.trim()}>{t("social.blog.publishLink")}</button>
-      </form> : editor ? <form onSubmit={(event) => { event.preventDefault(); void save(false); }}>
+      {editor ? <form onSubmit={(event) => { event.preventDefault(); void save(false); }}>
+        {editorKey === "link" ? <>
+          <p>{t("social.blog.addMaterialHelp")}</p>
+          <label>{t("social.blog.materialUrl")}<input type="url" required value={editor.sourceUrl || link} disabled={busy} onChange={(event) => { setLink(event.target.value); updateEdit({ sourceUrl: event.target.value }); }} /></label>
+          {linkError ? <p className="finance-error" role="alert">{linkError}</p> : null}
+        </> : null}
+        {(editorKey === "link" || editor.post?.post_type === "external_link") ? <>
+          <label>{t("social.post.detail")}<input type="text" maxLength={120} value={editor.title} disabled={busy} onChange={(event) => updateEdit({ title: event.target.value })} /></label>
+          {editor.post?.externalLinks[0] ? <ExternalSourceCard link={editor.post.externalLinks[0]} postId={editor.post.id} t={t} /> : null}
+          {editor.post?.post_type === "external_link" ? <>
+            <ExternalShareActions postId={editor.post.id} t={t} />
+            <ExternalWishActions postId={editor.post.id} title={editor.title || editor.post.externalLinks[0]?.title || ""} description={editor.body || editor.post.externalLinks[0]?.description || ""} t={t} />
+            <button type="button" className="secondary-button" onClick={() => window.dispatchEvent(new CustomEvent("oa:open-ai-content", { detail: { contentPostId: editor.post!.id } }))}>{t("social.share.discussWithAi")}</button>
+          </> : null}
+        </> : null}
         <label>{t("social.blog.text")}<textarea rows={6} maxLength={editor.post?.post_type === "project_review" ? 1500 : 700} value={editor.body} disabled={busy} onChange={(event) => updateEdit({ body: event.target.value })} /></label>
-        <label>{t("social.blog.visibility")}<select value={editor.visibility} disabled={busy} onChange={(event) => updateEdit({ visibility: event.target.value })}>
+        {editor.post ? <label>{t("social.blog.visibility")}<select value={editor.visibility} disabled={busy} onChange={(event) => updateEdit({ visibility: event.target.value })}>
           <option value="public">{t("social.blog.everyone")}</option><option value="private">{t("social.blog.onlyMe")}</option>
-          {editor.post && editor.post.post_type !== "manual" ? <><option value="followers">{t("profile.visibility.followers")}</option><option value="team">{t("profile.visibility.team")}</option><option value="contacts">{t("profile.visibility.contacts")}</option></> : null}
-        </select></label>
+        </select></label> : null}
         {canChangeMedia ? <label>{t("social.blog.mediaCover")}<input type="file" disabled={busy} accept={system ? "image/jpeg,image/png,image/webp" : "image/jpeg,image/png,image/webp,video/mp4"} onChange={(event) => updateEdit({ file: event.target.files?.[0] ?? null, template: null })} /></label> : null}
         {editor.file ? <p>{editor.file.name}</p> : null}
         <p>{canChangeMedia ? t("social.blog.mediaHint") : null}</p>
@@ -257,11 +322,163 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
         {editor.post?.statBlocks.length ? <fieldset disabled={busy}><legend>{t("social.blog.publicBlocks")}</legend>{editor.post.statBlocks.map((block) => <label className="blog-block-option" key={block.id}><input type="checkbox" checked={block.visibility === "public"} onChange={(event) => updateEdit({ post: { ...editor.post!, statBlocks: editor.post!.statBlocks.map((item) => item.id === block.id ? { ...item, visibility: event.target.checked ? "public" : "private" } : item) } })} />{block.label}</label>)}</fieldset> : null}
         {editor.error ? <p role="alert" className="finance-error">{editor.error}</p> : null}
         {editor.message ? <p role="status">{editor.message}</p> : null}
+        {editorKey === "link" ? <div className="blog-editor-actions">
+          <button type="submit" className="secondary-button" disabled={busy || !editor.sourceUrl.trim()}>{t("social.share.saveForMe")}</button>
+          <button type="button" className="primary-button" disabled={busy || !editor.sourceUrl.trim()} onClick={() => void save(true)}>{t("social.share.publish")}</button>
+        </div> : null}
         <div className="blog-editor-actions"><button type="submit" className="secondary-button" disabled={busy || !editor.post && !editor.body.trim() && !editor.file}>{busy ? "…" : t("app.common.save")}</button>
           {editor.post?.status !== "published" ? <button type="button" className="primary-button" disabled={busy || !editor.post && !editor.body.trim() && !editor.file} onClick={() => void save(true)}>{t("social.feed.publish")}</button> : null}
           {editor.post ? <button type="button" className="text-button" disabled={busy} onClick={() => void deletePost()}>{t("app.common.delete")}</button> : null}</div>
+        {editor.post?.post_type === "external_link" && editor.post.status === "published" ? <div className="blog-editor-actions">
+          <button type="button" className="secondary-button" disabled={busy} onClick={() => void unpublish()}>{t("social.share.unpublish")}</button>
+          <button type="button" className="text-button" onClick={() => { const source = editor.post!.externalLinks[0]?.external_url; const url = editor.post!.status === "published" ? `${window.location.origin}/p/${editor.post!.id}` : source; if (!url) return; if (navigator.share) void navigator.share({ title: editor.title, url }); else void navigator.clipboard.writeText(url); }}>{t("social.share.shareExternally")}</button>
+        </div> : editor.post?.post_type === "external_link" ? <div className="blog-editor-actions">
+          <button type="button" className="text-button" onClick={() => { const source = editor.post!.externalLinks[0]?.external_url; if (!source) return; if (navigator.share) void navigator.share({ title: editor.title, url: source }); else void navigator.clipboard.writeText(source); }}>{t("social.share.shareExternally")}</button>
+        </div> : null}
       </form> : null}
     </EditorDialog> : null}
+  </section>;
+}
+
+function ExternalSourceCard({ link, postId, t }: { link: FeedExternalLink; postId: string; t: Translate }) {
+  const [source, setSource] = useState(link);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => setSource(link), [link]);
+  async function refresh() {
+    if (refreshing) return;
+    setRefreshing(true); setError("");
+    try {
+      const result = await request<{ preview: { title: string | null; description: string | null; authorName: string | null; thumbnailUrl: string | null; canonicalUrl: string | null; status: FeedExternalLink["metadata_status"] } }>(`/api/social/feed/posts/${postId}/preview`, { method: "POST" });
+      setSource((current) => ({ ...current, title: result.preview.title ?? current.title, description: result.preview.description, author_name: result.preview.authorName, canonical_url: result.preview.canonicalUrl, thumbnail_url: result.preview.thumbnailUrl ? `/api/social/content/${postId}/thumbnail` : null, metadata_status: result.preview.status ?? "failed" }));
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : String(requestError)); }
+    finally { setRefreshing(false); }
+  }
+  return <article className="external-source-card">
+    {source.thumbnail_url ? <ProtectedImage alt="" src={source.thumbnail_url.startsWith("/") ? source.thumbnail_url : `/api/social/content/${postId}/thumbnail`} /> : null}
+    <div><strong>{source.title ?? source.provider}</strong>
+      {source.author_name ? <p>{t("social.share.sourceBy", { name: source.author_name })}</p> : null}
+      {source.description ? <p>{source.description}</p> : null}
+      <a href={source.external_url} target="_blank" rel="noopener noreferrer">{t("social.share.sourceLink")}</a>
+      {!source.title && !source.description && !source.thumbnail_url ? <p>{t("social.share.noSourcePreview")}</p> : null}
+      {error ? <p role="alert" className="finance-error">{error}</p> : null}
+      <button type="button" className="text-button" disabled={refreshing} onClick={() => void refresh()}>{refreshing ? "..." : t("social.share.refreshPreview")}</button>
+    </div>
+  </article>;
+}
+
+type SharePerson = { user_id: string; username: string | null; display_name: string | null };
+
+function ExternalShareActions({ postId, t }: { postId: string; t: Translate }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [people, setPeople] = useState<SharePerson[]>([]);
+  const [recipients, setRecipients] = useState<SharePerson[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const idempotencyKey = useRef("");
+  const idempotencyRecipient = useRef("");
+  useEffect(() => {
+    let cancelled = false;
+    void request<{ recipients: SharePerson[] }>(`/api/social/content/${postId}/access`).then((result) => { if (!cancelled) setRecipients(result.recipients); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [postId]);
+  useEffect(() => {
+    if (!open || search.trim().length < 2) { setPeople([]); return; }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({ q: search.trim(), limit: "10" });
+      void request<{ people: Array<{ profile: SharePerson }> }>(`/api/social/people?${params}`).then((result) => {
+        if (!cancelled) setPeople(result.people.map((person) => person.profile));
+      }).catch((requestError) => { if (!cancelled) setError(requestError instanceof Error ? requestError.message : String(requestError)); });
+    }, 250);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [open, search]);
+  async function send(recipient: SharePerson) {
+    if (loading) return;
+    setLoading(true); setError(""); setNotice("");
+    if (idempotencyRecipient.current !== recipient.user_id) {
+      idempotencyKey.current = crypto.randomUUID();
+      idempotencyRecipient.current = recipient.user_id;
+    }
+    try {
+      await request(`/api/direct/conversations/${recipient.user_id}`, {
+        method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey.current },
+        body: JSON.stringify({ contentPostId: postId })
+      });
+      idempotencyKey.current = "";
+      idempotencyRecipient.current = "";
+      setNotice(t("social.share.sent")); setRecipients((current) => current.some((row) => row.user_id === recipient.user_id) ? current : [recipient, ...current]);
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : String(requestError)); }
+    finally { setLoading(false); }
+  }
+  async function revoke(recipient: SharePerson) {
+    setError("");
+    try {
+      await request(`/api/social/content/${postId}/access`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recipientUserId: recipient.user_id }) });
+      setRecipients((current) => current.filter((row) => row.user_id !== recipient.user_id));
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : String(requestError)); }
+  }
+  return <section className="external-share-actions">
+    <button type="button" className="secondary-button" aria-expanded={open} onClick={() => { setOpen((value) => !value); setNotice(""); }}>{t("social.share.sendToOa")}</button>
+    {open ? <div className="external-recipient-picker">
+      <label>{t("social.share.recipientSearch")}<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+      {people.map((person) => <button key={person.user_id} type="button" className="text-button" disabled={loading} onClick={() => void send(person)}>{person.display_name || person.username || person.user_id}</button>)}
+      {recipients.length ? <div><strong>{t("social.share.recipients")}</strong>{recipients.map((person) => <div key={person.user_id}>
+        <span>{person.display_name || person.username || person.user_id}</span><button type="button" className="text-button" onClick={() => void revoke(person)}>{t("social.share.revoke")}</button>
+      </div>)}</div> : null}
+      {notice ? <p role="status">{notice}</p> : null}
+      {error ? <p role="alert" className="finance-error">{error}</p> : null}
+    </div> : null}
+  </section>;
+}
+
+type WishChoice = { id: string; title: string; description: string | null };
+
+function ExternalWishActions({ postId, title, description, t }: { postId: string; title: string; description: string; t: Translate }) {
+  const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [wishes, setWishes] = useState<WishChoice[]>([]);
+  const [newTitle, setNewTitle] = useState(title);
+  const [newDescription, setNewDescription] = useState(description);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const createIdempotencyKey = useRef("");
+  useEffect(() => { setNewTitle(title); setNewDescription(description); }, [title, description]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void request<{ wishes: WishChoice[] }>("/api/wishes?status=active&includeRecommended=false")
+      .then((result) => { if (!cancelled) setWishes(result.wishes); })
+      .catch((requestError) => { if (!cancelled) setError(requestError instanceof Error ? requestError.message : String(requestError)); });
+    return () => { cancelled = true; };
+  }, [open]);
+  async function attach(wishId?: string) {
+    if (loading) return;
+    setLoading(true); setError(""); setNotice("");
+    try {
+      if (!wishId && !createIdempotencyKey.current) createIdempotencyKey.current = crypto.randomUUID();
+      await request("/api/wishes", { method: "POST", headers: { "Content-Type": "application/json", ...(wishId ? {} : { "Idempotency-Key": createIdempotencyKey.current }) }, body: JSON.stringify({ contentPostId: postId, wishId, title: newTitle, description: newDescription, targetAmount: null, visibility: "private" }) });
+      if (!wishId) createIdempotencyKey.current = "";
+      setNotice(t("social.share.attached")); setCreateOpen(false);
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : String(requestError)); }
+    finally { setLoading(false); }
+  }
+  return <section className="external-wish-actions">
+    <button type="button" className="secondary-button" aria-expanded={open} onClick={() => { setOpen((value) => !value); setNotice(""); }}>{t("social.share.addToWish")}</button>
+    {open ? <div className="external-wish-picker">
+      <strong>{t("social.share.chooseWish")}</strong>
+      {wishes.map((wish) => <button key={wish.id} type="button" className="text-button" disabled={loading} onClick={() => void attach(wish.id)}>{wish.title}</button>)}
+      {!createOpen ? <button type="button" className="text-button" onClick={() => setCreateOpen(true)}>{t("social.share.newWish")}</button> : <>
+        <label>{t("social.share.newWish")}<input maxLength={120} value={newTitle} onChange={(event) => setNewTitle(event.target.value)} /></label>
+        <label>{t("social.blog.text")}<textarea rows={4} maxLength={1200} value={newDescription} onChange={(event) => setNewDescription(event.target.value)} /></label>
+        <button type="button" className="primary-button" disabled={loading || !newTitle.trim()} onClick={() => void attach()}>{t("app.common.save")}</button>
+      </>}
+      {notice ? <p role="status">{notice}</p> : null}
+      {error ? <p role="alert" className="finance-error">{error}</p> : null}
+    </div> : null}
   </section>;
 }
 

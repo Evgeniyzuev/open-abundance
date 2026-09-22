@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import ProtectedImage from "@/components/ProtectedImage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CircleHelp, History, Plus, Send, Settings2, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
@@ -37,6 +38,8 @@ type ChatMessage = AiLocalMessage;
 
 type AiChatAppProps = {
   active: boolean;
+  contentPostId?: string | null;
+  contentPostNonce?: number;
 };
 
 type PendingChatAction =
@@ -62,7 +65,7 @@ type AiChatSettings = {
   models: AiSettingsModel[];
 };
 
-export default function AiChatApp({ active }: AiChatAppProps) {
+export default function AiChatApp({ active, contentPostId = null, contentPostNonce = 0 }: AiChatAppProps) {
   const { locale, profile, t, user } = useUserContext();
   const userId = user?.id ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -70,6 +73,9 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   const [savedChats, setSavedChats] = useState<AiLocalChat[]>([]);
   const [quota, setQuota] = useState<LocalQuota | null>(null);
   const [input, setInput] = useState("");
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(contentPostId);
+  const [sharedContent, setSharedContent] = useState<{ title: string; body: string; sourceUrl: string; thumbnailUrl: string | null } | null>(null);
+  const [sharedContentLoading, setSharedContentLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
   const [isSavingChat, setIsSavingChat] = useState(false);
@@ -99,6 +105,30 @@ export default function AiChatApp({ active }: AiChatAppProps) {
   const contextConsentRef = useRef(false);
   const contextDecisionRef = useRef(false);
   const skipContextRef = useRef(false);
+
+  useEffect(() => {
+    setSelectedContentId(contentPostId);
+    if (!contentPostId) { setSharedContent(null); return; }
+    let cancelled = false;
+    setSharedContentLoading(true);
+    setSharedContent(null);
+    void (async () => {
+      try {
+        const { data } = await getBrowserSupabaseClient().auth.getSession();
+        const headers: Record<string, string> = {};
+        if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+        const response = await fetch(`/api/social/content/${contentPostId}`, { headers, cache: "no-store" });
+        if (!response.ok) throw new Error("Content unavailable");
+        const payload = await response.json() as { post?: { title?: string | null; body?: string | null; externalLinks?: Array<{ title?: string | null; external_url?: string; thumbnail_url?: string | null }> } };
+        const source = payload.post?.externalLinks?.[0];
+        if (!source?.external_url) throw new Error("Content unavailable");
+        if (!cancelled) setSharedContent({ title: payload.post?.title || source.title || source.external_url, body: payload.post?.body ?? "", sourceUrl: source.external_url, thumbnailUrl: source.thumbnail_url ?? null });
+      } catch {
+        if (!cancelled) setSharedContent(null);
+      } finally { if (!cancelled) setSharedContentLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [contentPostId, contentPostNonce]);
 
   const suggestions = SUGGESTED_PROMPTS[locale] ?? SUGGESTED_PROMPTS.en;
   // Keep the compact starting set available for accessibility/analytics without
@@ -310,6 +340,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
           body: JSON.stringify({
             messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
             locale,
+            contentPostId: selectedContentId ?? undefined,
             feedback,
             context: includeContext ? buildAiContext(locale, profile, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined
           }),
@@ -363,7 +394,7 @@ export default function AiChatApp({ active }: AiChatAppProps) {
         abortRef.current = null;
       }
     },
-    [activeChat, activeWishTitles, contextDialogOpen, isByok, isLoading, isRestoring, locale, memoryEnabled, memoryItems, messages, profile, recordAiChallengeProgress, t, userId]
+    [activeChat, activeWishTitles, contextDialogOpen, isByok, isLoading, isRestoring, locale, memoryEnabled, memoryItems, messages, profile, recordAiChallengeProgress, selectedContentId, t, userId]
   );
 
   const updateAiSettings = useCallback(async (routeMode: "system" | "byok", modelId = aiSettings?.modelId) => {
@@ -688,6 +719,14 @@ export default function AiChatApp({ active }: AiChatAppProps) {
           </button>
         </div>
       </header>
+
+      {selectedContentId ? <aside className="ai-chat-shared-content" aria-live="polite">
+        {sharedContentLoading ? <p>{t("app.common.loading")}</p> : sharedContent ? <>
+          {sharedContent.thumbnailUrl ? <ProtectedImage src={sharedContent.thumbnailUrl} alt="" /> : null}
+          <div><strong>{t("social.share.sharedMaterial")}: {sharedContent.title}</strong>{sharedContent.body ? <p>{sharedContent.body}</p> : null}<a href={sharedContent.sourceUrl} target="_blank" rel="noopener noreferrer">{t("social.share.sourceLink")}</a></div>
+        </> : <p>{t("social.share.unavailable")}</p>}
+        <button type="button" className="text-button" onClick={() => { setSelectedContentId(null); setSharedContent(null); }}>{t("social.share.removeContext")}</button>
+      </aside> : null}
 
       {settingsOpen ? (
         <aside className="ai-chat-settings" aria-label={t("ai.openrouter.settings.title")}>

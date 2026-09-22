@@ -17,6 +17,7 @@ import {
   type FirstWishOption
 } from "@/lib/firstWishGuide";
 import { PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
+import ProtectedImage from "@/components/ProtectedImage";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -31,7 +32,18 @@ type LocaleText = Json;
 type WishesResponse = {
   wishes?: Wish[];
   recommendedWishes?: RecommendedWish[];
+  attachedContent?: Record<string, AttachedWishContent[]>;
   error?: string;
+};
+
+type AttachedWishContent = {
+  postId: string;
+  title: string | null;
+  sourceTitle: string | null;
+  description: string | null;
+  provider: string;
+  sourceUrl: string;
+  thumbnailUrl: string | null;
 };
 
 type WishMutationResponse = {
@@ -89,6 +101,7 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
   const { core, loading: userLoading, locale, profile, t, user } = useUserContext();
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [recommendedWishes, setRecommendedWishes] = useState<RecommendedWish[]>([]);
+  const [attachedContent, setAttachedContent] = useState<Record<string, AttachedWishContent[]>>({});
   const [activeTab, setActiveTab] = useState<WishTab>("recommended");
   const [selectedWish, setSelectedWish] = useState<SelectedWish | null>(null);
   const [completingWish, setCompletingWish] = useState<Wish | null>(null);
@@ -163,6 +176,7 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
         if (mounted) {
           setWishes(payload.wishes ?? []);
           setRecommendedWishes(payload.recommendedWishes ?? []);
+          setAttachedContent(payload.attachedContent ?? {});
           setStatus("ready");
         }
       } catch (loadError) {
@@ -373,6 +387,7 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
       {selectedWish ? (
         <WishDetailModal
           selectedWish={selectedWish}
+          attachedContent={selectedWish.type === "wish" ? attachedContent[selectedWish.wish.id] ?? [] : []}
           onArchive={(wish) => setWishStatus(wish, "archived").catch((detailError) => setErrorMessage(detailError instanceof Error ? detailError.message : t("wishes.error")))}
           onClose={() => setSelectedWish(null)}
           onComplete={(wish) => {
@@ -704,9 +719,11 @@ function WishDetailModal({
   onRestore,
   isPrimary,
   onMakePrimary,
-  selectedWish
+  selectedWish,
+  attachedContent
 }: {
   selectedWish: SelectedWish;
+  attachedContent: AttachedWishContent[];
   onArchive: (wish: Wish) => void;
   onClose: () => void;
   onComplete: (wish: Wish) => void;
@@ -737,6 +754,15 @@ function WishDetailModal({
         <div className="wish-modal-body">
           {category ? <strong>{category}</strong> : null}
           {description ? <p>{description}</p> : null}
+          {isPersonal && attachedContent.length ? <section className="wish-attached-content" aria-label={t("social.share.saved")}>
+            {attachedContent.map((item) => <article className="wish-attached-content-card" key={item.postId}>
+              {item.thumbnailUrl ? <ProtectedImage src={item.thumbnailUrl} alt="" /> : null}
+              <div><strong>{item.title || item.sourceTitle || item.provider}</strong>
+                {item.description ? <p>{item.description}</p> : null}
+                <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{t("social.share.sourceLink")}</a>
+              </div>
+            </article>)}
+          </section> : null}
           <div className="wish-meta">
             {isPersonal && selectedWish.wish.target_amount ? <span>{formatAmount(selectedWish.wish.target_amount, selectedWish.wish.target_currency, locale)}</span> : null}
             {!isPersonal && selectedWish.wish.estimated_cost ? <span>{formatRoundedMoney(Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)), locale)}</span> : null}

@@ -2,6 +2,7 @@
 
 import { Heart } from "lucide-react";
 import Image from "next/image";
+import ProtectedImage from "@/components/ProtectedImage";
 import type { FeedPost } from "@/lib/socialFeed";
 import { recommendedWishIdForStory } from "@/lib/wishJourney";
 
@@ -60,6 +61,7 @@ function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, priority, s
 }
 
 function FeedCover({ priority, src }: { priority: boolean; src: string }) {
+  if (src.startsWith("/api/social/content/")) return <ProtectedImage alt="" loading={priority ? "eager" : "lazy"} src={src} />;
   if (src.startsWith("/")) {
     return <Image alt="" fill priority={priority} sizes="(max-width: 720px) 33vw, 260px" src={src} />;
   }
@@ -71,13 +73,13 @@ export function getFeedPostCover(post: FeedPost): string | null {
   if (media?.thumbnail_url || media?.media_url) return media.thumbnail_url ?? media.media_url;
   if (post.wish?.image_url) return post.wish.image_url;
   const externalThumbnail = post.externalLinks.find((item) => item.thumbnail_url)?.thumbnail_url;
-  if (externalThumbnail) return externalThumbnail;
+  if (externalThumbnail) return post.post_type === "external_link" ? `/api/social/content/${post.id}/thumbnail` : externalThumbnail;
   return systemCoverForType(post.post_type);
 }
 
 export function getFeedPostTitle(post: FeedPost, fallbackTitle: string): string {
   const bodyTitle = post.body?.trim().split("\n").find(Boolean)?.trim() ?? post.repostOf?.body?.trim().split("\n").find(Boolean)?.trim();
-  return post.wish?.title ?? post.externalLinks[0]?.title ?? bodyTitle ?? fallbackTitle;
+  return post.title?.trim() || post.wish?.title || post.externalLinks[0]?.title || bodyTitle || fallbackTitle;
 }
 
 function getPostFallbackMark(post: FeedPost): string {

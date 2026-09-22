@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { normalizeUuid } from "@/lib/uuid";
 import { publishWishToFeed } from "@/lib/serverWishFeed";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,6 +32,8 @@ type WishPostBody = {
   source_recommended_wish_id?: unknown;
   publishToFeed?: unknown;
   publish_to_feed?: unknown;
+  contentPostId?: unknown;
+  wishId?: unknown;
 };
 
 export async function GET(request: NextRequest) {
@@ -83,10 +86,54 @@ export async function GET(request: NextRequest) {
 
     const recommendedWishes = (recommendedResult.data ?? []).filter((wish) => !addedRecommendedWishIds.has(wish.id));
 
+    const wishIds = (wishesResult.data ?? []).map((wish) => wish.id);
+    let attachedContent: Record<string, Array<{
+      postId: string;
+      title: string | null;
+      sourceTitle: string | null;
+      description: string | null;
+      provider: string;
+      sourceUrl: string;
+      thumbnailUrl: string | null;
+    }>> = {};
+    if (SHARE_TO_OA_ENABLED && wishIds.length) {
+      const { data: links, error: linksError } = await supabase
+        .from("feed_post_wish_links")
+        .select("wish_id,post_id")
+        .eq("owner_user_id", user.id)
+        .in("wish_id", wishIds);
+      if (linksError) return NextResponse.json({ error: "Could not load wish materials." }, { status: 500, headers: NO_STORE_HEADERS });
+      const postIds = [...new Set((links ?? []).map((link) => link.post_id))];
+      if (postIds.length) {
+        const [{ data: posts, error: postsError }, { data: sources, error: sourcesError }] = await Promise.all([
+          supabase.from("feed_posts").select("id,title,author_user_id,post_type,deleted_at").in("id", postIds),
+          supabase.from("feed_post_external_links").select("post_id,provider,title,description,thumbnail_url,external_url").in("post_id", postIds).eq("relation", "source")
+        ]);
+        if (postsError || sourcesError) return NextResponse.json({ error: "Could not load wish materials." }, { status: 500, headers: NO_STORE_HEADERS });
+        const validPosts = new Map((posts ?? []).filter((post) => post.author_user_id === user.id && post.post_type === "external_link" && !post.deleted_at).map((post) => [post.id, post]));
+        const sourceByPost = new Map((sources ?? []).map((source) => [source.post_id, source]));
+        for (const link of links ?? []) {
+          const post = validPosts.get(link.post_id);
+          const source = sourceByPost.get(link.post_id);
+          if (!post || !source || !source.external_url) continue;
+          (attachedContent[link.wish_id] ??= []).push({
+            postId: post.id,
+            title: post.title,
+            sourceTitle: source.title,
+            description: source.description,
+            provider: source.provider,
+            sourceUrl: source.external_url,
+            thumbnailUrl: source.thumbnail_url ? `/api/social/content/${post.id}/thumbnail` : null
+          });
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         wishes: wishesResult.data ?? [],
-        recommendedWishes
+        recommendedWishes,
+        attachedContent
       },
       { headers: NO_STORE_HEADERS }
     );
@@ -106,6 +153,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await readJsonBody(request);
+    const contentPostId = normalizeUuid(body.contentPostId);
+    const requestedWishId = normalizeUuid(body.wishId);
+    if ((body.contentPostId !== undefined && !contentPostId) || (body.wishId !== undefined && !requestedWishId)) {
+      return NextResponse.json({ error: "Invalid material or wish id." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
     const sourceRecommendedWishId = normalizeUuid(body.sourceRecommendedWishId ?? body.source_recommended_wish_id);
     if (sourceRecommendedWishId) {
       const existingWish = await findExistingRecommendedWishCopy(supabase, user.id, sourceRecommendedWishId);
@@ -127,13 +179,13 @@ export async function POST(request: NextRequest) {
 
     const locale = body.locale === "ru" ? "ru" : "en";
     const title = normalizeRequiredText(body.title ?? localizedText(template?.title, locale), 120);
-    if (!title) {
+    if (!title && !requestedWishId) {
       return NextResponse.json({ error: "Wish title is required." }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const row: TablesInsert<"wishes"> = {
       owner_user_id: user.id,
-      title,
+      title: title ?? "",
       description: normalizeText(body.description ?? localizedText(template?.description, locale), 1200) ?? "",
       category: normalizeText(body.category ?? template?.category, 80),
       image_url: normalizeText(body.imageUrl ?? body.image_url ?? template?.image_url, 900),
@@ -143,6 +195,52 @@ export async function POST(request: NextRequest) {
       visibility: normalizeVisibility(body.visibility),
       source_recommended_wish_id: sourceRecommendedWishId
     };
+
+    if (contentPostId) {
+      if (!SHARE_TO_OA_ENABLED) return NextResponse.json({ error: "Sharing saved materials is not enabled yet." }, { status: 404, headers: NO_STORE_HEADERS });
+      if (requestedWishId) {
+        const { data: wish, error: wishError } = await supabase.from("wishes").select("*")
+          .eq("id", requestedWishId).eq("owner_user_id", user.id).is("deleted_at", null).maybeSingle();
+        if (wishError) return NextResponse.json({ error: wishError.message }, { status: 500, headers: NO_STORE_HEADERS });
+        if (!wish) return NextResponse.json({ error: "Wish not found." }, { status: 404, headers: NO_STORE_HEADERS });
+        const { error: linkError } = await supabase.rpc("attach_saved_content_wish", {
+          p_owner_user_id: user.id, p_post_id: contentPostId, p_wish_id: requestedWishId
+        });
+        if (linkError) return NextResponse.json({ error: linkError.message.includes("Saved material") ? "Saved material not found." : "Could not attach material to wish." }, { status: 400, headers: NO_STORE_HEADERS });
+        await recordProductEvent({ entityId: requestedWishId, entityType: "wish", eventName: "saved_content_attached_to_wish", properties: { created_wish: false }, source: "server", userId: user.id });
+        return NextResponse.json({ wish, linked: true }, { headers: NO_STORE_HEADERS });
+      }
+
+      const idempotencyKey = normalizeUuid(request.headers.get("Idempotency-Key"));
+      if (!idempotencyKey) return NextResponse.json({ error: "A valid Idempotency-Key header is required." }, { status: 400, headers: NO_STORE_HEADERS });
+
+      const { data: wishId, error: wishCreateError } = await supabase.rpc("create_saved_content_wish", {
+        p_owner_user_id: user.id,
+        p_post_id: contentPostId,
+        p_title: row.title ?? "",
+        p_description: row.description ?? "",
+        p_category: row.category ?? null,
+        p_image_url: row.image_url ?? null,
+        p_target_amount: row.target_amount ?? null,
+        p_target_currency: row.target_currency ?? "USD",
+        p_difficulty_level: row.difficulty_level ?? 1,
+        p_visibility: row.visibility ?? "private",
+        p_client_idempotency_key: idempotencyKey
+      });
+      if (wishCreateError || !wishId) return NextResponse.json({ error: wishCreateError?.message.includes("Saved material") ? "Saved material not found." : "Could not create linked wish." }, { status: 400, headers: NO_STORE_HEADERS });
+      const { data: createdWish, error: createdWishError } = await supabase.from("wishes").select("*").eq("id", wishId).single();
+      if (createdWishError) return NextResponse.json({ error: createdWishError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      await recordProductEvent({
+        entityId: createdWish.id,
+        entityType: "wish",
+        eventName: "wish_created",
+        properties: { has_target: createdWish.target_amount !== null, visibility: createdWish.visibility, has_saved_material: true },
+        source: "server",
+        userId: user.id
+      });
+      await recordProductEvent({ entityId: createdWish.id, entityType: "wish", eventName: "saved_content_attached_to_wish", properties: { created_wish: true }, source: "server", userId: user.id });
+      return NextResponse.json({ wish: createdWish, linked: true }, { status: 201, headers: NO_STORE_HEADERS });
+    }
 
     const { data, error: insertError } = await supabase
       .from("wishes")

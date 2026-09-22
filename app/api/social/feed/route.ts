@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import type { Database, Tables, TablesInsert } from "@/lib/database.types";
+import type { Database, Tables } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import type { FeedCategory, FeedRepostSource } from "@/lib/socialFeed";
 import { storyWishSourceKeys } from "@/lib/wishJourney";
 import { decodeBlogCursor, encodeBlogCursor, isPublicBlogPost } from "@/lib/blogWorkspace";
 import { normalizeProfileVisibilitySettings } from "@/lib/socialProfile";
+import { normalizeLinkSource } from "@/lib/sharePreview";
+import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,10 +37,12 @@ type FeedProfile = Pick<Tables<"user_profiles">, "user_id" | "username" | "displ
 type ExternalProvider = "tiktok" | "instagram" | "telegram" | "youtube" | "x" | "website" | "unknown";
 type CreateExternalLinkBody = {
   url?: unknown;
+  title?: unknown;
 };
 type NormalizedExternalLink = {
   provider: ExternalProvider;
   externalUrl: string;
+  normalizedUrl: string;
   externalPostId: string | null;
   authorHandle: string | null;
   title: string;
@@ -69,7 +74,35 @@ export async function GET(request: NextRequest) {
     if (scope === "blog" && request.nextUrl.searchParams.has("cursor") && !blogCursor) {
       return NextResponse.json({ error: "Invalid blog cursor." }, { status: 400, headers: NO_STORE_HEADERS });
     }
-    const cabinetStatus = request.nextUrl.searchParams.get("status") === "published" ? "published" : "draft";
+    const cabinetStatus = request.nextUrl.searchParams.get("status");
+    const cabinetSavedOnly = cabinetStatus === "saved";
+    const savedProvider = request.nextUrl.searchParams.get("provider")?.trim().toLowerCase() ?? "";
+    const savedSearch = (request.nextUrl.searchParams.get("search") ?? "").trim().slice(0, 100).replace(/[%_]/g, "");
+    let savedFilteredPostIds: string[] | null = null;
+    if (cabinet && cabinetSavedOnly && (savedProvider || savedSearch)) {
+      let sourceQuery = supabase.from("feed_post_external_links").select("post_id").eq("owner_user_id", user.id).eq("relation", "source");
+      if (savedProvider) sourceQuery = sourceQuery.eq("provider", savedProvider);
+      const { data: sourceMatches, error: sourceMatchError } = await sourceQuery.limit(1000);
+      if (sourceMatchError) throw sourceMatchError;
+      const sourceIds = Array.from(new Set((sourceMatches ?? []).map((row) => row.post_id)));
+      let matchingIds = sourceIds;
+      if (savedSearch) {
+        const pattern = `%${savedSearch}%`;
+        let sourceSearchQuery = supabase.from("feed_post_external_links").select("post_id").eq("owner_user_id", user.id).eq("relation", "source");
+        if (savedProvider) sourceSearchQuery = sourceSearchQuery.eq("provider", savedProvider);
+        const { data: sourceSearchMatches, error: sourceSearchError } = await sourceSearchQuery
+          .or(`title.ilike.${pattern},description.ilike.${pattern},external_url.ilike.${pattern},author_name.ilike.${pattern}`).limit(1000);
+        if (sourceSearchError) throw sourceSearchError;
+        const { data: ownTextMatches, error: ownTextError } = await supabase.from("feed_posts")
+          .select("id").eq("author_user_id", user.id).eq("post_type", "external_link").is("deleted_at", null)
+          .or(`title.ilike.${pattern},body.ilike.${pattern}`).limit(1000);
+        if (ownTextError) throw ownTextError;
+        const ownTextIds = (ownTextMatches ?? []).map((row) => row.id);
+        const matchingTextIds = new Set([...(sourceSearchMatches ?? []).map((row) => row.post_id), ...ownTextIds]);
+        matchingIds = sourceIds.filter((id) => matchingTextIds.has(id));
+      }
+      savedFilteredPostIds = matchingIds;
+    }
     const cursor = scope === "feed" ? normalizeCursor(request.nextUrl.searchParams.get("cursor")) : null;
 
     let systemAccount: FeedSystemAccountRow | null = null;
@@ -101,7 +134,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("feed_posts")
-      .select("id,author_user_id,author_label,source_key,snapshot_id,system_verified,post_type,status,visibility,body,created_at,updated_at,published_at,deleted_at,repost_of_post_id")
+      .select("id,author_user_id,author_label,source_key,snapshot_id,system_verified,post_type,status,visibility,title,body,created_at,updated_at,published_at,deleted_at,repost_of_post_id")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(scope === "system" ? limit : limit + 1);
@@ -131,7 +164,9 @@ export async function GET(request: NextRequest) {
         .eq("status", "draft")
         .in("post_type", ["daily_progress", "level_up", "wish_completed", "challenge"]);
     } else if (cabinet) {
-      query = query.eq("author_user_id", user.id).eq("status", cabinetStatus);
+      query = query.eq("author_user_id", user.id);
+      query = cabinetSavedOnly ? query.eq("post_type", "external_link") : query.eq("status", cabinetStatus === "published" ? "published" : "draft");
+      if (cabinetSavedOnly && savedFilteredPostIds) query = query.in("id", savedFilteredPostIds.length ? savedFilteredPostIds : ["00000000-0000-0000-0000-000000000000"]);
     } else if (authorUserId) {
       query = query
         .eq("author_user_id", authorUserId)
@@ -214,8 +249,12 @@ export async function GET(request: NextRequest) {
             authorName: translation?.author_name ?? post.author_label,
             author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
             statBlocks: cabinet ? statBlocks.filter((block) => block.post_id === post.id) : filterStatBlocksForViewer(post, statBlocks, publicBlog ? "" : user.id),
-            externalLinks: externalLinks.filter((link) => link.post_id === post.id),
-            media: media.filter((item) => item.post_id === post.id).map((item) => publicBlog ? { ...item, storage_path: undefined, metadata: {} } : item),
+            externalLinks: externalLinks.filter((link) => link.post_id === post.id).map((item) => post.post_type === "external_link" && item.thumbnail_url
+              ? { ...item, thumbnail_url: `/api/social/content/${post.id}/thumbnail` }
+              : item),
+            media: media.filter((item) => item.post_id === post.id).map((item) => post.post_type === "external_link" && item.storage_path
+              ? { ...item, storage_path: undefined, media_url: `/api/social/content/${post.id}/media?mediaId=${item.id}`, thumbnail_url: null, metadata: {} }
+              : publicBlog ? { ...item, storage_path: undefined, metadata: {} } : item),
             wish: wishPosts.get(post.id) ?? null,
             projectReview: reviewMetadata.get(post.id) ?? null,
             verifiedChallenge: challengeSnapshotsByPostId.get(post.id) ?? null,
@@ -239,67 +278,52 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!SHARE_TO_OA_ENABLED) return NextResponse.json({ error: "Share to OA is not enabled yet." }, { status: 404, headers: NO_STORE_HEADERS });
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) {
       return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     }
 
     const body = await readCreateExternalLinkBody(request);
-    const normalized = normalizeExternalUrl(body.url);
+    const normalized = normalizeLinkSource(body.url);
     if (!normalized) {
       return NextResponse.json({ error: "Paste a valid http or https URL." }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
-    const existingPost = await findExistingExternalPost(supabase, user.id, normalized);
+    const existingPost = await findExistingExternalPost(supabase, user.id, {
+      provider: normalized.provider, externalUrl: normalized.externalUrl, normalizedUrl: normalized.normalizedUrl, externalPostId: normalized.externalPostId,
+      authorHandle: normalized.authorHandle, title: normalized.fallbackTitle
+    });
     if (existingPost) {
+      await recordProductEvent({ entityId: existingPost.id, entityType: "feed_post", eventName: "saved_content_saved", properties: { provider: normalized.provider, duplicate: true }, source: "server", userId: user.id });
       return NextResponse.json({ post: existingPost, created: false }, { headers: NO_STORE_HEADERS });
     }
 
-    const now = new Date().toISOString();
-    const { data: post, error: postError } = await supabase
-      .from("feed_posts")
-      .insert({
-        author_user_id: user.id,
-        post_type: "external_link",
-        status: "published",
-        visibility: "public",
-        body: buildExternalPostBody(normalized),
-        published_at: now
-      } satisfies TablesInsert<"feed_posts">)
-      .select("*")
-      .single();
-
-    if (postError) return NextResponse.json({ error: postError.message }, { status: 500, headers: NO_STORE_HEADERS });
-
-    const { data: externalLink, error: externalLinkError } = await supabase
-      .from("feed_post_external_links")
-      .insert({
-        post_id: post.id,
-        provider: normalized.provider,
-        external_url: normalized.externalUrl,
-        external_post_id: normalized.externalPostId,
-        author_handle: normalized.authorHandle,
-        title: normalized.title,
-        embed_status: "link_only",
-        relation: "source"
-      } satisfies TablesInsert<"feed_post_external_links">)
-      .select("*")
-      .single();
-
-    if (externalLinkError) {
-      await supabase
-        .from("feed_posts")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", post.id);
-      return NextResponse.json({ error: externalLinkError.message }, { status: 500, headers: NO_STORE_HEADERS });
-    }
-
+    const title = typeof body.title === "string" ? body.title.trim().slice(0, 120) || null : null;
+    const { data: postId, error: createError } = await supabase.rpc("create_saved_external_content", {
+      p_owner_user_id: user.id,
+      p_source_url: normalized.externalUrl,
+      p_normalized_url: normalized.normalizedUrl,
+      p_provider: normalized.provider,
+      p_external_post_id: normalized.externalPostId,
+      p_author_handle: normalized.authorHandle,
+      p_source_title: normalized.fallbackTitle,
+      p_title: title
+    });
+    if (createError || !postId) throw createError ?? new Error("Failed to save external link.");
+    const [{ data: post, error: postError }, { data: externalLink, error: externalLinkError }] = await Promise.all([
+      supabase.from("feed_posts").select("*").eq("id", postId).single(),
+      supabase.from("feed_post_external_links").select("*").eq("post_id", postId).eq("relation", "source").single()
+    ]);
+    if (postError) throw postError;
+    if (externalLinkError) throw externalLinkError;
+    await recordProductEvent({ entityId: postId, entityType: "feed_post", eventName: "saved_content_saved", properties: { provider: normalized.provider, duplicate: false }, source: "server", userId: user.id });
     const profiles = await loadProfiles(supabase, [user.id]);
     return NextResponse.json(
       {
         post: {
           ...post,
-          authorName: null,
+          authorName: profiles.find((item) => item.user_id === user.id)?.display_name ?? null,
           author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
           statBlocks: [],
           externalLinks: [externalLink],
@@ -634,12 +658,13 @@ async function findExistingExternalPost(
   const { data: links, error: linksError } = await supabase
     .from("feed_post_external_links")
     .select("*")
-    .eq("provider", normalized.provider)
-    .eq("external_url", normalized.externalUrl)
+    .eq("owner_user_id", userId)
     .eq("relation", "source");
 
   if (linksError) throw linksError;
-  const postIds = (links ?? []).map((link) => link.post_id);
+  const matchingLinks = (links ?? []).filter((link) => link.normalized_url === normalized.normalizedUrl
+    || normalizeLinkSource(link.external_url)?.normalizedUrl === normalized.normalizedUrl);
+  const postIds = matchingLinks.map((link) => link.post_id);
   if (!postIds.length) return null;
 
   const { data: posts, error: postsError } = await supabase
@@ -655,14 +680,18 @@ async function findExistingExternalPost(
   const post = (posts ?? [])[0] as FeedPostRow | undefined;
   if (!post) return null;
 
-  const profiles = await loadProfiles(supabase, post.author_user_id ? [post.author_user_id] : []);
+  const [profiles, media] = await Promise.all([
+    loadProfiles(supabase, post.author_user_id ? [post.author_user_id] : []),
+    loadMedia(supabase, [post.id])
+  ]);
+  const externalLinks = matchingLinks.filter((link) => link.post_id === post.id) as FeedExternalLinkRow[];
   return {
     ...post,
     authorName: post.author_label,
     author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
     statBlocks: [],
-    externalLinks: (links ?? []).filter((link) => link.post_id === post.id) as FeedExternalLinkRow[],
-    media: [],
+    externalLinks: externalLinks.map((link) => link.thumbnail_url ? { ...link, thumbnail_url: `/api/social/content/${post.id}/thumbnail` } : link),
+    media: media.filter((item) => item.post_id === post.id && item.storage_path).map((item) => ({ ...item, storage_path: null, media_url: `/api/social/content/${post.id}/media?mediaId=${item.id}`, thumbnail_url: null, metadata: {} })),
     wish: null
   };
 }
@@ -674,120 +703,6 @@ async function readCreateExternalLinkBody(request: NextRequest): Promise<CreateE
   } catch {
     return {};
   }
-}
-
-function normalizeExternalUrl(value: unknown): NormalizedExternalLink | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    return null;
-  }
-
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-  parsed.protocol = "https:";
-  parsed.hash = "";
-  removeTrackingParams(parsed);
-
-  const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-  const pathParts = parsed.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
-  const provider = detectProvider(host);
-  const metadata = extractExternalMetadata(provider, parsed, pathParts);
-
-  return {
-    provider,
-    externalUrl: parsed.toString(),
-    externalPostId: metadata.externalPostId,
-    authorHandle: metadata.authorHandle,
-    title: metadata.title
-  };
-}
-
-function detectProvider(host: string): ExternalProvider {
-  if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return "tiktok";
-  if (host === "instagram.com" || host.endsWith(".instagram.com")) return "instagram";
-  if (host === "t.me" || host === "telegram.me") return "telegram";
-  if (host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com")) return "youtube";
-  if (host === "x.com" || host === "twitter.com" || host.endsWith(".twitter.com")) return "x";
-  return "website";
-}
-
-function extractExternalMetadata(
-  provider: ExternalProvider,
-  url: URL,
-  pathParts: string[]
-): { externalPostId: string | null; authorHandle: string | null; title: string } {
-  if (provider === "tiktok") {
-    const author = pathParts.find((part) => part.startsWith("@")) ?? null;
-    const videoIndex = pathParts.findIndex((part) => part === "video" || part === "photo");
-    return {
-      externalPostId: videoIndex >= 0 ? pathParts[videoIndex + 1] ?? null : null,
-      authorHandle: author,
-      title: "TikTok post"
-    };
-  }
-
-  if (provider === "instagram") {
-    const typeIndex = pathParts.findIndex((part) => ["p", "reel", "tv"].includes(part));
-    const storyIndex = pathParts.findIndex((part) => part === "stories");
-    return {
-      externalPostId: typeIndex >= 0 ? pathParts[typeIndex + 1] ?? null : storyIndex >= 0 ? pathParts[storyIndex + 2] ?? null : null,
-      authorHandle: storyIndex >= 0 ? pathParts[storyIndex + 1] ?? null : null,
-      title: "Instagram post"
-    };
-  }
-
-  if (provider === "telegram") {
-    return {
-      externalPostId: pathParts.length >= 2 ? `${pathParts[0]}/${pathParts[1]}` : pathParts[0] ?? null,
-      authorHandle: pathParts[0] ? `@${pathParts[0]}` : null,
-      title: "Telegram post"
-    };
-  }
-
-  if (provider === "youtube") {
-    const videoId = url.hostname.toLowerCase().replace(/^www\./, "") === "youtu.be"
-      ? pathParts[0] ?? null
-      : url.searchParams.get("v") ?? (pathParts[0] === "shorts" || pathParts[0] === "embed" ? pathParts[1] ?? null : null);
-    return {
-      externalPostId: videoId,
-      authorHandle: pathParts[0]?.startsWith("@") ? pathParts[0] : null,
-      title: "YouTube video"
-    };
-  }
-
-  if (provider === "x") {
-    const statusIndex = pathParts.findIndex((part) => part === "status");
-    return {
-      externalPostId: statusIndex >= 0 ? pathParts[statusIndex + 1] ?? null : null,
-      authorHandle: pathParts[0] ? `@${pathParts[0]}` : null,
-      title: "X post"
-    };
-  }
-
-  return {
-    externalPostId: null,
-    authorHandle: null,
-    title: url.hostname.replace(/^www\./, "")
-  };
-}
-
-function removeTrackingParams(url: URL) {
-  Array.from(url.searchParams.keys()).forEach((key) => {
-    const normalizedKey = key.toLowerCase();
-    if (normalizedKey.startsWith("utm_") || ["fbclid", "gclid", "igshid", "si"].includes(normalizedKey)) {
-      url.searchParams.delete(key);
-    }
-  });
-}
-
-function buildExternalPostBody(link: NormalizedExternalLink): string {
-  const handle = link.authorHandle ? ` ${link.authorHandle}` : "";
-  return `${link.title}${handle}`;
 }
 
 function filterStatBlocksForViewer(post: FeedPostRow, statBlocks: FeedStatBlockRow[], viewerUserId: string): FeedStatBlockRow[] {

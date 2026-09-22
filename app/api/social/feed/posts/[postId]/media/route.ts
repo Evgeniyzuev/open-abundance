@@ -21,8 +21,8 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
 
-    const post = await getManualDraft(supabase, params.postId, user.id);
-    if (!post) return NextResponse.json({ error: "Manual draft not found." }, { status: 404, headers: NO_STORE_HEADERS });
+    const post = await getEditableDraft(supabase, params.postId, user.id);
+    if (!post) return NextResponse.json({ error: "Draft not found." }, { status: 404, headers: NO_STORE_HEADERS });
 
     const form = await request.formData();
     const file = form.get("file");
@@ -82,9 +82,8 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
     if (previous?.storage_path && previous.storage_path !== path) {
       await supabase.storage.from("feed-media").remove([previous.storage_path]);
     }
-    const { data: signed } = await supabase.storage.from("feed-media").createSignedUrl(path, 60 * 60);
     return NextResponse.json({
-      media: { ...media, media_url: signed?.signedUrl ?? null } satisfies Tables<"feed_post_media"> & { media_url: string | null }
+      media: { ...media, storage_path: null, media_url: `/api/social/content/${post.id}/media?mediaId=${media.id}` } satisfies Tables<"feed_post_media"> & { media_url: string | null }
     }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
@@ -98,8 +97,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { postI
   try {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
-    const post = await getManualDraft(supabase, params.postId, user.id);
-    if (!post) return NextResponse.json({ error: "Manual draft not found." }, { status: 404, headers: NO_STORE_HEADERS });
+    const post = await getEditableDraft(supabase, params.postId, user.id);
+    if (!post) return NextResponse.json({ error: "Draft not found." }, { status: 404, headers: NO_STORE_HEADERS });
 
     const { data: media, error: mediaError } = await supabase
       .from("feed_post_media")
@@ -122,7 +121,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { postI
   }
 }
 
-async function getManualDraft(supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"], postId: string, userId: string) {
+async function getEditableDraft(supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"], postId: string, userId: string) {
   const { data, error } = await supabase
     .from("feed_posts")
     .select("id,author_user_id,post_type,status,deleted_at")
@@ -131,5 +130,5 @@ async function getManualDraft(supabase: Awaited<ReturnType<typeof getAuthenticat
     .is("deleted_at", null)
     .maybeSingle();
   if (error) throw error;
-  return data && data.post_type === "manual" && data.status === "draft" ? data : null;
+  return data && (data.post_type === "external_link" || data.post_type === "manual" && data.status === "draft") ? data : null;
 }

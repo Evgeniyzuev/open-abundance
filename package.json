@@ -19,6 +19,7 @@
     "test:acquisition": "node scripts/verify-acquisition-challenges-contract.mjs",
     "test:e2e": "playwright test",
     "test:blog": "node scripts/verify-blog-workspace.mjs && node scripts/verify-blog-editor.mjs",
+    "test:share-target": "node scripts/verify-share-target-contract.mjs && node scripts/verify-share-preview-security.mjs",
     "test:engaging-ui": "node scripts/verify-engaging-interface.mjs",
     "test:uuid": "node scripts/verify-uuid-contract.mjs",
     "db:link": "pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi",

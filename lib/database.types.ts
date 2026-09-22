@@ -412,7 +412,9 @@ export type Database = {
       direct_messages: {
         Row: {
           body: string
+          client_idempotency_key: string | null
           conversation_id: string
+          content_post_id: string | null
           created_at: string
           deleted_at: string | null
           id: string
@@ -422,7 +424,9 @@ export type Database = {
         }
         Insert: {
           body: string
+          client_idempotency_key?: string | null
           conversation_id: string
+          content_post_id?: string | null
           created_at?: string
           deleted_at?: string | null
           id?: string
@@ -432,7 +436,9 @@ export type Database = {
         }
         Update: {
           body?: string
+          client_idempotency_key?: string | null
           conversation_id?: string
+          content_post_id?: string | null
           created_at?: string
           deleted_at?: string | null
           id?: string
@@ -558,13 +564,19 @@ export type Database = {
       feed_post_external_links: {
         Row: {
           author_handle: string | null
+          author_name: string | null
           caption: string | null
+          canonical_url: string | null
           created_at: string
+          description: string | null
           embed_status: string
           external_post_id: string | null
           external_url: string
           fetched_at: string | null
           id: string
+          metadata_status: string
+          normalized_url: string | null
+          owner_user_id: string | null
           post_id: string
           provider: string
           relation: string
@@ -574,13 +586,19 @@ export type Database = {
         }
         Insert: {
           author_handle?: string | null
+          author_name?: string | null
           caption?: string | null
+          canonical_url?: string | null
           created_at?: string
+          description?: string | null
           embed_status?: string
           external_post_id?: string | null
           external_url: string
           fetched_at?: string | null
           id?: string
+          metadata_status?: string
+          normalized_url?: string | null
+          owner_user_id?: string | null
           post_id: string
           provider: string
           relation?: string
@@ -590,13 +608,19 @@ export type Database = {
         }
         Update: {
           author_handle?: string | null
+          author_name?: string | null
           caption?: string | null
+          canonical_url?: string | null
           created_at?: string
+          description?: string | null
           embed_status?: string
           external_post_id?: string | null
           external_url?: string
           fetched_at?: string | null
           id?: string
+          metadata_status?: string
+          normalized_url?: string | null
+          owner_user_id?: string | null
           post_id?: string
           provider?: string
           relation?: string
@@ -668,6 +692,23 @@ export type Database = {
             referencedRelation: "feed_posts"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      feed_post_access: {
+        Row: { created_at: string; granted_by_user_id: string; post_id: string; recipient_user_id: string; revoked_at: string | null }
+        Insert: { created_at?: string; granted_by_user_id: string; post_id: string; recipient_user_id: string; revoked_at?: string | null }
+        Update: { created_at?: string; granted_by_user_id?: string; post_id?: string; recipient_user_id?: string; revoked_at?: string | null }
+        Relationships: [
+          { foreignKeyName: "feed_post_access_post_id_fkey"; columns: ["post_id"]; isOneToOne: false; referencedRelation: "feed_posts"; referencedColumns: ["id"] }
+        ]
+      }
+      feed_post_wish_links: {
+        Row: { client_idempotency_key: string | null; created_at: string; owner_user_id: string; post_id: string; wish_id: string }
+        Insert: { client_idempotency_key?: string | null; created_at?: string; owner_user_id: string; post_id: string; wish_id: string }
+        Update: { client_idempotency_key?: string | null; created_at?: string; owner_user_id?: string; post_id?: string; wish_id?: string }
+        Relationships: [
+          { foreignKeyName: "feed_post_wish_links_post_id_fkey"; columns: ["post_id"]; isOneToOne: false; referencedRelation: "feed_posts"; referencedColumns: ["id"] },
+          { foreignKeyName: "feed_post_wish_links_wish_id_fkey"; columns: ["wish_id"]; isOneToOne: false; referencedRelation: "wishes"; referencedColumns: ["id"] }
         ]
       }
       feed_post_stat_blocks: {
@@ -774,6 +815,7 @@ export type Database = {
           published_at: string | null
           repost_of_post_id: string | null
           snapshot_id: string | null
+          title: string | null
           source_key: string | null
           status: string
           system_verified: boolean
@@ -791,6 +833,7 @@ export type Database = {
           published_at?: string | null
           repost_of_post_id?: string | null
           snapshot_id?: string | null
+          title?: string | null
           source_key?: string | null
           status?: string
           system_verified?: boolean
@@ -808,6 +851,7 @@ export type Database = {
           published_at?: string | null
           repost_of_post_id?: string | null
           snapshot_id?: string | null
+          title?: string | null
           source_key?: string | null
           status?: string
           system_verified?: boolean
@@ -1186,6 +1230,9 @@ export type Database = {
       peer_review_answers: {
         Row: {
           id: string
+          metadata_status: string
+          normalized_url: string | null
+          owner_user_id: string | null
           task_id: string
           reviewer_user_id: string
           status: string
@@ -3427,6 +3474,53 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_saved_external_content: {
+        Args: {
+          p_author_handle: string | null
+          p_external_post_id: string | null
+          p_normalized_url: string
+          p_owner_user_id: string
+          p_provider: string
+          p_source_title: string
+          p_source_url: string
+          p_title: string | null
+        }
+        Returns: string
+      }
+      share_saved_content_message: {
+        Args: {
+          p_body: string | null
+          p_client_idempotency_key: string
+          p_post_id: string
+          p_sender_user_id: string
+          p_target_user_id: string
+        }
+        Returns: string
+      }
+      create_saved_content_wish: {
+        Args: {
+          p_category: string | null
+          p_client_idempotency_key: string
+          p_description: string
+          p_difficulty_level: number
+          p_image_url: string | null
+          p_owner_user_id: string
+          p_post_id: string
+          p_target_amount: number | null
+          p_target_currency: string
+          p_title: string
+          p_visibility: string
+        }
+        Returns: string
+      }
+      attach_saved_content_wish: {
+        Args: { p_owner_user_id: string; p_post_id: string; p_wish_id: string }
+        Returns: boolean
+      }
+      delete_saved_external_content: {
+        Args: { p_owner_user_id: string; p_post_id: string }
+        Returns: boolean
+      }
       accept_marketplace_deal: {
         Args: { p_actor_user_id: string; p_deal_id: string }
         Returns: Json

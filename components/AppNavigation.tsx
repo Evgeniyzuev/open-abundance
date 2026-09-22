@@ -18,6 +18,7 @@ import { useUserContext } from "@/components/UserProvider";
 import WalletApp from "@/components/WalletApp";
 import WishesApp from "@/components/WishesApp";
 import CoreSeedIcon from "@/components/icons/CoreSeedIcon";
+import { captureShareTargetDraftFromLocation, readShareTargetDraft, saveShareTargetDraft, selectShareTargetDraft, SHARE_TARGET_DRAFT_STORAGE_KEY, type ShareTargetDraft } from "@/components/ShareTargetBootstrap";
 import { markChallengesViewed, markTodayViewed, readDailyUnreadState } from "@/lib/dailyUnread";
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
@@ -129,6 +130,10 @@ export default function AppNavigation() {
   const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
   const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
   const [feedDraftFocusNonce, setFeedDraftFocusNonce] = useState(0);
+  const [shareTargetDraft, setShareTargetDraft] = useState<ShareTargetDraft | null>(null);
+  const [shareTargetToDispatch, setShareTargetToDispatch] = useState<ShareTargetDraft | null>(null);
+  const [aiContentPostId, setAiContentPostId] = useState<string | null>(null);
+  const [aiContentNonce, setAiContentNonce] = useState(0);
   const [wishFocusRequest, setWishFocusRequest] = useState<{ id: string; nonce: number } | null>(null);
   const [, setDailyUnreadVersion] = useState(0);
   const [visitedServerViews, setVisitedServerViews] = useState({
@@ -149,6 +154,63 @@ export default function AppNavigation() {
   const journeyEntryUserRef = useRef<string | null>(null);
   const suppressHistoryPushRef = useRef(false);
   const navigationStateRef = useRef<NavigationState>(DEFAULT_NAVIGATION_STATE);
+  const openedShareTargetRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const captured = captureShareTargetDraftFromLocation();
+    setShareTargetDraft(captured ?? readShareTargetDraft());
+  }, []);
+
+  useEffect(() => {
+    if (!authResolved || !user || !shareTargetDraft?.url || openedShareTargetRef.current === shareTargetDraft.receivedAt) return;
+    openedShareTargetRef.current = shareTargetDraft.receivedAt;
+    setShareTargetToDispatch(shareTargetDraft);
+    setFeedDraftFocusNonce((value) => value + 1);
+    setActiveSocialTab("blog");
+    setActiveMainTab("people");
+    setVisitedServerViews((current) => ({ ...current, people: true }));
+  }, [authResolved, shareTargetDraft, user]);
+
+  useEffect(() => {
+    if (!authResolved || !user || !shareTargetToDispatch || !visitedServerViews.people || activeMainTab !== "people" || activeSocialTab !== "blog") return;
+    window.dispatchEvent(new CustomEvent("oa:share-target-draft", { detail: shareTargetToDispatch }));
+    setShareTargetToDispatch(null);
+  }, [activeMainTab, activeSocialTab, authResolved, shareTargetToDispatch, user, visitedServerViews.people]);
+
+  useEffect(() => {
+    const openSavedLinkEditor = (event: Event) => {
+      const detail = (event as CustomEvent<{ url?: unknown; title?: unknown; text?: unknown }>).detail;
+      if (typeof detail?.url !== "string" || !detail.url.trim()) return;
+      const draft: ShareTargetDraft = {
+        url: detail.url.trim(),
+        title: typeof detail.title === "string" ? detail.title.slice(0, 120) : "",
+        text: typeof detail.text === "string" ? detail.text.slice(0, 4000) : "",
+        candidates: [detail.url.trim()],
+        receivedAt: new Date().toISOString()
+      };
+      setShareTargetToDispatch(draft);
+      setFeedDraftFocusNonce((value) => value + 1);
+      setActiveSocialTab("blog");
+      setActiveMainTab("people");
+      setVisitedServerViews((current) => ({ ...current, people: true }));
+    };
+    window.addEventListener("oa:open-saved-link-editor", openSavedLinkEditor);
+    return () => window.removeEventListener("oa:open-saved-link-editor", openSavedLinkEditor);
+  }, []);
+
+  useEffect(() => {
+    const onAiContent = (event: Event) => {
+      const contentPostId = (event as CustomEvent<{ contentPostId?: unknown }>).detail?.contentPostId;
+      if (typeof contentPostId !== "string") return;
+      setAiContentPostId(contentPostId);
+      setAiContentNonce((value) => value + 1);
+      setVisitedHomeViews((current) => ({ ...current, ideas: true }));
+      setActiveHomeTab("ideas");
+      setActiveMainTab("home");
+    };
+    window.addEventListener("oa:open-ai-content", onAiContent);
+    return () => window.removeEventListener("oa:open-ai-content", onAiContent);
+  }, []);
 
   const dailyUnread = user
     ? readDailyUnreadState(user.id)
@@ -494,6 +556,19 @@ export default function AppNavigation() {
     setActiveMainTab("goals");
   }
 
+  function chooseShareTargetUrl(url: string) {
+    if (!shareTargetDraft) return;
+    const selected = selectShareTargetDraft(shareTargetDraft, url);
+    if (!selected) return;
+    saveShareTargetDraft(selected);
+    setShareTargetDraft(selected);
+  }
+
+  function dismissInvalidShareTarget() {
+    try { window.localStorage.removeItem(SHARE_TARGET_DRAFT_STORAGE_KEY); } catch { /* Storage may be unavailable. */ }
+    setShareTargetDraft(null);
+  }
+
   return (
     <>
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
@@ -540,7 +615,7 @@ export default function AppNavigation() {
           />
         </KeepAliveView>
         <KeepAliveView active={showIdeas} visited={visitedHomeViews.ideas}>
-          <AiChatApp active={showIdeas} />
+          <AiChatApp active={showIdeas} contentPostId={aiContentPostId} contentPostNonce={aiContentNonce} />
         </KeepAliveView>
         <KeepAliveView active={showChecks} visited>
           <TasksApp createRequest={reflectionTaskDraft} onCreateRequestHandled={() => setReflectionTaskDraft(null)} />
@@ -589,8 +664,38 @@ export default function AppNavigation() {
         onExpand={() => setBottomNavExpanded(true)}
         onTabChange={openMainDestination}
       />
+      {authResolved && shareTargetDraft && (!shareTargetDraft.url || !user) ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal-sheet small" role="dialog" aria-modal="true" aria-labelledby="share-target-title">
+            <h2 id="share-target-title">{t("shareTarget.title")}</h2>
+            {!shareTargetDraft.url && shareTargetDraft.candidates.length > 1 ? <>
+              <p>{t("shareTarget.chooseLink")}</p>
+              <div className="share-target-candidates">
+                {shareTargetDraft.candidates.map((candidate) => <button key={candidate} type="button" className="secondary-button" style={{ overflowWrap: "anywhere", textAlign: "left" }} onClick={() => chooseShareTargetUrl(candidate)}>
+                  {getShareTargetLabel(candidate)}
+                </button>)}
+              </div>
+            </> : !shareTargetDraft.url ? <>
+              <p>{t("shareTarget.noLink")}</p>
+              <button className="secondary-button" type="button" onClick={dismissInvalidShareTarget}>{t("app.common.close")}</button>
+            </> : <>
+              <p>{t("shareTarget.savedOnDevice")}</p>
+              {shareTargetDraft.title ? <strong>{shareTargetDraft.title}</strong> : null}
+              <p className="share-target-url">{shareTargetDraft.url}</p>
+              <button className="primary-button" type="button" onClick={() => window.location.assign("/?auth=signin")}>{t("shareTarget.signIn")}</button>
+            </>}
+          </section>
+        </div>
+      ) : null}
     </>
   );
+}
+
+function getShareTargetLabel(value: string): string {
+  try {
+    const url = new URL(value);
+    return `${url.host}${url.pathname}${url.search}`;
+  } catch { return value; }
 }
 
 type TopTabBarProps = {

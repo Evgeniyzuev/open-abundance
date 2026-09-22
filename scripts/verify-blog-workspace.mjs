@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import vm from "node:vm";
 import ts from "typescript";
@@ -47,7 +47,7 @@ function load(path) {
   const code = ts.transpileModule(readFileSync(path, "utf8"), { fileName: path, compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const localRequire = (name) => {
     if (name === "@/lib/serverSupabase") return { getAuthenticatedUser: async () => ({ supabase, user: viewer ? { id: viewer } : null, error: viewer ? null : "No session" }) };
-    if (name.startsWith("@/")) return load(`${name.slice(2)}.ts`);
+    if (name.startsWith("@/")) { const base = name.slice(2); return load(existsSync(`${base}.ts`) ? `${base}.ts` : `${base}.tsx`); }
     return require(name);
   };
   vm.runInThisContext(`(function(require,module,exports){${code}\n})`, { filename: path })(localRequire, module, module.exports);

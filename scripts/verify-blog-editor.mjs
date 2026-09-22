@@ -44,23 +44,28 @@ let created = 0; let uploadFails = true; let publishFails = true; let requests =
 let posts = [];
 const originalFetch = globalThis.fetch;
 const originalWindow = globalThis.window;
-globalThis.window = { scrollY: 120, scrollTo() {}, confirm: () => true };
+const originalShareFlag = process.env.NEXT_PUBLIC_SHARE_TO_OA_ENABLED;
+process.env.NEXT_PUBLIC_SHARE_TO_OA_ENABLED = "true";
+globalThis.window = { scrollY: 120, scrollTo() {}, confirm: () => true, addEventListener() {}, removeEventListener() {} };
 globalThis.fetch = async (url, init) => {
   const method = init?.method ?? "GET";
   requests.push(`${method} ${url}`);
   let payload; let status = 200;
   if (method === "GET") payload = { posts: [...posts], author: null, nextCursor: null };
+  else if (url.includes("/preview")) payload = { preview: { title: "Source title", description: "Source description", authorName: null, thumbnailUrl: null, canonicalUrl: null, status: "ready" } };
   else if (url.endsWith("/media")) {
     if (uploadFails) { payload = { error: "UPLOAD FAILED" }; status = 500; }
     else payload = { media: { id: "media", sort_order: 0, media_type: "image", media_url: "/cover.png" } };
   } else if (method === "POST") {
     created += 1;
-    const post = { ...basePost, ...JSON.parse(init.body), id: `00000000-0000-4000-8000-${String(created).padStart(12, "0")}` };
+    const body = JSON.parse(init.body);
+    const postId = `00000000-0000-4000-8000-${String(created).padStart(12, "0")}`;
+    const post = { ...basePost, ...body, id: postId, post_type: body.url ? "external_link" : "manual", visibility: body.url ? "private" : body.visibility, externalLinks: body.url ? [{ id: "source", post_id: postId, relation: "source", provider: "website", external_url: body.url, title: null, metadata_status: "pending" }] : [] };
     posts.push(post); payload = { post };
   } else {
     const change = JSON.parse(init.body);
     if (change.action === "publish" && publishFails) { payload = { error: "PUBLISH FAILED" }; status = 500; }
-    else { posts[0] = { ...posts[0], body: change.body, visibility: change.visibility, status: change.action === "publish" ? "published" : posts[0].status }; payload = { post: posts[0] }; }
+    else { const index = posts.findIndex((post) => url.endsWith(`/${post.id}`)); const current = posts[index]; posts[index] = { ...current, title: change.title ?? current.title, body: change.body, visibility: change.visibility, status: change.action === "publish" ? "published" : current.status }; payload = { post: posts[index] }; }
   }
   return new Response(JSON.stringify(payload), { status, headers: { "Content-Type": "application/json" } });
 };
@@ -73,6 +78,7 @@ try {
     "social.blog.addMaterialTitle": "Добавить материал", "social.blog.published": "Опубликовано", "social.feed.publish": "Опубликовать",
     "app.common.save": "Сохранить", "app.common.delete": "Удалить", "app.common.close": "Закрыть", "social.blog.saved": "Сохранено"
   };
+  labels["social.blog.addMaterialTitle"] = labels["social.blog.editorTitle"];
   const props = { userId: owner, authorId: null, locale: "ru", active: true, refreshKey: "", openCabinetNonce: 0, t: (key) => labels[key] ?? key, onOpenPost() {}, onChanged() {} };
   let tree;
   function render() { slot = 0; effects = []; tree = Component(props); effects.forEach((fn) => fn()); }
@@ -116,5 +122,26 @@ try {
   assert.equal(nodes().some((node) => node.props?.className === "blog-draft-tile"), false, "Published post leaves drafts");
   button("Создать").props.onClick(); render();
   assert.equal(textArea().props.value, "", "Create starts a new material after successful save");
-  console.log("Blog editor: single editor, repeated submit, upload/publish failure, retained text and retry passed.");
-} finally { globalThis.fetch = originalFetch; globalThis.window = originalWindow; }
+  button("Добавить материал").props.onClick(); render();
+  find((node) => node.type === "input" && node.props.type === "url").props.onChange({ target: { value: "https://example.com/article?ref=share" } }); render();
+  find((node) => node.type === "input" && node.props.type === "text").props.onChange({ target: { value: "My title" } }); render();
+  textArea().props.onChange({ target: { value: "My note" } }); render();
+  submit(); await settle();
+  assert.equal(created, 2, "Saving an external source creates one saved card");
+  assert.equal(posts[1].post_type, "external_link");
+  assert.equal(posts[1].status, "draft");
+  assert.equal(posts[1].visibility, "private");
+  assert.equal(posts[1].externalLinks[0].external_url, "https://example.com/article?ref=share");
+  assert.equal(nodes().some((node) => node.type?.name === "EditorDialog"), true, "The editor stays open after saving a link card");
+  find((node) => node.type === "button" && node.props.children === labels["social.feed.publish"]).props.onClick(); await settle();
+  assert.equal(posts[1].status, "published");
+  button("social.share.saved").props.onClick(); await settle();
+  find((node) => node.props?.className === "blog-draft-tile").props.onClick(); render();
+  assert.equal(find((node) => node.type === "input" && node.props.type === "file").props.accept.includes("video/mp4"), true, "Published saved cards remain editable, including their media");
+  console.log("Blog editor: drafts, one-ID external save, upload/publish failure, retained text and retry passed.");
+} finally {
+  globalThis.fetch = originalFetch;
+  globalThis.window = originalWindow;
+  if (originalShareFlag === undefined) delete process.env.NEXT_PUBLIC_SHARE_TO_OA_ENABLED;
+  else process.env.NEXT_PUBLIC_SHARE_TO_OA_ENABLED = originalShareFlag;
+}

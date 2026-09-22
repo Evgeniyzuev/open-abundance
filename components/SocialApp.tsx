@@ -24,6 +24,7 @@ import { DISPLAY_CURRENCIES, DISPLAY_CURRENCY_SYMBOLS, type DisplayCurrency } fr
 import { APP_TESTING_ATTITUDES, APP_TESTING_USEFUL_AREAS } from "@/lib/appTestingFeedback";
 import { recommendedWishIdForStory } from "@/lib/wishJourney";
 import { getSoundsEnabled, playUiSound, setSoundsEnabled } from "@/lib/ui/sound";
+import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
 
 type SocialTab = "feed" | "people" | "blog" | "profile" | "teams";
 type SocialTabChange = (tab: SocialTab) => void;
@@ -269,6 +270,7 @@ type DirectMessage = {
   conversation_id: string;
   sender_user_id: string;
   body: string;
+  content_post_id?: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -1428,32 +1430,10 @@ export default function SocialApp({
 
   async function createExternalLinkPost() {
     const url = externalLinkUrl.trim();
-    if (!url) return;
-
-    setFeedSaving(true);
-    setSocialError(null);
-    try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/social/feed", {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ url })
-      });
-      const payload = (await response.json()) as { post?: FeedPost; error?: string };
-      if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to add external link.");
-      setExternalLinkUrl("");
-      invalidateFeedCache();
-      await Promise.all([loadFeed(false, true), loadBlog()]);
-    } catch (linkError) {
-      console.warn("External link post create failed", linkError);
-      setSocialError(linkError instanceof Error ? linkError.message : "Failed to add external link.");
-    } finally {
-      setFeedSaving(false);
-    }
+    if (!url || !SHARE_TO_OA_ENABLED) return;
+    setExternalLinkUrl("");
+    setLinkComposerOpen(false);
+    window.dispatchEvent(new CustomEvent("oa:open-saved-link-editor", { detail: { url } }));
   }
 
   function updateLocalPostCover(postId: string, media: FeedMedia) {
@@ -2753,6 +2733,7 @@ function DirectMessageModal({
           {payload?.messages.map((message) => (
             <article className={message.sender_user_id === currentUserId ? "direct-bubble own" : "direct-bubble"} key={message.id}>
               <p>{message.body}</p>
+              {message.content_post_id ? <DirectMessageSharedCard postId={message.content_post_id} t={t} /> : null}
             </article>
           ))}
         </div>
@@ -2770,6 +2751,32 @@ function DirectMessageModal({
       </section>
     </div>
   );
+}
+
+function DirectMessageSharedCard({ postId, t }: { postId: string; t: (key: MessageKey, values?: Record<string, string | number>) => string }) {
+  const [content, setContent] = useState<{ title: string; sourceUrl: string } | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await getBrowserSupabaseClient().auth.getSession();
+        const headers: Record<string, string> = {};
+        if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+        const response = await fetch(`/api/social/content/${postId}`, { headers, cache: "no-store" });
+        if (!response.ok) throw new Error("Unavailable");
+        const payload = await response.json() as { post?: { title?: string | null; externalLinks?: Array<{ title?: string | null; external_url?: string }> } };
+        const source = payload.post?.externalLinks?.[0];
+        if (!source?.external_url) throw new Error("Unavailable");
+        if (!cancelled) setContent({ title: payload.post?.title || source.title || source.external_url, sourceUrl: source.external_url });
+      } catch { if (!cancelled) setUnavailable(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [postId]);
+  return <a className="direct-shared-content-card" href={content?.sourceUrl ?? undefined} target="_blank" rel="noopener noreferrer" aria-disabled={!content}>
+    <strong>{unavailable ? t("social.share.unavailable") : content?.title ?? t("social.share.sharedMaterial")}</strong>
+    {content ? <span>{t("social.share.sourceLink")}</span> : null}
+  </a>;
 }
 
 function ProfileEditorDialog({

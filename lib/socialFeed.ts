@@ -52,9 +52,15 @@ export type FeedExternalLink = {
   external_url: string;
   external_post_id: string | null;
   author_handle: string | null;
+  author_name?: string | null;
   title: string | null;
   caption: string | null;
+  description?: string | null;
+  canonical_url?: string | null;
   thumbnail_url: string | null;
+  metadata_status?: "pending" | "ready" | "link_only" | "failed" | string;
+  normalized_url?: string | null;
+  owner_user_id?: string | null;
   embed_status: string;
   relation: string;
   created_at: string;
@@ -147,6 +153,7 @@ export type FeedPost = {
   status: "draft" | "published" | "archived";
   visibility: string;
   body: string | null;
+  title?: string | null;
   created_at: string;
   updated_at: string;
   published_at: string | null;

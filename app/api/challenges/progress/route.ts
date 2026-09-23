@@ -130,7 +130,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: upsertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ recorded: true, status: nextStatus });
+  // Expedition milestones are optional for legacy challenges. A milestone is
+  // settled only when this server-side proof flow has accepted the proof key;
+  // the client never supplies the reward amount or completion percentage.
+  const milestoneAwards: unknown[] = [];
+  const db = supabase as any;
+  const { data: milestones, error: milestoneError } = await db
+    .from("challenge_milestones")
+    .select("milestone_key,verification_logic")
+    .eq("challenge_id", challenge.id)
+    .eq("is_active", true)
+    .like("verification_logic", "proof:%");
+  if (!milestoneError) {
+    for (const milestone of (milestones ?? []) as Array<{ milestone_key?: unknown; verification_logic?: unknown }>) {
+      if (milestone.verification_logic !== `proof:${proofKey}` || typeof milestone.milestone_key !== "string") continue;
+      const { data: award, error: awardError } = await db.rpc("settle_user_challenge_milestone", {
+        p_user_id: user.id,
+        p_challenge_id: challenge.id,
+        p_milestone_key: milestone.milestone_key,
+        p_verified: true
+      });
+      if (awardError) {
+        return NextResponse.json({ error: awardError.message }, { status: 500 });
+      }
+      if (award?.[0]) milestoneAwards.push(award[0]);
+    }
+  }
+
+  return NextResponse.json({ recorded: true, status: nextStatus, milestoneAwards });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

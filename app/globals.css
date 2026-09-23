@@ -2537,3 +2537,80 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
   .core-journey-card { padding: 12px; gap: 10px; }
   .core-journey-orbit { flex-basis: 32px; height: 32px; }
 }
+
+/* OA Expedition: a compact, verifiable route through real opportunities. */
+.expedition-screen { display: grid; gap: 16px; width: min(100%, 780px); margin: 0 auto; padding: 8px 0 28px; }
+.expedition-header, .expedition-map-heading, .expedition-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.expedition-header > div, .expedition-map-heading > div, .expedition-section-heading > div { display: grid; gap: 4px; min-width: 0; }
+.expedition-header span, .expedition-map-heading span, .expedition-section-heading span, .expedition-destination-copy > span { color: var(--muted, #687789); font-size: .76rem; letter-spacing: .06em; text-transform: uppercase; }
+.expedition-header h1, .expedition-map-heading h2, .expedition-section-heading h2, .expedition-destination h2 { margin: 0; overflow-wrap: anywhere; }
+.expedition-map-heading small { max-width: 280px; color: var(--muted, #687789); text-align: right; line-height: 1.35; }
+.expedition-destination { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 16px; border: 1px solid rgba(59, 130, 246, .22); border-radius: 20px; background: linear-gradient(125deg, rgba(59, 130, 246, .12), rgba(16, 185, 129, .08)); }
+.expedition-destination-icon, .expedition-entry-icon { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 14px; color: #fff; background: linear-gradient(145deg, #2563eb, #0f766e); box-shadow: 0 8px 20px rgba(37, 99, 235, .2); }
+.expedition-destination-copy { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.expedition-destination-copy p { margin: 0; color: var(--muted, #687789); overflow-wrap: anywhere; line-height: 1.4; }
+.expedition-destination > .text-button { flex: 0 0 auto; }
+.expedition-progress { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.expedition-progress > div { display: grid; gap: 4px; min-width: 0; padding: 12px; border: 1px solid var(--border, #d3d9e2); border-radius: 14px; background: var(--surface-soft, #f7f9fc); }
+.expedition-progress span { color: var(--muted, #687789); font-size: .76rem; }
+.expedition-progress strong { overflow-wrap: anywhere; font-size: 1rem; }
+.expedition-node-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.expedition-node-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; padding: 13px; border: 1px solid var(--border, #d3d9e2); border-radius: 17px; color: inherit; background: var(--surface, #fff); text-align: left; cursor: pointer; }
+.expedition-node-card:hover, .expedition-node-card.selected { border-color: rgba(37, 99, 235, .6); box-shadow: 0 8px 24px rgba(30, 64, 175, .1); }
+.expedition-node-card.complete { background: linear-gradient(145deg, rgba(16, 185, 129, .1), var(--surface, #fff)); }
+.expedition-node-card.hidden { opacity: .62; }
+.expedition-node-card:focus-visible, .expedition-entry-card:focus-visible { outline: 3px solid #427fcd; outline-offset: 3px; }
+.expedition-node-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; color: #1d4ed8; background: #dbeafe; }
+.expedition-node-card.together .expedition-node-icon { color: #047857; background: #d1fae5; }
+.expedition-node-card.creation .expedition-node-icon { color: #a16207; background: #fef3c7; }
+.expedition-node-card.mission .expedition-node-icon { color: #7c3aed; background: #ede9fe; }
+.expedition-node-copy { display: grid; gap: 3px; min-width: 0; }
+.expedition-node-copy small, .expedition-node-copy em { color: var(--muted, #687789); font-size: .72rem; font-style: normal; }
+.expedition-node-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expedition-node-reward { align-self: start; color: #047857; font-size: .78rem; white-space: nowrap; }
+.expedition-detail, .expedition-companions, .expedition-finds { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border, #d3d9e2); border-radius: 20px; background: var(--surface, #fff); }
+.expedition-detail-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.expedition-detail-heading > div { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.expedition-detail-heading h2 { margin: 0; overflow-wrap: anywhere; font-size: 1.1rem; }
+.expedition-detail-heading span:not(.expedition-detail-icon) { color: var(--muted, #687789); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; }
+.expedition-detail-icon { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border-radius: 12px; color: #1d4ed8; background: #dbeafe; }
+.expedition-detail-icon.together { color: #047857; background: #d1fae5; }
+.expedition-detail-icon.creation { color: #a16207; background: #fef3c7; }
+.expedition-detail-icon.mission { color: #7c3aed; background: #ede9fe; }
+.expedition-state { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; color: #475569; background: #f1f5f9; font-size: .72rem; font-style: normal; }
+.expedition-state.active { color: #6d28d9; background: #ede9fe; }
+.expedition-state.complete { color: #047857; background: #d1fae5; }
+.expedition-detail > p { margin: 0; color: var(--muted, #687789); line-height: 1.45; overflow-wrap: anywhere; }
+.expedition-reward-line { display: flex; align-items: center; gap: 8px; color: #047857; }
+.expedition-reward-line span { margin-left: auto; color: var(--muted, #687789); font-size: .78rem; }
+.expedition-detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.expedition-detail-actions small { color: var(--muted, #687789); }
+.expedition-companion { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: var(--surface-soft, #f7f9fc); }
+.expedition-companion > span { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.expedition-companion small, .expedition-companion em { color: var(--muted, #687789); font-size: .78rem; font-style: normal; overflow-wrap: anywhere; }
+.expedition-companion em { color: #047857; }
+.expedition-artifact-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.expedition-artifact { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 8px 10px; border: 1px solid rgba(245, 158, 11, .35); border-radius: 12px; color: #92400e; background: #fffbeb; }
+.expedition-artifact b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expedition-artifact small { color: #b45309; }
+.expedition-empty-route { display: grid; justify-items: center; gap: 10px; min-height: 150px; padding: 26px 16px; border: 1px dashed var(--border, #d3d9e2); border-radius: 18px; color: var(--muted, #687789); text-align: center; }
+.expedition-empty-route strong { color: var(--text, #182c43); }
+.expedition-empty-route p { max-width: 430px; margin: 0; line-height: 1.4; }
+.expedition-entry-card { display: flex; align-items: center; gap: 11px; width: 100%; padding: 15px; border: 1px solid rgba(37, 99, 235, .24); border-radius: 18px; color: inherit; background: linear-gradient(120deg, rgba(37, 99, 235, .1), rgba(16, 185, 129, .08)); text-align: left; cursor: pointer; }
+.expedition-entry-copy { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.expedition-entry-copy small { color: var(--muted, #687789); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+.expedition-entry-copy strong, .expedition-entry-copy em { overflow-wrap: anywhere; }
+.expedition-entry-copy em { color: var(--muted, #687789); font-size: .82rem; font-style: normal; line-height: 1.35; }
+.expedition-entry-card > svg { flex: 0 0 auto; }
+@media (max-width: 560px) {
+  .expedition-destination { align-items: flex-start; flex-wrap: wrap; }
+  .expedition-destination > .text-button { margin-left: 56px; }
+  .expedition-progress { grid-template-columns: 1fr; }
+  .expedition-node-grid { grid-template-columns: 1fr; }
+  .expedition-map-heading { display: grid; }
+  .expedition-map-heading small { max-width: none; text-align: left; }
+  .expedition-state { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .expedition-node-card, .expedition-entry-card { transition: none !important; }
+}

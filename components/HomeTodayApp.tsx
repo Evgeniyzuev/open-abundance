@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Bell, CheckCircle2, FileText, Heart, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, Compass, FileText, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
@@ -81,6 +81,7 @@ type HomeTodayAppProps = {
   onOpenToday: () => void;
   onOpenTeams: () => void;
   onOpenWishes: () => void;
+  onOpenExpedition: () => void;
   todayUnread: boolean;
 };
 
@@ -94,6 +95,7 @@ export default function HomeTodayApp({
   onOpenToday,
   onOpenTeams,
   onOpenWishes,
+  onOpenExpedition,
   todayUnread
 }: HomeTodayAppProps) {
   const { core, locale, loading, t, user, wallet } = useUserContext();
@@ -397,6 +399,12 @@ export default function HomeTodayApp({
           </button>
         </section>
       )}
+
+      <button className="expedition-entry-card" type="button" onClick={onOpenExpedition}>
+        <span className="expedition-entry-icon"><Compass size={21} /></span>
+        <span className="expedition-entry-copy"><small>{t("expedition.kicker")}</small><strong>{t("expedition.homeEntryTitle")}</strong><em>{t("expedition.homeEntryDescription")}</em></span>
+        <ArrowRight size={20} aria-hidden="true" />
+      </button>
 
       <button className="journey-feed-entry" type="button" onClick={onOpenFeed}>
         <span><small>{t("journey.feedEyebrow")}</small><strong>{t("journey.feedTitle")}</strong></span>

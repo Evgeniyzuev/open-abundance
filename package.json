@@ -17,6 +17,7 @@
     "test:p2p": "node scripts/verify-p2p-contract.mjs",
     "test:growth": "node scripts/verify-growth-analytics-contract.mjs",
     "test:acquisition": "node scripts/verify-acquisition-challenges-contract.mjs",
+    "test:expedition": "node scripts/verify-expedition-contract.mjs",
     "test:e2e": "playwright test",
     "test:blog": "node scripts/verify-blog-workspace.mjs && node scripts/verify-blog-editor.mjs",
     "test:share-target": "node scripts/verify-share-target-contract.mjs && node scripts/verify-share-preview-security.mjs",

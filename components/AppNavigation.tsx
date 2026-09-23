@@ -541,6 +541,11 @@ export default function AppNavigation() {
     setActiveMainTab("people");
   }
 
+  function openExpedition() {
+    setActiveGoalTab("map");
+    setActiveMainTab("goals");
+  }
+
   function openMainDestination(tab: MainTabId) {
     if (tab === "home") setActiveHomeTab("home");
     if (tab === "people") setActiveSocialTab("feed");
@@ -598,6 +603,7 @@ export default function AppNavigation() {
             onOpenToday={openToday}
             onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
             onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+            onOpenExpedition={openExpedition}
             todayUnread={todayUnread}
             refreshNonce={refreshNonce}
           />
@@ -621,7 +627,15 @@ export default function AppNavigation() {
           <TasksApp createRequest={reflectionTaskDraft} onCreateRequestHandled={() => setReflectionTaskDraft(null)} />
         </KeepAliveView>
         <KeepAliveView active={showMap} visited={visitedServerViews.map}>
-          <GrowthMapApp active={showMap} refreshNonce={refreshNonce} />
+          <GrowthMapApp
+            active={showMap}
+            refreshNonce={refreshNonce}
+            onOpenChallenge={openJourneyChallenge}
+            onOpenFeed={openFeed}
+            onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
+            onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+            onOpenBlog={() => { setActiveSocialTab("blog"); setActiveMainTab("people"); }}
+          />
         </KeepAliveView>
         {showResults ? <ResultsApp /> : null}
         <KeepAliveView active={showChallenges} visited={visitedServerViews.challenges}>

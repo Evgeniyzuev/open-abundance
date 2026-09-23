@@ -924,6 +924,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .comparison-info-body p { margin: 0; color: var(--text); font-size: 0.9375rem; line-height: 1.38; }
 .comparison-info-body p:first-child { color: var(--blue); font-weight: 850; }
 .profile-panel { justify-items: center; text-align: center; }
+.teams-profile-panel { width: 100%; margin: 0; padding: 0; justify-items: stretch; background: transparent; box-shadow: none; text-align: left; }
 .owner-profile-panel { gap: 14px; }
 .owner-profile-header { width: 100%; display: flex; align-items: center; justify-content: center; gap: 13px; text-align: left; }
 .owner-profile-copy { min-width: 0; display: grid; gap: 5px; }

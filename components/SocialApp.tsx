@@ -1847,11 +1847,7 @@ export default function SocialApp({
       ) : null}
 
       {activeTab === "teams" ? (
-        <section className="profile-panel">
-          <div className="profile-avatar placeholder">
-            <Users size={34} />
-          </div>
-          <strong>{t("social.teams.title")}</strong>
+        <section className="profile-panel teams-profile-panel">
           {!user && !loading ? <p>{t("profile.registrationRequired")}</p> : null}
           {user ? (
             <>

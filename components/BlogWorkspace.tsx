@@ -355,14 +355,16 @@ function ExternalSourceCard({ link, postId, t }: { link: FeedExternalLink; postI
     finally { setRefreshing(false); }
   }
   return <article className="external-source-card">
-    {source.thumbnail_url ? <ProtectedImage alt="" src={source.thumbnail_url.startsWith("/") ? source.thumbnail_url : `/api/social/content/${postId}/thumbnail`} /> : null}
-    <div><strong>{source.title ?? source.provider}</strong>
+    {source.thumbnail_url ? <ProtectedImage className="external-source-card-image" alt="" src={source.thumbnail_url.startsWith("/") ? source.thumbnail_url : `/api/social/content/${postId}/thumbnail`} /> : null}
+    <div className="external-source-card-content"><strong>{source.title ?? source.provider}</strong>
       {source.author_name ? <p>{t("social.share.sourceBy", { name: source.author_name })}</p> : null}
       {source.description ? <p>{source.description}</p> : null}
-      <a href={source.external_url} target="_blank" rel="noopener noreferrer">{t("social.share.sourceLink")}</a>
       {!source.title && !source.description && !source.thumbnail_url ? <p>{t("social.share.noSourcePreview")}</p> : null}
       {error ? <p role="alert" className="finance-error">{error}</p> : null}
-      <button type="button" className="text-button" disabled={refreshing} onClick={() => void refresh()}>{refreshing ? "..." : t("social.share.refreshPreview")}</button>
+      <div className="external-source-card-actions">
+        <a href={source.external_url} target="_blank" rel="noopener noreferrer">{t("social.share.sourceLink")}</a>
+        <button type="button" className="text-button" disabled={refreshing} onClick={() => void refresh()}>{refreshing ? "..." : t("social.share.refreshPreview")}</button>
+      </div>
     </div>
   </article>;
 }

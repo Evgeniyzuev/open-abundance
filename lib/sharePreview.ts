@@ -21,6 +21,15 @@ export type LinkPreview = {
   status: "ready" | "link_only" | "failed";
 };
 
+/**
+ * The metadata loader uses `ready`, while the legacy embed column uses
+ * `available`. Keep the two status vocabularies separate at the boundary so
+ * preview refreshes continue to satisfy the existing database constraint.
+ */
+export function toLegacyEmbedStatus(status: LinkPreview["status"]): "available" | "link_only" | "failed" {
+  return status === "ready" ? "available" : status;
+}
+
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 5_000;

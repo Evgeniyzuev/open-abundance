@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
-import { loadLinkPreview, normalizeLinkSource } from "@/lib/sharePreview";
+import { loadLinkPreview, normalizeLinkSource, toLegacyEmbedStatus } from "@/lib/sharePreview";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
       thumbnail_url: preview.thumbnailUrl,
       canonical_url: preview.canonicalUrl,
       metadata_status: preview.status,
-      embed_status: preview.status,
+      embed_status: toLegacyEmbedStatus(preview.status),
       fetched_at: new Date().toISOString()
     })
     .eq("id", source.id);

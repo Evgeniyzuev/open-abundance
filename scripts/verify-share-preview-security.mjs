@@ -11,7 +11,7 @@ const code = ts.transpileModule(readFileSync("lib/sharePreview.ts", "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
 }).outputText;
 vm.runInThisContext(`(function(require,module,exports){${code}\n})`, { filename: "sharePreview.ts" })(require, module, module.exports);
-const { isNonPublicAddress, normalizeLinkSource } = module.exports;
+const { isNonPublicAddress, normalizeLinkSource, toLegacyEmbedStatus } = module.exports;
 
 for (const address of ["0.0.0.0", "10.0.0.1", "127.0.0.1", "169.254.169.254", "192.0.2.1", "198.51.100.1", "203.0.113.2", "::", "::1", "::ffff:127.0.0.1", "64:ff9b::7f00:1", "fec0::1", "2001:db8::1", "2002:7f00:1::1"]) {
   assert.equal(isNonPublicAddress(address), true, `${address} must not be fetched`);
@@ -23,4 +23,8 @@ for (const url of ["file:///etc/passwd", "http://user:pass@example.com/", "http:
   assert.equal(normalizeLinkSource(url), null, `${url} must be rejected`);
 }
 assert.equal(normalizeLinkSource("https://example.com/path?campaign=hello&utm_source=oa")?.normalizedUrl, "https://example.com/path?campaign=hello");
+assert.equal(normalizeLinkSource("https://vt.tiktok.com/ZSqoDqsGV/")?.provider, "tiktok");
+assert.equal(toLegacyEmbedStatus("ready"), "available");
+assert.equal(toLegacyEmbedStatus("link_only"), "link_only");
+assert.equal(toLegacyEmbedStatus("failed"), "failed");
 console.log("Link preview security: private/reserved IP ranges, unsafe schemes, credentials and ports are rejected.");

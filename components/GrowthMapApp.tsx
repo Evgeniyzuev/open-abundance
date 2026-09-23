@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Backpack, BookOpen, Check, Compass, Gem, MapPin, RefreshCw, Sparkles, Users, WandSparkles } from "lucide-react";
+import { ArrowRight, ArrowUp, Backpack, BookOpen, Check, Compass, Gem, MapPin, RefreshCw, Sparkles, Users, WandSparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import { readPrimaryWish } from "@/lib/wishJourney";
@@ -179,6 +179,7 @@ function ExpeditionRouteMap({
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const completedNodes = nodes.filter((node) => node.state === "complete");
   const openNodes = nodes.filter((node) => node.state !== "complete");
+  const futureRoute = [...futureDestinations].reverse();
 
   useEffect(() => {
     const scroll = scrollRef.current;
@@ -201,18 +202,39 @@ function ExpeditionRouteMap({
           <path d="M54 1000 C18 920 82 855 43 775 C9 705 88 640 54 555 C26 487 78 422 42 345 C12 280 88 190 49 105 C35 73 50 30 46 0" />
         </svg>
 
-        {futureDestinations.length ? <section className="expedition-map-section expedition-map-future-section">
+        {futureRoute.length ? <section className="expedition-map-section expedition-map-future-section">
           <div className="expedition-map-section-heading"><span>{t("expedition.futureDirections")}</span><small>{t("expedition.futureDirectionHint")}</small></div>
-          {futureDestinations.map((futureDestination, index) => {
+          <div className="expedition-map-continuation" aria-label={t("expedition.futureDirections")}>
+            <span className="expedition-map-continuation-arrow" aria-hidden="true"><ArrowUp size={17} /></span>
+            <div className="expedition-map-signposts">
+              {futureRoute.map((futureDestination, index) => <span className="expedition-map-signpost" key={`sign-${futureDestination.id}`} title={futureDestination.title}>
+                <ArrowUp size={12} aria-hidden="true" />
+                <b>{currentLevel + futureRoute.length - index}</b>
+                <em>{futureDestination.title}</em>
+              </span>)}
+            </div>
+          </div>
+          {futureRoute.map((futureDestination, index) => {
             const key = `future:${futureDestination.id}`;
-            return <ExpeditionDestinationNode key={futureDestination.id} destination={futureDestination} level={currentLevel + index + 1} position={mapPosition(index)} t={t} expanded={expandedKey === key} onToggle={() => togglePoint(key)} onOpenWishes={onOpenWishes} />;
+            return <ExpeditionDestinationNode key={futureDestination.id} destination={futureDestination} level={currentLevel + futureRoute.length - index} position={mapPosition(index)} t={t} expanded={expandedKey === key} onToggle={() => togglePoint(key)} onOpenWishes={onOpenWishes} />;
           })}
         </section> : null}
 
         <section className="expedition-map-section expedition-map-current-section" ref={currentAnchorRef}>
-          <div className="expedition-map-level current">
-            <button className={`expedition-map-point-button current${expandedKey === "current" ? " selected" : ""}`} type="button" aria-label={`${t("expedition.currentLevel")}: ${currentLevel}`} aria-expanded={expandedKey === "current"} onClick={() => togglePoint("current")}>
-              <span className="expedition-map-point-icon"><MapPin size={21} /></span>
+          <div className="expedition-map-stops">
+            {openNodes.map((node, index) => {
+              const key = `node:${node.id}`;
+              return <ExpeditionRouteNode key={node.id} node={node} locale={locale} t={t} position={mapPosition(index + futureRoute.length)} expanded={expandedKey === key} onToggle={() => togglePoint(key, node.id)} stepNumber={index + 1} />;
+            })}
+            {!openNodes.length ? <div className="expedition-map-empty"><Compass size={20} /><span>{t("expedition.noNodes")}</span></div> : null}
+          </div>
+        </section>
+
+        <section className="expedition-map-section expedition-map-completed-section">
+          <div className="expedition-map-section-heading"><span>{t("expedition.completedRoute")}</span><small>{completedNodes.length} {t("expedition.stepsCompleted")}</small></div>
+          <div className="expedition-map-level completed">
+            <button className={`expedition-map-point-button current completed${expandedKey === "current" ? " selected" : ""}`} type="button" aria-label={`${t("expedition.currentLevel")}: ${currentLevel}`} aria-expanded={expandedKey === "current"} onClick={() => togglePoint("current")}>
+              <span className="expedition-map-point-icon"><MapPin size={20} /></span>
               <small className="expedition-map-point-number">{currentLevel}</small>
             </button>
             {expandedKey === "current" ? <div className="expedition-map-popover current">
@@ -223,24 +245,13 @@ function ExpeditionRouteMap({
               <em>{completedNodeCount} {t("expedition.stepsCompleted")}</em>
             </div> : null}
           </div>
-          <div className="expedition-map-stops">
-            {openNodes.map((node, index) => {
-              const key = `node:${node.id}`;
-              return <ExpeditionRouteNode key={node.id} node={node} locale={locale} t={t} position={mapPosition(index + futureDestinations.length)} expanded={expandedKey === key} onToggle={() => togglePoint(key, node.id)} stepNumber={index + 1} />;
-            })}
-            {!openNodes.length ? <div className="expedition-map-empty"><Compass size={20} /><span>{t("expedition.noNodes")}</span></div> : null}
-          </div>
-        </section>
-
-        {completedNodes.length ? <section className="expedition-map-section expedition-map-completed-section">
-          <div className="expedition-map-section-heading"><span>{t("expedition.completedRoute")}</span><small>{completedNodes.length} {t("expedition.stepsCompleted")}</small></div>
-          <div className="expedition-map-stops">
+          {completedNodes.length ? <div className="expedition-map-stops">
             {completedNodes.map((node, index) => {
               const key = `node:${node.id}`;
               return <ExpeditionRouteNode key={node.id} node={node} locale={locale} t={t} position={mapPosition(index + openNodes.length)} expanded={expandedKey === key} onToggle={() => togglePoint(key)} stepNumber={index + 1} />;
             })}
-          </div>
-        </section> : null}
+          </div> : null}
+        </section>
       </div>
     </div>
   </section>;

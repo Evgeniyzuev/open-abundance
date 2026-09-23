@@ -224,7 +224,7 @@ function ExpeditionRouteMap({
           <div className="expedition-map-stops">
             {openNodes.map((node, index) => {
               const key = `node:${node.id}`;
-              return <ExpeditionRouteNode key={node.id} node={node} locale={locale} t={t} position={mapPosition(index + futureRoute.length)} expanded={expandedKey === key} onToggle={() => togglePoint(key, node.id)} stepNumber={index + 1} />;
+              return <ExpeditionRouteNode key={node.id} node={node} locale={locale} t={t} position={mapPosition(index + futureRoute.length)} expanded={expandedKey === key} onToggle={() => togglePoint(key, node.id)} />;
             })}
             {!openNodes.length ? <div className="expedition-map-empty"><Compass size={20} /><span>{t("expedition.noNodes")}</span></div> : null}
           </div>
@@ -248,7 +248,7 @@ function ExpeditionRouteMap({
           {completedNodes.length ? <div className="expedition-map-stops">
             {completedNodes.map((node, index) => {
               const key = `node:${node.id}`;
-              return <ExpeditionRouteNode key={node.id} node={node} locale={locale} t={t} position={mapPosition(index + openNodes.length)} expanded={expandedKey === key} onToggle={() => togglePoint(key)} stepNumber={index + 1} />;
+              return <ExpeditionRouteNode key={node.id} node={node} locale={locale} t={t} position={mapPosition(index + openNodes.length)} expanded={expandedKey === key} onToggle={() => togglePoint(key)} />;
             })}
           </div> : null}
         </section>
@@ -272,13 +272,12 @@ function ExpeditionDestinationNode({ destination, level, position, expanded, t, 
   </div>;
 }
 
-function ExpeditionRouteNode({ node, locale, t, position, expanded, onToggle, stepNumber }: { node: ExpeditionNode; locale: string; t: (key: MessageKey, values?: Record<string, string | number>) => string; position: "left" | "center" | "right"; expanded: boolean; onToggle: () => void; stepNumber: number }) {
+function ExpeditionRouteNode({ node, locale, t, position, expanded, onToggle }: { node: ExpeditionNode; locale: string; t: (key: MessageKey, values?: Record<string, string | number>) => string; position: "left" | "center" | "right"; expanded: boolean; onToggle: () => void }) {
   const Icon = NODE_ICONS[node.kind];
   const stateLabel = node.state === "active" ? t("expedition.stateActive") : node.state === "complete" ? t("expedition.stateComplete") : node.state === "hidden" ? t("expedition.stateHidden") : t("expedition.stateAvailable");
   return <div className={`expedition-map-point ${position} ${node.kind} ${node.state}${expanded ? " expanded" : ""}`}>
     <button className={`expedition-map-point-button node ${node.kind} ${node.state}${expanded ? " selected" : ""}`} type="button" aria-label={`${t(nodeKindKey(node.kind))}: ${node.title}`} aria-expanded={expanded} onClick={onToggle}>
       <span className="expedition-map-point-icon"><Icon size={18} /></span>
-      <small className="expedition-map-point-number">{stepNumber}</small>
     </button>
     {expanded ? <div className="expedition-map-popover node">
       <small>{t(nodeKindKey(node.kind))} · {stateLabel}</small>

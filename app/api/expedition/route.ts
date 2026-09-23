@@ -36,6 +36,14 @@ export type ExpeditionResponse = {
     targetCurrency: string | null;
     imageUrl: string | null;
   } | null;
+  futureDestinations: Array<{
+    id: string;
+    title: string;
+    description: string;
+    targetAmount: number | null;
+    targetCurrency: string | null;
+    imageUrl: string | null;
+  }>;
   nodes: ExpeditionNode[];
   activeMission: ExpeditionNode | null;
   companions: Array<{
@@ -118,6 +126,17 @@ export async function GET(request: NextRequest) {
 
   const wishes = (wishResult.data ?? []) as Array<JsonRecord & { id: string }>;
   const destination = (requestedWishId ? wishes.find((wish) => wish.id === requestedWishId) : wishes[0]) ?? null;
+  const futureDestinations = wishes
+    .filter((wish) => wish.id !== destination?.id && wish.status === "active")
+    .slice(0, 5)
+    .map((wish) => ({
+      id: wish.id,
+      title: String(wish.title ?? "A future destination"),
+      description: String(wish.description ?? "Keep this wish in sight while you take the next useful step."),
+      targetAmount: asNumber(wish.target_amount),
+      targetCurrency: typeof wish.target_currency === "string" ? wish.target_currency : null,
+      imageUrl: typeof wish.image_url === "string" ? wish.image_url : null
+    }));
   const feedPosts = (feedResult.data ?? []) as JsonRecord[];
   const challenges = (challengeResult.data ?? []) as JsonRecord[];
   const currentLevel = Number(coreResult.data?.level ?? profileResult.data?.level ?? 1);
@@ -173,6 +192,7 @@ export async function GET(request: NextRequest) {
       targetCurrency: typeof destination.target_currency === "string" ? destination.target_currency : null,
       imageUrl: typeof destination.image_url === "string" ? destination.image_url : null
     } : null,
+    futureDestinations,
     nodes,
     activeMission,
     companions: companionTasks.map((task) => ({

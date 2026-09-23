@@ -2545,11 +2545,12 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .expedition-header span, .expedition-map-heading span, .expedition-section-heading span, .expedition-destination-copy > span { color: var(--muted, #687789); font-size: .76rem; letter-spacing: .06em; text-transform: uppercase; }
 .expedition-header h1, .expedition-map-heading h2, .expedition-section-heading h2, .expedition-destination h2 { margin: 0; overflow-wrap: anywhere; }
 .expedition-map-heading small { max-width: 280px; color: var(--muted, #687789); text-align: right; line-height: 1.35; }
-.expedition-destination { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 16px; border: 1px solid rgba(59, 130, 246, .22); border-radius: 20px; background: linear-gradient(125deg, rgba(59, 130, 246, .12), rgba(16, 185, 129, .08)); }
+.expedition-destination { display: grid; gap: 11px; min-width: 0; padding: 16px; border: 1px solid rgba(59, 130, 246, .22); border-radius: 20px; background: linear-gradient(125deg, rgba(59, 130, 246, .12), rgba(16, 185, 129, .08)); }
+.expedition-destination-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; }
 .expedition-destination-icon, .expedition-entry-icon { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 14px; color: #fff; background: linear-gradient(145deg, #2563eb, #0f766e); box-shadow: 0 8px 20px rgba(37, 99, 235, .2); }
 .expedition-destination-copy { display: grid; gap: 4px; min-width: 0; flex: 1; }
-.expedition-destination-copy p { margin: 0; color: var(--muted, #687789); overflow-wrap: anywhere; line-height: 1.4; }
-.expedition-destination > .text-button { flex: 0 0 auto; }
+.expedition-destination-description { max-width: 62ch; margin: 0; color: var(--muted, #687789); overflow-wrap: anywhere; line-height: 1.4; }
+.expedition-destination-head > .text-button { flex: 0 0 auto; }
 .expedition-progress { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .expedition-progress > div { display: grid; gap: 4px; min-width: 0; padding: 12px; border: 1px solid var(--border, #d3d9e2); border-radius: 14px; background: var(--surface-soft, #f7f9fc); }
 .expedition-progress span { color: var(--muted, #687789); font-size: .76rem; }
@@ -2568,6 +2569,54 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .expedition-node-copy small, .expedition-node-copy em { color: var(--muted, #687789); font-size: .72rem; font-style: normal; }
 .expedition-node-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .expedition-node-reward { align-self: start; color: #047857; font-size: .78rem; white-space: nowrap; }
+.expedition-route-map { min-width: 0; overflow: hidden; border: 1px solid rgba(37, 99, 235, .2); border-radius: 22px; background: #9bd4df; box-shadow: 0 12px 28px rgba(30, 64, 175, .1); }
+.expedition-route-scroll { position: relative; max-height: min(72vh, 660px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.expedition-route-scroll:focus-visible { outline: 3px solid rgba(37, 99, 235, .45); outline-offset: -3px; }
+.expedition-map-canvas { position: relative; isolation: isolate; display: grid; gap: 10px; min-height: 1840px; overflow: hidden; padding: 28px 14px 52px; background-image: linear-gradient(180deg, rgba(219, 242, 246, .25), rgba(235, 246, 229, .12) 45%, rgba(15, 73, 92, .12)), url("/expedition/expedition-map-bg.png"); background-position: center; background-size: cover; }
+.expedition-map-scrim { position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, rgba(255, 255, 255, .12), transparent 22%, transparent 76%, rgba(255, 255, 255, .18)); pointer-events: none; }
+.expedition-map-path { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.expedition-map-path path { fill: none; stroke: rgba(255, 247, 210, .78); stroke-width: 1.3; stroke-linecap: round; stroke-dasharray: 1 2.3; filter: drop-shadow(0 2px 2px rgba(32, 77, 81, .24)); }
+.expedition-map-section { position: relative; z-index: 2; display: grid; gap: 10px; min-width: 0; }
+.expedition-map-future-section { padding-top: 4px; }
+.expedition-map-current-section { margin-top: 12px; }
+.expedition-map-completed-section { margin-top: 22px; padding-top: 18px; border-top: 1px dashed rgba(255, 255, 255, .72); }
+.expedition-map-section-heading { display: grid; gap: 3px; width: min(88%, 390px); margin: 0 auto 2px; padding: 8px 11px; border: 1px solid rgba(255, 255, 255, .58); border-radius: 13px; background: rgba(247, 252, 251, .75); box-shadow: 0 5px 15px rgba(30, 64, 175, .08); backdrop-filter: blur(8px); }
+.expedition-map-section-heading span { color: #176b83; font-size: .7rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.expedition-map-section-heading small { color: #496b76; font-size: .74rem; line-height: 1.3; }
+.expedition-map-level { position: relative; display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 10px; width: min(90%, 410px); margin: 0 auto 4px; }
+.expedition-map-level-marker, .expedition-map-destination-marker, .expedition-map-node-marker { z-index: 2; display: grid; place-items: center; flex: 0 0 auto; width: 39px; height: 39px; border: 3px solid rgba(255, 255, 255, .9); border-radius: 50%; color: #176b83; background: #d9f2f3; box-shadow: 0 7px 15px rgba(24, 83, 96, .2); }
+.expedition-map-level-marker.current { color: #fff; background: linear-gradient(145deg, #267ac9, #168c83); box-shadow: 0 0 0 5px rgba(255, 255, 255, .35), 0 10px 20px rgba(24, 83, 96, .28); }
+.expedition-map-level-card { display: grid; gap: 8px; min-width: 0; padding: 13px 14px; border: 1px solid rgba(255, 255, 255, .8); border-radius: 17px; background: rgba(247, 252, 251, .9); box-shadow: 0 10px 22px rgba(24, 83, 96, .16); backdrop-filter: blur(8px); }
+.expedition-map-level-heading { display: grid; gap: 3px; min-width: 0; }
+.expedition-map-level-heading span { color: #176b83; font-size: .7rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.expedition-map-level-heading strong { overflow: hidden; color: #173e50; text-overflow: ellipsis; white-space: nowrap; }
+.expedition-map-level-card small { color: #496b76; font-size: .73rem; }
+.expedition-route-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #dbeafe; }
+.expedition-route-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #10b981); transition: width 260ms ease; }
+.expedition-map-stops { display: grid; gap: 12px; min-width: 0; }
+.expedition-map-node, .expedition-map-destination { position: relative; display: grid; grid-template-columns: 39px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: min(89%, 400px); min-width: 0; margin-top: 0; padding: 9px 10px 9px 0; border: 1px solid rgba(255, 255, 255, .78); border-radius: 16px; color: #173e50; background: rgba(247, 252, 251, .82); text-align: left; box-shadow: 0 8px 18px rgba(24, 83, 96, .13); backdrop-filter: blur(7px); }
+.expedition-map-node { cursor: pointer; }
+.expedition-map-node.left, .expedition-map-destination.left { margin-left: 2%; }
+.expedition-map-node.center, .expedition-map-destination.center { margin-right: auto; margin-left: auto; }
+.expedition-map-node.right, .expedition-map-destination.right { margin-right: 2%; margin-left: auto; }
+.expedition-map-node:hover, .expedition-map-node.selected { border-color: rgba(34, 124, 185, .78); background: rgba(255, 255, 255, .96); box-shadow: 0 10px 20px rgba(24, 83, 96, .2); }
+.expedition-map-node.complete { cursor: default; opacity: .72; filter: saturate(.72); }
+.expedition-map-node.hidden { opacity: .6; }
+.expedition-map-node-marker { width: 36px; height: 36px; border-width: 2px; }
+.expedition-map-node.discovery .expedition-map-node-marker { color: #176b83; background: #d9f2f3; }
+.expedition-map-node.together .expedition-map-node-marker { color: #047857; background: #d8f5e4; }
+.expedition-map-node.creation .expedition-map-node-marker { color: #a16207; background: #fff1c7; }
+.expedition-map-node.mission .expedition-map-node-marker { color: #6d43b5; background: #eee5ff; }
+.expedition-map-node-copy, .expedition-map-destination-copy { display: grid; gap: 3px; min-width: 0; }
+.expedition-map-node-copy small, .expedition-map-node-copy em, .expedition-map-destination-copy small, .expedition-map-destination-copy em { color: #496b76; font-size: .72rem; font-style: normal; }
+.expedition-map-node-copy strong, .expedition-map-destination-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expedition-map-node:focus-visible, .expedition-map-destination:focus-visible, .expedition-route-scroll:focus-visible { outline: 3px solid #277ab5; outline-offset: 2px; }
+.expedition-map-destination { border-color: rgba(249, 190, 77, .68); background: rgba(255, 249, 228, .9); }
+.expedition-map-destination:disabled { cursor: default; }
+.expedition-map-destination-marker { color: #a35d08; background: #ffe9a6; }
+.expedition-map-destination-copy small { color: #9a681a; }
+.expedition-map-destination-copy em { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.35; }
+.expedition-map-empty { display: flex; align-items: center; gap: 8px; width: min(89%, 400px); margin: 0 auto; padding: 12px; border: 1px dashed rgba(255, 255, 255, .8); border-radius: 13px; color: #496b76; background: rgba(247, 252, 251, .72); font-size: .82rem; }
 .expedition-detail, .expedition-companions, .expedition-finds { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border, #d3d9e2); border-radius: 20px; background: var(--surface, #fff); }
 .expedition-detail-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .expedition-detail-heading > div { display: grid; gap: 3px; min-width: 0; flex: 1; }
@@ -2603,14 +2652,21 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .expedition-entry-copy em { color: var(--muted, #687789); font-size: .82rem; font-style: normal; line-height: 1.35; }
 .expedition-entry-card > svg { flex: 0 0 auto; }
 @media (max-width: 560px) {
-  .expedition-destination { align-items: flex-start; flex-wrap: wrap; }
-  .expedition-destination > .text-button { margin-left: 56px; }
+  .expedition-destination-head { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .expedition-destination-head > .text-button { grid-column: 2 / -1; justify-self: start; }
   .expedition-progress { grid-template-columns: 1fr; }
   .expedition-node-grid { grid-template-columns: 1fr; }
   .expedition-map-heading { display: grid; }
   .expedition-map-heading small { max-width: none; text-align: left; }
   .expedition-state { display: none; }
+  .expedition-route-scroll { max-height: min(68vh, 620px); }
+  .expedition-map-canvas { min-height: 2020px; padding-right: 10px; padding-left: 10px; }
+  .expedition-map-level { grid-template-columns: 36px minmax(0, 1fr); width: 94%; gap: 8px; }
+  .expedition-map-level-marker, .expedition-map-destination-marker, .expedition-map-node-marker { width: 34px; height: 34px; }
+  .expedition-map-section-heading, .expedition-map-node, .expedition-map-destination, .expedition-map-empty { width: 94%; }
+  .expedition-map-node, .expedition-map-destination { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; padding-right: 7px; }
+  .expedition-map-section-heading { padding-left: 10px; padding-right: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .expedition-node-card, .expedition-entry-card { transition: none !important; }
+  .expedition-node-card, .expedition-entry-card, .expedition-route-progress span { transition: none !important; }
 }

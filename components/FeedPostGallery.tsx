@@ -1,8 +1,11 @@
 "use client";
 
-import { Heart } from "lucide-react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import { FeedPostSignalMenu } from "@/components/FeedPostSignals";
 import ProtectedImage from "@/components/ProtectedImage";
+import { emptyFeedPreferenceState, isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences, type FeedPreferenceState } from "@/lib/feedPreferences";
+import type { MessageKey } from "@/lib/i18n";
 import type { FeedPost } from "@/lib/socialFeed";
 import { recommendedWishIdForStory } from "@/lib/wishJourney";
 
@@ -12,22 +15,37 @@ type FeedPostGalleryProps = {
   onOpen: (post: FeedPost) => void;
   onAddStoryWish?: (post: FeedPost) => void;
   addingStoryWishKey?: string | null;
+  currentUserId?: string | null;
+  emptyText?: string;
+  t?: (key: MessageKey, values?: Record<string, string | number>) => string;
   wishActionLabel?: string;
   evidenceLabels?: { demo: string; verified: string };
   showAuthor?: boolean;
 };
 
-export default function FeedPostGallery({ addingStoryWishKey, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
+export default function FeedPostGallery({ addingStoryWishKey, currentUserId = null, emptyText, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, t, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
+  const [preferences, setPreferences] = useState<FeedPreferenceState>(emptyFeedPreferenceState);
+
+  useEffect(() => {
+    setPreferences(readFeedPreferences(currentUserId));
+  }, [currentUserId]);
+
+  const visiblePosts = posts
+    .filter((post) => !isFeedTopicMuted(post, preferences))
+    .sort((left, right) => Number(isFeedTopicInterested(right, preferences)) - Number(isFeedTopicInterested(left, preferences)));
+
+  if (!visiblePosts.length) return <p className="feed-empty">{emptyText ?? fallbackTitle}</p>;
+
   return (
     <div className="feed-post-gallery">
-      {posts.map((post, index) => (
-        <FeedPostTile adding={Boolean(addingStoryWishKey && addingStoryWishKey === post.source_key)} evidenceLabels={evidenceLabels} fallbackTitle={fallbackTitle} key={post.id} post={post} priority={index < 3} showAuthor={showAuthor} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} />
+      {visiblePosts.map((post, index) => (
+        <FeedPostTile adding={Boolean(addingStoryWishKey && addingStoryWishKey === post.source_key)} currentUserId={currentUserId} evidenceLabels={evidenceLabels} fallbackTitle={fallbackTitle} key={post.id} post={post} priority={index < 3} showAuthor={showAuthor} t={t} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} onSignalChanged={() => setPreferences(readFeedPreferences(currentUserId))} />
       ))}
     </div>
   );
 }
 
-function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, priority, showAuthor, wishActionLabel, onAddStoryWish, onOpen }: { adding: boolean; evidenceLabels?: FeedPostGalleryProps["evidenceLabels"]; fallbackTitle: string; post: FeedPost; priority: boolean; showAuthor: boolean; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void }) {
+function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, post, priority, showAuthor, t, wishActionLabel, onAddStoryWish, onOpen, onSignalChanged }: { adding: boolean; currentUserId: string | null; evidenceLabels?: FeedPostGalleryProps["evidenceLabels"]; fallbackTitle: string; post: FeedPost; priority: boolean; showAuthor: boolean; t?: FeedPostGalleryProps["t"]; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void; onSignalChanged: () => void }) {
   const title = getFeedPostTitle(post, fallbackTitle);
   const cover = getFeedPostCover(post);
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
@@ -36,7 +54,7 @@ function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, priority, s
   const evidence = post.post_type === "reality_demo" ? evidenceLabels?.demo : post.system_verified ? evidenceLabels?.verified : null;
 
   return (
-    <article className={`feed-post-tile-shell ${canAddWish ? "has-wish-action" : ""}`}>
+    <article className={`feed-post-tile-shell ${currentUserId ? "has-feed-signals" : ""}`}>
       <button aria-label={title} className="feed-post-tile" type="button" onClick={() => onOpen(post)}>
         {cover ? <FeedCover priority={priority} src={cover} /> : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
         {showAuthor && author ? (
@@ -50,12 +68,7 @@ function FeedPostTile({ adding, evidenceLabels, fallbackTitle, post, priority, s
         {evidence ? <span className="feed-post-tile-evidence" title={evidence}>{evidence}</span> : null}
         <span className="feed-post-tile-copy">{title}</span>
       </button>
-      {canAddWish ? (
-        <button aria-busy={adding} aria-label={wishActionLabel} className="feed-post-tile-wish" type="button" disabled={adding} onClick={() => onAddStoryWish?.(post)}>
-          {adding ? <span aria-hidden="true">…</span> : <Heart aria-hidden="true" size={15} />}
-          <span>{wishActionLabel}</span>
-        </button>
-      ) : null}
+      {currentUserId && t ? <FeedPostSignalMenu currentUserId={currentUserId} onAddStoryWish={canAddWish ? onAddStoryWish : undefined} onSignalChanged={onSignalChanged} post={post} storyWishSaving={adding} t={t} /> : null}
     </article>
   );
 }

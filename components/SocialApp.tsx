@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import FeedPostGallery, { getFeedPostCover } from "@/components/FeedPostGallery";
 import FeedPostInteractions from "@/components/FeedPostInteractions";
+import { FeedPostSignalButtons } from "@/components/FeedPostSignals";
 import LegalDisclosure from "@/components/LegalDisclosure";
 import BlogWorkspace from "@/components/BlogWorkspace";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
@@ -3545,7 +3546,7 @@ function PostList(props: {
   }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({
@@ -3865,16 +3866,15 @@ export function PostDetailModal({
           />
           <ExternalLinkPreview post={post} />
           <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
+          <FeedPostSignalButtons
+            currentUserId={currentUserId}
+            onAddStoryWish={readOnly ? undefined : onAddStoryWish}
+            post={post}
+            storyWishError={storyWishError}
+            storyWishSaving={storyWishSaving}
+            t={t}
+          />
           <div className="post-detail-actions">
-            {!readOnly && onAddStoryWish && recommendedWishIdForStory(post.source_key) ? (
-              <div className="story-wish-action-wrap">
-                <button aria-describedby={storyWishError ? "story-wish-error" : undefined} className="primary-button story-wish-action" type="button" disabled={storyWishSaving} onClick={() => onAddStoryWish(post)}>
-                  <Heart size={16} />
-                  {storyWishSaving ? t("app.common.loading") : t("social.feed.wantThis")}
-                </button>
-                {storyWishError ? <p className="finance-error inline" id="story-wish-error" role="alert">{storyWishError}</p> : null}
-              </div>
-            ) : null}
             {post.system_verified && post.verifiedChallenge ? (
               <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
                 <Check size={15} />

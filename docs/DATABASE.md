@@ -9,6 +9,8 @@ Reflection content remains local-only. Migration `20260721120000_reflection_push
 
 Both tables have RLS enabled with no client policies. Due jobs are claimed idempotently through service-role functions and dispatched by the scheduled `send-reflection-reminders` Edge Function. No note body, AI answer, possible cause or task title is stored in these tables.
 
+As of 2026-09-16, the notification-center migration `20260915181547` is applied to project `bsikxrsguwketlloflgi`, and `send-reflection-reminders` is deployed as active version 3. Its VAPID and cron secrets are configured, both cron values are stored in Vault, and manual plus minute-cron calls returned HTTP 200 with empty queues. The public VAPID endpoint returned HTTP 200 with the configured key; publication of the updated web client and real-device delivery remain unverified. See [Notifications And Web Push Plan](NOTIFICATIONS_PLAN.md) before claiming Web Push is live.
+
 Supabase project ref: `bsikxrsguwketlloflgi`
 
 ## Source Of Truth
@@ -17,6 +19,18 @@ Supabase project ref: `bsikxrsguwketlloflgi`
 - `supabase/schema.sql` can store a generated schema snapshot.
 - `supabase/seed.sql` stores optional local seed data.
 - `lib/database.types.ts` should be generated from the remote schema when the API surface changes.
+
+## Challenge reward amounts
+
+Challenge completion rewards use two numeric columns: `challenges.core_reward_amount` and `challenges.wallet_reward_amount`. The UI adds the `Core`/`Wallet` labels and currency formatting. `settle_user_challenge_rewards(user_id, challenge_id)` reads the stored values and settles both balances in one transaction; `user_challenges` keeps both amounts as the completion snapshot.
+
+The migrations `20260912192306_challenge_dual_account_rewards.sql` and `20260913090000_peer_review_dual_account_rewards.sql` were an expand/contract change. The deployed API now reads only numeric Core/Wallet amounts; the legacy challenge and peer-review compatibility columns have been removed by the cleanup migration after the new application version was published.
+
+The rollout compatibility layer has now been removed from the application code and `/api/challenges` serves only the numeric reward contract. Migration `20260913100000_challenge_rewards_cleanup.sql` updated the economy and peer-review RPCs, removed the old `complete_user_challenge` wrapper, and dropped only the challenge reward compatibility columns. It was applied to project `bsikxrsguwketlloflgi` on 2026-09-13. `lib/database.types.ts` now reflects the removed challenge mirrors while preserving the repository's existing string-backed TON numeric conventions; a full generator refresh would introduce unrelated type changes in those routes.
+
+## Core and Wallet history
+
+`/api/core/accrual-history` remains the narrow daily-accrual contract used by notifications. `/api/core/history` is the owner-scoped mixed read model for daily accruals, challenge and peer-review Core rewards, Wallet → Core topups, and team Core bonuses. It reads existing settlement facts, applies a bounded newest-first limit, and does not create or settle ledger rows. Challenge titles are normalized from the stored `{ en, ru }` JSON value to the requested locale before reaching the UI. `/api/wallet/history` includes `challenge_reward` and `wallet_core_topup` ledger operations alongside its existing Wallet operations. This slice adds no Supabase migration and treats a missing or unreliable source as absent instead of inventing an operation.
 
 ## Common Commands
 
@@ -40,10 +54,10 @@ Pull the current remote schema into a migration:
 pnpm db:pull
 ```
 
-Create a new migration:
+Create a new migration with the globally installed CLI:
 
 ```bash
-pnpm dlx supabase migration new <name>
+supabase migration new <name>
 ```
 
 Apply local migrations to the linked remote project:
@@ -110,6 +124,8 @@ CSV import/export is useful for individual tables. SQL dumps are better for movi
 Local-first storage, client/server source-of-truth rules, restore behavior, and sync policy are documented in [`LOCAL_FIRST_SYNC.md`](./LOCAL_FIRST_SYNC.md).
 
 Guest-first onboarding, user identity states, profile schema, guest claim flow, and rewards planning are documented in [`USERS.md`](./USERS.md).
+
+Verification tables, RLS boundary, provider webhooks and reward-gate schema for humanity/uniqueness are documented in [`HUMANITY_VERIFICATION_PLAN.md`](./HUMANITY_VERIFICATION_PLAN.md).
 
 General development rules, including UTF-8/PowerShell safety, are documented in [`DEVELOPMENT_RULES.md`](./DEVELOPMENT_RULES.md).
 

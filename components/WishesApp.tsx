@@ -1,13 +1,23 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { Archive, Check, Pencil, Plus, Send, Trash2, X } from "lucide-react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Archive, Check, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { AppLocale } from "@/lib/i18n";
-import { formatAdaptiveMoney } from "@/lib/moneyFormat";
+import { formatRoundedMoney } from "@/lib/moneyFormat";
+import { findDaysToTarget, formatDurationParts } from "@/lib/coreCalculator";
+import { playUiSound } from "@/lib/ui/sound";
+import {
+  FIRST_WISH_CATEGORIES,
+  FIRST_WISH_DAILY_ADDITIONS,
+  type FirstWishCategory,
+  type FirstWishOption
+} from "@/lib/firstWishGuide";
+import { PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
+import ProtectedImage from "@/components/ProtectedImage";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -22,7 +32,18 @@ type LocaleText = Json;
 type WishesResponse = {
   wishes?: Wish[];
   recommendedWishes?: RecommendedWish[];
+  attachedContent?: Record<string, AttachedWishContent[]>;
   error?: string;
+};
+
+type AttachedWishContent = {
+  postId: string;
+  title: string | null;
+  sourceTitle: string | null;
+  description: string | null;
+  provider: string;
+  sourceUrl: string;
+  thumbnailUrl: string | null;
 };
 
 type WishMutationResponse = {
@@ -35,6 +56,9 @@ type WishMutationResponse = {
 
 type WishesAppProps = {
   active: boolean;
+  focusNonce?: number;
+  focusWishId?: string | null;
+  onOpenPrimaryWish?: () => void;
   refreshNonce: number;
 };
 
@@ -73,22 +97,42 @@ type SavedWishResult = {
   wish: Wish;
 };
 
-export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
-  const { loading: userLoading, locale, profile, t, user } = useUserContext();
+export default function WishesApp({ active, focusNonce = 0, focusWishId = null, onOpenPrimaryWish, refreshNonce }: WishesAppProps) {
+  const { core, loading: userLoading, locale, profile, t, user } = useUserContext();
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [recommendedWishes, setRecommendedWishes] = useState<RecommendedWish[]>([]);
+  const [attachedContent, setAttachedContent] = useState<Record<string, AttachedWishContent[]>>({});
   const [activeTab, setActiveTab] = useState<WishTab>("recommended");
   const [selectedWish, setSelectedWish] = useState<SelectedWish | null>(null);
   const [completingWish, setCompletingWish] = useState<Wish | null>(null);
   const [editingWish, setEditingWish] = useState<Wish | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createInitial, setCreateInitial] = useState<FormState>(emptyForm);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [recommendedDraft, setRecommendedDraft] = useState<RecommendedWish | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "offline" | "unauthenticated" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [primaryWish, setPrimaryWish] = useState<PrimaryWishSummary | null>(null);
+  const lastFocusNonceRef = useRef(0);
 
   const myWishes = useMemo(() => wishes.filter((wish) => wish.status !== "completed"), [wishes]);
   const completedWishes = useMemo(() => wishes.filter((wish) => wish.status === "completed"), [wishes]);
+
+  useEffect(() => {
+    setPrimaryWish(readPrimaryWish(user?.id));
+    const syncPrimaryWish = () => setPrimaryWish(readPrimaryWish(user?.id));
+    window.addEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
+    return () => window.removeEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
+  }, [user?.id]);
+  useEffect(() => {
+    if (!active || !focusNonce || focusNonce === lastFocusNonceRef.current || !focusWishId) return;
+    const wish = wishes.find((item) => item.id === focusWishId);
+    if (!wish) return;
+    lastFocusNonceRef.current = focusNonce;
+    setActiveTab("mine");
+    setSelectedWish({ type: "wish", wish });
+  }, [active, focusNonce, focusWishId, wishes]);
 
   useEffect(() => {
     let mounted = true;
@@ -132,6 +176,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
         if (mounted) {
           setWishes(payload.wishes ?? []);
           setRecommendedWishes(payload.recommendedWishes ?? []);
+          setAttachedContent(payload.attachedContent ?? {});
           setStatus("ready");
         }
       } catch (loadError) {
@@ -148,7 +193,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
     return () => {
       mounted = false;
     };
-  }, [active, refreshNonce, t, user, userLoading]);
+  }, [active, focusNonce, refreshNonce, t, user, userLoading]);
 
   async function createWish(values: FormState) {
     setErrorMessage(null);
@@ -160,6 +205,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
     if (notice) setErrorMessage(notice);
     setIsCreateOpen(false);
     setRecommendedDraft(null);
+    setCreateInitial(emptyForm);
   }
 
   async function updateWish(wish: Wish, values: FormState) {
@@ -169,6 +215,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
     if (notice) setErrorMessage(notice);
     setEditingWish(null);
     setSelectedWish({ type: "wish", wish: updatedWish });
+    if (primaryWish?.id === updatedWish.id && user) storePrimaryWish(user.id, updatedWish);
   }
 
   async function publishWish(wish: Wish) {
@@ -184,6 +231,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
     replaceWish(updatedWish);
     setSelectedWish(null);
     setActiveTab(nextStatus === "completed" ? "completed" : "mine");
+    if (primaryWish?.id === wish.id && nextStatus !== "active" && user) storePrimaryWish(user.id, null);
   }
 
   async function completeWish(wish: Wish, publishToFeed: boolean) {
@@ -218,10 +266,29 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
 
     setWishes((current) => current.filter((item) => item.id !== wish.id));
     setSelectedWish(null);
+    if (primaryWish?.id === wish.id && user) storePrimaryWish(user.id, null);
+  }
+
+  function choosePrimaryWish(wish: Wish) {
+    if (!user || wish.status !== "active") return;
+    storePrimaryWish(user.id, wish);
+    setSelectedWish(null);
+    setActiveTab("mine");
+    playUiSound("action");
+    onOpenPrimaryWish?.();
   }
 
   function replaceWish(nextWish: Wish) {
     setWishes((current) => current.map((item) => item.id === nextWish.id ? nextWish : item));
+  }
+
+  function openWishCreation() {
+    if (wishes.length === 0) {
+      setIsGuideOpen(true);
+      return;
+    }
+    setCreateInitial(emptyForm);
+    setIsCreateOpen(true);
   }
 
   async function sendWishRequest(url: string, method: "POST" | "PATCH", body: unknown): Promise<SavedWishResult> {
@@ -290,7 +357,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
 
           {activeTab === "mine" ? (
             <WishSection id="wish-panel-mine" labelledBy="wish-tab-mine" emptyText={t("wishes.emptyMine")} itemsCount={myWishes.length}>
-              <button className="wish-tile wish-add-tile" type="button" onClick={() => setIsCreateOpen(true)}>
+              <button className="wish-tile wish-add-tile" type="button" onClick={openWishCreation}>
                 <Plus size={28} />
                 <span>{t("wishes.add")}</span>
               </button>
@@ -300,6 +367,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
                   title={wish.title}
                   imageUrl={wish.image_url}
                   badge={wish.status === "archived" ? t("wishes.status.archived") : visibilityLabel(wish.visibility, t)}
+                  primary={primaryWish?.id === wish.id}
                   onClick={() => setSelectedWish({ type: "wish", wish })}
                 />
               ))}
@@ -319,6 +387,7 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
       {selectedWish ? (
         <WishDetailModal
           selectedWish={selectedWish}
+          attachedContent={selectedWish.type === "wish" ? attachedContent[selectedWish.wish.id] ?? [] : []}
           onArchive={(wish) => setWishStatus(wish, "archived").catch((detailError) => setErrorMessage(detailError instanceof Error ? detailError.message : t("wishes.error")))}
           onClose={() => setSelectedWish(null)}
           onComplete={(wish) => {
@@ -336,6 +405,8 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
             setRecommendedDraft(wish);
           }}
           onRestore={(wish) => setWishStatus(wish, "active").catch((detailError) => setErrorMessage(detailError instanceof Error ? detailError.message : t("wishes.error")))}
+          isPrimary={selectedWish.type === "wish" && primaryWish?.id === selectedWish.wish.id}
+          onMakePrimary={choosePrimaryWish}
         />
       ) : null}
 
@@ -348,10 +419,27 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
         />
       ) : null}
 
+      {isGuideOpen ? (
+        <FirstWishGuideModal
+          core={core}
+          locale={locale}
+          onClose={() => setIsGuideOpen(false)}
+          onAdd={(category, option) => {
+            setIsGuideOpen(false);
+            void createWish(firstWishToForm(category, option, locale));
+          }}
+          onCustomize={(category, option) => {
+            setIsGuideOpen(false);
+            setCreateInitial(firstWishToForm(category, option, locale));
+            setIsCreateOpen(true);
+          }}
+        />
+      ) : null}
+
       {isCreateOpen ? (
         <WishFormModal
           title={t("wishes.createTitle")}
-          initialState={emptyForm}
+          initialState={createInitial}
           onClose={() => setIsCreateOpen(false)}
           onSave={createWish}
         />
@@ -378,6 +466,149 @@ export default function WishesApp({ active, refreshNonce }: WishesAppProps) {
   );
 }
 
+function FirstWishGuideModal({
+  core,
+  locale,
+  onClose,
+  onAdd,
+  onCustomize
+}: {
+  core: ReturnType<typeof useUserContext>["core"];
+  locale: AppLocale;
+  onClose: () => void;
+  onAdd: (category: FirstWishCategory, option: FirstWishOption) => void;
+  onCustomize: (category: FirstWishCategory, option: FirstWishOption) => void;
+}) {
+  const { t } = useUserContext();
+  const [step, setStep] = useState<"category" | "option" | "summary">("category");
+  const [category, setCategory] = useState<FirstWishCategory | null>(null);
+  const [option, setOption] = useState<FirstWishOption | null>(null);
+
+  const timeLabel = useMemo(() => {
+    if (!option) return null;
+    const calculation = findDaysToTarget({
+      startCore: Math.max(0, core?.balance ?? 0),
+      dailyAdditions: FIRST_WISH_DAILY_ADDITIONS,
+      reinvestPercent: core?.reinvest_percent ?? 100,
+      days: 0,
+      targetCore: option.targetAmount
+    });
+    if (calculation.kind !== "estimated") return null;
+    const parts = formatDurationParts(calculation.days);
+    const chunks = [
+      parts.years > 0 ? `${parts.years} ${t("app.common.years.short")}` : "",
+      parts.months > 0 ? `${parts.months} ${t("app.common.months.short")}` : ""
+    ].filter(Boolean);
+    return chunks.join(" ") || `1 ${t("app.common.days.short")}`;
+  }, [core, option, t]);
+
+  const heading = step === "category"
+    ? t("wishes.guide.title")
+    : step === "option" && category
+      ? `${category.emoji} ${category.title[locale]}`
+      : option?.title[locale] ?? t("wishes.guide.title");
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section className="modal-sheet wish-modal" role="dialog" aria-modal="true" aria-label={t("wishes.guide.title")} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              if (step === "summary" && category && option) setStep("option");
+              else if (step === "option") setStep("category");
+              else onClose();
+            }}
+          >
+            {step === "category" ? t("app.common.cancel") : t("wishes.guide.back")}
+          </button>
+          <h2>{heading}</h2>
+          <span />
+        </div>
+        <div className="wish-modal-body">
+          {step === "category" ? (
+            <>
+              <p>{t("wishes.guide.description")}</p>
+              <div className="wish-grid">
+                {FIRST_WISH_CATEGORIES.map((item) => (
+                  <button
+                    className="wish-tile"
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      setCategory(item);
+                      setStep("option");
+                    }}
+                  >
+                    <div className="wish-tile-placeholder">{item.emoji}</div>
+                    <span>{item.title[locale]}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+          {step === "option" && category ? (
+            <div className="wish-grid">
+              {category.options.map((item) => (
+                <button
+                  className="wish-tile"
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    setOption(item);
+                    setStep("summary");
+                  }}
+                >
+                  <div className="wish-tile-placeholder">{category.emoji}</div>
+                  <span>{item.title[locale]}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {step === "summary" && category && option ? (
+            <>
+              <strong>{option.title[locale]}</strong>
+              <p>{option.description[locale]}</p>
+              <div className="wish-meta">
+                <span>{formatRoundedMoney(option.targetAmount, locale)}</span>
+                <span>{t("wishes.guide.levelNeeded", { level: option.difficultyLevel })}</span>
+              </div>
+              {timeLabel ? (
+                <p>{t("wishes.guide.timeToGoal", { daily: formatRoundedMoney(FIRST_WISH_DAILY_ADDITIONS, locale), time: timeLabel })}</p>
+              ) : null}
+              <div className="wish-detail-actions">
+                <button className="task-done-primary-button" type="button" onClick={() => onAdd(category, option)}>
+                  <Plus size={16} />
+                  {t("wishes.guide.addWish")}
+                </button>
+                <button className="secondary-button" type="button" onClick={() => onCustomize(category, option)}>
+                  {t("wishes.guide.customize")}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function firstWishToForm(category: FirstWishCategory, option: FirstWishOption, locale: AppLocale): FormState {
+  return {
+    title: option.title[locale],
+    description: option.description[locale],
+    category: category.title[locale],
+    imageUrl: "",
+    targetAmount: String(option.targetAmount),
+    targetCurrency: "USD",
+    difficultyLevel: String(option.difficultyLevel),
+    publishToFeed: false,
+    visibility: "private",
+    sourceRecommendedWishId: null
+  };
+}
+
 function WishSection({
   children,
   emptyText,
@@ -399,11 +630,12 @@ function WishSection({
   );
 }
 
-function WishTile({ badge, imageUrl, onClick, title }: { badge?: string; imageUrl: string | null; onClick: () => void; title: string }) {
+function WishTile({ badge, imageUrl, onClick, primary = false, title }: { badge?: string; imageUrl: string | null; onClick: () => void; primary?: boolean; title: string }) {
   return (
     <button className="wish-tile" type="button" onClick={onClick}>
       {imageUrl ? <img alt="" src={imageUrl} loading="lazy" /> : <div className="wish-tile-placeholder">OA</div>}
       {badge ? <em>{badge}</em> : null}
+      {primary ? <em className="wish-primary-badge">{title ? "★" : ""}</em> : null}
       <span>{title}</span>
     </button>
   );
@@ -485,9 +717,13 @@ function WishDetailModal({
   onPublish,
   onUseTemplate,
   onRestore,
-  selectedWish
+  isPrimary,
+  onMakePrimary,
+  selectedWish,
+  attachedContent
 }: {
   selectedWish: SelectedWish;
+  attachedContent: AttachedWishContent[];
   onArchive: (wish: Wish) => void;
   onClose: () => void;
   onComplete: (wish: Wish) => void;
@@ -496,6 +732,8 @@ function WishDetailModal({
   onPublish: (wish: Wish) => void;
   onUseTemplate: (wish: RecommendedWish) => void;
   onRestore: (wish: Wish) => void;
+  isPrimary: boolean;
+  onMakePrimary: (wish: Wish) => void;
 }) {
   const { locale, t } = useUserContext();
   const isPersonal = selectedWish.type === "wish";
@@ -516,14 +754,32 @@ function WishDetailModal({
         <div className="wish-modal-body">
           {category ? <strong>{category}</strong> : null}
           {description ? <p>{description}</p> : null}
+          {isPersonal && attachedContent.length ? <section className="wish-attached-content" aria-label={t("social.share.saved")}>
+            {attachedContent.map((item) => <article className="wish-attached-content-card" key={item.postId}>
+              {item.thumbnailUrl ? <ProtectedImage src={item.thumbnailUrl} alt="" /> : null}
+              <div><strong>{item.title || item.sourceTitle || item.provider}</strong>
+                {item.description ? <p>{item.description}</p> : null}
+                <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{t("social.share.sourceLink")}</a>
+              </div>
+            </article>)}
+          </section> : null}
           <div className="wish-meta">
             {isPersonal && selectedWish.wish.target_amount ? <span>{formatAmount(selectedWish.wish.target_amount, selectedWish.wish.target_currency, locale)}</span> : null}
-            {!isPersonal && selectedWish.wish.estimated_cost ? <span>{formatAdaptiveMoney(Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)), locale)}</span> : null}
+            {!isPersonal && selectedWish.wish.estimated_cost ? <span>{formatRoundedMoney(Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)), locale)}</span> : null}
             <span>{t("wishes.level", { level: selectedWish.wish.difficulty_level })}</span>
             {isPersonal ? <span>{visibilityLabel(selectedWish.wish.visibility, t)}</span> : null}
           </div>
           {isPersonal ? (
             <div className="wish-detail-actions">
+              {selectedWish.wish.status === "active" ? (
+                <>
+                  {!isPrimary ? <p className="wish-primary-hint">{t("wishes.primaryHint")}</p> : null}
+                  <button className="task-done-primary-button" type="button" onClick={() => onMakePrimary(selectedWish.wish)}>
+                    <Target size={16} />
+                    {isPrimary ? t("journey.continueWish") : t("wishes.makeNearest")}
+                  </button>
+                </>
+              ) : null}
               <button className="secondary-button" type="button" onClick={() => onEdit(selectedWish.wish)}>
                 <Pencil size={16} />
                 {t("app.common.edit")}
@@ -730,8 +986,26 @@ function recommendedToForm(wish: RecommendedWish, locale: AppLocale): FormState 
 
 function estimatedCostToAmount(value: string | null): string {
   if (!value) return "";
-  const match = value.replace(/\s/g, "").match(/(\d+(?:[.,]\d+)?)/);
-  return match ? match[1].replace(",", ".") : "";
+
+  const normalized = value.replace(/\s/g, "").replace(/[^\d.,]/g, "");
+  if (!normalized) return "";
+
+  const lastSeparator = Math.max(normalized.lastIndexOf(","), normalized.lastIndexOf("."));
+  const fractionalPart = lastSeparator >= 0 ? normalized.slice(lastSeparator + 1) : "";
+  const hasBothSeparators = normalized.includes(",") && normalized.includes(".");
+  const isGroupedInteger = /^\d{1,3}(?:[.,]\d{3})+$/.test(normalized);
+  const isDecimal = lastSeparator >= 0
+    && fractionalPart.length >= 1
+    && fractionalPart.length <= 2
+    && (hasBothSeparators || !isGroupedInteger);
+
+  if (isDecimal) {
+    const wholePart = normalized.slice(0, lastSeparator).replace(/[.,]/g, "");
+    return `${wholePart}.${fractionalPart}`;
+  }
+
+  if (isGroupedInteger) return normalized.replace(/[.,]/g, "");
+  return /^\d+$/.test(normalized) ? normalized : "";
 }
 
 function text(value: LocaleText, locale: AppLocale): string {
@@ -748,7 +1022,7 @@ function text(value: LocaleText, locale: AppLocale): string {
 }
 
 function formatAmount(amount: number, currency: string, locale: AppLocale): string {
-  if (currency === "USD") return formatAdaptiveMoney(amount, locale);
+  if (currency === "USD") return formatRoundedMoney(amount, locale);
   return `${amount.toLocaleString(locale === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: 2 })} ${currency}`;
 }
 

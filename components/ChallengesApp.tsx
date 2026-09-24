@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, CheckCircle2, Clock3, Compass, HandHeart, PenLine, Rocket, Send, ShieldCheck, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
@@ -9,10 +9,14 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
-import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
+import { signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
+import { playUiSound } from "@/lib/ui/sound";
+import { parseChallengeRewardAmount } from "@/lib/challengePresentation";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
 
 type LocaleText = Record<string, string> | null;
 type RewardLabel = LocaleText | string | number | null;
@@ -27,7 +31,8 @@ type Challenge = {
   description: LocaleText;
   instructions: LocaleText;
   requirements: LocaleText;
-  reward_label: RewardLabel;
+  core_reward_amount: number;
+  wallet_reward_amount: number;
   category: string;
   difficulty_level: number;
   duration_days: number | null;
@@ -40,13 +45,12 @@ type Challenge = {
   action_view: string | null;
   prerequisite_challenge_id?: string | null;
   prerequisite_completed?: boolean;
+  can_accept?: boolean;
+  access_reasons?: ChallengeAccessReason[];
   acquisition_series?: string | null;
   acquisition_target?: number | null;
   acquisition_metric_key?: string | null;
-  reward_amount?: number | null;
-  reward_account?: string | null;
   is_permanent?: boolean;
-  review_reward_amount?: number | null;
   user_challenge_status?: ChallengeStatus | null;
 };
 
@@ -54,6 +58,7 @@ type ChallengesResponse = {
   authenticated?: boolean;
   viewerUserId?: string | null;
   challenges?: Challenge[];
+  viewerLevel?: number;
   error?: string;
 };
 
@@ -100,17 +105,18 @@ type CheckChallengeResponse = {
   core?: CoreAccount | null;
   wallet?: WalletAccount | null;
   message?: string;
-  rewardAmount?: number;
-  rewardAccount?: string;
+  coreRewardAmount?: number;
+  walletRewardAmount?: number;
   rewardClaimed?: boolean;
   error?: string;
 };
 
 type CompletionReward = {
-  amount: number;
-  account: string;
+  coreAmount: number;
+  walletAmount: number;
   claimed: boolean;
   coreBalanceAfter?: number | null;
+  walletBalanceAfter?: number | null;
 };
 type TodayItem = {
   id: string;
@@ -183,27 +189,33 @@ type ChallengesAppProps = {
   activeTab: ChallengeTab;
   challengesUnread?: boolean;
   focusNextChallengeNonce?: number;
+  focusChallengeId?: string | null;
   onChallengesViewed?: () => void;
   onTodayViewed?: () => void;
   onOpenFeedDrafts: () => void;
+  onOpenCore: () => void;
   onNavigateTesting: (target: AppTestingNavigationTarget) => void;
   refreshNonce: number;
   todayUnread?: boolean;
   onRefresh: () => Promise<void>;
 };
 
-export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, onChallengesViewed, onTodayViewed, onOpenFeedDrafts, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
+export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, focusChallengeId = null, onChallengesViewed, onTodayViewed, onOpenFeedDrafts, onOpenCore, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
+  const [almostAvailableChallenges, setAlmostAvailableChallenges] = useState<Challenge[]>([]);
   const [permanentChallenges, setPermanentChallenges] = useState<Challenge[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [today, setToday] = useState<TodayPayload | null>(null);
-  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [expandedChallengeId, setExpandedChallengeId] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [completionReward, setCompletionReward] = useState<{ challenge: Challenge; reward: CompletionReward } | null>(null);
   const [acceptedOpen, setAcceptedOpen] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [almostAvailableOpen, setAlmostAvailableOpen] = useState(false);
+  const [permanentOpen, setPermanentOpen] = useState(false);
+  const [availableOpen, setAvailableOpen] = useState(true);
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [projectStatus, setProjectStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -218,7 +230,9 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   const handledFocusNextChallengeRef = useRef(0);
   const lastVisibleRefreshAtRef = useRef(0);
   const userLevel = core?.level ?? profile?.level ?? DEFAULT_USER_LEVEL;
-  const hasChallenges = availableChallenges.length > 0 || permanentChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
+  const [serverUserLevel, setServerUserLevel] = useState<number | null>(null);
+  const effectiveUserLevel = serverUserLevel ?? userLevel;
+  const hasChallenges = availableChallenges.length > 0 || almostAvailableChallenges.length > 0 || permanentChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
   const hasProjects = projects.length > 0;
 
   const loadToday = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
@@ -228,23 +242,16 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     }
 
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
-
       const params = new URLSearchParams({
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         ts: String(Date.now())
       });
-      const response = await fetch(`/api/today?${params.toString()}`, {
+      const response = await fetchWithSupabaseAuth(`/api/today?${params.toString()}`, {
         cache: "no-store",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
           "Cache-Control": "no-cache"
         }
-      });
+      }, { authRequired: true });
       const payload = (await response.json()) as TodayPayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load Today.");
       if (isMounted()) setToday(payload);
@@ -267,28 +274,12 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setIsRefreshing(true);
 
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-      if (user && !session?.access_token) {
-        throw new Error("Missing Supabase session for authenticated challenges.");
-      }
-
       const params = new URLSearchParams({ ts: String(Date.now()) });
       if (user) params.set("auth", "required");
-      const headers = new Headers({
-        "Cache-Control": "no-cache"
-      });
-
-      if (session?.access_token) {
-        headers.set("Authorization", `Bearer ${session.access_token}`);
-      }
-
-      const response = await fetch(`/api/challenges?${params.toString()}`, {
+      const response = await fetchWithSupabaseAuth(`/api/challenges?${params.toString()}`, {
         cache: "no-store",
-        headers
-      });
+        headers: { "Cache-Control": "no-cache" }
+      }, { authRequired: Boolean(user) });
       const payload = (await response.json()) as ChallengesResponse;
 
       if (!response.ok || payload.error) {
@@ -310,11 +301,15 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
       const permanentIds = new Set(serverPermanentChallenges.map((challenge) => challenge.id));
       const acceptedIds = new Set(serverAcceptedChallenges.map((challenge) => challenge.id));
       const completedIds = new Set(serverCompletedChallenges.map((challenge) => challenge.id));
+      const unstartedChallenges = nextChallenges.filter((challenge) => !permanentIds.has(challenge.id) && !acceptedIds.has(challenge.id) && !completedIds.has(challenge.id));
+      const serverUserLevel = Number(payload.viewerLevel ?? userLevel);
 
       setPermanentChallenges(serverPermanentChallenges);
       setAcceptedChallenges(serverAcceptedChallenges);
       setCompletedChallenges(serverCompletedChallenges);
-      setAvailableChallenges(nextChallenges.filter((challenge) => !permanentIds.has(challenge.id) && !acceptedIds.has(challenge.id) && !completedIds.has(challenge.id)));
+      setAlmostAvailableChallenges(unstartedChallenges.filter((challenge) => !challenge.can_accept && isChallengeAlmostAvailable(challenge, serverUserLevel, nextChallenges)));
+      setAvailableChallenges(unstartedChallenges.filter((challenge) => challenge.can_accept !== false && getChallengeAccessReasons(challenge, serverUserLevel).length === 0));
+      setServerUserLevel(payload.viewerLevel == null ? null : serverUserLevel);
       setStatus("ready");
     } catch {
       if (isMounted() && requestId === loadRequestIdRef.current && mutationVersionAtStart === challengeMutationVersionRef.current) {
@@ -323,7 +318,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     } finally {
       if (isMounted() && requestId === loadRequestIdRef.current) setIsRefreshing(false);
     }
-  }, [user]);
+  }, [user, userLevel]);
 
   const loadProjects = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
     const requestId = projectLoadRequestIdRef.current + 1;
@@ -339,28 +334,12 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setIsProjectsRefreshing(true);
 
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-      if (user && !session?.access_token) {
-        throw new Error("Missing Supabase session for authenticated projects.");
-      }
-
       const params = new URLSearchParams({ ts: String(Date.now()) });
       if (user) params.set("auth", "required");
-      const headers = new Headers({
-        "Cache-Control": "no-cache"
-      });
-
-      if (session?.access_token) {
-        headers.set("Authorization", `Bearer ${session.access_token}`);
-      }
-
-      const response = await fetch(`/api/projects?${params.toString()}`, {
+      const response = await fetchWithSupabaseAuth(`/api/projects?${params.toString()}`, {
         cache: "no-store",
-        headers
-      });
+        headers: { "Cache-Control": "no-cache" }
+      }, { authRequired: Boolean(user) });
       const payload = (await response.json()) as ProjectsResponse;
 
       if (!response.ok || payload.error) {
@@ -388,7 +367,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
 
   useEffect(() => {
     if (!active) return;
-    if (!selectedChallenge && !selectedProject && !completionReward) return;
+    if (!selectedProject && !completionReward) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -396,7 +375,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [active, completionReward, selectedChallenge, selectedProject]);
+  }, [active, completionReward, selectedProject]);
 
   useEffect(() => {
     if (!active) return;
@@ -425,14 +404,26 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   useEffect(() => {
     if (!active || !focusNextChallengeNonce || handledFocusNextChallengeRef.current === focusNextChallengeNonce) return;
 
-    const nextChallenge = availableChallenges
-      .filter((challenge) => challenge.difficulty_level <= userLevel)
-      .sort(compareRecommendedChallenges)[0];
+    const nextChallenge = focusChallengeId
+      ? [...acceptedChallenges, ...permanentChallenges, ...availableChallenges, ...almostAvailableChallenges, ...completedChallenges].find((challenge) => challenge.id === focusChallengeId)
+      : [...acceptedChallenges, ...availableChallenges]
+        .filter((challenge) => challenge.can_accept !== false && challenge.difficulty_level <= effectiveUserLevel && challenge.prerequisite_completed !== false && (!challenge.prerequisite_challenge_id || challenge.prerequisite_completed))
+        .sort((a, b) => Number(b.user_challenge_status === "accepted") - Number(a.user_challenge_status === "accepted") || compareRecommendedChallenges(a, b))[0];
     if (!nextChallenge) return;
 
     handledFocusNextChallengeRef.current = focusNextChallengeNonce;
-    setSelectedChallenge(nextChallenge);
-  }, [active, availableChallenges, focusNextChallengeNonce, userLevel]);
+    setAvailableOpen(availableChallenges.some((challenge) => challenge.id === nextChallenge.id));
+    setAcceptedOpen(acceptedChallenges.some((challenge) => challenge.id === nextChallenge.id));
+    setAlmostAvailableOpen(almostAvailableChallenges.some((challenge) => challenge.id === nextChallenge.id));
+    setPermanentOpen(permanentChallenges.some((challenge) => challenge.id === nextChallenge.id));
+    setCompletedOpen(completedChallenges.some((challenge) => challenge.id === nextChallenge.id));
+    setExpandedChallengeId(nextChallenge.id);
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`challenge-${nextChallenge.id}`);
+      row?.scrollIntoView({ block: "start", behavior: "auto" });
+      row?.querySelector("summary")?.focus();
+    });
+  }, [active, availableChallenges, acceptedChallenges, almostAvailableChallenges, permanentChallenges, completedChallenges, focusChallengeId, focusNextChallengeNonce, effectiveUserLevel]);
 
   useEffect(() => {
     if (!active) return;
@@ -463,16 +454,14 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   }, [active, activeTab, loadChallenges, loadProjects, loadToday]);
 
   async function acceptChallenge(challenge: Challenge) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/accept", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/accept", {
       method: "POST",
       cache: "no-store",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({ challengeId: challenge.id })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { userId?: string; challengeId?: string; status?: ChallengeStatus; error?: string };
 
     if (!response.ok || payload.error) {
@@ -484,22 +473,20 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     }
 
     applyChallengeStatus(payload.challengeId ?? challenge.id, payload.status ?? "accepted");
-    setSelectedChallenge(null);
+    setExpandedChallengeId(null);
     await onRefresh();
     await loadChallenges();
   }
 
   async function giveUpChallenge(challenge: Challenge) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/giveup", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/giveup", {
       method: "POST",
       cache: "no-store",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({ challengeId: challenge.id })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { userId?: string; challengeId?: string; status?: ChallengeStatus; error?: string };
 
     if (!response.ok || payload.error) {
@@ -511,21 +498,19 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     }
 
     applyChallengeStatus(payload.challengeId ?? challenge.id, "declined");
-    setSelectedChallenge(null);
+    setExpandedChallengeId(null);
     await loadChallenges();
   }
 
   async function applyToProject(project: Project, message: string) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/projects/apply", {
+    const response = await fetchWithSupabaseAuth("/api/projects/apply", {
       method: "POST",
       cache: "no-store",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({ projectId: project.id, message })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { userId?: string; projectId?: string; status?: ProjectApplicationStatus; error?: string };
 
     if (!response.ok || payload.error) {
@@ -543,7 +528,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
 
   function completeChallenge(challenge: Challenge, reward: CompletionReward) {
     applyChallengeStatus(challenge.id, "completed");
-    setSelectedChallenge({ ...challenge, user_challenge_status: "completed" });
+    setExpandedChallengeId(null);
     setCompletionReward({ challenge, reward });
     void loadChallenges();
     void loadToday();
@@ -555,27 +540,16 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setTodayChecking(true);
     setTodayMessage(null);
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-
-      if (!session?.access_token) {
-        setTodayMessage(t("challenges.signInFirst"));
-        return;
-      }
-
-      const response = await fetch("/api/today/check", {
+      const response = await fetchWithSupabaseAuth("/api/today/check", {
         method: "POST",
         cache: "no-store",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         })
-      });
+      }, { authRequired: true });
       const payload = (await response.json()) as TodayPayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("today.checkFailed"));
 
@@ -595,6 +569,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     const currentChallenge = [...availableChallenges, ...acceptedChallenges, ...completedChallenges].find(isTarget);
     const nextChallenge = currentChallenge ? updateChallenge(currentChallenge) : undefined;
 
+    setPermanentChallenges((challenges) => challenges.map(updateChallenge));
     setAvailableChallenges((challenges) => {
       const nextChallenges = challenges.filter((challenge) => challenge.id !== challengeId).map(updateChallenge);
       return status === "declined"
@@ -623,48 +598,37 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setSelectedProject((project) => project && project.id === projectId ? updateProject(project) : project);
   }
 
-  if (acceptedOpen || completedOpen) {
-    const archiveChallenges = acceptedOpen ? acceptedChallenges : completedChallenges;
-    const archiveTitle = acceptedOpen ? t("challenges.accepted") : t("challenges.completedPlural");
+  function renderChallenge(challenge: Challenge) {
+    const expanded = expandedChallengeId === challenge.id;
     return (
-      <>
-        <ChallengeArchiveScreen
-          challenges={archiveChallenges}
-          locale={locale}
-          title={archiveTitle}
-          userLevel={userLevel}
-          t={t}
-          onBack={() => {
-            setAcceptedOpen(false);
-            setCompletedOpen(false);
-            setSelectedChallenge(null);
+      <ChallengeRow
+        challenge={challenge}
+        expanded={expanded}
+        key={challenge.id}
+        locale={locale}
+        userLevel={effectiveUserLevel}
+        t={t}
+        onToggle={() => setExpandedChallengeId((current) => current === challenge.id ? null : challenge.id)}
+      >
+        <ChallengeDetailContent
+          author={{
+            avatarUrl: profile?.avatar_url ?? null,
+            displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
+            level: effectiveUserLevel
           }}
-          onOpen={(challenge) => setSelectedChallenge(challenge)}
+          challenge={challenge}
+          isRegistered={Boolean(user)}
+          locale={locale}
+          userLevel={effectiveUserLevel}
+          t={t}
+          onAccept={() => acceptChallenge(challenge)}
+          onGiveUp={() => giveUpChallenge(challenge)}
+          onNavigateTesting={onNavigateTesting}
+          onComplete={completeChallenge}
+          onApplyServerData={applyServerData}
+          onRefreshUserData={onRefresh}
         />
-
-        {selectedChallenge ? (
-          <ChallengeDetailModal
-            author={{
-              avatarUrl: profile?.avatar_url ?? null,
-              displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
-              level: userLevel
-            }}
-            challenge={selectedChallenge}
-            locale={locale}
-            userLevel={userLevel}
-            t={t}
-            onAccept={() => acceptChallenge(selectedChallenge)}
-            onGiveUp={() => giveUpChallenge(selectedChallenge)}
-            onNavigateTesting={onNavigateTesting}
-            onClose={() => setSelectedChallenge(null)}
-            onComplete={completeChallenge}
-            onApplyServerData={applyServerData}
-            onRefreshUserData={onRefresh}
-          />
-        ) : null}
-
-        {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} /> : null}
-      </>
+      </ChallengeRow>
     );
   }
 
@@ -683,39 +647,93 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           {status === "loading" && !hasChallenges ? <ChallengeState title={t("app.common.loading")} description={t("challenges.loading.description")} /> : null}
           {status === "offline" && !hasChallenges ? <ChallengeState title={t("app.common.offline")} description={t("challenges.offline.description")} /> : null}
 
-          {today ? (
-            <TodayChallengeCard
-              locale={locale}
-              message={todayMessage}
-              payload={today}
-              checking={todayChecking}
-              todayUnread={todayUnread}
-              t={t}
-              onCheck={checkToday}
-            />
-          ) : null}
+          <ChallengeSection
+            challenges={availableChallenges}
+            emptyMessage={t("challenges.emptyArchive")}
+            featured={today ? (
+              <TodayChallengeCard
+                expanded={expandedChallengeId === "today"}
+                locale={locale}
+                message={todayMessage}
+                payload={today}
+                checking={todayChecking}
+                todayUnread={todayUnread}
+                t={t}
+                onCheck={checkToday}
+                onToggle={() => setExpandedChallengeId((current) => current === "today" ? null : "today")}
+              />
+            ) : null}
+            title={t("challenges.available")}
+            unread={challengesUnread || todayUnread}
+            t={t}
+            renderChallenge={renderChallenge}
+            open={availableOpen}
+            onToggle={() => {
+              setAvailableOpen((current) => !current);
+              if (availableOpen) setExpandedChallengeId(null);
+            }}
+            count={availableChallenges.length + (today ? 1 : 0)}
+          />
 
-          <ChallengeSection challenges={availableChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.available")} unread={challengesUnread} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+          <ChallengeSection
+            challenges={acceptedChallenges}
+            emptyMessage={t("challenges.emptyArchive")}
+            title={t("challenges.accepted")}
+            unread={false}
+            t={t}
+            renderChallenge={renderChallenge}
+            open={acceptedOpen}
+            onToggle={() => {
+              setAcceptedOpen((current) => !current);
+              if (acceptedOpen) setExpandedChallengeId(null);
+            }}
+            count={acceptedChallenges.length}
+          />
 
-          <ChallengeSection challenges={permanentChallenges} emptyMessage={t("challenges.emptyArchive")} locale={locale} title={t("challenges.permanent")} unread={false} userLevel={userLevel} t={t} onOpen={(challenge) => setSelectedChallenge(challenge)} />
+          <ChallengeSection
+            challenges={almostAvailableChallenges}
+            emptyMessage={t("challenges.emptyArchive")}
+            title={t("challenges.almostAvailable")}
+            unread={false}
+            t={t}
+            renderChallenge={renderChallenge}
+            open={almostAvailableOpen}
+            onToggle={() => {
+              setAlmostAvailableOpen((current) => !current);
+              if (almostAvailableOpen) setExpandedChallengeId(null);
+            }}
+            count={almostAvailableChallenges.length}
+          />
 
-          <section className="challenge-section">
-            <button className="challenge-archive-link" type="button" onClick={() => {
-              loadChallenges().then(() => setAcceptedOpen(true));
-            }}>
-              <span>{t("challenges.accepted")}</span>
-              <strong>{acceptedChallenges.length}</strong>
-            </button>
-          </section>
+          <ChallengeSection
+            challenges={permanentChallenges}
+            emptyMessage={t("challenges.emptyArchive")}
+            title={t("challenges.permanent")}
+            unread={false}
+            t={t}
+            renderChallenge={renderChallenge}
+            open={permanentOpen}
+            onToggle={() => {
+              setPermanentOpen((current) => !current);
+              if (permanentOpen) setExpandedChallengeId(null);
+            }}
+            count={permanentChallenges.length}
+          />
 
-          <section className="challenge-section">
-            <button className="challenge-archive-link" type="button" onClick={() => {
-              loadChallenges().then(() => setCompletedOpen(true));
-            }}>
-              <span>{t("challenges.completedPlural")}</span>
-              <strong>{completedChallenges.length}</strong>
-            </button>
-          </section>
+          <ChallengeSection
+            challenges={completedChallenges}
+            emptyMessage={t("challenges.emptyArchive")}
+            title={t("challenges.completedPlural")}
+            unread={false}
+            t={t}
+            renderChallenge={renderChallenge}
+            open={completedOpen}
+            onToggle={() => {
+              setCompletedOpen((current) => !current);
+              if (completedOpen) setExpandedChallengeId(null);
+            }}
+            count={completedChallenges.length}
+          />
         </>
       ) : (
         <>
@@ -725,27 +743,6 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           <ProjectSection projects={projects} emptyMessage={t("projects.no_projects")} locale={locale} t={t} onOpen={(project) => setSelectedProject(project)} />
         </>
       )}
-
-      {selectedChallenge ? (
-        <ChallengeDetailModal
-          author={{
-            avatarUrl: profile?.avatar_url ?? null,
-            displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
-            level: userLevel
-          }}
-          challenge={selectedChallenge}
-          locale={locale}
-          userLevel={userLevel}
-          t={t}
-          onAccept={() => acceptChallenge(selectedChallenge)}
-          onGiveUp={() => giveUpChallenge(selectedChallenge)}
-          onNavigateTesting={onNavigateTesting}
-          onClose={() => setSelectedChallenge(null)}
-          onComplete={completeChallenge}
-          onApplyServerData={applyServerData}
-          onRefreshUserData={onRefresh}
-        />
-      ) : null}
 
       {selectedProject ? (
         <ProjectDetailModal
@@ -758,46 +755,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
         />
       ) : null}
 
-      {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} /> : null}
-    </section>
-  );
-}
-
-function ChallengeArchiveScreen({
-  challenges,
-  locale,
-  title,
-  unread,
-  userLevel,
-  t,
-  onBack,
-  onOpen
-}: {
-  challenges: Challenge[];
-  locale: AppLocale;
-  title: string;
-  unread?: boolean;
-  userLevel: number;
-  t: TFunction;
-  onBack: () => void;
-  onOpen: (challenge: Challenge) => void;
-}) {
-  return (
-    <section className="challenges-screen challenge-archive-screen">
-      <header className="task-archive-topbar">
-        <button className="back-button" type="button" onClick={onBack}>{"\u2039"}</button>
-        <h1>{title}</h1>
-      </header>
-
-      {challenges.length === 0 ? (
-        <div className="task-empty">{t("challenges.emptyArchive")}</div>
-      ) : (
-        <div className="challenge-list">
-          {challenges.map((challenge) => (
-            <ChallengeRow challenge={challenge} key={challenge.id} locale={locale} userLevel={userLevel} t={t} onOpen={() => onOpen(challenge)} />
-          ))}
-        </div>
-      )}
+      {completionReward ? <ChallengeCompleteModal challenge={completionReward.challenge} reward={completionReward.reward} locale={locale} t={t} onClose={() => setCompletionReward(null)} onOpenFeedDrafts={onOpenFeedDrafts} onOpenCore={onOpenCore} /> : null}
     </section>
   );
 }
@@ -805,37 +763,48 @@ function ChallengeArchiveScreen({
 function ChallengeSection({
   challenges,
   emptyMessage,
-  locale,
+  featured,
   title,
   unread,
-  userLevel,
   t,
-  onOpen
+  renderChallenge,
+  open,
+  onToggle,
+  count
 }: {
   challenges: Challenge[];
   emptyMessage: string;
-  locale: AppLocale;
+  featured?: ReactNode;
   title: string;
   unread?: boolean;
-  userLevel: number;
   t: TFunction;
-  onOpen: (challenge: Challenge) => void;
+  renderChallenge: (challenge: Challenge) => ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  count: number;
 }) {
   return (
     <section className="challenge-section">
-      <h2 className="section-title-with-dot">
-        {title}
-        {unread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+      <h2 className="challenge-section-heading">
+        <button className="challenge-section-toggle" type="button" aria-expanded={open} onClick={onToggle}>
+          <span className="section-title-with-dot">
+            {title}
+            {unread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+          </span>
+          <span className="challenge-section-meta">
+            <strong>{count}</strong>
+            <span aria-hidden="true" className={`challenge-section-chevron${open ? " is-open" : ""}`}>⌄</span>
+          </span>
+        </button>
       </h2>
-      {challenges.length === 0 ? (
+      {open ? (challenges.length === 0 && !featured ? (
         <div className="task-empty">{emptyMessage}</div>
       ) : (
         <div className="challenge-list">
-          {challenges.map((challenge) => (
-            <ChallengeRow challenge={challenge} key={challenge.id} locale={locale} userLevel={userLevel} t={t} onOpen={() => onOpen(challenge)} />
-          ))}
+          {featured}
+          {challenges.map(renderChallenge)}
         </div>
-      )}
+      )) : null}
     </section>
   );
 }
@@ -858,39 +827,55 @@ function ProjectSection({ projects, emptyMessage, locale, t, onOpen }: { project
 
 function TodayChallengeCard({
   checking,
+  expanded,
   locale,
   message,
   payload,
   todayUnread,
   t,
-  onCheck
+  onCheck,
+  onToggle
 }: {
   checking: boolean;
+  expanded: boolean;
   locale: AppLocale;
   message: string | null;
   payload: TodayPayload;
   todayUnread: boolean;
   t: TFunction;
   onCheck: () => void;
+  onToggle: () => void;
 }) {
+  const [artFailed, setArtFailed] = useState(false);
   const progress = Number(payload.today.progress_core ?? 0);
   const target = Math.max(0, Number(payload.today.target_core ?? 0));
   const complete = payload.today.status === "completed";
   const percent = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 100;
 
   return (
-    <section className="challenge-section today-challenge-section">
-      <h2 className="section-title-with-dot">
-        {t("today.title")}
-        {todayUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
-      </h2>
-      <div className={complete ? "today-challenge-card completed" : "today-challenge-card"}>
+    <details className={complete ? "challenge-disclosure completed" : "challenge-disclosure"} open={expanded}>
+      <summary className="challenge-row today-challenge-row" onClick={(event) => { event.preventDefault(); onToggle(); }}>
+        <span className={`challenge-thumb challenge-visual-gold today-challenge-art${artFailed ? " challenge-art-fallback" : " challenge-art-object"}`} aria-hidden="true">
+          {artFailed
+            ? <span className="challenge-art-icon"><Trophy size={26} /></span>
+            : <img alt="" src="/challenges/today-medallion.png" onError={() => setArtFailed(true)} />}
+        </span>
+        <span className="challenge-row-body">
+          <span className="challenge-row-title">
+            {t("today.title")}
+            {todayUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
+          </span>
+          <span className="challenge-row-reward" aria-label={t("today.progress")}>
+            {formatTodayMoney(progress, locale)} / {formatTodayMoney(target, locale)}
+          </span>
+        </span>
+      </summary>
+      <div className="today-challenge-card">
         <div className="today-challenge-head">
           <span>
             <strong>{t("today.challengeTitle")}</strong>
             <small>{payload.showIntro ? t("today.intro") : t("today.subtitle")}</small>
           </span>
-          <b>{formatTodayMoney(progress, locale)} / {formatTodayMoney(target, locale)}</b>
         </div>
 
         <div className="today-progress" aria-label={t("today.progress")}>
@@ -918,7 +903,7 @@ function TodayChallengeCard({
           {complete ? t("today.completed") : checking ? t("challenges.checking") : t("today.check")}
         </button>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -943,79 +928,83 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
   );
 }
 
-function ChallengeVisual({ challenge, mode }: { challenge: Challenge; mode: "thumb" | "modal" }) {
+function ChallengeVisual({ challenge }: { challenge: Challenge }) {
   const Icon = getChallengeIcon(challenge);
   const tone = getChallengeTone(challenge);
-
-  if (mode === "thumb") {
-    return (
-      <span className={`challenge-thumb challenge-visual-${tone}`}>
-        {challenge.image_url ? <img alt="" src={challenge.image_url} loading="lazy" /> : <Icon size={25} />}
-      </span>
-    );
-  }
-
-  if (challenge.image_url) return <img className="challenge-modal-image" alt="" src={challenge.image_url} />;
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const imageUrl = challenge.image_url && failedImageUrl !== challenge.image_url ? challenge.image_url : null;
+  const objectArt = Boolean(imageUrl && ((imageUrl.startsWith("/challenges/") && imageUrl.endsWith(".png")) || imageUrl === "/core/core-reactor-pearl.webp"));
+  const visualClass = imageUrl ? (objectArt ? " challenge-art-object" : "") : " challenge-art-fallback";
 
   return (
-    <div className={`challenge-modal-image challenge-modal-fallback challenge-visual-${tone}`}>
-      <Icon size={42} />
-    </div>
+    <span className={`challenge-thumb challenge-visual-${tone}${visualClass}`}>
+      {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : <span className="challenge-art-icon"><Icon size={25} /></span>}
+    </span>
   );
 }
 
-function ChallengeRow({ challenge, locale, userLevel, t, onOpen }: { challenge: Challenge; locale: AppLocale; userLevel: number; t: TFunction; onOpen: () => void }) {
+function ChallengeRow({ challenge, children, expanded, locale, userLevel, t, onToggle }: { challenge: Challenge; children: ReactNode; expanded: boolean; locale: AppLocale; userLevel: number; t: TFunction; onToggle: () => void }) {
+  const [openedOnce, setOpenedOnce] = useState(expanded);
+  useEffect(() => {
+    if (expanded) setOpenedOnce(true);
+  }, [expanded]);
   const accepted = isActiveChallenge(challenge);
   const completed = challenge.user_challenge_status === "completed";
-  const locked = !accepted && !completed && (challenge.difficulty_level > userLevel || challenge.prerequisite_completed === false);
+  const accessReasons = challenge.access_reasons ?? getChallengeAccessReasons(challenge, userLevel);
+  const locked = !accepted && !completed && (challenge.can_accept === false || accessReasons.length > 0);
+  const title = displayText(challenge.title, t("challenges.challenge"), locale);
+  const reward = challengeRewardText(challenge, locale);
+  const rewardLabel = reward || t("challenges.rewardUnknown");
+  const state = getChallengeRowState(challenge, userLevel, t);
 
   return (
-    <button className={locked ? "challenge-row locked" : "challenge-row"} type="button" onClick={onOpen}>
-      <ChallengeVisual challenge={challenge} mode="thumb" />
-      <span className="challenge-row-body">
-        <span className="challenge-row-title">{displayText(challenge.title, t("challenges.challenge"), locale)}</span>
-        <small>{completed ? t("challenges.completed") : displayText(challenge.description, "", locale)}</small>
-        <span className="challenge-meta">
-          <span>{rewardText(challenge.reward_label, locale)}</span>
-          <span className={locked ? "challenge-level locked-level" : "challenge-level"}>Lvl {challenge.difficulty_level}</span>
-          {challenge.duration_days ? <span>{challenge.duration_days} {t("app.common.days.short")}</span> : null}
-          {completed ? <span>{t("challenges.done")}</span> : null}
+    <details className="challenge-disclosure" id={`challenge-${challenge.id}`} open={expanded}>
+      <summary aria-label={[title, rewardLabel, state].filter(Boolean).join(". ")} className={locked ? "challenge-row locked" : "challenge-row"} onClick={(event) => { event.preventDefault(); onToggle(); }}>
+        <ChallengeVisual challenge={challenge} />
+        <span className="challenge-row-body">
+          <span className="challenge-row-title">{title}</span>
+          <span className="challenge-row-summary">
+            <span className={reward ? "challenge-row-reward" : "challenge-row-reward unknown"}>{rewardLabel}</span>
+            {state ? <span className="challenge-row-state">{state}</span> : null}
+          </span>
         </span>
-      </span>
-    </button>
+      </summary>
+      {expanded || openedOnce ? children : null}
+    </details>
   );
 }
 
-function ChallengeDetailModal({
+function ChallengeDetailContent({
   author,
   challenge,
+  isRegistered,
   locale,
   userLevel,
   t,
   onAccept,
   onGiveUp,
   onNavigateTesting,
-  onClose,
   onComplete,
   onApplyServerData,
   onRefreshUserData
 }: {
   author: { avatarUrl: string | null; displayName: string; level: number };
   challenge: Challenge;
+  isRegistered: boolean;
   locale: AppLocale;
   userLevel: number;
   t: TFunction;
   onAccept: () => Promise<void>;
   onGiveUp: () => Promise<void>;
   onNavigateTesting: (target: AppTestingNavigationTarget) => void;
-  onClose: () => void;
   onComplete: (challenge: Challenge, reward: CompletionReward) => void;
   onApplyServerData: (data: { core?: CoreAccount | null; wallet?: WalletAccount | null }) => void;
   onRefreshUserData: () => Promise<void>;
 }) {
   const completed = challenge.user_challenge_status === "completed";
   const accepted = isActiveChallenge(challenge);
-  const locked = !accepted && (challenge.difficulty_level > userLevel || challenge.prerequisite_completed === false);
+  const accessReasons = challenge.access_reasons ?? getChallengeAccessReasons(challenge, userLevel);
+  const locked = !accepted && !completed && (challenge.can_accept === false || accessReasons.length > 0);
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsCoreLawChallenge = challenge.verification_logic === "core_law_understood" && accepted && !completed && !locked;
@@ -1025,6 +1014,7 @@ function ChallengeDetailModal({
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
   const [compoundQuizPassed, setCompoundQuizPassed] = useState(false);
   const [attentionProofRecorded, setAttentionProofRecorded] = useState(false);
@@ -1058,27 +1048,13 @@ function ChallengeDetailModal({
     setCheckStatus("loading");
     setCheckMessage(null);
     try {
-      const supabase = getBrowserSupabaseClient();
-      const {
-        data: { session },
-        error
-      } = await supabase.auth.getSession();
-
-      if (error) throw error;
-      if (!session?.access_token) {
-        setCheckMessage(t("challenges.signInFirst"));
-        setCheckStatus("idle");
-        return;
-      }
-
-      const response = await fetch("/api/challenges/check", {
+      const response = await fetchWithSupabaseAuth("/api/challenges/check", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ challengeId: challenge.id })
-      });
+      }, { authRequired: true });
       const payload = (await response.json()) as CheckChallengeResponse;
 
       if (!response.ok || payload.error) {
@@ -1092,13 +1068,15 @@ function ChallengeDetailModal({
       }
 
       const reward = {
-        amount: payload.rewardAmount ?? rewardAmount(challenge.reward_label, locale),
-        account: payload.rewardAccount ?? "core",
+        coreAmount: payload.coreRewardAmount ?? challenge.core_reward_amount,
+        walletAmount: payload.walletRewardAmount ?? challenge.wallet_reward_amount,
         claimed: Boolean(payload.rewardClaimed),
-        coreBalanceAfter: payload.core?.balance ?? null
+        coreBalanceAfter: payload.core?.balance ?? null,
+        walletBalanceAfter: payload.wallet?.balance ?? null
       };
       onApplyServerData({ core: payload.core, wallet: payload.wallet });
       onComplete(challenge, reward);
+      if (reward.claimed) playUiSound("reward");
       await onRefreshUserData();
       setCheckStatus("idle");
     } catch (error) {
@@ -1136,22 +1114,33 @@ function ChallengeDetailModal({
     }
   }
 
+  async function handleSignup() {
+    setAuthStatus("loading");
+    setCheckMessage(null);
+    try {
+      await getOrCreateLocalGuest();
+      await signInWithGoogle();
+    } catch (error) {
+      console.error(error);
+      setCheckMessage(error instanceof Error ? error.message : t("challenges.signInGoogle"));
+      setAuthStatus("error");
+    }
+  }
+
   async function recordCompoundQuizPass(score: number) {
     setCheckMessage(null);
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/progress", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
       method: "POST",
       cache: "no-store",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         verificationLogic: "calculate_time_to_goal",
         proofKey: "compound_quiz_passed",
         score
       })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { error?: string };
 
     if (!response.ok || payload.error) {
@@ -1160,166 +1149,155 @@ function ChallengeDetailModal({
   }
 
   async function recordAttentionProof(minutesPerDay: number, hourlyValueUsd: number) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/progress", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
       method: "POST",
       cache: "no-store",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         verificationLogic: "attention_value_audit",
         proofKey: "attention_audit_completed",
         minutesPerDay,
         hourlyValueUsd
       })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? t("challenges.attention.saveFailed"));
   }
 
   async function recordCoreLawProof(score: number) {
-    const token = await getAccessToken();
-    const response = await fetch("/api/challenges/progress", {
+    const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
       method: "POST",
       cache: "no-store",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ verificationLogic: "core_law_understood", proofKey: "core_law_understood", score })
-    });
+    }, { authRequired: true });
     const payload = (await response.json()) as { error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? t("challenges.coreQuiz.recordFailed"));
   }
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet challenge-modal">
-        <div className="modal-header">
-          <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
-          <h2>{t("challenges.challenge")}</h2>
-          <span />
-        </div>
+    <div className="challenge-modal-body challenge-inline-detail">
+      {displayText(challenge.description, "", locale) ? <p>{displayText(challenge.description, "", locale)}</p> : null}
 
-        <ChallengeVisual challenge={challenge} mode="modal" />
-
-        <div className="challenge-modal-body">
-          <div>
-            <strong>{challenge.category}</strong>
-            <h3>{displayText(challenge.title, t("challenges.challenge"), locale)}</h3>
-            <p>{displayText(challenge.description, "", locale)}</p>
-          </div>
-
-          <div className="challenge-detail-grid">
-            <span>
-              <Trophy size={17} />
-              {rewardText(challenge.reward_label, locale)}
-            </span>
-            <span>
-              <ShieldCheck size={17} />
-              {getVerificationLabel(challenge.verification_type, t)}
-            </span>
-            {challenge.duration_days ? (
-              <span>
-                <Clock3 size={17} />
-                {challenge.duration_days} {t("app.common.days.short")}
-              </span>
-            ) : null}
-          </div>
-
-          {displayText(challenge.requirements, "", locale) ? (
-            <section>
-              <h4>{t("challenges.requirements")}</h4>
-              <p>{displayText(challenge.requirements, "", locale)}</p>
-            </section>
-          ) : null}
-
-          {displayText(challenge.instructions, "", locale) ? (
-            <section>
-              <h4>{t("challenges.instructions")}</h4>
-              <p>{displayText(challenge.instructions, "", locale)}</p>
-            </section>
-          ) : null}
-
-          {completed ? (
-            <div className="challenge-access completed">
-              <CheckCircle2 size={17} />
-              {t("challenges.completed")}
-            </div>
-          ) : null}
-
-          {!completed && locked ? (
-            <div className="challenge-access locked">
-              {t("challenges.availableFrom", { level: challenge.difficulty_level })}
-            </div>
-          ) : null}
-
-          {needsCompoundQuiz ? (
-            <ChallengeQuiz
-              passScore={COMPOUND_QUIZ_PASS_SCORE}
-              questions={COMPOUND_QUIZ_QUESTIONS}
-              t={t}
-              onError={setCheckMessage}
-              onPass={recordCompoundQuizPass}
-              onPassedChange={setCompoundQuizPassed}
-            />
-          ) : null}
-
-          {needsAttentionChallenge ? (
-            <AttentionValueChallenge
-              locale={locale}
-              onPassedChange={setAttentionProofRecorded}
-              onProof={recordAttentionProof}
-              t={t}
-            />
-          ) : null}
-
-          {needsCoreLawChallenge ? (
-            <CoreLawGrowthChallenge
-              locale={locale}
-              onPassedChange={setCoreLawPassed}
-              onProof={recordCoreLawProof}
-              t={t}
-            />
-          ) : null}
-
-          {needsAcquisition && (accepted || completed) && !locked ? (
-            <AcquisitionChallengePanel challenge={challenge} locale={locale} readOnly={completed} onRefresh={onRefreshUserData} onComplete={(reward) => onComplete(challenge, reward)} />
-          ) : null}
-
-          {needsPeerReviews && (accepted || completed) && !locked ? (
-            <PeerReviewsPanel challenge={challenge} locale={locale} />
-          ) : null}
-
-          {needsAppTesting ? (
-            <AppTestingSurvey
-              author={author}
-              locale={locale}
-              t={t}
-              onApplyServerData={onApplyServerData}
-              onComplete={(reward) => onComplete(challenge, reward)}
-              onNavigate={onNavigateTesting}
-              onRefresh={onRefreshUserData}
-            />
-          ) : null}
-
-          {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews ? (
-            <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
-              {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
-            </button>
-          ) : null}
-
-          {!completed && accepted && !challenge.is_permanent ? (
-            <button className="challenge-secondary-action" type="button" disabled={giveUpStatus === "loading"} onClick={handleGiveUp}>
-              {giveUpStatus === "loading" ? t("app.common.loading") : t("challenges.giveUp")}
-            </button>
-          ) : null}
-
-          {!completed && !locked && !accepted ? (
-            <button className="challenge-primary-action" type="button" disabled={acceptStatus === "loading"} onClick={handleAccept}>
-              {acceptStatus === "loading" ? t("app.common.loading") : t("challenges.accept")}
-            </button>
-          ) : null}
-
-          {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" || giveUpStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
-        </div>
+      <div className="challenge-detail-grid">
+        <span>
+          <Trophy size={17} />
+          {challengeRewardText(challenge, locale) || t("challenges.rewardUnknown")}
+        </span>
+        <span>
+          <ShieldCheck size={17} />
+          {getVerificationLabel(challenge.verification_type, t)}
+        </span>
+        {challenge.duration_days ? (
+          <span>
+            <Clock3 size={17} />
+            {challenge.duration_days} {t("app.common.days.short")}
+          </span>
+        ) : null}
       </div>
+
+      {displayText(challenge.requirements, "", locale) ? (
+        <section>
+          <h4>{t("challenges.requirements")}</h4>
+          <p>{displayText(challenge.requirements, "", locale)}</p>
+        </section>
+      ) : null}
+
+      {displayText(challenge.instructions, "", locale) ? (
+        <section>
+          <h4>{t("challenges.instructions")}</h4>
+          <p>{displayText(challenge.instructions, "", locale)}</p>
+        </section>
+      ) : null}
+
+      {completed ? (
+        <div className="challenge-access completed">
+          <CheckCircle2 size={17} />
+          {t("challenges.completed")}
+        </div>
+      ) : null}
+
+      {!completed && locked ? (
+        <div className="challenge-access locked">
+          {accessReasons.includes("first_result") ? t("challenges.firstResultRequired") : accessReasons.includes("prerequisite") ? t("challenges.prerequisiteRequired") : t("challenges.availableFrom", { level: challenge.difficulty_level })}
+        </div>
+      ) : null}
+
+      {needsCompoundQuiz ? (
+        <ChallengeQuiz
+          passScore={COMPOUND_QUIZ_PASS_SCORE}
+          questions={COMPOUND_QUIZ_QUESTIONS}
+          t={t}
+          onError={setCheckMessage}
+          onPass={recordCompoundQuizPass}
+          onPassedChange={setCompoundQuizPassed}
+        />
+      ) : null}
+
+      {needsAttentionChallenge ? (
+        <AttentionValueChallenge
+          locale={locale}
+          onPassedChange={setAttentionProofRecorded}
+          onProof={recordAttentionProof}
+          t={t}
+        />
+      ) : null}
+
+      {needsCoreLawChallenge ? (
+        <CoreLawGrowthChallenge
+          locale={locale}
+          onPassedChange={setCoreLawPassed}
+          onProof={recordCoreLawProof}
+          t={t}
+        />
+      ) : null}
+
+      {needsAcquisition && (accepted || completed) && !locked ? (
+        <AcquisitionChallengePanel challenge={challenge} locale={locale} readOnly={completed} onRefresh={onRefreshUserData} onComplete={(reward) => onComplete(challenge, reward)} />
+      ) : null}
+
+      {needsPeerReviews && (accepted || completed) && !locked ? (
+        <PeerReviewsPanel challenge={challenge} locale={locale} />
+      ) : null}
+
+      {needsAppTesting ? (
+        <AppTestingSurvey
+          author={author}
+          challengeReward={{ coreAmount: challenge.core_reward_amount, walletAmount: challenge.wallet_reward_amount }}
+          locale={locale}
+          t={t}
+          onApplyServerData={onApplyServerData}
+          onComplete={(reward) => onComplete(challenge, reward)}
+          onNavigate={onNavigateTesting}
+          onRefresh={onRefreshUserData}
+        />
+      ) : null}
+
+      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews ? (
+        <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
+          {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
+        </button>
+      ) : null}
+
+      {!completed && accepted && !challenge.is_permanent ? (
+        <button className="challenge-secondary-action" type="button" disabled={giveUpStatus === "loading"} onClick={handleGiveUp}>
+          {giveUpStatus === "loading" ? t("app.common.loading") : t("challenges.giveUp")}
+        </button>
+      ) : null}
+
+      {!completed && !locked && !accepted && !isRegistered ? (
+        <button className="challenge-primary-action" type="button" disabled={authStatus === "loading"} onClick={handleSignup}>
+          {authStatus === "loading" ? t("challenges.openingGoogle") : t("challenges.signInGoogle")}
+        </button>
+      ) : null}
+
+      {!completed && !locked && !accepted && isRegistered ? (
+        <button className="challenge-primary-action" type="button" disabled={acceptStatus === "loading"} onClick={handleAccept}>
+          {acceptStatus === "loading" ? t("app.common.loading") : t("challenges.accept")}
+        </button>
+      ) : null}
+
+      {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" || giveUpStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
     </div>
   );
 }
@@ -1428,7 +1406,7 @@ function ProjectDetailModal({
                   <article className="project-task" key={task.id}>
                     <strong>{displayText(task.title, t("tasks.task"), locale)}</strong>
                     <p>{displayText(task.description, "", locale)}</p>
-                    <span>{rewardText(task.reward_label, locale)} - {getVerificationLabel(task.verification_type, t)}</span>
+                    <span>{projectRewardText(task.reward_label, locale) || t("challenges.rewardUnknown")} - {getVerificationLabel(task.verification_type, t)}</span>
                   </article>
                 ))}
               </div>
@@ -1470,13 +1448,15 @@ function ProjectDetailModal({
   );
 }
 
-function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenFeedDrafts }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void; onOpenFeedDrafts: () => void }) {
+function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenFeedDrafts, onOpenCore }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void; onOpenFeedDrafts: () => void; onOpenCore: () => void }) {
+  const rewardSummary = formatRewardAmounts(reward.coreAmount, reward.walletAmount, locale);
+
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="challenge-receipt-title">
         <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
-        <p>{reward.claimed ? t("challenges.rewardClaimed", { amount: formatTodayMoney(reward.amount, locale), account: reward.account === "core" ? "Core" : "Wallet" }) : t("challenges.rewardAlreadyClaimed")}</p>
+        <p>{reward.claimed ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : t("challenges.rewardAlreadyClaimed")}</p>
         <div className="challenge-receipt">
           <div className="challenge-receipt-row">
             <span>{t("challenges.receipt.challenge")}</span>
@@ -1488,12 +1468,18 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
           </div>
           <div className="challenge-receipt-row emphasis">
             <span>{t("challenges.receipt.reward")}</span>
-            <strong>+{formatTodayMoney(reward.amount, locale)}</strong>
+            <strong>{rewardSummary}</strong>
           </div>
-          {reward.account === "core" && typeof reward.coreBalanceAfter === "number" ? (
+          {reward.coreAmount > 0 && typeof reward.coreBalanceAfter === "number" ? (
             <div className="challenge-receipt-row">
               <span>{t("challenges.receipt.balanceAfter")}</span>
               <strong>{formatTodayMoney(reward.coreBalanceAfter, locale)}</strong>
+            </div>
+          ) : null}
+          {reward.walletAmount > 0 && typeof reward.walletBalanceAfter === "number" ? (
+            <div className="challenge-receipt-row">
+              <span>{t("challenges.receipt.walletBalanceAfter")}</span>
+              <strong>{formatTodayMoney(reward.walletBalanceAfter, locale)}</strong>
             </div>
           ) : null}
         </div>
@@ -1503,6 +1489,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
             {t("social.feed.openDrafts")}
           </button>
           <button className="challenge-secondary-action" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
+          {reward.coreAmount > 0 ? <button className="text-button" type="button" onClick={() => { onClose(); onOpenCore(); }}>{t("journey.viewGrowth")}</button> : null}
         </div>
       </div>
     </div>
@@ -1542,19 +1529,26 @@ function parseUsdTextAmount(value: string): number {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-function rewardText(value: RewardLabel, locale: AppLocale): string {
-  const amount = rewardAmount(value, locale);
-  return formatTodayMoney(amount || 1, locale);
+function projectRewardText(value: RewardLabel, locale: AppLocale): string {
+  const amount = parseChallengeRewardAmount(value, locale);
+  return amount === null ? "" : formatTodayMoney(amount, locale);
+}
+
+function challengeRewardText(challenge: Pick<Challenge, "core_reward_amount" | "wallet_reward_amount">, locale: AppLocale): string {
+  return formatRewardAmounts(challenge.core_reward_amount, challenge.wallet_reward_amount, locale);
+}
+
+function formatRewardAmounts(coreAmount: number, walletAmount: number, locale: AppLocale): string {
+  const core = Number.isFinite(Number(coreAmount)) ? Number(coreAmount) : 0;
+  const wallet = Number.isFinite(Number(walletAmount)) ? Number(walletAmount) : 0;
+  const rewards: string[] = [];
+  if (core > 0) rewards.push(`Core +${formatTodayMoney(core, locale)}`);
+  if (wallet > 0) rewards.push(`Wallet +${formatTodayMoney(wallet, locale)}`);
+  return rewards.length > 0 ? rewards.join(" · ") : `Core +${formatTodayMoney(0, locale)}`;
 }
 
 function formatTodayMoney(value: number, locale: AppLocale): string {
   return formatRoundedMoney(value, locale);
-}
-
-function rewardAmount(value: RewardLabel, locale: AppLocale): number {
-  const raw = rewardLabelText(value, locale).trim();
-  const amount = raw.match(/(\d+(?:[.,]\d+)?)\s*\$/)?.[1] ?? raw.match(/\+(\d+(?:[.,]\d+)?)/)?.[1] ?? raw.match(/(\d+(?:[.,]\d+)?)/)?.[1];
-  return amount ? Number(amount.replace(",", ".")) : 1;
 }
 
 function getVerificationLabel(type: Challenge["verification_type"], t: TFunction): string {
@@ -1563,13 +1557,39 @@ function getVerificationLabel(type: Challenge["verification_type"], t: TFunction
   return t("challenges.verification.manual");
 }
 
+function getChallengeRowState(challenge: Challenge, userLevel: number, t: TFunction): string {
+  if (challenge.user_challenge_status === "completed") return t("challenges.completed");
+  if (challenge.user_challenge_status === "accepted") return t("challenges.inProgress");
+  if (challenge.user_challenge_status === "failed") return t("challenges.failed");
+  if (challenge.user_challenge_status === "declined") return t("challenges.declined");
+  const accessReasons = challenge.access_reasons ?? getChallengeAccessReasons(challenge, userLevel);
+  if (accessReasons.includes("first_result")) return t("challenges.firstResultRequired");
+  if (accessReasons.includes("prerequisite")) return t("challenges.prerequisiteRequired");
+  if (accessReasons.includes("core_level")) return t("challenges.availableFrom", { level: challenge.difficulty_level });
+  return "";
+}
+
 function getChallengeIcon(challenge: Challenge): LucideIcon {
+  if (challenge.verification_logic?.startsWith("acquisition_metric_") || challenge.verification_logic === "acquisition_publications_milestone") return Megaphone;
   switch (challenge.verification_logic) {
     case "signup":
       return UserRoundCheck;
     case "has_wish":
     case "wish_steps_created":
       return Target;
+    case "profile_strengths_filled":
+      return Compass;
+    case "skill_profile_completed":
+      return KeyRound;
+    case "attention_value_audit":
+      return Hourglass;
+    case "core_law_understood":
+      return BookOpen;
+    case "today_completion_streak_7":
+    case "today_completion_total_30":
+    case "three_day_focus":
+    case "day_2_return":
+      return CalendarDays;
     case "calculate_time_to_goal":
     case "reinvest_enabled":
     case "today_core_target_reached":
@@ -1589,13 +1609,20 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "trust_event_confirmed:proof_added":
       return HandHeart;
     default:
-      return challenge.category === "focus" ? Compass : Trophy;
+      if (challenge.category === "marketplace") return Store;
+      if (challenge.category === "skills") return BadgeCheck;
+      if (challenge.category === "core_education") return BookOpen;
+      if (challenge.category === "social") return Users;
+      if (challenge.category === "trust") return HandHeart;
+      if (challenge.category === "focus") return CalendarDays;
+      return Trophy;
   }
 }
 
 function getChallengeTone(challenge: Challenge): "blue" | "green" | "gold" | "violet" | "rose" {
-  if (challenge.category === "finance") return "green";
-  if (challenge.category === "social" || challenge.category === "trust") return "violet";
+  if (challenge.category === "finance" || challenge.category === "core_education" || challenge.category === "marketplace") return "green";
+  if (challenge.category === "social" || challenge.category === "trust" || challenge.category === "acquisition") return "violet";
+  if (challenge.category === "self_discovery" || challenge.category === "skills") return "blue";
   if (challenge.category === "quality_assurance") return "rose";
   return "gold";
 }
@@ -1638,22 +1665,4 @@ function compareRecommendedChallenges(left: Challenge, right: Challenge): number
   const sortOrder = left.sort_order - right.sort_order;
   if (sortOrder !== 0) return sortOrder;
   return left.difficulty_level - right.difficulty_level;
-}
-
-async function getAccessToken(): Promise<string> {
-  const supabase = getBrowserSupabaseClient();
-  const {
-    data: { session },
-    error
-  } = await supabase.auth.getSession();
-
-  if (error) throw error;
-  if (!session?.access_token) throw new Error("Supabase session is missing.");
-  return session.access_token;
-}
-
-function rewardLabelText(value: RewardLabel, locale: AppLocale): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  return text(value, "1$", locale);
 }

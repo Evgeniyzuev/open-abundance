@@ -12,9 +12,17 @@
     "test:usdt": "node scripts/verify-ton-usdt-contract.mjs",
     "test:marketplace": "node scripts/verify-marketplace-contract.mjs",
     "test:economy": "node scripts/verify-economy-contract.mjs",
+    "test:trust-v2": "node scripts/verify-trust-v2-contract.mjs",
+    "test:notifications": "node scripts/verify-notifications-contract.mjs",
+    "test:p2p": "node scripts/verify-p2p-contract.mjs",
     "test:growth": "node scripts/verify-growth-analytics-contract.mjs",
     "test:acquisition": "node scripts/verify-acquisition-challenges-contract.mjs",
+    "test:expedition": "node scripts/verify-expedition-contract.mjs",
     "test:e2e": "playwright test",
+    "test:blog": "node scripts/verify-blog-workspace.mjs && node scripts/verify-blog-editor.mjs",
+    "test:share-target": "node scripts/verify-share-target-contract.mjs && node scripts/verify-share-preview-security.mjs",
+    "test:engaging-ui": "node scripts/verify-engaging-interface.mjs",
+    "test:uuid": "node scripts/verify-uuid-contract.mjs",
     "db:link": "pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi",
     "db:pull": "pnpm dlx supabase db pull",
     "db:push": "pnpm dlx supabase db push",
@@ -34,7 +42,8 @@
     "next": "14.2.5",
     "qrcode.react": "^4.2.0",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

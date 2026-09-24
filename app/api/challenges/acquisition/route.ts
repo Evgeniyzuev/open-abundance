@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   const db = supabase as any;
   const { data: challenge, error: challengeError } = await db
     .from("challenges")
-    .select("id,title,verification_logic,acquisition_target,acquisition_metric_key,reward_amount,reward_account")
+    .select("id,title,verification_logic,acquisition_target,acquisition_metric_key")
     .eq("id", body.challengeId)
     .eq("is_active", true)
     .maybeSingle();

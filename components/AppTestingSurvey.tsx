@@ -3,7 +3,7 @@
 import { Check, Download, House, MoreVertical, Share2, Smartphone, Star } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CoreAccount } from "@/components/UserProvider";
+import type { CoreAccount, WalletAccount } from "@/components/UserProvider";
 import {
   APP_TESTING_ATTITUDES,
   APP_TESTING_CONCERNS,
@@ -24,20 +24,23 @@ import {
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 export type AppTestingNavigationTarget = "home.home" | "goals.notes" | "spark" | "wallet.core" | "people.feed";
 
 type CompletionReward = {
-  amount: number;
-  account: "core" | "wallet";
+  coreAmount: number;
+  walletAmount: number;
   claimed: boolean;
   coreBalanceAfter: number | null;
+  walletBalanceAfter: number | null;
 };
 
 export default function AppTestingSurvey({
   author,
+  challengeReward,
   locale,
   t,
   onApplyServerData,
@@ -46,14 +49,15 @@ export default function AppTestingSurvey({
   onRefresh
 }: {
   author: { avatarUrl: string | null; displayName: string; level: number };
+  challengeReward: { coreAmount: number; walletAmount: number };
   locale: AppLocale;
   t: TFunction;
-  onApplyServerData: (data: { core?: CoreAccount | null }) => void;
+  onApplyServerData: (data: { core?: CoreAccount | null; wallet?: WalletAccount | null }) => void;
   onComplete: (reward: CompletionReward) => void;
   onNavigate: (target: AppTestingNavigationTarget) => void;
   onRefresh: () => Promise<void>;
 }) {
-  const rewardLabel = formatRoundedMoney(3, locale);
+  const rewardLabel = formatRewardSummary(challengeReward.coreAmount, challengeReward.walletAmount, locale);
   const [draft, setDraft] = useState<AppTestingDraft>(() => createEmptyAppTestingDraft());
   const [status, setStatus] = useState<"loading" | "ready" | "saving" | "submitting" | "submitted">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -73,10 +77,10 @@ export default function AppTestingSurvey({
       const backupKey = `open-abundance:app-testing:${session.user.id}:v1`;
       backupKeyRef.current = backupKey;
       const localDraft = readLocalDraft(backupKey);
-      const response = await fetch(`/api/challenges/app-testing?ts=${Date.now()}`, {
+      const response = await fetchWithSupabaseAuth(`/api/challenges/app-testing?ts=${Date.now()}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${session.access_token}`, "Cache-Control": "no-cache" }
-      });
+        headers: { "Cache-Control": "no-cache" }
+      }, { authRequired: true });
       const payload = (await response.json()) as { draft?: unknown; challengeStatus?: string | null; error?: string };
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("appTesting.loadFailed"));
       const nextDraft = normalizeAppTestingDraft(payload.draft ?? localDraft, detectAppTestingPlatform());
@@ -95,13 +99,12 @@ export default function AppTestingSurvey({
   const saveDraft = useCallback(async (nextDraft: AppTestingDraft, version: number) => {
     setStatus((current) => current === "submitting" || current === "submitted" ? current : "saving");
     try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/challenges/app-testing", {
+      const response = await fetchWithSupabaseAuth("/api/challenges/app-testing", {
         method: "PUT",
         cache: "no-store",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...nextDraft, publicConsent: false })
-      });
+      }, { authRequired: true });
       const payload = (await response.json()) as { error?: string; submitted?: boolean };
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("appTesting.saveFailed"));
       if (version !== saveVersionRef.current) return;
@@ -163,29 +166,31 @@ export default function AppTestingSurvey({
     setStatus("submitting");
     setError(null);
     try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/challenges/app-testing", {
+      const response = await fetchWithSupabaseAuth("/api/challenges/app-testing", {
         method: "POST",
         cache: "no-store",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...draft, context: { ...getAppTestingContext(), ...draft.context } })
-      });
+      }, { authRequired: true });
       const payload = (await response.json()) as {
         completed?: boolean;
         core?: CoreAccount | null;
+        wallet?: WalletAccount | null;
         error?: string;
-        rewardAmount?: number;
+        coreRewardAmount?: number;
+        walletRewardAmount?: number;
         rewardClaimed?: boolean;
       };
       if (!response.ok || payload.error || !payload.completed) throw new Error(payload.error ?? t("appTesting.submitFailed"));
       if (backupKeyRef.current) localStorage.removeItem(backupKeyRef.current);
       setStatus("submitted");
-      onApplyServerData({ core: payload.core });
+      onApplyServerData({ core: payload.core, wallet: payload.wallet });
       onComplete({
-        amount: payload.rewardAmount ?? 3,
-        account: "core",
+        coreAmount: payload.coreRewardAmount ?? challengeReward.coreAmount,
+        walletAmount: payload.walletRewardAmount ?? challengeReward.walletAmount,
         claimed: Boolean(payload.rewardClaimed),
-        coreBalanceAfter: payload.core?.balance ?? null
+        coreBalanceAfter: payload.core?.balance ?? null,
+        walletBalanceAfter: payload.wallet?.balance ?? null
       });
       await onRefresh();
     } catch (submitError) {
@@ -289,6 +294,7 @@ export default function AppTestingSurvey({
           </div>
         </div>
         <RatingField label={t("appTesting.missionRating")} value={draft.missionRating} onChange={(missionRating) => setDraft((current) => ({ ...current, missionRating }))} />
+        <RatingField label={t("appTesting.projectClarity")} value={draft.projectClarityRating} onChange={(projectClarityRating) => setDraft((current) => ({ ...current, projectClarityRating }))} />
         <SelectField label={t("appTesting.attitude")} value={draft.attitude} values={APP_TESTING_ATTITUDES} t={t} prefix="appTesting.attitude" onChange={(attitude) => setDraft((current) => ({ ...current, attitude: attitude as AppTestingDraft["attitude"] }))} />
         <SelectField label={t("appTesting.strongest")} value={draft.strongestArea} values={APP_TESTING_STRENGTHS} t={t} prefix="appTesting.strength" onChange={(strongestArea) => setDraft((current) => ({ ...current, strongestArea: strongestArea as AppTestingDraft["strongestArea"] }))} />
         <SelectField label={t("appTesting.concern")} value={draft.mainConcern} values={APP_TESTING_CONCERNS} t={t} prefix="appTesting.concern" onChange={(mainConcern) => setDraft((current) => ({ ...current, mainConcern: mainConcern as AppTestingDraft["mainConcern"] }))} />
@@ -329,6 +335,13 @@ export default function AppTestingSurvey({
       </button>
     </section>
   );
+}
+
+function formatRewardSummary(coreAmount: number, walletAmount: number, locale: AppLocale): string {
+  const rewards: string[] = [];
+  if (coreAmount > 0) rewards.push(`Core +${formatRoundedMoney(coreAmount, locale)}`);
+  if (walletAmount > 0) rewards.push(`Wallet +${formatRoundedMoney(walletAmount, locale)}`);
+  return rewards.length > 0 ? rewards.join(" · ") : `Core +${formatRoundedMoney(0, locale)}`;
 }
 
 function InstallGuide({
@@ -481,13 +494,6 @@ function readLocalDraft(key: string): unknown {
   } catch {
     return null;
   }
-}
-
-async function getAccessToken(): Promise<string> {
-  const { data: { session }, error } = await getBrowserSupabaseClient().auth.getSession();
-  if (error) throw error;
-  if (!session?.access_token) throw new Error("Sign in first.");
-  return session.access_token;
 }
 
 function localizeValidationError(_message: string, t: TFunction): string {

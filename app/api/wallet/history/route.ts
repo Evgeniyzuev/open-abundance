@@ -5,7 +5,7 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund";
+  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -42,7 +42,7 @@ type CryptoDepositLedgerRow = {
   amount: number;
   created_at: string;
   metadata: Record<string, unknown>;
-  operation_type: "crypto_deposit" | "crypto_withdrawal";
+  operation_type: "crypto_deposit" | "crypto_withdrawal" | "challenge_reward" | "wallet_core_topup" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release";
   direction: "credit" | "debit";
   counterparty_user_id?: string | null;
   source_id?: string | null;
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       .from("wallet_ledger")
       .select("id,amount,created_at,metadata,operation_type,direction,counterparty_user_id,source_id")
       .eq("user_id", user.id)
-      .in("operation_type", ["crypto_deposit", "crypto_withdrawal", "wallet_transfer", "marketplace_escrow_hold", "marketplace_payment", "marketplace_refund"])
+      .in("operation_type", ["crypto_deposit", "crypto_withdrawal", "challenge_reward", "wallet_core_topup", "wallet_transfer", "marketplace_escrow_hold", "marketplace_payment", "marketplace_refund", "p2p_escrow_hold", "p2p_escrow_release", "p2p_escrow_refund", "p2p_compensation", "p2p_recovery", "p2p_collateral_hold", "p2p_collateral_release"])
       .order("created_at", { ascending: false })
       .limit(limit);
 

@@ -3,6 +3,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import type { Tables } from "@/lib/database.types";
 import { capturePendingReferral, getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaimed } from "@/lib/guestIdentity";
 import { detectPreferredLocale, normalizeLocale, storeLocalePreference, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
@@ -610,7 +611,7 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit): Pr
   const timeoutId = window.setTimeout(() => controller.abort(), SERVER_FETCH_TIMEOUT_MS);
 
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetchWithSupabaseAuth(input, { ...init, signal: controller.signal }, { authRequired: true });
   } finally {
     window.clearTimeout(timeoutId);
   }

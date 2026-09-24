@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { isUuid } from "@/lib/uuid";
 
 type RouteContext = {
   params: Promise<{
@@ -66,8 +67,4 @@ export async function POST(request: NextRequest, context: RouteContext) {
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
-}
-
-function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }

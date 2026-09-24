@@ -2,9 +2,32 @@ import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
+const siteUrl = new URL("https://open-abundance.vercel.app");
+const siteTitle = "Open Abundance - an open marketplace of possibilities";
+const siteDescription = "An open experiment in building AI as an open marketplace of possibilities - connecting real desires and problems with knowledge, resources, people and real-world action.";
+
 export const metadata: Metadata = {
-  title: "Open Abundance",
-  description: "Offline-first growth app prototype",
+  metadataBase: siteUrl,
+  title: {
+    default: siteTitle,
+    template: "%s - Open Abundance"
+  },
+  description: siteDescription,
+  alternates: {
+    canonical: "/"
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Open Abundance",
+    title: siteTitle,
+    description: siteDescription,
+    url: "/"
+  },
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: siteDescription
+  },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icons/twenty-levels-app-icon-512.png",

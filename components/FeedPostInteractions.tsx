@@ -87,7 +87,9 @@ export default function FeedPostInteractions({
   }
 
   async function sharePost() {
-    const url = `${window.location.origin}/u/${post.author_user_id ?? "open-abundance"}/blog?post=${post.id}`;
+    const url = post.post_type === "external_link"
+      ? `${window.location.origin}/p/${post.id}`
+      : `${window.location.origin}/u/${post.author_user_id ?? "open-abundance"}/blog?post=${post.id}`;
     const shareText = post.body?.trim() || t("social.post.detail");
     try {
       if (navigator.share) {

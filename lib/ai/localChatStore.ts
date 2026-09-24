@@ -3,6 +3,27 @@ import { openOfflineDatabase } from "@/lib/offlineDatabase";
 export type AiLocalMessage = {
   role: "user" | "assistant";
   content: string;
+  rating?: 1 | 2 | 3 | 4 | 5 | null;
+};
+
+export type AiMemoryKind = "goal" | "interest" | "preference" | "reaction" | "feeling";
+
+export type AiMemoryItem = {
+  id: string;
+  userId: string;
+  kind: AiMemoryKind;
+  content: string;
+  sensitivity: "ordinary" | "sensitive";
+  confirmed: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AiMemorySettings = {
+  id: string;
+  userId: string;
+  enabled: boolean;
+  updatedAt: string;
 };
 
 export type AiLocalChat = {
@@ -38,9 +59,11 @@ export type LocalQuota = {
 
 const CHAT_STORE = "aiChats";
 const USAGE_STORE = "aiUsage";
+const MEMORY_STORE = "aiMemory";
 const DAY_LIMIT = 20;
 const MONTH_LIMIT = 300;
 const SAVED_CHAT_LIMIT = 50;
+const MEMORY_ITEM_LIMIT = 40;
 
 async function withStore<T>(
   storeName: string,
@@ -89,6 +112,42 @@ export async function deleteChat(id: string, userId: string): Promise<void> {
   const chat = await withStore<AiLocalChat | undefined>(CHAT_STORE, "readonly", (store) => store.get(id));
   if (!chat || chat.userId !== userId) return;
   await withStore<undefined>(CHAT_STORE, "readwrite", (store) => store.delete(id));
+}
+
+export async function getMemoryItems(userId: string): Promise<AiMemoryItem[]> {
+  const items = await withStore<AiMemoryItem[]>(MEMORY_STORE, "readonly", (store) => store.getAll());
+  return items
+    .filter((item) => item.userId === userId && typeof item.kind === "string" && typeof item.content === "string")
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export async function saveMemoryItem(item: AiMemoryItem): Promise<void> {
+  await withStore<IDBValidKey>(MEMORY_STORE, "readwrite", (store) => store.put(item));
+  const items = await getMemoryItems(item.userId);
+  await Promise.all(items.slice(MEMORY_ITEM_LIMIT).map((staleItem) => deleteMemoryItem(staleItem.id, item.userId)));
+}
+
+export async function deleteMemoryItem(id: string, userId: string): Promise<void> {
+  const item = await withStore<AiMemoryItem | undefined>(MEMORY_STORE, "readonly", (store) => store.get(id));
+  if (!item || item.userId !== userId) return;
+  await withStore<undefined>(MEMORY_STORE, "readwrite", (store) => store.delete(id));
+}
+
+export async function clearMemory(userId: string): Promise<void> {
+  const items = await getMemoryItems(userId);
+  await Promise.all(items.map((item) => deleteMemoryItem(item.id, userId)));
+}
+
+export async function getMemorySettings(userId: string): Promise<AiMemorySettings> {
+  const id = `settings:${userId}`;
+  const settings = await withStore<AiMemorySettings | undefined>(MEMORY_STORE, "readonly", (store) => store.get(id));
+  return settings ?? { id, userId, enabled: true, updatedAt: new Date().toISOString() };
+}
+
+export async function setMemoryEnabled(userId: string, enabled: boolean): Promise<AiMemorySettings> {
+  const settings: AiMemorySettings = { id: `settings:${userId}`, userId, enabled, updatedAt: new Date().toISOString() };
+  await withStore<IDBValidKey>(MEMORY_STORE, "readwrite", (store) => store.put(settings));
+  return settings;
 }
 
 export async function getLocalQuota(userId: string, now = new Date()): Promise<LocalQuota> {

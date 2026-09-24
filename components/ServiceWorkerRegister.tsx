@@ -50,6 +50,10 @@ export default function ServiceWorkerRegister() {
       };
     }
 
+    // A controllerchange on the very first visit is the service worker claiming
+    // this page via clients.claim(), not an app update. Reloading there makes
+    // in-app webviews show their loading screen twice ("Restoring the app...").
+    const hadController = Boolean(navigator.serviceWorker.controller);
     let lastUpdateCheckAt = 0;
     let removeVisibilityListener: (() => void) | undefined;
     const reloadGuardReset = window.setTimeout(() => {
@@ -64,6 +68,7 @@ export default function ServiceWorkerRegister() {
     }
 
     const handleControllerChange = () => {
+      if (!hadController) return;
       if (sessionStorage.getItem(SW_CONTROLLER_RELOAD_KEY) === "1") return;
       sessionStorage.setItem(SW_CONTROLLER_RELOAD_KEY, "1");
       window.location.reload();

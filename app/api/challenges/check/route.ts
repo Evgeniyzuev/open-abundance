@@ -1,8 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import type { Database, Json } from "@/lib/database.types";
+import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { syncTodayForUser } from "@/lib/serverToday";
+import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 
 type CheckRequest = {
   challengeId?: string;
@@ -64,6 +65,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Peer reviews are settled by review submissions." }, { status: 409 });
   }
 
+  const [{ data: coreAccount, error: coreError }, { data: progressRows, error: progressError }, { data: snapshots, error: snapshotError }] = await Promise.all([
+    supabase.from("core_accounts").select("level").eq("user_id", user.id).maybeSingle(),
+    supabase.from("user_challenges").select("challenge_id,status,challenges(category)").eq("user_id", user.id),
+    supabase.from("challenge_completion_snapshots").select("challenge_category").eq("user_id", user.id)
+  ]);
+
+  if (coreError || progressError || snapshotError) {
+    return NextResponse.json({ error: coreError?.message ?? progressError?.message ?? snapshotError?.message ?? "Failed to load challenge eligibility." }, { status: 500 });
+  }
+
+  const progressStatuses = new Map((progressRows ?? []).map((row) => [row.challenge_id, String(row.status).trim().toLowerCase()]));
+  const prerequisiteCompleted = challenge.verification_logic === "has_referral"
+    ? hasFirstResult(snapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])
+    : !challenge.prerequisite_challenge_id || progressStatuses.get(challenge.prerequisite_challenge_id) === "completed";
+  const accessReasons = getChallengeAccessReasons({ ...challenge, prerequisite_completed: prerequisiteCompleted }, Number(coreAccount?.level ?? 1));
+  if (accessReasons.length > 0) {
+    const reason = accessReasons.includes("first_result")
+      ? "Publish your first non-onboarding result before inviting someone."
+      : accessReasons.includes("prerequisite")
+        ? "Complete the previous challenge first."
+        : `Challenge requires Core level ${challenge.difficulty_level}.`;
+    return NextResponse.json({ error: reason }, { status: 409 });
+  }
+
   if (challenge.verification_logic !== "signup") {
     const { data: userChallenge, error: userChallengeError } = await supabase
       .from("user_challenges")
@@ -106,13 +131,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const rewardAmount = Number((challenge as any).reward_amount ?? getRewardAmount(challenge.reward_label));
-  const rewardAccount = String((challenge as any).reward_account ?? "core");
-  const { data: completion, error: completionError } = await supabase.rpc("complete_user_challenge", {
+  const { data: completion, error: completionError } = await supabase.rpc("settle_user_challenge_rewards", {
     p_user_id: user.id,
-    p_challenge_id: challenge.id,
-    p_reward_account: rewardAccount,
-    p_reward_amount: rewardAmount
+    p_challenge_id: challenge.id
   });
 
   if (completionError) {
@@ -126,7 +147,10 @@ export async function POST(request: NextRequest) {
       entityId: challenge.id,
       entityType: "challenge",
       eventName: "challenge_completed",
-      properties: { reward_account: result.rewarded_account ?? "core", reward_amount: Number(result.rewarded_amount ?? rewardAmount) },
+      properties: {
+        core_reward_amount: Number(result.rewarded_core_amount ?? challenge.core_reward_amount),
+        wallet_reward_amount: Number(result.rewarded_wallet_amount ?? challenge.wallet_reward_amount)
+      },
       source: "server",
       userId: user.id
     });
@@ -194,8 +218,8 @@ export async function POST(request: NextRequest) {
     wallet: walletResult.data,
     rewardClaimed: Boolean(result?.reward_claimed),
     feedPostId,
-    rewardAccount: result?.rewarded_account ?? rewardAccount,
-    rewardAmount: Number(result?.rewarded_amount ?? rewardAmount)
+    coreRewardAmount: Number(result?.rewarded_core_amount ?? challenge.core_reward_amount),
+    walletRewardAmount: Number(result?.rewarded_wallet_amount ?? challenge.wallet_reward_amount)
   });
 }
 
@@ -429,6 +453,60 @@ async function verifyChallenge(
     }
   }
 
+  if (challenge.verification_logic === "day_2_return") {
+    const { data: acceptance, error: acceptanceError } = await supabase
+      .from("user_challenges")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("challenge_id", challenge.id)
+      .maybeSingle();
+
+    if (acceptanceError) {
+      return { ok: false, reason: "Could not check the challenge acceptance. Try again." };
+    }
+
+    if (!acceptance?.created_at) {
+      return { ok: false, reason: "Accept the challenge first." };
+    }
+
+    const acceptedAt = new Date(acceptance.created_at);
+    if (Number.isNaN(acceptedAt.getTime())) {
+      return { ok: false, reason: "Could not read the acceptance date. Try again." };
+    }
+
+    const returnDayStart = new Date(Date.UTC(acceptedAt.getUTCFullYear(), acceptedAt.getUTCMonth(), acceptedAt.getUTCDate() + 1));
+    const returnDayEnd = new Date(returnDayStart.getTime() + 24 * 60 * 60 * 1000);
+    const returnLocalDate = returnDayStart.toISOString().slice(0, 10);
+
+    const [openResult, todayResult] = await Promise.all([
+      supabase
+        .from("product_events")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("event_name", "app_open")
+        .gte("created_at", returnDayStart.toISOString())
+        .lt("created_at", returnDayEnd.toISOString())
+        .limit(1),
+      supabase
+        .from("user_today_instances")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("status", "completed")
+        .eq("local_date", returnLocalDate)
+        .limit(1)
+    ]);
+
+    if (openResult.error || todayResult.error) {
+      return { ok: false, reason: "Could not check the next-day visit. Try again." };
+    }
+
+    if ((openResult.data ?? []).length > 0 || (todayResult.data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Come back tomorrow and open the app or complete Today." };
+  }
+
   if (challenge.verification_logic === "first_wallet_to_core") {
     const { data, error } = await supabase
       .from("wallet_ledger")
@@ -476,14 +554,28 @@ async function verifyChallenge(
   }
 
   if (challenge.verification_logic === "has_referral") {
-    const { data, error } = await supabase
-      .from("referral_edges")
-      .select("referral_user_id")
-      .eq("referrer_user_id", userId)
-      .limit(1);
+    const [{ data: snapshots, error: snapshotError }, { data, error }, { data: progressRows, error: progressError }] = await Promise.all([
+      supabase
+        .from("challenge_completion_snapshots")
+        .select("challenge_category")
+        .eq("user_id", userId),
+      supabase
+        .from("referral_edges")
+        .select("referral_user_id")
+        .eq("referrer_user_id", userId)
+        .limit(1),
+      supabase
+        .from("user_challenges")
+        .select("status,challenges(category)")
+        .eq("user_id", userId)
+    ]);
 
-    if (error) {
+    if (snapshotError || error || progressError) {
       return { ok: false, reason: "Could not check referrals. Try again." };
+    }
+
+    if (!hasFirstResult(snapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])) {
+      return { ok: false, reason: "Publish your first non-onboarding result before inviting someone." };
     }
 
     if ((data ?? []).length > 0) {
@@ -491,6 +583,26 @@ async function verifyChallenge(
     }
 
     return { ok: false, reason: "Invite one person who completes registration first." };
+  }
+
+  if (challenge.verification_logic === "team_task_help_completed") {
+    const { data, error } = await supabase
+      .from("team_tasks")
+      .select("id")
+      .eq("leader_user_id", userId)
+      .eq("status", "completed")
+      .eq("newcomer_eligible", true)
+      .limit(1);
+
+    if (error) {
+      return { ok: false, reason: "Could not check team help tasks. Try again." };
+    }
+
+    if ((data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Complete one task for a newcomer in Teams first." };
   }
 
   if (challenge.verification_logic === "team_contact_active") {
@@ -642,26 +754,6 @@ function hasThreeSteps(value: string | null | undefined): boolean {
 
   const numbered = text.match(/(?:^|\s)(?:[1-3][.)]|шаг\s*[1-3]|step\s*[1-3])/gi) ?? [];
   return new Set(numbered.map((item) => item.replace(/\s+/g, "").toLowerCase())).size >= 3;
-}
-
-function getRewardAmount(value: Json): number {
-  const raw = rewardLabelText(value);
-  const amount = raw.match(/(\d+(?:[.,]\d+)?)\s*\$/)?.[1] ?? raw.match(/\+(\d+(?:[.,]\d+)?)/)?.[1] ?? raw.match(/(\d+(?:[.,]\d+)?)/)?.[1];
-  return amount ? Number(amount.replace(",", ".")) : 1;
-}
-
-function rewardLabelText(value: Json): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const record = value as Record<string, Json | undefined>;
-    const en = record.en;
-    const ru = record.ru;
-    if (typeof en === "string") return en;
-    if (typeof ru === "string") return ru;
-  }
-
-  return "1$";
 }
 
 function isUuid(value: string): boolean {

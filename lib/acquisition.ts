@@ -20,8 +20,9 @@ export function captureAcquisitionContext(): void {
 
   try {
     const existing = readAcquisitionContext();
+    const existingSource = existing?.source && existing.source !== "direct" ? existing.source : undefined;
     const next: AcquisitionContext = {
-      source: existing?.source ?? source ?? "direct",
+      source: existingSource ?? source ?? "direct",
       medium: existing?.medium ?? medium,
       campaign: existing?.campaign ?? campaign,
       cohortId: existing?.cohortId ?? cohortId

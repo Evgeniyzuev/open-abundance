@@ -111,6 +111,7 @@ export type Database = {
           overall_rating: number | null
           platform: string | null
           private_comment: string | null
+          project_clarity_rating: number | null
           public_consent_at: string | null
           public_consent_version: string | null
           public_review: string | null
@@ -138,6 +139,7 @@ export type Database = {
           overall_rating?: number | null
           platform?: string | null
           private_comment?: string | null
+          project_clarity_rating?: number | null
           public_consent_at?: string | null
           public_consent_version?: string | null
           public_review?: string | null
@@ -165,6 +167,7 @@ export type Database = {
           overall_rating?: number | null
           platform?: string | null
           private_comment?: string | null
+          project_clarity_rating?: number | null
           public_consent_at?: string | null
           public_consent_version?: string | null
           public_review?: string | null
@@ -196,6 +199,7 @@ export type Database = {
         Row: {
           action_view: string | null
           category: string
+          core_reward_amount: number
           created_at: string
           description: Json
           difficulty_level: number
@@ -206,17 +210,18 @@ export type Database = {
           is_active: boolean
           prerequisite_challenge_id: string | null
           requirements: Json
-          reward_label: Json
           sort_order: number
           title: Json
           track_key: string | null
           track_step: number | null
           verification_logic: string | null
           verification_type: string
+          wallet_reward_amount: number
         }
         Insert: {
           action_view?: string | null
           category?: string
+          core_reward_amount?: number
           created_at?: string
           description?: Json
           difficulty_level?: number
@@ -227,17 +232,18 @@ export type Database = {
           is_active?: boolean
           prerequisite_challenge_id?: string | null
           requirements?: Json
-          reward_label?: Json
           sort_order?: number
           title?: Json
           track_key?: string | null
           track_step?: number | null
           verification_logic?: string | null
           verification_type?: string
+          wallet_reward_amount?: number
         }
         Update: {
           action_view?: string | null
           category?: string
+          core_reward_amount?: number
           created_at?: string
           description?: Json
           difficulty_level?: number
@@ -248,13 +254,13 @@ export type Database = {
           is_active?: boolean
           prerequisite_challenge_id?: string | null
           requirements?: Json
-          reward_label?: Json
           sort_order?: number
           title?: Json
           track_key?: string | null
           track_step?: number | null
           verification_logic?: string | null
           verification_type?: string
+          wallet_reward_amount?: number
         }
         Relationships: [
           {
@@ -406,7 +412,9 @@ export type Database = {
       direct_messages: {
         Row: {
           body: string
+          client_idempotency_key: string | null
           conversation_id: string
+          content_post_id: string | null
           created_at: string
           deleted_at: string | null
           id: string
@@ -416,7 +424,9 @@ export type Database = {
         }
         Insert: {
           body: string
+          client_idempotency_key?: string | null
           conversation_id: string
+          content_post_id?: string | null
           created_at?: string
           deleted_at?: string | null
           id?: string
@@ -426,7 +436,9 @@ export type Database = {
         }
         Update: {
           body?: string
+          client_idempotency_key?: string | null
           conversation_id?: string
+          content_post_id?: string | null
           created_at?: string
           deleted_at?: string | null
           id?: string
@@ -552,13 +564,19 @@ export type Database = {
       feed_post_external_links: {
         Row: {
           author_handle: string | null
+          author_name: string | null
           caption: string | null
+          canonical_url: string | null
           created_at: string
+          description: string | null
           embed_status: string
           external_post_id: string | null
           external_url: string
           fetched_at: string | null
           id: string
+          metadata_status: string
+          normalized_url: string | null
+          owner_user_id: string | null
           post_id: string
           provider: string
           relation: string
@@ -568,13 +586,19 @@ export type Database = {
         }
         Insert: {
           author_handle?: string | null
+          author_name?: string | null
           caption?: string | null
+          canonical_url?: string | null
           created_at?: string
+          description?: string | null
           embed_status?: string
           external_post_id?: string | null
           external_url: string
           fetched_at?: string | null
           id?: string
+          metadata_status?: string
+          normalized_url?: string | null
+          owner_user_id?: string | null
           post_id: string
           provider: string
           relation?: string
@@ -584,13 +608,19 @@ export type Database = {
         }
         Update: {
           author_handle?: string | null
+          author_name?: string | null
           caption?: string | null
+          canonical_url?: string | null
           created_at?: string
+          description?: string | null
           embed_status?: string
           external_post_id?: string | null
           external_url?: string
           fetched_at?: string | null
           id?: string
+          metadata_status?: string
+          normalized_url?: string | null
+          owner_user_id?: string | null
           post_id?: string
           provider?: string
           relation?: string
@@ -662,6 +692,23 @@ export type Database = {
             referencedRelation: "feed_posts"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      feed_post_access: {
+        Row: { created_at: string; granted_by_user_id: string; post_id: string; recipient_user_id: string; revoked_at: string | null }
+        Insert: { created_at?: string; granted_by_user_id: string; post_id: string; recipient_user_id: string; revoked_at?: string | null }
+        Update: { created_at?: string; granted_by_user_id?: string; post_id?: string; recipient_user_id?: string; revoked_at?: string | null }
+        Relationships: [
+          { foreignKeyName: "feed_post_access_post_id_fkey"; columns: ["post_id"]; isOneToOne: false; referencedRelation: "feed_posts"; referencedColumns: ["id"] }
+        ]
+      }
+      feed_post_wish_links: {
+        Row: { client_idempotency_key: string | null; created_at: string; owner_user_id: string; post_id: string; wish_id: string }
+        Insert: { client_idempotency_key?: string | null; created_at?: string; owner_user_id: string; post_id: string; wish_id: string }
+        Update: { client_idempotency_key?: string | null; created_at?: string; owner_user_id?: string; post_id?: string; wish_id?: string }
+        Relationships: [
+          { foreignKeyName: "feed_post_wish_links_post_id_fkey"; columns: ["post_id"]; isOneToOne: false; referencedRelation: "feed_posts"; referencedColumns: ["id"] },
+          { foreignKeyName: "feed_post_wish_links_wish_id_fkey"; columns: ["wish_id"]; isOneToOne: false; referencedRelation: "wishes"; referencedColumns: ["id"] }
         ]
       }
       feed_post_stat_blocks: {
@@ -768,6 +815,7 @@ export type Database = {
           published_at: string | null
           repost_of_post_id: string | null
           snapshot_id: string | null
+          title: string | null
           source_key: string | null
           status: string
           system_verified: boolean
@@ -785,6 +833,7 @@ export type Database = {
           published_at?: string | null
           repost_of_post_id?: string | null
           snapshot_id?: string | null
+          title?: string | null
           source_key?: string | null
           status?: string
           system_verified?: boolean
@@ -802,6 +851,7 @@ export type Database = {
           published_at?: string | null
           repost_of_post_id?: string | null
           snapshot_id?: string | null
+          title?: string | null
           source_key?: string | null
           status?: string
           system_verified?: boolean
@@ -1176,6 +1226,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      peer_review_answers: {
+        Row: {
+          id: string
+          metadata_status: string
+          normalized_url: string | null
+          owner_user_id: string | null
+          task_id: string
+          reviewer_user_id: string
+          status: string
+          declined_after_accept: boolean
+          decline_reason: string | null
+          verdict: string | null
+          checklist: Json
+          notes: string | null
+          quality_status: string
+          score_delta: number
+          trust_penalty: number
+          reward_status: string
+          reward_amount: number
+          core_reward_amount: number
+          wallet_reward_amount: number
+          offered_at: string
+          accepted_at: string | null
+          submitted_at: string | null
+          settled_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          reviewer_user_id: string
+          status?: string
+          declined_after_accept?: boolean
+          decline_reason?: string | null
+          verdict?: string | null
+          checklist?: Json
+          notes?: string | null
+          quality_status?: string
+          score_delta?: number
+          trust_penalty?: number
+          reward_status?: string
+          reward_amount?: number
+          core_reward_amount?: number
+          wallet_reward_amount?: number
+          offered_at?: string
+          accepted_at?: string | null
+          submitted_at?: string | null
+          settled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          reviewer_user_id?: string
+          status?: string
+          declined_after_accept?: boolean
+          decline_reason?: string | null
+          verdict?: string | null
+          checklist?: Json
+          notes?: string | null
+          quality_status?: string
+          score_delta?: number
+          trust_penalty?: number
+          reward_status?: string
+          reward_amount?: number
+          core_reward_amount?: number
+          wallet_reward_amount?: number
+          offered_at?: string
+          accepted_at?: string | null
+          submitted_at?: string | null
+          settled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       mutual_confirmations: {
         Row: {
@@ -1865,6 +1993,239 @@ export type Database = {
         }
         Relationships: []
       }
+      team_task_events: {
+        Row: {
+          actor_user_id: string
+          created_at: string
+          event_type: string
+          from_status: string | null
+          id: string
+          metadata: Json
+          task_id: string
+          task_version: number
+          to_status: string
+        }
+        Insert: {
+          actor_user_id: string
+          created_at?: string
+          event_type: string
+          from_status?: string | null
+          id?: string
+          metadata?: Json
+          task_id: string
+          task_version: number
+          to_status: string
+        }
+        Update: {
+          actor_user_id?: string
+          created_at?: string
+          event_type?: string
+          from_status?: string | null
+          id?: string
+          metadata?: Json
+          task_id?: string
+          task_version?: number
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_task_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "team_tasks"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      team_task_help_requests: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          reason: string
+          requester_user_id: string
+          resolved_at: string | null
+          resolved_by_user_id: string | null
+          status: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          comment?: string
+          created_at?: string
+          id?: string
+          reason: string
+          requester_user_id: string
+          resolved_at?: string | null
+          resolved_by_user_id?: string | null
+          status?: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          requester_user_id?: string
+          resolved_at?: string | null
+          resolved_by_user_id?: string | null
+          status?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_task_help_requests_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "team_tasks"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      team_task_revisions: {
+        Row: {
+          base_version: number
+          changes: Json
+          created_at: string
+          id: string
+          proposer_user_id: string
+          responded_at: string | null
+          response_user_id: string | null
+          status: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_version: number
+          changes?: Json
+          created_at?: string
+          id?: string
+          proposer_user_id: string
+          responded_at?: string | null
+          response_user_id?: string | null
+          status?: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_version?: number
+          changes?: Json
+          created_at?: string
+          id?: string
+          proposer_user_id?: string
+          responded_at?: string | null
+          response_user_id?: string | null
+          status?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_task_revisions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "team_tasks"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      team_tasks: {
+        Row: {
+          accepted_at: string | null
+          challenge_id: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          due_at: string | null
+          estimated_minutes: number | null
+          expected_result: string | null
+          first_step: string | null
+          goal_context: string | null
+          id: string
+          leader_review_due_at: string | null
+          leader_user_id: string
+          member_user_id: string
+          newcomer_eligible: boolean
+          status: string
+          submission: string | null
+          task_kind: string
+          title: string
+          verification_criteria: string | null
+          review_feedback: string | null
+          reviewed_at: string | null
+          reviewer_user_id: string | null
+          submitted_at: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          accepted_at?: string | null
+          challenge_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_at?: string | null
+          estimated_minutes?: number | null
+          expected_result?: string | null
+          first_step?: string | null
+          goal_context?: string | null
+          id?: string
+          leader_review_due_at?: string | null
+          leader_user_id: string
+          member_user_id: string
+          newcomer_eligible?: boolean
+          status?: string
+          submission?: string | null
+          task_kind?: string
+          title: string
+          verification_criteria?: string | null
+          review_feedback?: string | null
+          reviewed_at?: string | null
+          reviewer_user_id?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          accepted_at?: string | null
+          challenge_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_at?: string | null
+          estimated_minutes?: number | null
+          expected_result?: string | null
+          first_step?: string | null
+          goal_context?: string | null
+          id?: string
+          leader_review_due_at?: string | null
+          leader_user_id?: string
+          member_user_id?: string
+          newcomer_eligible?: boolean
+          status?: string
+          submission?: string | null
+          task_kind?: string
+          title?: string
+          verification_criteria?: string | null
+          review_feedback?: string | null
+          reviewed_at?: string | null
+          reviewer_user_id?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_tasks_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       today_progress_events: {
         Row: {
           amount_core: number
@@ -2005,42 +2366,42 @@ export type Database = {
       user_challenges: {
         Row: {
           challenge_id: string
+          core_reward_amount: number
           created_at: string
           id: string
-          reward_account: string | null
-          reward_amount: number | null
           reward_idempotency_key: string | null
           reward_settled_at: string | null
           status: string
           updated_at: string
           user_id: string
           verification_data: Json
+          wallet_reward_amount: number
         }
         Insert: {
           challenge_id: string
+          core_reward_amount?: number
           created_at?: string
           id?: string
-          reward_account?: string | null
-          reward_amount?: number | null
           reward_idempotency_key?: string | null
           reward_settled_at?: string | null
           status?: string
           updated_at?: string
           user_id: string
           verification_data?: Json
+          wallet_reward_amount?: number
         }
         Update: {
           challenge_id?: string
+          core_reward_amount?: number
           created_at?: string
           id?: string
-          reward_account?: string | null
-          reward_amount?: number | null
           reward_idempotency_key?: string | null
           reward_settled_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string
           verification_data?: Json
+          wallet_reward_amount?: number
         }
         Relationships: [
           {
@@ -3113,6 +3474,53 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_saved_external_content: {
+        Args: {
+          p_author_handle: string | null
+          p_external_post_id: string | null
+          p_normalized_url: string
+          p_owner_user_id: string
+          p_provider: string
+          p_source_title: string
+          p_source_url: string
+          p_title: string | null
+        }
+        Returns: string
+      }
+      share_saved_content_message: {
+        Args: {
+          p_body: string | null
+          p_client_idempotency_key: string
+          p_post_id: string
+          p_sender_user_id: string
+          p_target_user_id: string
+        }
+        Returns: string
+      }
+      create_saved_content_wish: {
+        Args: {
+          p_category: string | null
+          p_client_idempotency_key: string
+          p_description: string
+          p_difficulty_level: number
+          p_image_url: string | null
+          p_owner_user_id: string
+          p_post_id: string
+          p_target_amount: number | null
+          p_target_currency: string
+          p_title: string
+          p_visibility: string
+        }
+        Returns: string
+      }
+      attach_saved_content_wish: {
+        Args: { p_owner_user_id: string; p_post_id: string; p_wish_id: string }
+        Returns: boolean
+      }
+      delete_saved_external_content: {
+        Args: { p_owner_user_id: string; p_post_id: string }
+        Returns: boolean
+      }
       accept_marketplace_deal: {
         Args: { p_actor_user_id: string; p_deal_id: string }
         Returns: Json
@@ -3222,19 +3630,81 @@ export type Database = {
         Args: { p_error?: string; p_job_id: string; p_success: boolean }
         Returns: undefined
       }
-      complete_user_challenge: {
-        Args: {
-          p_challenge_id: string
-          p_reward_account: string
-          p_reward_amount: number
-          p_user_id: string
-        }
+      audit_peer_review_answer: {
+        Args: { p_answer_id: string; p_quality_status: string; p_reason?: string | null }
+        Returns: {
+          answer_id: string
+          reviewer_user_id: string
+          quality_status: string
+          score_delta: number
+          trust_penalty: number
+          reward_status: string
+          reward_amount: number
+        }[]
+      }
+      settle_peer_review_answer: {
+        Args: { p_answer_id: string; p_quality_status: string; p_reason?: string | null }
+        Returns: {
+          answer_id: string
+          reviewer_user_id: string
+          quality_status: string
+          score_delta: number
+          trust_penalty: number
+          reward_status: string
+          reward_amount: number
+          review_score: number
+        }[]
+      }
+      settle_user_challenge_rewards: {
+        Args: { p_challenge_id: string; p_user_id: string }
         Returns: {
           challenge_status: string
           reward_claimed: boolean
-          rewarded_account: string
-          rewarded_amount: number
+          rewarded_core_amount: number
+          rewarded_wallet_amount: number
         }[]
+      }
+      count_activated_referrals: {
+        Args: { p_referrer_user_id: string }
+        Returns: number
+      }
+      count_retained_referrals: {
+        Args: { p_referrer_user_id: string }
+        Returns: number
+      }
+      create_team_task: {
+        Args: {
+          p_actor_user_id: string
+          p_challenge_id?: string | null
+          p_description?: string
+          p_due_at?: string | null
+          p_estimated_minutes?: number | null
+          p_expected_result?: string | null
+          p_first_step?: string | null
+          p_goal_context?: string | null
+          p_leader_review_due_at?: string | null
+          p_member_user_id: string
+          p_task_kind: string
+          p_title: string
+          p_verification_criteria?: string | null
+        }
+        Returns: Json
+      }
+      request_team_task_help: {
+        Args: { p_actor_user_id: string; p_comment?: string; p_reason: string; p_task_id: string }
+        Returns: Json
+      }
+      resolve_team_task_help: {
+        Args: { p_actor_user_id: string; p_help_request_id: string }
+        Returns: Json
+      }
+      propose_team_task_revision: {
+        Args: { p_actor_user_id: string; p_changes: Json; p_task_id: string }
+        Returns: Json
+      }
+      respond_team_task_revision: {
+        Args: { p_action: string; p_actor_user_id: string; p_expected_version?: number | null; p_revision_id: string }
+        Returns: Json
       }
       rebuild_user_economy_metrics: {
         Args: {
@@ -3374,6 +3844,17 @@ export type Database = {
         Args: { p_bonus_date?: string }
         Returns: undefined
       }
+      transition_team_task: {
+        Args: {
+          p_action: string
+          p_actor_user_id: string
+          p_expected_version?: number | null
+          p_feedback?: string | null
+          p_submission?: string | null
+          p_task_id: string
+        }
+        Returns: Json
+      }
       configure_ton_deposit_scanner: {
         Args: {
           p_project_url: string
@@ -3481,6 +3962,7 @@ export type Database = {
           p_overall_rating: number
           p_platform: string
           p_private_comment: string
+          p_project_clarity_rating: number
           p_public_review: string
           p_schema_version: number
           p_strongest_area: string

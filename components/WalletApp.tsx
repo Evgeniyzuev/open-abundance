@@ -6,37 +6,39 @@ import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from
 import { QRCodeSVG } from "qrcode.react";
 import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
+import P2PWalletPanel from "@/components/P2PWalletPanel";
 import { TonUsdtDepositModal, TonUsdtWithdrawalModal } from "@/components/TonUsdtWalletModals";
 import { WalletCryptoMethodModal, type WalletCryptoMethod } from "@/components/WalletCryptoMethodModal";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
 import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatMoney, formatRateMoney } from "@/lib/moneyFormat";
+import { normalizeMarketplaceRating } from "@/lib/marketplaceRating";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
+import { isUuid } from "@/lib/uuid";
 
-type WalletTab = "wallet" | "core" | "market";
+type WalletTab = "wallet" | "core" | "market" | "p2p";
 export type WalletCalculatorRequest = {
   dailyAdditions?: number;
   nonce: number;
   targetCore?: number;
 };
-type CoreAccrualRow = {
-  accrual_date: string;
-  core_before: number;
-  daily_rate: number;
-  gross_amount: number;
-  reinvest_percent: number;
-  core_amount: number;
-  wallet_amount: number;
-  core_after: number;
-  created_at: string;
+type CoreHistoryRow = {
+  id: string;
+  occurred_at: string;
+  kind: "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus";
+  amount: number;
+  source_id: string;
+  challenge_id?: string;
+  challenge_title?: string;
+  metadata?: Record<string, unknown>;
 };
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund";
+  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -299,7 +301,7 @@ type EconomyMetricRow = Pick<Tables<"user_economy_metrics">,
 export default function WalletApp({ active, activeTab, calculatorRequest, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; calculatorRequest?: WalletCalculatorRequest | null; refreshNonce: number; onRefresh: () => Promise<void> }) {
   const { core, wallet, user, loading, error, locale, applyServerData, t } = useUserContext();
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyRows, setHistoryRows] = useState<CoreAccrualRow[] | null>(null);
+  const [historyRows, setHistoryRows] = useState<CoreHistoryRow[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [walletHistoryOpen, setWalletHistoryOpen] = useState(false);
@@ -451,7 +453,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
 
       setHistoryLoading(true);
       try {
-        const rows = await loadCoreAccrualHistory();
+        const rows = await loadCoreHistory(locale);
         if (mounted) setHistoryRows(rows);
       } catch (loadError) {
         console.warn("Core accrual history load failed", loadError);
@@ -465,7 +467,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     return () => {
       mounted = false;
     };
-  }, [active, activeTab, historyOpen, refreshNonce, user]);
+  }, [active, activeTab, historyOpen, locale, refreshNonce, user]);
 
   useEffect(() => {
     let mounted = true;
@@ -780,8 +782,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   }
 
   async function handleReviewDeal(dealId: string) {
-    const rating = Number(window.prompt(t("market.reviewPrompt"), "5"));
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return;
+    const rating = normalizeMarketplaceRating(window.prompt(t("market.reviewPrompt"), "5.0"));
+    if (rating === null) return;
     const reviewText = window.prompt(t("market.reviewTextPrompt"), "") ?? "";
     setMarketDealSavingId(dealId);
     setMarketError(null);
@@ -892,7 +894,11 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 <article className="payout-row" key={row.id}>
                   <div>
                     <strong>{formatDay(row.operation_date, locale)}</strong>
-                    <span>{row.kind === "wallet_transfer"
+                    <span>{row.kind === "challenge_reward"
+                      ? t("wallet.history.challengeReward")
+                      : row.kind === "wallet_core_topup"
+                        ? t("wallet.history.walletCoreTopup")
+                        : row.kind === "wallet_transfer"
                       ? t("wallet.history.transfer")
                       : row.kind === "marketplace_escrow_hold"
                         ? t("wallet.history.marketplaceHold")
@@ -900,6 +906,20 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                           ? t("wallet.history.marketplacePayment")
                           : row.kind === "marketplace_refund"
                             ? t("wallet.history.marketplaceRefund")
+                            : row.kind === "p2p_escrow_hold"
+                              ? t("wallet.history.p2pHold")
+                              : row.kind === "p2p_escrow_release"
+                                ? t("wallet.history.p2pRelease")
+                                : row.kind === "p2p_escrow_refund"
+                                  ? t("wallet.history.p2pRefund")
+                                  : row.kind === "p2p_compensation"
+                                    ? t("wallet.history.p2pCompensation")
+                                    : row.kind === "p2p_recovery"
+                                      ? t("wallet.history.p2pRecovery")
+                                    : row.kind === "p2p_collateral_hold"
+                                      ? t("wallet.history.p2pCollateralHold")
+                                    : row.kind === "p2p_collateral_release"
+                                      ? t("wallet.history.p2pCollateralRelease")
                             : row.kind === "crypto_deposit"
                       ? row.assetCode === "USDT" ? t("wallet.history.usdtDeposit") : t("wallet.history.cryptoDeposit")
                       : row.kind === "crypto_withdrawal"
@@ -913,9 +933,11 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                     <span>{t("wallet.wallet")}</span>
                   </div>
                   <p>
-                    {row.kind === "wallet_transfer"
+                    {row.kind === "challenge_reward" || row.kind === "wallet_core_topup"
+                      ? `${t("wallet.history.source")}: ${shortId(row.sourceId ?? row.id)}`
+                      : row.kind === "wallet_transfer"
                       ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.source")}: ${shortId(row.sourceId)}` : ""}`
-                      : row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund"
+                      : row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund" || row.kind.startsWith("p2p_")
                         ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.deal")}: ${shortId(row.sourceId)}` : ""}`
                     : row.kind === "crypto_deposit"
                       ? formatCryptoDepositDetails(row, locale)
@@ -1012,16 +1034,16 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
             >
               <div className="payout-list">
                 {(historyRows ?? []).map((row) => (
-                  <article className="payout-row" key={`${row.accrual_date}-${row.created_at}`}>
+                  <article className="payout-row" key={row.id}>
                     <div>
-                      <strong>{formatDay(row.accrual_date, locale)}</strong>
-                      <span>{t("wallet.dailyRate")} {formatPercent(row.daily_rate * 100, locale)}</span>
+                      <strong>{formatHistoryDay(row.occurred_at, locale)}</strong>
+                      <span>{coreHistoryLabel(row, locale, t)}</span>
                     </div>
                     <div>
-                      <strong>+{formatAdaptiveMoney(row.core_amount, locale)}</strong>
+                      <strong>+{formatAdaptiveMoney(row.amount, locale)}</strong>
                       <span>{t("wallet.toCore")}</span>
                     </div>
-                    <p>{`${formatAdaptiveMoney(row.core_before, locale)} -> ${formatAdaptiveMoney(row.core_after, locale)} · ${t("wallet.wallet")} +${formatAdaptiveMoney(row.wallet_amount, locale)}`}</p>
+                    <p>{coreHistoryDetail(row, locale, t)}</p>
                   </article>
                 ))}
               </div>
@@ -1139,6 +1161,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           onCreate={handleCreateListing}
         />
       ) : null}
+
+      {user && activeTab === "p2p" ? <P2PWalletPanel active={active} /> : null}
       {marketDetailListing ? (
         <MarketplaceListingDetailModal
           listing={marketDetailListing}
@@ -1607,18 +1631,43 @@ function TargetResult({ calculation, locale, t }: { calculation: ReturnType<type
   );
 }
 
-async function loadCoreAccrualHistory(): Promise<CoreAccrualRow[]> {
+async function loadCoreHistory(locale: AppLocale): Promise<CoreHistoryRow[]> {
   const token = await getAccessToken();
-  const response = await fetch(`/api/core/accrual-history?limit=30&ts=${Date.now()}`, {
+  const response = await fetch(`/api/core/history?limit=50&locale=${locale}&ts=${Date.now()}`, {
     cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
       "Cache-Control": "no-cache"
     }
   });
-  const payload = (await response.json()) as { rows?: CoreAccrualRow[]; error?: string };
+  const payload = (await response.json()) as { rows?: CoreHistoryRow[]; error?: string };
   if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load core history.");
   return payload.rows ?? [];
+}
+
+function formatHistoryDay(value: string, locale: AppLocale): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
+}
+
+function coreHistoryLabel(row: CoreHistoryRow, locale: AppLocale, t: TFunction): string {
+  if (row.kind === "daily_accrual") return t("wallet.history.coreDailyAccrual");
+  if (row.kind === "challenge_reward") return localizedHistoryTitle(row.challenge_title, locale) ?? t("wallet.history.challengeReward");
+  if (row.kind === "peer_review_reward") return t("wallet.history.peerReviewReward");
+  if (row.kind === "wallet_core_topup") return t("wallet.history.walletCoreTopup");
+  return t("wallet.history.teamBonus");
+}
+
+function coreHistoryDetail(row: CoreHistoryRow, locale: AppLocale, t: TFunction): string {
+  return localizedHistoryTitle(row.challenge_title, locale) ?? `${t("wallet.history.source")}: ${shortId(row.source_id)}`;
+}
+
+function localizedHistoryTitle(value: unknown, locale: AppLocale): string | undefined {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const localized = record[locale] ?? record.en ?? record.ru;
+  return typeof localized === "string" ? localized : undefined;
 }
 
 async function loadWalletHistory(): Promise<WalletHistoryRow[]> {
@@ -3462,10 +3511,6 @@ function formatDay(value: string, locale: AppLocale): string {
   const date = new Date(normalized);
   if (!Number.isFinite(date.getTime())) return "—";
   return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { day: "2-digit", month: "short", year: "numeric" }).format(date);
-}
-
-function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }
 
 function contactName(contact: WalletTransferContact): string {

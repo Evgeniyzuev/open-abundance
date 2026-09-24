@@ -13,6 +13,7 @@ import { getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaime
 import { translate, type AppLocale } from "@/lib/i18n";
 import { getOnboardingRegistrationLocale } from "@/lib/onboardingContent";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import { readAcquisitionContext } from "@/lib/acquisition";
 
 export default function AuthCallbackPage() {
   const [locale, setLocale] = useState<AppLocale>("en");
@@ -42,7 +43,15 @@ export default function AuthCallbackPage() {
       }
 
       const guest = await getOrCreateLocalGuest();
-      const claim = await claimRegistrationAfterAuth(registrationLocale);
+      const acquisition = readAcquisitionContext();
+      const claim = await claimRegistrationAfterAuth(registrationLocale, {
+        anonymousId: guest.guestId,
+        source: acquisition.source,
+        medium: acquisition.medium,
+        campaign: acquisition.campaign,
+        cohortId: acquisition.cohortId,
+        referralCode: guest.pendingReferral?.referralCode
+      });
       await markLocalGuestClaimed(claim.userId);
       await claimReferralAfterAuth(guest.pendingReferral, guest.guestId);
       await markPendingReferralClaimed();

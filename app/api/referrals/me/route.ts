@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,28 @@ export async function GET(request: NextRequest) {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) {
       return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
+    }
+
+    const [{ data: resultSnapshots, error: resultError }, { data: progressRows, error: progressError }] = await Promise.all([
+      supabase
+        .from("challenge_completion_snapshots")
+        .select("challenge_category")
+        .eq("user_id", user.id),
+      supabase
+        .from("user_challenges")
+        .select("status,challenges(category)")
+        .eq("user_id", user.id)
+    ]);
+
+    if (resultError || progressError) {
+      return NextResponse.json({ error: resultError?.message ?? progressError?.message ?? "Failed to load referral eligibility." }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+
+    if (!hasFirstResult(resultSnapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])) {
+      return NextResponse.json(
+        { available: false, code: null, url: null, reason: "first_result_required" },
+        { headers: NO_STORE_HEADERS }
+      );
     }
 
     const { data: existingCode, error: existingError } = await supabase
@@ -31,7 +54,7 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.nextUrl.origin);
     url.searchParams.set("ref", code);
 
-    return NextResponse.json({ code, url: url.toString() }, { headers: NO_STORE_HEADERS });
+    return NextResponse.json({ available: true, code, url: url.toString(), reason: null }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to load referral link." },

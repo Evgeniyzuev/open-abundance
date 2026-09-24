@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "open-abundance-";
-const CACHE_NAME = "open-abundance-v8";
+const CACHE_NAME = "open-abundance-v9";
 const ROOT_SHELL_KEY = "/";
 const STATIC_APP_ASSETS = [
   "/manifest.webmanifest",
@@ -42,6 +42,13 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     if (sameOrigin && url.pathname === "/") {
+      if (url.search) {
+        // Deep links like /?ref=... must always hit the network: in-app
+        // webviews show their own loading screen and a cached-shell-first
+        // strategy can leave them stuck on it after a new deployment.
+        event.respondWith(networkFirstRootNavigation(request));
+        return;
+      }
       const refreshPromise = refreshCachedShell();
       event.waitUntil(refreshPromise.catch(() => undefined));
       event.respondWith(handleRootNavigation(refreshPromise));
@@ -104,6 +111,22 @@ async function handleRootNavigation(refreshPromise) {
   try {
     return await refreshPromise;
   } catch {
+    return missingShellResponse();
+  }
+}
+
+async function networkFirstRootNavigation(request) {
+  try {
+    const response = await fetch(request, { cache: "no-store" });
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(ROOT_SHELL_KEY, response.clone());
+    }
+    return response;
+  } catch {
+    const cache = await caches.open(CACHE_NAME);
+    const cachedShell = await cache.match(ROOT_SHELL_KEY);
+    if (cachedShell) return cachedShell;
     return missingShellResponse();
   }
 }

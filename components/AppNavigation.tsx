@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Smile, Sparkles, Target, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
 import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
+import CoreJourneyCard from "@/components/CoreJourneyCard";
 import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import GrowthMapApp from "@/components/GrowthMapApp";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
@@ -17,15 +18,17 @@ import { useUserContext } from "@/components/UserProvider";
 import WalletApp from "@/components/WalletApp";
 import WishesApp from "@/components/WishesApp";
 import CoreSeedIcon from "@/components/icons/CoreSeedIcon";
+import { captureShareTargetDraftFromLocation, readShareTargetDraft, saveShareTargetDraft, selectShareTargetDraft, SHARE_TARGET_DRAFT_STORAGE_KEY, type ShareTargetDraft } from "@/components/ShareTargetBootstrap";
 import { markChallengesViewed, markTodayViewed, readDailyUnreadState } from "@/lib/dailyUnread";
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
+import { readPrimaryWish } from "@/lib/wishJourney";
 
 type MainTabId = "home" | "goals" | "challenges" | "wallet" | "people";
 type HomeTabId = "home" | "ideas";
 type GoalTabId = "desires" | "notes" | "checks" | "map" | "results";
-type WalletTabId = "wallet" | "core" | "market";
+type WalletTabId = "wallet" | "core" | "market" | "p2p";
 type SocialTabId = "feed" | "people" | "blog" | "teams" | "profile";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -56,11 +59,11 @@ type NavigationState = {
 };
 
 const mainTabs: MainTab[] = [
-  { id: "home", titleKey: "app.nav.home", icon: House },
-  { id: "goals", titleKey: "app.nav.goals", icon: Target },
+  { id: "home", titleKey: "journey.today", icon: House },
+  { id: "people", titleKey: "social.feed.title", icon: Newspaper },
+  { id: "goals", titleKey: "app.nav.desires", icon: Heart },
   { id: "challenges", titleKey: "app.nav.challenges", icon: Trophy },
-  { id: "wallet", titleKey: "app.nav.wallet", icon: Wallet },
-  { id: "people", titleKey: "app.nav.people", icon: Smile }
+  { id: "wallet", titleKey: "journey.growth", icon: TrendingUp }
 ];
 
 const homeTabs: TopTab[] = [
@@ -79,7 +82,8 @@ const goalTabs: GoalTab[] = [
 const walletTabs: TopTab[] = [
   { id: "wallet", titleKey: "app.nav.wallet", icon: Wallet },
   { id: "core", titleKey: "wallet.core", icon: CoreSeedIcon },
-  { id: "market", titleKey: "app.nav.market", icon: ShoppingBag }
+  { id: "market", titleKey: "app.nav.market", icon: ShoppingBag },
+  { id: "p2p", titleKey: "app.nav.p2p", icon: Wallet }
 ];
 
 const challengeTabs: TopTab[] = [
@@ -107,7 +111,7 @@ const DEFAULT_NAVIGATION_STATE: NavigationState = {
 };
 
 export default function AppNavigation() {
-  const { refreshUserData, t, user } = useUserContext();
+  const { authResolved, refreshUserData, t, user } = useUserContext();
   const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTabId>(DEFAULT_NAVIGATION_STATE.homeTab);
   const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
@@ -121,10 +125,16 @@ export default function AppNavigation() {
   const [isPulling, setIsPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [challengeFocusNonce, setChallengeFocusNonce] = useState(0);
+  const [challengeFocusId, setChallengeFocusId] = useState<string | null>(null);
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
   const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
   const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
   const [feedDraftFocusNonce, setFeedDraftFocusNonce] = useState(0);
+  const [shareTargetDraft, setShareTargetDraft] = useState<ShareTargetDraft | null>(null);
+  const [shareTargetToDispatch, setShareTargetToDispatch] = useState<ShareTargetDraft | null>(null);
+  const [aiContentPostId, setAiContentPostId] = useState<string | null>(null);
+  const [aiContentNonce, setAiContentNonce] = useState(0);
+  const [wishFocusRequest, setWishFocusRequest] = useState<{ id: string; nonce: number } | null>(null);
   const [, setDailyUnreadVersion] = useState(0);
   const [visitedServerViews, setVisitedServerViews] = useState({
     wishes: false,
@@ -141,8 +151,66 @@ export default function AppNavigation() {
   const touchStartYRef = useRef(0);
   const lastGestureTouchYRef = useRef(0);
   const navigationHydratedRef = useRef(false);
+  const journeyEntryUserRef = useRef<string | null>(null);
   const suppressHistoryPushRef = useRef(false);
   const navigationStateRef = useRef<NavigationState>(DEFAULT_NAVIGATION_STATE);
+  const openedShareTargetRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const captured = captureShareTargetDraftFromLocation();
+    setShareTargetDraft(captured ?? readShareTargetDraft());
+  }, []);
+
+  useEffect(() => {
+    if (!authResolved || !user || !shareTargetDraft?.url || openedShareTargetRef.current === shareTargetDraft.receivedAt) return;
+    openedShareTargetRef.current = shareTargetDraft.receivedAt;
+    setShareTargetToDispatch(shareTargetDraft);
+    setFeedDraftFocusNonce((value) => value + 1);
+    setActiveSocialTab("blog");
+    setActiveMainTab("people");
+    setVisitedServerViews((current) => ({ ...current, people: true }));
+  }, [authResolved, shareTargetDraft, user]);
+
+  useEffect(() => {
+    if (!authResolved || !user || !shareTargetToDispatch || !visitedServerViews.people || activeMainTab !== "people" || activeSocialTab !== "blog") return;
+    window.dispatchEvent(new CustomEvent("oa:share-target-draft", { detail: shareTargetToDispatch }));
+    setShareTargetToDispatch(null);
+  }, [activeMainTab, activeSocialTab, authResolved, shareTargetToDispatch, user, visitedServerViews.people]);
+
+  useEffect(() => {
+    const openSavedLinkEditor = (event: Event) => {
+      const detail = (event as CustomEvent<{ url?: unknown; title?: unknown; text?: unknown }>).detail;
+      if (typeof detail?.url !== "string" || !detail.url.trim()) return;
+      const draft: ShareTargetDraft = {
+        url: detail.url.trim(),
+        title: typeof detail.title === "string" ? detail.title.slice(0, 120) : "",
+        text: typeof detail.text === "string" ? detail.text.slice(0, 4000) : "",
+        candidates: [detail.url.trim()],
+        receivedAt: new Date().toISOString()
+      };
+      setShareTargetToDispatch(draft);
+      setFeedDraftFocusNonce((value) => value + 1);
+      setActiveSocialTab("blog");
+      setActiveMainTab("people");
+      setVisitedServerViews((current) => ({ ...current, people: true }));
+    };
+    window.addEventListener("oa:open-saved-link-editor", openSavedLinkEditor);
+    return () => window.removeEventListener("oa:open-saved-link-editor", openSavedLinkEditor);
+  }, []);
+
+  useEffect(() => {
+    const onAiContent = (event: Event) => {
+      const contentPostId = (event as CustomEvent<{ contentPostId?: unknown }>).detail?.contentPostId;
+      if (typeof contentPostId !== "string") return;
+      setAiContentPostId(contentPostId);
+      setAiContentNonce((value) => value + 1);
+      setVisitedHomeViews((current) => ({ ...current, ideas: true }));
+      setActiveHomeTab("ideas");
+      setActiveMainTab("home");
+    };
+    window.addEventListener("oa:open-ai-content", onAiContent);
+    return () => window.removeEventListener("oa:open-ai-content", onAiContent);
+  }, []);
 
   const dailyUnread = user
     ? readDailyUnreadState(user.id)
@@ -251,6 +319,17 @@ export default function AppNavigation() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [applyNavigationState]);
+
+  useEffect(() => {
+    if (!authResolved || !user || journeyEntryUserRef.current === user.id || typeof window === "undefined") return;
+    journeyEntryUserRef.current = user.id;
+    if (new URLSearchParams(window.location.search).has(VIEW_QUERY_PARAM)) return;
+    const nextState: NavigationState = readPrimaryWish(user.id)
+      ? { ...DEFAULT_NAVIGATION_STATE, mainTab: "home", homeTab: "home" }
+      : { ...DEFAULT_NAVIGATION_STATE, mainTab: "people", socialTab: "feed" };
+    suppressHistoryPushRef.current = true;
+    applyNavigationState(nextState);
+  }, [applyNavigationState, authResolved, user]);
 
   useEffect(() => {
     if (!navigationHydratedRef.current) return;
@@ -411,6 +490,7 @@ export default function AppNavigation() {
   }
 
   function openNextChallenge() {
+    setChallengeFocusId(null);
     setChallengeFocusNonce((value) => value + 1);
     setActiveChallengeTab("challenges");
     setActiveMainTab("challenges");
@@ -444,6 +524,56 @@ export default function AppNavigation() {
     setActiveMainTab("goals");
   }
 
+  function openJourneyChallenge(id: string) {
+    setChallengeFocusId(id);
+    setChallengeFocusNonce((value) => value + 1);
+    setActiveChallengeTab("challenges");
+    setActiveMainTab("challenges");
+  }
+
+  function openCore() {
+    setActiveWalletTab("core");
+    setActiveMainTab("wallet");
+  }
+
+  function openFeed() {
+    setActiveSocialTab("feed");
+    setActiveMainTab("people");
+  }
+
+  function openExpedition() {
+    setActiveGoalTab("map");
+    setActiveMainTab("goals");
+  }
+
+  function openMainDestination(tab: MainTabId) {
+    if (tab === "home") setActiveHomeTab("home");
+    if (tab === "people") setActiveSocialTab("feed");
+    if (tab === "goals") setActiveGoalTab("desires");
+    if (tab === "challenges") setActiveChallengeTab("challenges");
+    if (tab === "wallet") setActiveWalletTab("core");
+    setActiveMainTab(tab);
+  }
+
+  function openWishJourney(wishId: string) {
+    setWishFocusRequest({ id: wishId, nonce: Date.now() });
+    setActiveGoalTab("desires");
+    setActiveMainTab("goals");
+  }
+
+  function chooseShareTargetUrl(url: string) {
+    if (!shareTargetDraft) return;
+    const selected = selectShareTargetDraft(shareTargetDraft, url);
+    if (!selected) return;
+    saveShareTargetDraft(selected);
+    setShareTargetDraft(selected);
+  }
+
+  function dismissInvalidShareTarget() {
+    try { window.localStorage.removeItem(SHARE_TARGET_DRAFT_STORAGE_KEY); } catch { /* Storage may be unavailable. */ }
+    setShareTargetDraft(null);
+  }
+
   return (
     <>
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
@@ -461,13 +591,19 @@ export default function AppNavigation() {
         onTabChange={handleTopTabChange}
       />
       <section className="app-content">
+        {showHome || (showChallenges && activeChallengeTab === "challenges") ? <CoreJourneyCard onOpen={openCore} /> : null}
         <div className="app-view" hidden={!showHome}>
           <HomeTodayApp
             active={showHome}
             onOpenCalculator={openCalculator}
             onOpenNextChallenge={openNextChallenge}
+            onOpenChallenge={openJourneyChallenge}
+            onOpenFeed={openFeed}
             onOpenReflectionInbox={openReflectionInbox}
             onOpenToday={openToday}
+            onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
+            onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+            onOpenExpedition={openExpedition}
             todayUnread={todayUnread}
             refreshNonce={refreshNonce}
           />
@@ -476,16 +612,30 @@ export default function AppNavigation() {
           <NotesApp openInboxNonce={reflectionInboxNonce} onScheduleReflection={scheduleReflection} />
         </KeepAliveView>
         <KeepAliveView active={showWishes} visited={visitedServerViews.wishes}>
-          <WishesApp active={showWishes} refreshNonce={refreshNonce} />
+          <WishesApp
+            active={showWishes}
+            focusNonce={wishFocusRequest?.nonce ?? 0}
+            focusWishId={wishFocusRequest?.id ?? null}
+            refreshNonce={refreshNonce}
+            onOpenPrimaryWish={() => { setActiveHomeTab("home"); setActiveMainTab("home"); }}
+          />
         </KeepAliveView>
         <KeepAliveView active={showIdeas} visited={visitedHomeViews.ideas}>
-          <AiChatApp active={showIdeas} />
+          <AiChatApp active={showIdeas} contentPostId={aiContentPostId} contentPostNonce={aiContentNonce} />
         </KeepAliveView>
         <KeepAliveView active={showChecks} visited>
           <TasksApp createRequest={reflectionTaskDraft} onCreateRequestHandled={() => setReflectionTaskDraft(null)} />
         </KeepAliveView>
         <KeepAliveView active={showMap} visited={visitedServerViews.map}>
-          <GrowthMapApp active={showMap} refreshNonce={refreshNonce} />
+          <GrowthMapApp
+            active={showMap}
+            refreshNonce={refreshNonce}
+            onOpenChallenge={openJourneyChallenge}
+            onOpenFeed={openFeed}
+            onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
+            onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+            onOpenBlog={() => { setActiveSocialTab("blog"); setActiveMainTab("people"); }}
+          />
         </KeepAliveView>
         {showResults ? <ResultsApp /> : null}
         <KeepAliveView active={showChallenges} visited={visitedServerViews.challenges}>
@@ -493,10 +643,12 @@ export default function AppNavigation() {
             active={showChallenges}
             activeTab={activeChallengeTab}
             focusNextChallengeNonce={challengeFocusNonce}
+            focusChallengeId={challengeFocusId}
             challengesUnread={challengesUnread}
             onChallengesViewed={markChallengesSeen}
             onTodayViewed={markTodaySeen}
             onOpenFeedDrafts={openFeedDrafts}
+            onOpenCore={openCore}
             todayUnread={todayUnread}
             onNavigateTesting={navigateFromAppTesting}
             refreshNonce={refreshNonce}
@@ -513,7 +665,7 @@ export default function AppNavigation() {
           />
         </KeepAliveView>
         <KeepAliveView active={showPeople} visited={visitedServerViews.people}>
-          <SocialApp active={showPeople} activeTab={activeSocialTab} openFeedDraftsNonce={feedDraftFocusNonce} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} onOpenChallenge={openNextChallenge} />
+          <SocialApp active={showPeople} activeTab={activeSocialTab} openFeedDraftsNonce={feedDraftFocusNonce} refreshNonce={refreshNonce} onTabChange={setActiveSocialTab} onOpenChallenge={openNextChallenge} onOpenWishJourney={openWishJourney} />
         </KeepAliveView>
         {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
@@ -524,10 +676,40 @@ export default function AppNavigation() {
         unreadChallenges={challengesUnread}
         unreadToday={todayUnread}
         onExpand={() => setBottomNavExpanded(true)}
-        onTabChange={setActiveMainTab}
+        onTabChange={openMainDestination}
       />
+      {authResolved && shareTargetDraft && (!shareTargetDraft.url || !user) ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal-sheet small" role="dialog" aria-modal="true" aria-labelledby="share-target-title">
+            <h2 id="share-target-title">{t("shareTarget.title")}</h2>
+            {!shareTargetDraft.url && shareTargetDraft.candidates.length > 1 ? <>
+              <p>{t("shareTarget.chooseLink")}</p>
+              <div className="share-target-candidates">
+                {shareTargetDraft.candidates.map((candidate) => <button key={candidate} type="button" className="secondary-button" style={{ overflowWrap: "anywhere", textAlign: "left" }} onClick={() => chooseShareTargetUrl(candidate)}>
+                  {getShareTargetLabel(candidate)}
+                </button>)}
+              </div>
+            </> : !shareTargetDraft.url ? <>
+              <p>{t("shareTarget.noLink")}</p>
+              <button className="secondary-button" type="button" onClick={dismissInvalidShareTarget}>{t("app.common.close")}</button>
+            </> : <>
+              <p>{t("shareTarget.savedOnDevice")}</p>
+              {shareTargetDraft.title ? <strong>{shareTargetDraft.title}</strong> : null}
+              <p className="share-target-url">{shareTargetDraft.url}</p>
+              <button className="primary-button" type="button" onClick={() => window.location.assign("/?auth=signin")}>{t("shareTarget.signIn")}</button>
+            </>}
+          </section>
+        </div>
+      ) : null}
     </>
   );
+}
+
+function getShareTargetLabel(value: string): string {
+  try {
+    const url = new URL(value);
+    return `${url.host}${url.pathname}${url.search}`;
+  } catch { return value; }
 }
 
 type TopTabBarProps = {
@@ -581,12 +763,13 @@ type TabButtonProps = {
   active: boolean;
   icon: LucideIcon;
   title: string;
+  showLabel?: boolean;
   unread?: boolean;
   unreadLabel?: string;
   onClick: () => void;
 };
 
-function TabButton({ active, icon: Icon, title, unread = false, unreadLabel, onClick }: TabButtonProps) {
+function TabButton({ active, icon: Icon, title, showLabel = false, unread = false, unreadLabel, onClick }: TabButtonProps) {
   return (
     <button
       className={active ? "tab-button active" : "tab-button"}
@@ -599,6 +782,7 @@ function TabButton({ active, icon: Icon, title, unread = false, unreadLabel, onC
         <Icon size={28} strokeWidth={active ? 2.5 : 2} />
         {unread ? <i aria-hidden="true" className="tab-unread-dot" /> : null}
       </span>
+      {showLabel ? <span className="tab-button-label" aria-hidden="true">{title}</span> : null}
     </button>
   );
 }
@@ -635,6 +819,7 @@ function BottomTabBar({ activeTab, collapsed, t, unreadChallenges, unreadToday, 
             key={tab.id}
             title={t(tab.titleKey)}
             unread={(tab.id === "challenges" && unreadChallenges) || (tab.id === "home" && unreadToday)}
+            showLabel
             unreadLabel={t("app.nav.newActivity")}
             onClick={() => onTabChange(tab.id)}
           />
@@ -837,7 +1022,7 @@ function isGoalTabId(value: string | undefined): value is GoalTabId {
 }
 
 function isWalletTabId(value: string | undefined): value is WalletTabId {
-  return value === "wallet" || value === "core" || value === "market";
+  return value === "wallet" || value === "core" || value === "market" || value === "p2p";
 }
 
 function isSocialTabId(value: string | undefined): value is SocialTabId {

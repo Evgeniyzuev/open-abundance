@@ -47,7 +47,7 @@ export function saveDailyReminderSettings(settings: DailyReminderSettings) {
 
 export async function enableDailyPush(): Promise<boolean> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return false;
-  const publicKey = process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY;
+  const publicKey = await getVapidPublicKey();
   if (!publicKey) return false;
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return false;
@@ -57,6 +57,20 @@ export async function enableDailyPush(): Promise<boolean> {
     await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
   }
   return true;
+}
+
+async function getVapidPublicKey(): Promise<string | null> {
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://bsikxrsguwketlloflgi.supabase.co").replace(/\/+$/, "");
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-reflection-reminders/vapid-public-key`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const payload = await response.json() as { publicKey?: unknown };
+    return typeof payload.publicKey === "string" && /^[A-Za-z0-9_-]+$/.test(payload.publicKey)
+      ? payload.publicKey
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function syncTodayDailyReminder(active: boolean, locale: AppLocale, settings = getDailyReminderSettings()) {
@@ -128,9 +142,14 @@ async function submitReminder(subscription: PushSubscription, reminder: Reminder
       "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
     },
-    body: JSON.stringify({ subscription: subscription.toJSON(), guestId: guest.guestId, ...reminder })
+    body: JSON.stringify({ subscription: subscription.toJSON(), guestId: guest.guestId, deviceLabel: getDeviceLabel(), ...reminder })
   });
   if (!response.ok) throw new Error("Reminder was not scheduled.");
+}
+
+function getDeviceLabel(): string {
+  const platform = navigator.userAgent.match(/iPhone|iPad|Android/i)?.[0] ?? navigator.platform ?? "Web";
+  return `${platform} · ${navigator.userAgent.includes("CriOS") || navigator.userAgent.includes("Chrome") ? "Chrome" : navigator.userAgent.includes("Safari") ? "Safari" : "Browser"}`.slice(0, 100);
 }
 
 async function cancelReminder(subscription: PushSubscription, clientReminderId: string) {

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Json, Tables } from "@/lib/database.types";
+import type { Database, Tables } from "@/lib/database.types";
 
 type ServerSupabase = SupabaseClient<Database>;
 type CoreGrowthPlan = Tables<"user_core_growth_plans">;
@@ -9,7 +9,7 @@ type TodayProgressEvent = Tables<"today_progress_events">;
 
 type RawChallengeCompletion = {
   challenge_id: string;
-  challenges: { reward_label: Json } | { reward_label: Json }[] | null;
+  core_reward_amount: number;
   id: string;
   updated_at: string;
 };
@@ -192,7 +192,7 @@ async function syncProgressEvents(
       today_instance_id: todayInstanceId
     })),
     ...challengeRewards.map((row) => ({
-      amount_core: rewardAmount(getChallengeRewardLabel(row)),
+      amount_core: Number(row.core_reward_amount),
       source_id: row.id,
       source_type: "challenge_reward",
       today_instance_id: todayInstanceId
@@ -237,7 +237,7 @@ async function getChallengeRewards(
 ): Promise<RawChallengeCompletion[]> {
   const { data, error } = await supabase
     .from("user_challenges")
-    .select("id,challenge_id,updated_at,challenges(reward_label)")
+    .select("id,challenge_id,updated_at,core_reward_amount")
     .eq("user_id", userId)
     .eq("status", "completed")
     .gte("updated_at", startUtc)
@@ -376,31 +376,6 @@ function countConsecutiveDays(localDate: string, dates: Set<string>): number {
 
 function sumAmounts(events: TodayProgressEvent[]): number {
   return events.reduce((sum, event) => sum + Number(event.amount_core), 0);
-}
-
-function getChallengeRewardLabel(row: RawChallengeCompletion): Json {
-  const challenge = Array.isArray(row.challenges) ? row.challenges[0] : row.challenges;
-  return challenge?.reward_label ?? "1$";
-}
-
-function rewardAmount(value: Json): number {
-  const raw = rewardLabelText(value);
-  const amount = raw.match(/(\d+(?:[.,]\d+)?)\s*\$/)?.[1] ?? raw.match(/\+(\d+(?:[.,]\d+)?)/)?.[1] ?? raw.match(/(\d+(?:[.,]\d+)?)/)?.[1];
-  return amount ? Number(amount.replace(",", ".")) : 1;
-}
-
-function rewardLabelText(value: Json): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const record = value as Record<string, Json | undefined>;
-    const en = record.en;
-    const ru = record.ru;
-    if (typeof en === "string") return en;
-    if (typeof ru === "string") return ru;
-  }
-
-  return "1$";
 }
 
 function getLocalDate(date: Date, timezone: string): string {

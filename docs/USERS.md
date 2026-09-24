@@ -8,6 +8,8 @@ Current status (2026-07-23): the user-facing guest mode has been removed. A visi
 
 The app should explain its value before asking for authentication, then create a durable account before any personal or server-backed feature is used.
 
+Authentication is separate from proof-of-humanity. The three-level humanity/uniqueness flow and its privacy boundary are defined in [`HUMANITY_VERIFICATION_PLAN.md`](./HUMANITY_VERIFICATION_PLAN.md).
+
 Goal:
 
 - keep the first three onboarding screens focused on value and outcomes;

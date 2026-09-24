@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { normalizeUuid } from "@/lib/uuid";
 
 type ListingPostBody = {
   artifactType?: unknown;
@@ -418,10 +419,6 @@ function normalizeUrl(value: unknown): string | null {
   }
 }
 
-function normalizeUuid(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value) ? value : null;
-}
 
 function listingLimitForCoreLevel(level: unknown): number {
   const numeric = Number(level);

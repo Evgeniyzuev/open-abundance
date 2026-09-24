@@ -1,13 +1,14 @@
 "use client";
 
-import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Link, MessageCircle, Newspaper, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import FeedPostGallery from "@/components/FeedPostGallery";
+import FeedPostGallery, { getFeedPostCover } from "@/components/FeedPostGallery";
 import FeedPostInteractions from "@/components/FeedPostInteractions";
+import { FeedPostSignalButtons } from "@/components/FeedPostSignals";
 import LegalDisclosure from "@/components/LegalDisclosure";
-import ManualPostComposer from "@/components/ManualPostComposer";
+import BlogWorkspace from "@/components/BlogWorkspace";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import CurrencyDisplayHelp from "@/components/CurrencyDisplayHelp";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
@@ -15,16 +16,75 @@ import SkillPassportApp from "@/components/SkillPassportApp";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
-import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
+import type { FeedCategory, FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { DEFAULT_PROFILE_VISIBILITY_SETTINGS, PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility, type ProfileVisibilityKey, type ProfileVisibilitySettings } from "@/lib/socialProfile";
 import { ACCENT_THEMES, COLOR_THEMES, UI_SCALES, type AccentTheme, type ColorTheme, type UiScale } from "@/lib/appearance";
 import { DISPLAY_CURRENCIES, DISPLAY_CURRENCY_SYMBOLS, type DisplayCurrency } from "@/lib/displayCurrency";
 import { APP_TESTING_ATTITUDES, APP_TESTING_USEFUL_AREAS } from "@/lib/appTestingFeedback";
+import { recommendedWishIdForStory } from "@/lib/wishJourney";
+import { getSoundsEnabled, playUiSound, setSoundsEnabled } from "@/lib/ui/sound";
+import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
 
 type SocialTab = "feed" | "people" | "blog" | "profile" | "teams";
 type SocialTabChange = (tab: SocialTab) => void;
 type ReferralLink = { code: string; url: string };
+type TeamTask = {
+  id: string;
+  leader_user_id: string;
+  member_user_id: string;
+  challenge_id: string | null;
+  task_kind: "manual" | "challenge";
+  title: string;
+  description: string;
+  goal_context: string | null;
+  expected_result: string | null;
+  first_step: string | null;
+  estimated_minutes: number | null;
+  verification_criteria: string | null;
+  due_at: string | null;
+  leader_review_due_at: string | null;
+  status: "proposed" | "accepted" | "submitted" | "completed" | "returned" | "declined" | "cancelled";
+  submission: string | null;
+  review_feedback: string | null;
+  reviewed_at: string | null;
+  reviewer_user_id: string | null;
+  newcomer_eligible: boolean;
+  version: number;
+  accepted_at: string | null;
+  submitted_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  help_requests: TeamTaskHelpRequest[];
+  revisions: TeamTaskRevision[];
+};
+type TeamTaskHelpRequest = {
+  id: string;
+  task_id: string;
+  requester_user_id: string;
+  reason: "blocked" | "clarification" | "feedback" | "other";
+  comment: string;
+  status: "open" | "resolved";
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+type TeamTaskRevision = {
+  id: string;
+  task_id: string;
+  proposer_user_id: string;
+  base_version: number;
+  changes: Record<string, unknown>;
+  status: "open" | "accepted" | "declined" | "superseded";
+  response_user_id: string | null;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+type TeamChallengeOption = { id: string; title: Record<string, string>; verification_logic?: string | null };
 type TeamProfile = {
   user_id: string;
   username: string | null;
@@ -58,6 +118,22 @@ type TeamContext = {
     free_points: number;
     overcommitted: boolean;
   };
+  taskCounts?: {
+    memberOpen: number;
+    memberSubmitted: number;
+    leaderReview: number;
+    leaderOpen: number;
+    total: number;
+  };
+  nextAction?: string;
+  leaderPath?: {
+    firstResultCompleted: boolean;
+    inviteUnlocked: boolean;
+    referralRegistered: boolean;
+    newcomerHelpCompleted: boolean;
+    next: "publish_result" | "invite_participant" | "help_newcomer" | "complete";
+  } | null;
+  referralQuality?: { registered: number; activated: number; retainedD7: number };
   error?: string;
 };
 type TeamRewardDay = {
@@ -76,6 +152,9 @@ type PayoutNotification = {
   id: string;
   title: string;
   body: string;
+  readAt?: string | null;
+  createdAt?: string;
+  deep_link?: string;
 };
 type ProfileLinkRow = {
   id: string;
@@ -140,7 +219,7 @@ type PublicProfilePayload = {
   visibleBlocks: Record<string, boolean>;
   error?: string;
 };
-type FeedFilter = "all" | "stories" | "system" | "reviews";
+type FeedFilter = FeedCategory;
 type FeedCacheEntry = {
   payload: FeedPayload;
   fetchedAt: number;
@@ -151,15 +230,15 @@ type FeedCache = Record<FeedFilter, FeedCacheEntry | null>;
 const FEED_CACHE_TTL_MS = 60_000;
 
 function createFeedCache(): FeedCache {
-  return { all: null, stories: null, system: null, reviews: null };
+  return { all: null, stories: null, opportunities: null, system: null, reviews: null };
 }
 
 function createFeedCursors(): Record<FeedFilter, string | null> {
-  return { all: null, stories: null, system: null, reviews: null };
+  return { all: null, stories: null, opportunities: null, system: null, reviews: null };
 }
 
 function createFeedRequestIds(): Record<FeedFilter, number> {
-  return { all: 0, stories: 0, system: 0, reviews: 0 };
+  return { all: 0, stories: 0, opportunities: 0, system: 0, reviews: 0 };
 }
 type ReviewEditPayload = {
   body: string;
@@ -192,6 +271,7 @@ type DirectMessage = {
   conversation_id: string;
   sender_user_id: string;
   body: string;
+  content_post_id?: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -231,7 +311,8 @@ export default function SocialApp({
   openFeedDraftsNonce,
   refreshNonce,
   onTabChange,
-  onOpenChallenge
+  onOpenChallenge,
+  onOpenWishJourney
 }: {
   active: boolean;
   activeTab: SocialTab;
@@ -239,6 +320,7 @@ export default function SocialApp({
   refreshNonce: number;
   onTabChange: SocialTabChange;
   onOpenChallenge: () => void;
+  onOpenWishJourney: (wishId: string) => void;
 }) {
   const {
     user,
@@ -260,8 +342,33 @@ export default function SocialApp({
     applyServerData
   } = useUserContext();
   const [referralLink, setReferralLink] = useState<ReferralLink | null>(null);
+  const [referralLocked, setReferralLocked] = useState(false);
   const [teamContext, setTeamContext] = useState<TeamContext | null>(null);
+  const [teamTasks, setTeamTasks] = useState<TeamTask[]>([]);
+  const [teamChallenges, setTeamChallenges] = useState<TeamChallengeOption[]>([]);
+  const [teamTasksLoading, setTeamTasksLoading] = useState(false);
+  const [teamTaskSavingId, setTeamTaskSavingId] = useState<string | null>(null);
+  const [teamTaskSubmission, setTeamTaskSubmission] = useState<Record<string, string>>({});
+  const [teamTaskReviewFeedback, setTeamTaskReviewFeedback] = useState<Record<string, string>>({});
+  const [teamTaskHelpDraft, setTeamTaskHelpDraft] = useState<Record<string, string>>({});
+  const [teamTaskHelpReason, setTeamTaskHelpReason] = useState<Record<string, TeamTaskHelpRequest["reason"]>>({});
+  const [teamTaskRevisionTaskId, setTeamTaskRevisionTaskId] = useState<string | null>(null);
+  const [teamTaskRevisionDraft, setTeamTaskRevisionDraft] = useState({ firstStep: "", expectedResult: "", dueAt: "" });
+  const [teamTaskTitle, setTeamTaskTitle] = useState("");
+  const [teamTaskDescription, setTeamTaskDescription] = useState("");
+  const [teamTaskGoalContext, setTeamTaskGoalContext] = useState("");
+  const [teamTaskExpectedResult, setTeamTaskExpectedResult] = useState("");
+  const [teamTaskFirstStep, setTeamTaskFirstStep] = useState("");
+  const [teamTaskEstimatedMinutes, setTeamTaskEstimatedMinutes] = useState("");
+  const [teamTaskVerificationCriteria, setTeamTaskVerificationCriteria] = useState("");
+  const [teamTaskLeaderReviewDueAt, setTeamTaskLeaderReviewDueAt] = useState("");
+  const [teamTaskDueAt, setTeamTaskDueAt] = useState("");
+  const [teamTaskMemberId, setTeamTaskMemberId] = useState("");
+  const [teamTaskKind, setTeamTaskKind] = useState<"manual" | "challenge">("manual");
+  const [teamTaskChallengeId, setTeamTaskChallengeId] = useState("");
+  const [teamTaskCreating, setTeamTaskCreating] = useState(false);
   const [socialError, setSocialError] = useState<string | null>(null);
+  const [storyWishError, setStoryWishError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [referralQrOpen, setReferralQrOpen] = useState(false);
   const [teamRewardsOpen, setTeamRewardsOpen] = useState(false);
@@ -269,6 +376,7 @@ export default function SocialApp({
   const [teamRewardsLoading, setTeamRewardsLoading] = useState(false);
   const [teamRewardsError, setTeamRewardsError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<PayoutNotification[] | null>(null);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [socialProfile, setSocialProfile] = useState<SocialProfilePayload | null>(null);
   const [profileAction, setProfileAction] = useState<ProfileAction>(null);
@@ -282,6 +390,7 @@ export default function SocialApp({
   const [publicProfile, setPublicProfile] = useState<PublicProfilePayload | null>(null);
   const [publicProfileLoading, setPublicProfileLoading] = useState(false);
   const [copyingWishId, setCopyingWishId] = useState<string | null>(null);
+  const [addingStoryWishKey, setAddingStoryWishKey] = useState<string | null>(null);
   const [contactSavingId, setContactSavingId] = useState<string | null>(null);
   const [peoplePayload, setPeoplePayload] = useState<PeoplePayload | null>(null);
   const [peopleLoading, setPeopleLoading] = useState(false);
@@ -296,15 +405,13 @@ export default function SocialApp({
   const [directLoading, setDirectLoading] = useState(false);
   const [directSending, setDirectSending] = useState(false);
   const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
-  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>("stories");
   const [feedLoadingMore, setFeedLoadingMore] = useState(false);
-  const [blogPayload, setBlogPayload] = useState<FeedPayload | null>(null);
   const [systemPayload, setSystemPayload] = useState<FeedPayload | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
   const [systemLoading, setSystemLoading] = useState(false);
   const [feedSaving, setFeedSaving] = useState(false);
   const [dailyDraft, setDailyDraft] = useState<FeedPost | null>(null);
-  const [manualDraft, setManualDraft] = useState<FeedPost | null>(null);
   const [systemDrafts, setSystemDrafts] = useState<FeedPost[]>([]);
   const [externalLinkUrl, setExternalLinkUrl] = useState("");
   const [linkComposerOpen, setLinkComposerOpen] = useState(false);
@@ -316,6 +423,8 @@ export default function SocialApp({
   const feedCacheRef = useRef<FeedCache>(createFeedCache());
   const feedCursorRef = useRef<Record<FeedFilter, string | null>>(createFeedCursors());
   const feedRequestIdsRef = useRef<Record<FeedFilter, number>>(createFeedRequestIds());
+  const feedLoadInFlightRef = useRef(new Map<string, Promise<void>>());
+  const feedLoadGenerationRef = useRef(0);
   const systemDraftsLoadedRef = useRef(false);
   const systemDraftsLoadingRef = useRef(false);
   const systemDraftsLocaleRef = useRef<AppLocale | null>(null);
@@ -332,12 +441,37 @@ export default function SocialApp({
     setSocialError(null);
     setCopied(false);
     setReferralLink(null);
+    setReferralLocked(false);
     setTeamContext(null);
+    setTeamTasks([]);
+    setTeamChallenges([]);
+    setTeamTasksLoading(false);
+    setTeamTaskSavingId(null);
+    setTeamTaskSubmission({});
+    setTeamTaskReviewFeedback({});
+    setTeamTaskHelpDraft({});
+    setTeamTaskHelpReason({});
+    setTeamTaskRevisionTaskId(null);
+    setTeamTaskRevisionDraft({ firstStep: "", expectedResult: "", dueAt: "" });
+    setTeamTaskTitle("");
+    setTeamTaskDescription("");
+    setTeamTaskGoalContext("");
+    setTeamTaskExpectedResult("");
+    setTeamTaskFirstStep("");
+    setTeamTaskEstimatedMinutes("");
+    setTeamTaskVerificationCriteria("");
+    setTeamTaskLeaderReviewDueAt("");
+    setTeamTaskDueAt("");
+    setTeamTaskMemberId("");
+    setTeamTaskKind("manual");
+    setTeamTaskChallengeId("");
+    setTeamTaskCreating(false);
     setTeamRewards(null);
     setTeamRewardsOpen(false);
     setTeamRewardsLoading(false);
     setTeamRewardsError(null);
     setNotifications(null);
+    setNotificationUnreadCount(0);
     setNotificationsLoading(false);
     setSocialProfile(null);
     setProfileAction(null);
@@ -365,10 +499,8 @@ export default function SocialApp({
     setDirectLoading(false);
     setDirectSending(false);
     setFeedPayload(null);
-    setFeedFilter("all");
+    setFeedFilter("stories");
     setFeedLoadingMore(false);
-    setBlogPayload(null);
-    setManualDraft(null);
     setSystemPayload(null);
     setFeedLoading(false);
     setSystemLoading(false);
@@ -382,6 +514,8 @@ export default function SocialApp({
     feedCacheRef.current = createFeedCache();
     feedCursorRef.current = createFeedCursors();
     feedRequestIdsRef.current = createFeedRequestIds();
+    feedLoadInFlightRef.current.clear();
+    feedLoadGenerationRef.current += 1;
     systemDraftsLoadedRef.current = false;
     systemDraftsLoadingRef.current = false;
     systemDraftsLocaleRef.current = null;
@@ -398,9 +532,10 @@ export default function SocialApp({
         "Cache-Control": "no-cache"
       }
     });
-    const payload = (await response.json()) as ReferralLink & { error?: string };
+    const payload = (await response.json()) as ReferralLink & { available?: boolean; reason?: string | null; error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load referral link.");
-    setReferralLink({ code: payload.code, url: payload.url });
+    setReferralLocked(payload.available === false || payload.reason === "first_result_required");
+    setReferralLink(payload.available === false || !payload.code || !payload.url ? null : { code: payload.code, url: payload.url });
   }, [user]);
 
   const loadTeamContext = useCallback(async () => {
@@ -417,6 +552,201 @@ export default function SocialApp({
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load team.");
     setTeamContext(payload);
   }, [user]);
+
+  const loadTeamTasks = useCallback(async () => {
+    if (!user) return;
+    setTeamTasksLoading(true);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/tasks?ts=${Date.now()}`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+      });
+      const payload = (await response.json()) as { tasks?: TeamTask[]; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load team tasks.");
+      setTeamTasks(payload.tasks ?? []);
+    } finally {
+      setTeamTasksLoading(false);
+    }
+  }, [user]);
+
+  const loadTeamChallenges = useCallback(async () => {
+    if (!user) return;
+    const response = await fetchWithSupabaseAuth(`/api/challenges?auth=required&ts=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" }
+    }, { authRequired: true });
+    const payload = (await response.json()) as { challenges?: Array<{ id: string; title: Record<string, string>; verification_logic?: string | null }>; error?: string };
+    if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load challenges.");
+    setTeamChallenges((payload.challenges ?? [])
+      .filter((challenge) => challenge.verification_logic !== "team_task_help_completed")
+      .map((challenge) => ({ id: challenge.id, title: challenge.title, verification_logic: challenge.verification_logic })));
+  }, [user]);
+
+  const actOnTeamTask = useCallback(async (task: TeamTask, action: string, submission?: string, feedback?: string) => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/tasks/${task.id}/action`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, expectedVersion: task.version, submission: submission ?? null, feedback: feedback ?? null })
+      });
+      const payload = (await response.json()) as { task?: TeamTask; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to update task.");
+      if (payload.task) {
+        setTeamTasks((current) => current.map((item) => item.id === payload.task?.id ? payload.task : item));
+      }
+      await loadTeamContext();
+    } catch (taskError) {
+      console.warn("Team task action failed", taskError);
+      setSocialError(taskError instanceof Error ? taskError.message : "Failed to update task.");
+      await loadTeamTasks().catch(() => undefined);
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const requestTeamTaskHelp = useCallback(async (task: TeamTask, reason: TeamTaskHelpRequest["reason"], comment: string) => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/tasks/${task.id}/help`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason, comment })
+      });
+      const payload = (await response.json()) as { helpRequest?: TeamTaskHelpRequest; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to request help.");
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (helpError) {
+      console.warn("Team task help request failed", helpError);
+      setSocialError(helpError instanceof Error ? helpError.message : "Failed to request help.");
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const resolveTeamTaskHelp = useCallback(async (task: TeamTask, helpRequestId: string) => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/tasks/${task.id}/help`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "resolve", helpRequestId })
+      });
+      const payload = (await response.json()) as { helpRequest?: TeamTaskHelpRequest; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to resolve help.");
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (helpError) {
+      console.warn("Team task help resolution failed", helpError);
+      setSocialError(helpError instanceof Error ? helpError.message : "Failed to resolve help.");
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const proposeTeamTaskRevision = useCallback(async (task: TeamTask, changes: Record<string, unknown>) => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/tasks/${task.id}/revision`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ changes })
+      });
+      const payload = (await response.json()) as { revision?: TeamTaskRevision; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to propose changes.");
+      setTeamTaskRevisionTaskId(null);
+      setTeamTaskRevisionDraft({ firstStep: "", expectedResult: "", dueAt: "" });
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (revisionError) {
+      console.warn("Team task revision proposal failed", revisionError);
+      setSocialError(revisionError instanceof Error ? revisionError.message : "Failed to propose changes.");
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const respondToTeamTaskRevision = useCallback(async (task: TeamTask, revision: TeamTaskRevision, action: "accept" | "decline") => {
+    setTeamTaskSavingId(task.id);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/teams/revisions/${revision.id}/action`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, expectedVersion: task.version })
+      });
+      const payload = (await response.json()) as { revision?: TeamTaskRevision; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to respond to changes.");
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (revisionError) {
+      console.warn("Team task revision response failed", revisionError);
+      setSocialError(revisionError instanceof Error ? revisionError.message : "Failed to respond to changes.");
+    } finally {
+      setTeamTaskSavingId(null);
+    }
+  }, [loadTeamContext, loadTeamTasks]);
+
+  const createTeamTask = useCallback(async () => {
+    const memberUserId = teamTaskMemberId.trim();
+    const title = teamTaskTitle.trim();
+    if (!memberUserId || !title || (teamTaskKind === "challenge" && !teamTaskChallengeId)) return;
+    setTeamTaskCreating(true);
+    setSocialError(null);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/teams/tasks", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          memberUserId,
+          taskKind: teamTaskKind,
+          title,
+          description: teamTaskDescription,
+          goalContext: teamTaskGoalContext,
+          expectedResult: teamTaskExpectedResult,
+          firstStep: teamTaskFirstStep,
+          estimatedMinutes: teamTaskEstimatedMinutes ? Number(teamTaskEstimatedMinutes) : null,
+          verificationCriteria: teamTaskVerificationCriteria,
+          dueAt: teamTaskDueAt ? new Date(teamTaskDueAt).toISOString() : null,
+          leaderReviewDueAt: teamTaskLeaderReviewDueAt ? new Date(teamTaskLeaderReviewDueAt).toISOString() : null,
+          challengeId: teamTaskKind === "challenge" ? teamTaskChallengeId : null
+        })
+      });
+      const payload = (await response.json()) as { task?: TeamTask; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to create task.");
+      setTeamTaskTitle("");
+      setTeamTaskDescription("");
+      setTeamTaskGoalContext("");
+      setTeamTaskExpectedResult("");
+      setTeamTaskFirstStep("");
+      setTeamTaskEstimatedMinutes("");
+      setTeamTaskVerificationCriteria("");
+      setTeamTaskLeaderReviewDueAt("");
+      setTeamTaskDueAt("");
+      setTeamTaskMemberId("");
+      setTeamTaskChallengeId("");
+      await Promise.all([loadTeamTasks(), loadTeamContext()]);
+    } catch (taskError) {
+      console.warn("Team task creation failed", taskError);
+      setSocialError(taskError instanceof Error ? taskError.message : "Failed to create task.");
+    } finally {
+      setTeamTaskCreating(false);
+    }
+  }, [loadTeamContext, loadTeamTasks, teamTaskChallengeId, teamTaskDescription, teamTaskDueAt, teamTaskEstimatedMinutes, teamTaskExpectedResult, teamTaskFirstStep, teamTaskGoalContext, teamTaskKind, teamTaskLeaderReviewDueAt, teamTaskMemberId, teamTaskTitle, teamTaskVerificationCriteria]);
 
   const loadSocialProfile = useCallback(async () => {
     if (!user) return;
@@ -509,8 +839,8 @@ export default function SocialApp({
   }, [loadPeople, peopleQuery, peopleSearchText]);
 
   const loadPeopleHub = useCallback(async () => {
-    await Promise.all([loadPeople(), loadContacts(), loadOptionalTrustConfirmations()]);
-  }, [loadContacts, loadOptionalTrustConfirmations, loadPeople]);
+    await Promise.all([loadPeople(), loadContacts(), loadOptionalTrustConfirmations(), loadReferralLink()]);
+  }, [loadContacts, loadOptionalTrustConfirmations, loadPeople, loadReferralLink]);
 
   const loadSystemDrafts = useCallback(async () => {
     if (!user || systemDraftsLoadingRef.current) return;
@@ -562,8 +892,6 @@ export default function SocialApp({
     const cacheIsFresh = Boolean(cachedEntry && hasUsableCache && Date.now() - cachedEntry.fetchedAt < FEED_CACHE_TTL_MS);
 
     if (!append) {
-      void ensureDailyDraft();
-      if (!systemDraftsLoadedRef.current || systemDraftsLocaleRef.current !== locale) void loadSystemDrafts();
       if (hasUsableCache && cachedEntry && feedFilterRef.current === requestedFilter) {
         setFeedPayload(cachedEntry.payload);
       }
@@ -573,66 +901,61 @@ export default function SocialApp({
       }
     }
 
-    const requestId = feedRequestIdsRef.current[requestedFilter] + 1;
-    feedRequestIdsRef.current[requestedFilter] = requestId;
-    if (append) setFeedLoadingMore(true);
-    else setFeedLoading(true);
-    try {
-      const token = await getAccessToken();
-      const params = new URLSearchParams({ scope: "feed", locale, limit: "20", ts: String(Date.now()) });
-      if (requestedFilter !== "all") params.set("category", requestedFilter);
-      if (append && feedCursorRef.current[requestedFilter]) params.set("cursor", feedCursorRef.current[requestedFilter]!);
-      const response = await fetch(`/api/social/feed?${params.toString()}`, {
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache"
-        }
-      });
-      const payload = (await response.json()) as FeedPayload;
-      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load feed.");
-      if (feedRequestIdsRef.current[requestedFilter] !== requestId) return;
+    const requestKey = `${user.id}:${locale}:${requestedFilter}:${append ? "append" : "replace"}`;
+    const currentRequest = feedLoadInFlightRef.current.get(requestKey);
+    if (currentRequest) return currentRequest;
 
-      const currentEntry = feedCacheRef.current[requestedFilter];
-      const currentPayload = currentEntry?.locale === locale ? currentEntry.payload : null;
-      const nextPayload = append && currentPayload
-        ? { ...payload, posts: [...currentPayload.posts, ...payload.posts] }
-        : payload;
-      feedCursorRef.current[requestedFilter] = payload.nextCursor ?? null;
-      feedCacheRef.current[requestedFilter] = { payload: nextPayload, fetchedAt: Date.now(), locale };
-      if (feedFilterRef.current === requestedFilter) setFeedPayload(nextPayload);
+    const request = (async () => {
+      const requestGeneration = feedLoadGenerationRef.current;
+      const requestId = feedRequestIdsRef.current[requestedFilter] + 1;
+      feedRequestIdsRef.current[requestedFilter] = requestId;
+      if (append) setFeedLoadingMore(true);
+      else setFeedLoading(true);
+      try {
+        const token = await getAccessToken();
+        const params = new URLSearchParams({ scope: "feed", locale, limit: "21", ts: String(Date.now()) });
+        if (requestedFilter !== "all") params.set("category", requestedFilter);
+        if (append && feedCursorRef.current[requestedFilter]) params.set("cursor", feedCursorRef.current[requestedFilter]!);
+        const response = await fetch(`/api/social/feed?${params.toString()}`, {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-cache"
+          }
+        });
+        const payload = (await response.json()) as FeedPayload;
+        if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load feed.");
+        if (feedLoadGenerationRef.current !== requestGeneration || feedRequestIdsRef.current[requestedFilter] !== requestId) return;
+
+        const currentEntry = feedCacheRef.current[requestedFilter];
+        const currentPayload = currentEntry?.locale === locale ? currentEntry.payload : null;
+        const nextPayload = append && currentPayload
+          ? { ...payload, posts: [...currentPayload.posts, ...payload.posts] }
+          : payload;
+        feedCursorRef.current[requestedFilter] = payload.nextCursor ?? null;
+        feedCacheRef.current[requestedFilter] = { payload: nextPayload, fetchedAt: Date.now(), locale };
+        if (feedFilterRef.current === requestedFilter) setFeedPayload(nextPayload);
+      } finally {
+        if (feedLoadGenerationRef.current === requestGeneration && feedRequestIdsRef.current[requestedFilter] === requestId) {
+          if (append) setFeedLoadingMore(false);
+          else setFeedLoading(false);
+        }
+      }
+    })();
+
+    feedLoadInFlightRef.current.set(requestKey, request);
+    try {
+      await request;
     } finally {
-      if (feedRequestIdsRef.current[requestedFilter] !== requestId) return;
-      if (append) setFeedLoadingMore(false);
-      else if (feedFilterRef.current === requestedFilter) setFeedLoading(false);
+      if (feedLoadInFlightRef.current.get(requestKey) === request) {
+        feedLoadInFlightRef.current.delete(requestKey);
+      }
     }
-  }, [ensureDailyDraft, feedFilter, loadSystemDrafts, locale, user]);
+  }, [feedFilter, locale, user]);
 
   const loadBlog = useCallback(async () => {
-    if (!user) return;
-    setFeedLoading(true);
-    try {
-      if (!selectedBlogAuthorId) await loadSystemDrafts();
-      const token = await getAccessToken();
-      const params = new URLSearchParams({ scope: "blog", locale, ts: String(Date.now()) });
-      if (selectedBlogAuthorId) params.set("authorUserId", selectedBlogAuthorId);
-      const response = await fetch(`/api/social/feed?${params.toString()}`, {
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache"
-        }
-      });
-      const payload = (await response.json()) as FeedPayload;
-      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load blog.");
-      setBlogPayload(payload);
-      if (!selectedBlogAuthorId) {
-        setManualDraft((current) => current ?? payload.posts.find((post) => post.post_type === "manual" && post.status === "draft") ?? null);
-      }
-    } finally {
-      setFeedLoading(false);
-    }
-  }, [loadSystemDrafts, locale, selectedBlogAuthorId, user]);
+    if (!selectedBlogAuthorId) await ensureDailyDraft();
+  }, [ensureDailyDraft, selectedBlogAuthorId]);
 
   const loadSystemProfile = useCallback(async () => {
     if (!user || !selectedSystemAccountKey) return;
@@ -665,10 +988,14 @@ export default function SocialApp({
     if (!active) return;
     if (!user) {
       setReferralLink(null);
+      setReferralLocked(false);
       setTeamContext(null);
+      setTeamTasks([]);
+      setTeamTaskDueAt("");
       setTeamRewards(null);
       setTeamRewardsOpen(false);
       setNotifications(null);
+      setNotificationUnreadCount(0);
       return;
     }
 
@@ -682,14 +1009,14 @@ export default function SocialApp({
       ? selectedSystemAccountKey ? loadSystemProfile : () => loadFeed(false, forceFeedRefresh)
       : activeTab === "people" ? loadPeopleHub
       : activeTab === "blog" ? loadBlog
-      : activeTab === "teams" ? loadTeamContext
+      : activeTab === "teams" ? () => Promise.all([loadTeamContext(), loadTeamTasks(), loadTeamChallenges(), loadReferralLink()]).then(() => undefined)
       : loadProfileTab;
     setSocialError(null);
     load().catch((loadError) => {
       console.warn("Social data load failed", loadError);
       setSocialError(loadError instanceof Error ? loadError.message : "Failed to load social data.");
     });
-  }, [active, activeTab, loadBlog, loadFeed, loadPeopleHub, loadProfileTab, loadSystemProfile, loadTeamContext, refreshNonce, selectedSystemAccountKey, user]);
+  }, [active, activeTab, loadBlog, loadFeed, loadPeopleHub, loadProfileTab, loadReferralLink, loadSystemProfile, loadTeamChallenges, loadTeamContext, loadTeamTasks, refreshNonce, selectedSystemAccountKey, user]);
 
   const displayName = profile?.display_name ?? user?.email ?? t("profile.guest");
   const handle = profile?.username ? `@${profile.username}` : user?.email ?? t("profile.localMode");
@@ -861,6 +1188,32 @@ export default function SocialApp({
     }
   }
 
+  async function addStoryWish(post: FeedPost) {
+    const recommendedWishId = recommendedWishIdForStory(post.source_key);
+    if (!recommendedWishId || !user) return;
+    setAddingStoryWishKey(post.source_key);
+    setSocialError(null);
+    setStoryWishError(null);
+    try {
+      let token = await getAccessToken();
+      let { payload, response } = await requestStoryWish(recommendedWishId, locale, token);
+      if (response.status === 401) {
+        token = await refreshAccessToken();
+        ({ payload, response } = await requestStoryWish(recommendedWishId, locale, token));
+      }
+      if (!response.ok || payload.error || !payload.wish) throw new StoryWishRequestError(response.status, payload.error ?? "Failed to add wish.");
+      setSelectedPost(null);
+      onOpenWishJourney(payload.wish.id);
+    } catch (requestError) {
+      console.warn("Story wish add failed", requestError);
+      const message = storyWishErrorMessage(requestError, t);
+      setStoryWishError(message);
+      setSocialError(message);
+    } finally {
+      setAddingStoryWishKey(null);
+    }
+  }
+
   function markWishCopied(wishId: string, copiedIncrement: number) {
       setPublicProfile((current) => current
         ? {
@@ -875,7 +1228,6 @@ export default function SocialApp({
           }
         : current);
     updateCachedFeedPayloads((payload) => updateFeedWishCopyState(payload, wishId, copiedIncrement) ?? payload);
-    setBlogPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setSystemPayload((current) => updateFeedWishCopyState(current, wishId, copiedIncrement));
     setSelectedPost((current) => current ? updatePostWishCopyState(current, wishId, copiedIncrement) : current);
   }
@@ -1077,103 +1429,19 @@ export default function SocialApp({
     }
   }
 
-  async function createManualPost(body: string, visibility: "public" | "private", file: File | null) {
-    setFeedSaving(true);
-    setSocialError(null);
-    try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/social/feed/posts", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ body, visibility })
-      });
-      const payload = (await response.json()) as { post?: FeedPost; error?: string };
-      if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to create manual post.");
-      let createdPost = payload.post;
-      if (file) {
-        const media = await requestManualMedia(createdPost, file, token);
-        createdPost = { ...createdPost, media: [media] };
-      }
-      setManualDraft(createdPost);
-      await Promise.all([loadFeed(false, true), loadBlog()]);
-    } catch (manualPostError) {
-      console.warn("Manual post create failed", manualPostError);
-      setSocialError(manualPostError instanceof Error ? manualPostError.message : "Failed to create manual post.");
-    } finally {
-      setFeedSaving(false);
-    }
-  }
-
-  async function uploadManualMedia(post: FeedPost, file: File) {
-    setFeedSaving(true);
-    setSocialError(null);
-    try {
-      const token = await getAccessToken();
-      const media = await requestManualMedia(post, file, token);
-      updateLocalPostCover(post.id, media);
-    } catch (mediaError) {
-      setSocialError(mediaError instanceof Error ? mediaError.message : "Failed to upload post media.");
-    } finally {
-      setFeedSaving(false);
-    }
-  }
-
-  async function requestManualMedia(post: FeedPost, file: File, token: string): Promise<FeedMedia> {
-    const form = new FormData();
-    form.set("file", file);
-    if (file.type === "video/mp4") {
-      const duration = await getVideoDuration(file);
-      if (duration !== null) form.set("durationSeconds", String(duration));
-    }
-    const response = await fetch(`/api/social/feed/posts/${post.id}/media`, {
-      method: "POST",
-      cache: "no-store",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form
-    });
-    const payload = (await response.json()) as { media?: FeedMedia; error?: string };
-    if (!response.ok || payload.error || !payload.media) throw new Error(payload.error ?? "Failed to upload post media.");
-    return payload.media;
-  }
-
   async function createExternalLinkPost() {
     const url = externalLinkUrl.trim();
-    if (!url) return;
-
-    setFeedSaving(true);
-    setSocialError(null);
-    try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/social/feed", {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ url })
-      });
-      const payload = (await response.json()) as { post?: FeedPost; error?: string };
-      if (!response.ok || payload.error || !payload.post) throw new Error(payload.error ?? "Failed to add external link.");
-      setExternalLinkUrl("");
-      invalidateFeedCache();
-      await Promise.all([loadFeed(false, true), loadBlog()]);
-    } catch (linkError) {
-      console.warn("External link post create failed", linkError);
-      setSocialError(linkError instanceof Error ? linkError.message : "Failed to add external link.");
-    } finally {
-      setFeedSaving(false);
-    }
+    if (!url || !SHARE_TO_OA_ENABLED) return;
+    setExternalLinkUrl("");
+    setLinkComposerOpen(false);
+    window.dispatchEvent(new CustomEvent("oa:open-saved-link-editor", { detail: { url } }));
   }
 
   function updateLocalPostCover(postId: string, media: FeedMedia) {
     const update = (item: FeedPost) => item.id === postId ? { ...item, media: [media, ...item.media.filter((current) => current.sort_order !== 0)] } : item;
     setSystemDrafts((current) => current.map(update));
     setDailyDraft((current) => current ? update(current) : current);
-    setManualDraft((current) => current ? update(current) : current);
     updateCachedFeedPayloads((payload) => ({ ...payload, posts: payload.posts.map(update) }));
-    setBlogPayload((current) => current ? { ...current, posts: current.posts.map(update) } : current);
     setSelectedPost((current) => current ? update(current) : current);
   }
 
@@ -1250,7 +1518,6 @@ export default function SocialApp({
         verifiedChallenge: payload.post.verifiedChallenge ?? post.verifiedChallenge ?? null
       };
       setDailyDraft((current) => current?.id === updatedPost.id ? updatedPost : current);
-      setManualDraft((current) => current?.id === updatedPost.id ? null : current);
       setSelectedPost((current) => current?.id === updatedPost.id ? updatedPost : current);
       invalidateFeedCache();
       await Promise.all([loadFeed(false, true), loadBlog()]);
@@ -1285,7 +1552,6 @@ export default function SocialApp({
         projectReview: payload.post.projectReview ?? post.projectReview
       };
       updateCachedFeedPayloads((current) => replaceFeedPost(current, updatedPost) ?? current);
-      setBlogPayload((current) => replaceFeedPost(current, updatedPost));
       setSelectedPost(updatedPost);
       await loadFeed(false, true);
     } catch (updateError) {
@@ -1312,7 +1578,6 @@ export default function SocialApp({
       const payload = (await response.json()) as { deletedPostId?: string; error?: string };
       if (!response.ok || payload.error || !payload.deletedPostId) throw new Error(payload.error ?? "Failed to delete post.");
       setDailyDraft((current) => current?.id === post.id ? null : current);
-      setManualDraft((current) => current?.id === post.id ? null : current);
       setSelectedPost((current) => current?.id === post.id ? null : current);
       invalidateFeedCache();
       await Promise.all([loadFeed(false, true), loadBlog()]);
@@ -1326,14 +1591,6 @@ export default function SocialApp({
 
   function updateDailyDraftBody(body: string) {
     setDailyDraft((current) => current ? { ...current, body } : current);
-  }
-
-  function updateManualDraftBody(body: string) {
-    setManualDraft((current) => current ? { ...current, body } : current);
-  }
-
-  function updateManualDraftVisibility(visibility: "public" | "private") {
-    setManualDraft((current) => current ? { ...current, visibility } : current);
   }
 
   function updateSystemDraftBody(postId: string, body: string) {
@@ -1354,6 +1611,11 @@ export default function SocialApp({
   function openAuthorBlog(authorUserId: string) {
     setSelectedBlogAuthorId(authorUserId === user?.id ? null : authorUserId);
     onTabChange("blog");
+  }
+
+  function openPostDetail(post: FeedPost) {
+    setStoryWishError(null);
+    setSelectedPost(post);
   }
 
   function openSystemAccount(accountKey: string) {
@@ -1399,11 +1661,13 @@ export default function SocialApp({
     setNotificationsLoading(true);
     setSocialError(null);
     try {
-      const [coreRows, rewardRows] = await Promise.all([
+      const [notificationPage, coreRows, rewardRows] = await Promise.all([
+        loadNotificationCenter(locale).catch(() => ({ notifications: [], unreadCount: 0 })),
         loadCoreNotifications(),
         loadTeamRewardsHistory()
       ]);
-      setNotifications(buildPayoutNotifications(coreRows, rewardRows, locale));
+      setNotifications([...notificationPage.notifications, ...buildPayoutNotifications(coreRows, rewardRows, locale)]);
+      setNotificationUnreadCount(notificationPage.unreadCount);
     } catch (loadError) {
       console.warn("Payout notifications load failed", loadError);
       setSocialError(loadError instanceof Error ? loadError.message : "Failed to load notifications.");
@@ -1412,8 +1676,35 @@ export default function SocialApp({
     }
   }
 
+  async function markAllNotificationsRead() {
+    if (!notificationUnreadCount) return;
+    try {
+      await markNotificationsRead();
+      const readAt = new Date().toISOString();
+      setNotifications((current) => current?.map((item) => item.createdAt ? { ...item, readAt } : item) ?? null);
+      setNotificationUnreadCount(0);
+    } catch (markError) {
+      setSocialError(markError instanceof Error ? markError.message : "Failed to update notifications.");
+    }
+  }
+
+  async function openNotification(item: PayoutNotification) {
+    if (!item.deep_link) return;
+    if (item.createdAt && !item.readAt) {
+      try {
+        await markNotificationsRead([item.id]);
+        setNotifications((current) => current?.map((row) => row.id === item.id ? { ...row, readAt: new Date().toISOString() } : row) ?? null);
+        setNotificationUnreadCount((count) => Math.max(0, count - 1));
+      } catch (readError) {
+        setSocialError(readError instanceof Error ? readError.message : "Failed to update notification.");
+      }
+    }
+    window.location.assign(item.deep_link);
+  }
+
   return (
     <section className="social-screen">
+      {combinedError ? <p className="finance-error social-top-error" role="alert">{combinedError}</p> : null}
       {activeTab === "feed" && !user && !loading ? (
         <section className="profile-panel">
           <div className="profile-avatar placeholder">
@@ -1435,7 +1726,7 @@ export default function SocialApp({
           onBack={closeSystemAccount}
           onCopyWish={copyPublicWishToMine}
           onDeletePost={deletePost}
-          onOpenPost={setSelectedPost}
+          onOpenPost={openPostDetail}
           onOpenSystemAccount={openSystemAccount}
           onPublish={publishPost}
         />
@@ -1443,6 +1734,7 @@ export default function SocialApp({
 
       {activeTab === "feed" && user && !selectedSystemAccountKey ? (
         <FeedView
+          addingStoryWishKey={addingStoryWishKey}
           copyingWishId={copyingWishId}
           currentUserId={user.id}
           dailyDraft={dailyDraft}
@@ -1459,6 +1751,7 @@ export default function SocialApp({
           onCreateDraft={createDailyDraft}
           onCreateExternalLink={createExternalLinkPost}
           onCopyWish={copyPublicWishToMine}
+          onAddStoryWish={addStoryWish}
           onDraftBodyChange={updateDailyDraftBody}
           onDraftBodyChangeForPost={updateSystemDraftBody}
           onExternalLinkUrlChange={setExternalLinkUrl}
@@ -1473,7 +1766,7 @@ export default function SocialApp({
           onLinkComposerToggle={() => setLinkComposerOpen((current) => !current)}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
-          onOpenPost={setSelectedPost}
+          onOpenPost={openPostDetail}
           onOpenChallenge={onOpenChallenge}
           onOpenSystemAccount={openSystemAccount}
           onDeletePost={deletePost}
@@ -1539,54 +1832,38 @@ export default function SocialApp({
         </section>
       ) : null}
 
-      {activeTab === "blog" && user ? (
-        <BlogView
-          blogPayload={blogPayload}
-          copyingWishId={copyingWishId}
-          currentUserId={user.id}
-          dailyDraft={dailyDraft}
-          manualDraft={manualDraft}
-          systemDrafts={systemDrafts}
-          externalLinkUrl={externalLinkUrl}
-          linkComposerOpen={linkComposerOpen}
-          loading={feedLoading}
+      {user ? (
+        <BlogWorkspace
+          key={user.id}
+          userId={user.id}
+          authorId={selectedBlogAuthorId}
           locale={locale}
-          openDraftsNonce={openFeedDraftsNonce}
-          saving={feedSaving}
-          selectedBlogAuthorId={selectedBlogAuthorId}
+          active={active && activeTab === "blog"}
+          refreshKey={dailyDraft?.id ?? ""}
+          openCabinetNonce={openFeedDraftsNonce}
           t={t}
-          onOpenAuthor={openPublicProfile}
-          onOpenOwnBlog={() => setSelectedBlogAuthorId(null)}
-          onOpenPost={setSelectedPost}
-          onOpenSystemAccount={openSystemAccount}
-          onCopyWish={copyPublicWishToMine}
-          onDeletePost={deletePost}
-          onPublish={publishPost}
-          onCreateDraft={createDailyDraft}
-          onCreateManualPost={createManualPost}
-          onDraftBodyChange={updateDailyDraftBody}
-          onManualBodyChange={updateManualDraftBody}
-          onManualMediaUpload={uploadManualMedia}
-          onManualVisibilityChange={updateManualDraftVisibility}
-          onDraftBodyChangeForPost={updateSystemDraftBody}
-          onToggleDraftBlock={toggleDailyDraftBlock}
-          onUpdateCover={updatePostCover}
-          onUploadCover={uploadPostCover}
-          onExternalLinkUrlChange={setExternalLinkUrl}
-          onLinkComposerToggle={() => setLinkComposerOpen((current) => !current)}
-          onCreateExternalLink={createExternalLinkPost}
+          onOpenPost={openPostDetail}
+          onChanged={() => { invalidateFeedCache(); void loadSystemDrafts().catch(() => undefined); }}
         />
       ) : null}
 
       {activeTab === "teams" ? (
-        <section className="profile-panel">
-          <div className="profile-avatar placeholder">
-            <Users size={34} />
-          </div>
-          <strong>{t("social.teams.title")}</strong>
+        <section className="profile-panel teams-profile-panel">
           {!user && !loading ? <p>{t("profile.registrationRequired")}</p> : null}
           {user ? (
             <>
+              <TeamsGrowthHero
+                currentUserId={user.id}
+                context={teamContext}
+                tasks={teamTasks}
+                locale={locale}
+                t={t}
+                onMessage={(userId) => { void openDirectMessage(userId); }}
+                onOpenChallenge={onOpenChallenge}
+                onOpenInvite={() => setReferralQrOpen(true)}
+                onOpenProfile={openPublicProfile}
+                canInvite={Boolean(referralLink) && !referralLocked}
+              />
               <div className="team-summary">
                 <span>{t("profile.teams.leader")}</span>
                 {teamContext?.leader.type === "user" && teamContext.membership?.leader_user_id ? (
@@ -1604,6 +1881,11 @@ export default function SocialApp({
                 ) : (
                   <strong>{formatLeader(teamContext, locale)}</strong>
                 )}
+                {teamContext?.leader.type === "user" && teamContext.membership?.leader_user_id ? (
+                  <button className="text-button" type="button" onClick={() => { void openDirectMessage(teamContext.membership?.leader_user_id ?? ""); }}>
+                    {t("social.teams.messageLeader")}
+                  </button>
+                ) : null}
                 <p>{formatTeamAssignment(teamContext, locale, t)}</p>
               </div>
               <div className="team-summary">
@@ -1640,7 +1922,8 @@ export default function SocialApp({
                 {teamContext?.directMembers.length ? (
                   <div className="compact-profile-list">
                     {teamContext.directMembers.map((member) => (
-                      <button className="compact-profile-button" type="button" key={member.userId} onClick={() => { void openPublicProfile(member.userId); }}>
+                      <span className="compact-profile-entry" key={member.userId}>
+                      <button className="compact-profile-button" type="button" onClick={() => { void openPublicProfile(member.userId); }}>
                         <span className="team-member-avatar">
                           {member.profile?.avatar_url ? <img alt="" src={normalizeAvatarPreviewUrl(member.profile.avatar_url) ?? undefined} style={{ objectPosition: member.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={14} />}
                         </span>
@@ -1655,12 +1938,78 @@ export default function SocialApp({
                           points: member.leadershipCost
                         })}
                       </button>
+                      <button className="text-button" type="button" onClick={() => { void openDirectMessage(member.userId); }}>{t("social.teams.messageMember")}</button>
+                      </span>
                     ))}
                   </div>
                 ) : (
                   <p>{t("profile.teams.emptyMembers")}</p>
                 )}
               </div>
+              <TeamTaskBoard
+                currentUserId={user.id}
+                context={teamContext}
+                tasks={teamTasks}
+                challenges={teamChallenges}
+                loading={teamTasksLoading}
+                savingId={teamTaskSavingId}
+                submissions={teamTaskSubmission}
+                reviewFeedback={teamTaskReviewFeedback}
+                helpDrafts={teamTaskHelpDraft}
+                helpReasons={teamTaskHelpReason}
+                revisionTaskId={teamTaskRevisionTaskId}
+                revisionDraft={teamTaskRevisionDraft}
+                createState={{
+                  title: teamTaskTitle,
+                  description: teamTaskDescription,
+                  goalContext: teamTaskGoalContext,
+                  expectedResult: teamTaskExpectedResult,
+                  firstStep: teamTaskFirstStep,
+                  estimatedMinutes: teamTaskEstimatedMinutes,
+                  verificationCriteria: teamTaskVerificationCriteria,
+                  leaderReviewDueAt: teamTaskLeaderReviewDueAt,
+                  dueAt: teamTaskDueAt,
+                  memberId: teamTaskMemberId,
+                  kind: teamTaskKind,
+                  challengeId: teamTaskChallengeId,
+                  creating: teamTaskCreating
+                }}
+                referralLink={referralLink}
+                referralLocked={referralLocked}
+                locale={locale}
+                t={t}
+                onAction={(task, action, submission, feedback) => { void actOnTeamTask(task, action, submission, feedback); }}
+                onCreate={() => { void createTeamTask(); }}
+                onCreateStateChange={(field, value) => {
+                  if (field === "title") setTeamTaskTitle(value);
+                  if (field === "description") setTeamTaskDescription(value);
+                  if (field === "goalContext") setTeamTaskGoalContext(value);
+                  if (field === "expectedResult") setTeamTaskExpectedResult(value);
+                  if (field === "firstStep") setTeamTaskFirstStep(value);
+                  if (field === "estimatedMinutes") setTeamTaskEstimatedMinutes(value);
+                  if (field === "verificationCriteria") setTeamTaskVerificationCriteria(value);
+                  if (field === "leaderReviewDueAt") setTeamTaskLeaderReviewDueAt(value);
+                  if (field === "dueAt") setTeamTaskDueAt(value);
+                  if (field === "memberId") setTeamTaskMemberId(value);
+                  if (field === "kind") setTeamTaskKind(value as "manual" | "challenge");
+                  if (field === "challengeId") setTeamTaskChallengeId(value);
+                }}
+                onSubmissionChange={(taskId, value) => setTeamTaskSubmission((current) => ({ ...current, [taskId]: value }))}
+                onReviewFeedbackChange={(taskId, value) => setTeamTaskReviewFeedback((current) => ({ ...current, [taskId]: value }))}
+                onHelpDraftChange={(taskId, value) => setTeamTaskHelpDraft((current) => ({ ...current, [taskId]: value }))}
+                onHelpReasonChange={(taskId, value) => setTeamTaskHelpReason((current) => ({ ...current, [taskId]: value }))}
+                onRequestHelp={(task, reason, comment) => { void requestTeamTaskHelp(task, reason, comment); }}
+                onResolveHelp={(task, helpRequestId) => { void resolveTeamTaskHelp(task, helpRequestId); }}
+                onOpenRevision={(taskId) => setTeamTaskRevisionTaskId(taskId)}
+                onCloseRevision={() => setTeamTaskRevisionTaskId(null)}
+                onRevisionDraftChange={(field, value) => setTeamTaskRevisionDraft((current) => ({ ...current, [field]: value }))}
+                onProposeRevision={(task, changes) => { void proposeTeamTaskRevision(task, changes); }}
+                onRespondRevision={(task, revision, action) => { void respondToTeamTaskRevision(task, revision, action); }}
+                onOpenChallenge={onOpenChallenge}
+                onOpenInvite={() => setReferralQrOpen(true)}
+                onOpenProfile={openPublicProfile}
+                onMessage={(userId) => { void openDirectMessage(userId); }}
+              />
               <HistoryPanel
                 title={locale === "ru" ? "История лидерских бонусов" : "Team bonus history"}
                 open={teamRewardsOpen}
@@ -1733,7 +2082,7 @@ export default function SocialApp({
               <span>{t("profile.actions.skills")}</span>
             </button>
             <button className="profile-action-button" type="button" aria-label={t("profile.actions.activity")} aria-expanded={profileAction === "activity"} onClick={openPayoutNotifications}>
-              <span className="profile-action-icon-with-badge"><Bell size={18} />{pendingIncomingConfirmations > 0 ? <i>{pendingIncomingConfirmations}</i> : null}</span>
+              <span className="profile-action-icon-with-badge"><Bell size={18} />{pendingIncomingConfirmations + notificationUnreadCount > 0 ? <i>{pendingIncomingConfirmations + notificationUnreadCount}</i> : null}</span>
               <span>{t("profile.actions.activity")}</span>
             </button>
           </div>
@@ -1761,6 +2110,7 @@ export default function SocialApp({
               </button>
               <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
             </div>
+            {referralLocked ? <small className="referral-locked-hint">{t("social.teams.inviteLocked")}</small> : null}
           </div>
           <LegalDisclosure
             contact={t("legal.contact")}
@@ -1806,14 +2156,17 @@ export default function SocialApp({
         <ActivityDialog
           notifications={notifications}
           notificationsLoading={notificationsLoading}
+          unreadCount={notificationUnreadCount}
           pendingConfirmations={pendingIncomingConfirmations}
+          locale={locale}
           t={t}
           onClose={() => setProfileAction(null)}
+          onMarkAllRead={() => void markAllNotificationsRead()}
+          onOpenNotification={(item) => void openNotification(item)}
           onOpenConfirmations={() => { setProfileAction(null); setPeopleSection("confirmations"); onTabChange("people"); }}
         />
       ) : null}
 
-      {combinedError ? <p className="finance-error">{combinedError}</p> : null}
       {publicProfileLoading ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
       {referralQrOpen && referralLink ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setReferralQrOpen(false)}>
@@ -1898,8 +2251,9 @@ export default function SocialApp({
           currentUserId={user?.id ?? null}
           locale={locale}
           post={selectedPost}
+          readOnly={activeTab === "blog"}
           t={t}
-          onClose={() => setSelectedPost(null)}
+          onClose={() => { setStoryWishError(null); setSelectedPost(null); }}
           onDeletePost={deletePost}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
@@ -1910,6 +2264,9 @@ export default function SocialApp({
           onUploadCover={uploadPostCover}
           onUpdateReview={updateProjectReview}
           onCopyWish={copyPublicWishToMine}
+          onAddStoryWish={addStoryWish}
+          storyWishError={storyWishError}
+          storyWishSaving={addingStoryWishKey === selectedPost.source_key}
           onReposted={() => {
             invalidateFeedCache();
             void Promise.all([loadFeed(false, true), loadBlog()]);
@@ -1931,6 +2288,394 @@ export default function SocialApp({
         />
       ) : null}
     </section>
+  );
+}
+
+function TeamsGrowthHero({
+  currentUserId,
+  context,
+  tasks,
+  locale,
+  t,
+  onMessage,
+  onOpenChallenge,
+  onOpenInvite,
+  onOpenProfile,
+  canInvite
+}: {
+  currentUserId: string;
+  context: TeamContext | null;
+  tasks: TeamTask[];
+  locale: AppLocale;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onMessage: (userId: string) => void;
+  onOpenChallenge: () => void;
+  onOpenInvite: () => void;
+  onOpenProfile: (userId: string) => void;
+  canInvite: boolean;
+}) {
+  const [focus, setFocus] = useState<"mine" | "help">("mine");
+  const memberTasks = tasks.filter((task) => task.member_user_id === currentUserId);
+  const leaderTasks = tasks.filter((task) => task.leader_user_id === currentUserId);
+  const isMentor = Boolean(context?.directMembers.length) || leaderTasks.length > 0;
+  const activeMemberTasks = memberTasks.filter((task) => ["proposed", "accepted", "returned"].includes(task.status));
+  const reviewTasks = leaderTasks.filter((task) => ["submitted", "proposed", "accepted", "returned"].includes(task.status));
+  const attentionTasks = focus === "help" ? reviewTasks : activeMemberTasks;
+  const leadProfile = context?.leader.type === "user" ? context.leader.profile : null;
+  const roomPeople = [
+    ...(leadProfile ? [{ id: leadProfile.user_id, profile: leadProfile, role: "mentor" as const }] : []),
+    ...(context?.directMembers ?? []).map((member) => ({ id: member.userId, profile: member.profile, role: "member" as const }))
+  ].filter((person) => person.profile);
+  const firstTask = attentionTasks[0] ?? null;
+  const taskTargetId = firstTask ? (firstTask.member_user_id === currentUserId ? firstTask.leader_user_id : firstTask.member_user_id) : null;
+  const taskTarget = taskTargetId
+    ? (taskTargetId === leadProfile?.user_id ? leadProfile : context?.directMembers.find((member) => member.userId === taskTargetId)?.profile)
+    : null;
+  const pendingCount = focus === "help" ? reviewTasks.length : activeMemberTasks.length;
+  const completedCount = tasks.filter((task) => task.member_user_id === currentUserId && task.status === "completed").length;
+
+  return (
+    <section className="team-growth-hero" aria-labelledby="team-growth-title">
+      <div className="team-growth-heading">
+        <div>
+          <span className="team-growth-eyebrow"><Sparkles size={14} /> {t("social.teams.circleEyebrow")}</span>
+          <h2 id="team-growth-title">{t("social.teams.circleTitle")}</h2>
+          <p>{t("social.teams.circleSubtitle")}</p>
+        </div>
+        <span className="team-growth-spark" aria-hidden="true"><Star size={18} fill="currentColor" /></span>
+      </div>
+
+      <div className="team-focus-switch" role="group" aria-label={t("social.teams.focusLabel")}>
+        <button className={focus === "mine" ? "active" : ""} type="button" aria-pressed={focus === "mine"} onClick={() => setFocus("mine")}>
+          <UserRound size={15} /> {t("social.teams.focusMine")}
+        </button>
+        {isMentor ? (
+          <button className={focus === "help" ? "active" : ""} type="button" aria-pressed={focus === "help"} onClick={() => setFocus("help")}>
+            <Users size={15} /> {t("social.teams.focusHelp")}
+            {reviewTasks.length ? <b>{reviewTasks.length}</b> : null}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="team-growth-grid">
+        <div className="team-circle-card">
+          <div className="team-card-kicker"><span>{t("social.teams.roomTitle")}</span><span>{roomPeople.length + 1}</span></div>
+          <div className="team-circle-scene" aria-label={t("social.teams.roomTable")}>
+            <span className="team-circle-halo" aria-hidden="true" />
+            <span className="team-circle-table" aria-hidden="true"><span>{t("social.teams.roomTable")}</span></span>
+            <span className="team-circle-self" title={t("social.teams.youHere")}><Sparkles size={20} /><small>{t("social.teams.youHere")}</small></span>
+            {roomPeople.slice(0, 6).map((person, index) => (
+              <button
+                className={`team-circle-person person-${index + 1}`}
+                key={person.id}
+                type="button"
+                title={formatProfileName(person.profile, person.id)}
+                onClick={() => onOpenProfile(person.id)}
+              >
+                <span className="team-circle-avatar">
+                  {person.profile?.avatar_url ? <img alt="" src={normalizeAvatarPreviewUrl(person.profile.avatar_url) ?? undefined} style={{ objectPosition: person.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={16} />}
+                </span>
+                <small>{formatProfileName(person.profile, person.id)}</small>
+              </button>
+            ))}
+          </div>
+          <div className="team-room-actions">
+            <button className="team-room-chip" type="button" disabled={!canInvite} onClick={onOpenInvite}><Sparkles size={14} /> {t("social.teams.roomInvite")}</button>
+            <button className="team-room-chip" type="button" onClick={() => firstTask && taskTargetId ? onMessage(taskTargetId) : undefined} disabled={!taskTargetId}>
+              <MessageCircle size={14} /> {t("social.teams.roomTalk")}
+            </button>
+          </div>
+        </div>
+
+        <div className="team-agenda-card">
+          <div className="team-card-kicker"><span><Sparkles size={14} /> {t("social.teams.todayTitle")}</span><span className="team-agenda-count">{pendingCount}</span></div>
+          <h3>{focus === "help" ? t("social.teams.todayHelpTitle") : t("social.teams.todayMineTitle")}</h3>
+          {firstTask ? (
+            <article className="team-agenda-next">
+              <span className="team-agenda-dot" aria-hidden="true"><Check size={14} /></span>
+              <div>
+                <strong>{firstTask.title}</strong>
+                <p>{firstTask.status === "submitted" ? t("social.teams.todayReview") : firstTask.due_at ? t("social.teams.todayDue", { date: formatDate(firstTask.due_at, locale) }) : t("social.teams.todayNext")}</p>
+                {taskTarget ? <button className="text-button" type="button" onClick={() => onOpenProfile(taskTargetId ?? "")}>{formatProfileName(taskTarget, taskTargetId ?? "")}</button> : null}
+              </div>
+            </article>
+          ) : (
+            <div className="team-agenda-empty"><span aria-hidden="true">✦</span><p>{t("social.teams.todayEmpty")}</p></div>
+          )}
+          <div className="team-agenda-footer">
+            <span>{t("social.teams.completedMine", { count: completedCount })}</span>
+            {focus === "help" && !reviewTasks.length ? <button className="secondary-button" type="button" onClick={onOpenChallenge}>{t("social.teams.findStep")}</button> : null}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TeamTaskBoard({
+  currentUserId,
+  context,
+  tasks,
+  challenges,
+  loading,
+  savingId,
+  submissions,
+  reviewFeedback,
+  helpDrafts,
+  helpReasons,
+  revisionTaskId,
+  revisionDraft,
+  createState,
+  referralLink,
+  referralLocked,
+  locale,
+  t,
+  onAction,
+  onCreate,
+  onCreateStateChange,
+  onSubmissionChange,
+  onReviewFeedbackChange,
+  onHelpDraftChange,
+  onHelpReasonChange,
+  onRequestHelp,
+  onResolveHelp,
+  onOpenRevision,
+  onCloseRevision,
+  onRevisionDraftChange,
+  onProposeRevision,
+  onRespondRevision,
+  onOpenChallenge,
+  onOpenInvite,
+  onOpenProfile,
+  onMessage
+}: {
+  currentUserId: string;
+  context: TeamContext | null;
+  tasks: TeamTask[];
+  challenges: TeamChallengeOption[];
+  loading: boolean;
+  savingId: string | null;
+  submissions: Record<string, string>;
+  reviewFeedback: Record<string, string>;
+  helpDrafts: Record<string, string>;
+  helpReasons: Record<string, TeamTaskHelpRequest["reason"]>;
+  revisionTaskId: string | null;
+  revisionDraft: { firstStep: string; expectedResult: string; dueAt: string };
+  createState: {
+    title: string;
+    description: string;
+    goalContext: string;
+    expectedResult: string;
+    firstStep: string;
+    estimatedMinutes: string;
+    verificationCriteria: string;
+    leaderReviewDueAt: string;
+    dueAt: string;
+    memberId: string;
+    kind: "manual" | "challenge";
+    challengeId: string;
+    creating: boolean;
+  };
+  referralLink: ReferralLink | null;
+  referralLocked: boolean;
+  locale: AppLocale;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onAction: (task: TeamTask, action: string, submission?: string, feedback?: string) => void;
+  onCreate: () => void;
+  onCreateStateChange: (field: "title" | "description" | "goalContext" | "expectedResult" | "firstStep" | "estimatedMinutes" | "verificationCriteria" | "leaderReviewDueAt" | "dueAt" | "memberId" | "kind" | "challengeId", value: string) => void;
+  onSubmissionChange: (taskId: string, value: string) => void;
+  onReviewFeedbackChange: (taskId: string, value: string) => void;
+  onHelpDraftChange: (taskId: string, value: string) => void;
+  onHelpReasonChange: (taskId: string, value: TeamTaskHelpRequest["reason"]) => void;
+  onRequestHelp: (task: TeamTask, reason: TeamTaskHelpRequest["reason"], comment: string) => void;
+  onResolveHelp: (task: TeamTask, helpRequestId: string) => void;
+  onOpenRevision: (taskId: string) => void;
+  onCloseRevision: () => void;
+  onRevisionDraftChange: (field: "firstStep" | "expectedResult" | "dueAt", value: string) => void;
+  onProposeRevision: (task: TeamTask, changes: Record<string, unknown>) => void;
+  onRespondRevision: (task: TeamTask, revision: TeamTaskRevision, action: "accept" | "decline") => void;
+  onOpenChallenge: () => void;
+  onOpenInvite: () => void;
+  onOpenProfile: (userId: string) => void;
+  onMessage: (userId: string) => void;
+}) {
+  const memberTasks = tasks.filter((task) => task.member_user_id === currentUserId);
+  const leaderTasks = tasks.filter((task) => task.leader_user_id === currentUserId);
+  const isLeader = Boolean(context?.directMembers.length) || leaderTasks.length > 0;
+  const path = context?.leaderPath;
+  const statusKey = (status: TeamTask["status"]): MessageKey => `social.teams.${status}` as MessageKey;
+  const challengeName = (challengeId: string | null) => {
+    if (!challengeId) return null;
+    const challenge = challenges.find((item) => item.id === challengeId);
+    return challenge ? challenge.title[locale] ?? challenge.title.en ?? challenge.id : challengeId;
+  };
+  const helpReasonKey = (reason: TeamTaskHelpRequest["reason"]): MessageKey => `social.teams.helpReason.${reason}` as MessageKey;
+
+  return (
+    <>
+      {isLeader ? (
+        <div className="team-help-grid">
+          <section className="team-summary team-path-summary">
+            <span>{t("social.teams.leaderPath")}</span>
+            <div className="team-path-steps">
+              <span className={path?.firstResultCompleted ? "is-done" : "is-next"}>{path?.firstResultCompleted ? "✓" : "1"} {t("social.teams.path.result")}</span>
+              <span className={path?.referralRegistered ? "is-done" : path?.inviteUnlocked ? "is-next" : ""}>{path?.referralRegistered ? "✓" : "2"} {t("social.teams.path.invite")}</span>
+              <span className={path?.newcomerHelpCompleted ? "is-done" : path?.referralRegistered ? "is-next" : ""}>{path?.newcomerHelpCompleted ? "✓" : "3"} {t("social.teams.path.help")}</span>
+            </div>
+            {path?.next === "publish_result" ? <button className="secondary-button" type="button" onClick={onOpenChallenge}>{t("social.teams.path.result")}</button> : null}
+            {path?.next === "invite_participant" ? (
+              <button className="secondary-button" type="button" disabled={referralLocked || !referralLink} onClick={onOpenInvite}>{t("social.teams.path.invite")}</button>
+            ) : null}
+          </section>
+          <section className="team-summary">
+            <span>{t("social.teams.referralQuality")}</span>
+            <p>{t("social.teams.registered", { count: context?.referralQuality?.registered ?? 0 })}</p>
+            <p>{t("social.teams.activated", { count: context?.referralQuality?.activated ?? 0 })}</p>
+            <p>{t("social.teams.retainedD7", { count: context?.referralQuality?.retainedD7 ?? 0 })}</p>
+          </section>
+        </div>
+      ) : null}
+
+      <section className="team-summary team-task-summary">
+        <div className="section-heading-row">
+          <span>{t("social.teams.tasks")}</span>
+          {context?.taskCounts?.leaderReview ? <strong>{t("social.teams.taskQueue", { count: context.taskCounts.leaderReview })}</strong> : null}
+        </div>
+        {loading ? <p>{t("app.common.loading")}</p> : null}
+        {!loading && !tasks.length ? <p>{t("social.teams.emptyTasks")}</p> : null}
+        {tasks.map((task) => {
+          const mine = task.member_user_id === currentUserId;
+          const otherUserId = mine ? task.leader_user_id : task.member_user_id;
+          const targetProfile = mine ? context?.leader.profile : context?.directMembers.find((item) => item.userId === task.member_user_id)?.profile;
+          const pending = savingId === task.id;
+          return (
+            <article className="team-task-card" key={task.id}>
+              <div className="team-task-card-header">
+                <div>
+                  <strong>{task.title}</strong>
+                  <span>{t(statusKey(task.status))}{task.task_kind === "challenge" && challengeName(task.challenge_id) ? ` · ${challengeName(task.challenge_id)}` : ""}</span>
+                </div>
+                <small>{task.due_at ? `${t("social.teams.taskDueShort")}: ${formatDate(task.due_at, locale)}` : formatDate(task.updated_at, locale)}</small>
+              </div>
+              {(task.goal_context || task.expected_result || task.first_step || task.estimated_minutes || task.verification_criteria || task.leader_review_due_at) ? (
+                <div className="team-task-agreement">
+                  {task.goal_context ? <p><strong>{t("social.teams.goalContext")}:</strong> {task.goal_context}</p> : null}
+                  {task.expected_result ? <p><strong>{t("social.teams.expectedResult")}:</strong> {task.expected_result}</p> : null}
+                  {task.first_step ? <p><strong>{t("social.teams.firstStep")}:</strong> {task.first_step}</p> : null}
+                  {task.estimated_minutes ? <p><strong>{t("social.teams.estimatedMinutes")}:</strong> {task.estimated_minutes} {t("social.teams.minutes")}</p> : null}
+                  {task.verification_criteria ? <p><strong>{t("social.teams.verificationCriteria")}:</strong> {task.verification_criteria}</p> : null}
+                  {task.leader_review_due_at ? <p><strong>{t("social.teams.reviewDue")}:</strong> {formatDate(task.leader_review_due_at, locale)}</p> : null}
+                </div>
+              ) : null}
+              {task.description ? <p>{task.description}</p> : null}
+              {task.submission ? <p className="team-task-submission"><strong>{t("social.teams.submission")}:</strong> {task.submission}</p> : null}
+              {task.review_feedback ? <p className="team-task-feedback"><strong>{t("social.teams.reviewFeedback")}:</strong> {task.review_feedback}</p> : null}
+              {(task.revisions ?? []).filter((revision) => revision.status === "open").map((revision) => (
+                <div className="team-task-revision" key={revision.id}>
+                  <strong>{t("social.teams.revisionOpen")}</strong>
+                  <span>{revision.proposer_user_id === currentUserId ? t("social.teams.revisionWaiting") : t("social.teams.revisionNeedsResponse")}</span>
+                  {revision.changes.firstStep ? <p><strong>{t("social.teams.firstStep")}:</strong> {String(revision.changes.firstStep)}</p> : null}
+                  {revision.changes.expectedResult ? <p><strong>{t("social.teams.expectedResult")}:</strong> {String(revision.changes.expectedResult)}</p> : null}
+                  {revision.changes.dueAt ? <p><strong>{t("social.teams.taskDueShort")}:</strong> {formatDate(String(revision.changes.dueAt), locale)}</p> : null}
+                  {revision.proposer_user_id !== currentUserId ? (
+                    <div className="team-task-actions">
+                      <button className="secondary-button" type="button" disabled={pending} onClick={() => onRespondRevision(task, revision, "accept")}>{t("social.teams.revisionAccept")}</button>
+                      <button className="text-button" type="button" disabled={pending} onClick={() => onRespondRevision(task, revision, "decline")}>{t("social.teams.revisionDecline")}</button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+              <div className="team-task-actions">
+                {targetProfile ? <button className="text-button" type="button" onClick={() => onOpenProfile(otherUserId)}>{formatProfileName(targetProfile, otherUserId)}</button> : null}
+                <button className="text-button" type="button" onClick={() => onMessage(otherUserId)}>{mine ? t("social.teams.messageLeader") : t("social.teams.messageMember")}</button>
+                {mine && task.status === "proposed" ? <><button className="secondary-button" type="button" disabled={pending} onClick={() => onAction(task, "accept")}>{t("social.teams.accept")}</button><button className="secondary-button" type="button" disabled={pending} onClick={() => onAction(task, "decline")}>{t("social.teams.decline")}</button></> : null}
+                {mine && ["accepted", "returned"].includes(task.status) && task.task_kind === "manual" ? (
+                  <>
+                    <textarea value={submissions[task.id] ?? ""} onChange={(event) => onSubmissionChange(task.id, event.target.value)} placeholder={t("social.teams.submission")} maxLength={4000} />
+                    <button className="secondary-button" type="button" disabled={pending || !(submissions[task.id] ?? "").trim()} onClick={() => onAction(task, "submit", submissions[task.id])}>{t("social.teams.submit")}</button>
+                  </>
+                ) : null}
+                {!mine && task.status === "submitted" ? (
+                  <>
+                    <textarea value={reviewFeedback[task.id] ?? ""} onChange={(event) => onReviewFeedbackChange(task.id, event.target.value)} placeholder={t("social.teams.reviewFeedbackPlaceholder")} maxLength={4000} />
+                    <button className="secondary-button" type="button" disabled={pending} onClick={() => onAction(task, "complete", undefined, reviewFeedback[task.id])}>{t("social.teams.complete")}</button>
+                    <button className="secondary-button" type="button" disabled={pending || !(reviewFeedback[task.id] ?? "").trim()} onClick={() => onAction(task, "return", undefined, reviewFeedback[task.id])}>{t("social.teams.return")}</button>
+                  </>
+                ) : null}
+                {!mine && ["proposed", "accepted", "submitted", "returned"].includes(task.status) ? <button className="text-button" type="button" disabled={pending} onClick={() => onAction(task, "cancel")}>{t("social.teams.cancel")}</button> : null}
+                {mine && task.task_kind === "challenge" && ["accepted", "returned"].includes(task.status) ? <button className="secondary-button" type="button" onClick={onOpenChallenge}>{t("social.feed.openChallenge")}</button> : null}
+                {mine && ["proposed", "accepted", "returned"].includes(task.status) && !(task.revisions ?? []).some((revision) => revision.status === "open") ? <button className="text-button" type="button" disabled={pending} onClick={() => onOpenRevision(task.id)}><Edit3 size={14} /> {t("social.teams.proposeChange")}</button> : null}
+                {(["proposed", "accepted", "submitted", "returned"].includes(task.status)) ? (
+                  <>
+                    {(task.help_requests ?? []).some((help) => help.status === "open") ? (
+                      <button className="text-button" type="button" disabled={pending} onClick={() => onResolveHelp(task, (task.help_requests ?? []).find((help) => help.status === "open")?.id ?? "")}><Check size={14} /> {t("social.teams.helpResolve")}</button>
+                    ) : (
+                      <>
+                        <select className="team-help-reason" value={helpReasons[task.id] ?? "blocked"} onChange={(event) => onHelpReasonChange(task.id, event.target.value as TeamTaskHelpRequest["reason"])} aria-label={t("social.teams.helpReasonLabel")}>
+                          {["blocked", "clarification", "feedback", "other"].map((reason) => <option value={reason} key={reason}>{t(helpReasonKey(reason as TeamTaskHelpRequest["reason"]))}</option>)}
+                        </select>
+                        <input className="team-help-comment" value={helpDrafts[task.id] ?? ""} onChange={(event) => onHelpDraftChange(task.id, event.target.value)} placeholder={t("social.teams.helpCommentPlaceholder")} maxLength={2000} />
+                        <button className="text-button" type="button" disabled={pending} onClick={() => onRequestHelp(task, helpReasons[task.id] ?? "blocked", helpDrafts[task.id] ?? "")}><MessageCircle size={14} /> {t("social.teams.helpRequest")}</button>
+                      </>
+                    )}
+                  </>
+                ) : null}
+              </div>
+              {revisionTaskId === task.id ? (
+                <div className="team-task-revision-form">
+                  <strong>{t("social.teams.revisionTitle")}</strong>
+                  <input value={revisionDraft.firstStep} onChange={(event) => onRevisionDraftChange("firstStep", event.target.value)} placeholder={t("social.teams.firstStep")} maxLength={1200} />
+                  <textarea value={revisionDraft.expectedResult} onChange={(event) => onRevisionDraftChange("expectedResult", event.target.value)} placeholder={t("social.teams.expectedResult")} maxLength={2000} />
+                  <label className="team-task-due-field"><span>{t("social.teams.taskDue")}</span><input type="datetime-local" value={revisionDraft.dueAt} onChange={(event) => onRevisionDraftChange("dueAt", event.target.value)} /></label>
+                  <div className="team-task-actions">
+                    <button className="secondary-button" type="button" disabled={pending || (!revisionDraft.firstStep.trim() && !revisionDraft.expectedResult.trim() && !revisionDraft.dueAt)} onClick={() => onProposeRevision(task, { ...(revisionDraft.firstStep.trim() ? { firstStep: revisionDraft.firstStep.trim() } : {}), ...(revisionDraft.expectedResult.trim() ? { expectedResult: revisionDraft.expectedResult.trim() } : {}), ...(revisionDraft.dueAt ? { dueAt: new Date(revisionDraft.dueAt).toISOString() } : {}) })}>{t("social.teams.revisionSend")}</button>
+                    <button className="text-button" type="button" disabled={pending} onClick={onCloseRevision}>{t("app.common.cancel")}</button>
+                  </div>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+      </section>
+
+      {isLeader && context?.directMembers.length ? (
+        <section className="team-summary team-task-create">
+          <div className="section-heading-row"><span>{t("social.teams.createTask")}</span></div>
+          <div className="team-task-form">
+            <select value={createState.memberId} onChange={(event) => onCreateStateChange("memberId", event.target.value)} aria-label={t("social.people.title")}>
+              <option value="">{t("social.people.title")}</option>
+              {context.directMembers.map((member) => <option key={member.userId} value={member.userId}>{formatProfileName(member.profile, member.userId)}</option>)}
+            </select>
+            <select value={createState.kind} onChange={(event) => onCreateStateChange("kind", event.target.value)} aria-label={t("social.teams.tasks")}>
+              <option value="manual">{t("social.teams.taskManual")}</option>
+              <option value="challenge">{t("social.teams.taskChallenge")}</option>
+            </select>
+            {createState.kind === "challenge" ? (
+              <select value={createState.challengeId} onChange={(event) => onCreateStateChange("challengeId", event.target.value)} aria-label={t("social.teams.taskChallenge")}>
+                <option value="">{t("social.teams.taskChallenge")}</option>
+                {challenges.map((challenge) => <option key={challenge.id} value={challenge.id}>{challenge.title[locale] ?? challenge.title.en ?? challenge.id}</option>)}
+              </select>
+            ) : null}
+            <input value={createState.title} onChange={(event) => onCreateStateChange("title", event.target.value)} placeholder={t("social.teams.taskTitle")} maxLength={160} />
+            <textarea value={createState.description} onChange={(event) => onCreateStateChange("description", event.target.value)} placeholder={t("social.teams.taskDescription")} maxLength={4000} />
+            <input value={createState.goalContext} onChange={(event) => onCreateStateChange("goalContext", event.target.value)} placeholder={t("social.teams.goalContext")} maxLength={1200} />
+            <input value={createState.expectedResult} onChange={(event) => onCreateStateChange("expectedResult", event.target.value)} placeholder={t("social.teams.expectedResult")} maxLength={2000} />
+            <input value={createState.firstStep} onChange={(event) => onCreateStateChange("firstStep", event.target.value)} placeholder={t("social.teams.firstStep")} maxLength={1200} />
+            <input type="number" min="1" max="1440" value={createState.estimatedMinutes} onChange={(event) => onCreateStateChange("estimatedMinutes", event.target.value)} placeholder={t("social.teams.estimatedMinutes")} />
+            <textarea value={createState.verificationCriteria} onChange={(event) => onCreateStateChange("verificationCriteria", event.target.value)} placeholder={t("social.teams.verificationCriteria")} maxLength={2000} />
+            <label className="team-task-due-field">
+              <span>{t("social.teams.taskDue")}</span>
+              <input type="datetime-local" value={createState.dueAt} onChange={(event) => onCreateStateChange("dueAt", event.target.value)} />
+            </label>
+            <label className="team-task-due-field">
+              <span>{t("social.teams.reviewDue")}</span>
+              <input type="datetime-local" value={createState.leaderReviewDueAt} onChange={(event) => onCreateStateChange("leaderReviewDueAt", event.target.value)} />
+            </label>
+            <button className="secondary-button" type="button" disabled={createState.creating || !createState.memberId || !createState.title.trim() || (createState.kind === "challenge" && !createState.challengeId)} onClick={onCreate}>{t("social.teams.assign")}</button>
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
 
@@ -1985,6 +2730,7 @@ function DirectMessageModal({
           {payload?.messages.map((message) => (
             <article className={message.sender_user_id === currentUserId ? "direct-bubble own" : "direct-bubble"} key={message.id}>
               <p>{message.body}</p>
+              {message.content_post_id ? <DirectMessageSharedCard postId={message.content_post_id} t={t} /> : null}
             </article>
           ))}
         </div>
@@ -2002,6 +2748,32 @@ function DirectMessageModal({
       </section>
     </div>
   );
+}
+
+function DirectMessageSharedCard({ postId, t }: { postId: string; t: (key: MessageKey, values?: Record<string, string | number>) => string }) {
+  const [content, setContent] = useState<{ title: string; sourceUrl: string } | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await getBrowserSupabaseClient().auth.getSession();
+        const headers: Record<string, string> = {};
+        if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+        const response = await fetch(`/api/social/content/${postId}`, { headers, cache: "no-store" });
+        if (!response.ok) throw new Error("Unavailable");
+        const payload = await response.json() as { post?: { title?: string | null; externalLinks?: Array<{ title?: string | null; external_url?: string }> } };
+        const source = payload.post?.externalLinks?.[0];
+        if (!source?.external_url) throw new Error("Unavailable");
+        if (!cancelled) setContent({ title: payload.post?.title || source.title || source.external_url, sourceUrl: source.external_url });
+      } catch { if (!cancelled) setUnavailable(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [postId]);
+  return <a className="direct-shared-content-card" href={content?.sourceUrl ?? undefined} target="_blank" rel="noopener noreferrer" aria-disabled={!content}>
+    <strong>{unavailable ? t("social.share.unavailable") : content?.title ?? t("social.share.sharedMaterial")}</strong>
+    {content ? <span>{t("social.share.sourceLink")}</span> : null}
+  </a>;
 }
 
 function ProfileEditorDialog({
@@ -2102,6 +2874,19 @@ function parseAvatarPosition(value: string): [number, number] {
 }
 
 function AppearanceDialog({ accentTheme, colorTheme, displayCurrency, locale, t, uiScale, onAccent, onClose, onCurrency, onLocale, onScale, onTheme }: { accentTheme: AccentTheme; colorTheme: ColorTheme; displayCurrency: DisplayCurrency; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; uiScale: UiScale; onAccent: (theme: AccentTheme) => void; onClose: () => void; onCurrency: (currency: DisplayCurrency) => void; onLocale: (locale: AppLocale) => void; onScale: (scale: UiScale) => void; onTheme: (theme: ColorTheme) => void }) {
+  const [soundsOn, setSoundsOn] = useState(false);
+
+  useEffect(() => {
+    setSoundsOn(getSoundsEnabled());
+  }, []);
+
+  const toggleSounds = () => {
+    const next = !soundsOn;
+    setSoundsEnabled(next);
+    setSoundsOn(next);
+    if (next) playUiSound("action");
+  };
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section className="modal-sheet profile-action-modal" role="dialog" aria-modal="true" aria-labelledby="appearance-title" onClick={(event) => event.stopPropagation()}>
@@ -2113,25 +2898,91 @@ function AppearanceDialog({ accentTheme, colorTheme, displayCurrency, locale, t,
           <div className="appearance-setting-row"><span>{t("profile.appearance.scale")}</span><div className="appearance-options" role="group" aria-label={t("profile.appearance.scale")}>{UI_SCALES.map((scale) => <button className={uiScale === scale ? "active" : ""} type="button" aria-pressed={uiScale === scale} key={scale} onClick={() => onScale(scale)}>{scale}%</button>)}</div></div>
           <div className="appearance-setting-row"><span>{t("profile.appearance.theme")}</span><div className="appearance-options" role="group" aria-label={t("profile.appearance.theme")}>{COLOR_THEMES.map((theme) => <button className={colorTheme === theme ? "active" : ""} type="button" aria-pressed={colorTheme === theme} key={theme} onClick={() => onTheme(theme)}>{t(`profile.appearance.theme.${theme}` as MessageKey)}</button>)}</div></div>
           <div className="appearance-setting-row"><span>{t("profile.appearance.color")}</span><div className="appearance-options appearance-color-options" role="group" aria-label={t("profile.appearance.color")}>{ACCENT_THEMES.map((theme) => <button className={accentTheme === theme ? "active" : ""} type="button" aria-pressed={accentTheme === theme} key={theme} onClick={() => onAccent(theme)}><i className={`appearance-color-swatch ${theme}`} aria-hidden="true" /><span>{t(`profile.appearance.color.${theme}` as MessageKey)}</span></button>)}</div></div>
+          <div className="appearance-setting-row"><span>{t("ai.chat.sound.title")}</span><div className="appearance-sound-control"><small>{t("ai.chat.sound.description")}</small><div className="appearance-sound-actions"><button className="ai-chat-icon-btn" type="button" onClick={toggleSounds} aria-pressed={soundsOn} aria-label={t("ai.chat.sound.toggle")} title={t("ai.chat.sound.toggle")}>{soundsOn ? <Volume2 size={17} /> : <VolumeX size={17} />}</button><button className="ai-chat-icon-btn" type="button" onClick={() => playUiSound("action")} disabled={!soundsOn} aria-label={t("ai.chat.sound.previewAction")} title={t("ai.chat.sound.previewAction")}><Play size={16} /></button><button className="ai-chat-icon-btn" type="button" onClick={() => playUiSound("reward")} disabled={!soundsOn} aria-label={t("ai.chat.sound.previewReward")} title={t("ai.chat.sound.previewReward")}><Sparkles size={16} /></button></div></div></div>
         </div>
       </section>
     </div>
   );
 }
 
-function ActivityDialog({ notifications, notificationsLoading, pendingConfirmations, t, onClose, onOpenConfirmations }: { notifications: PayoutNotification[] | null; notificationsLoading: boolean; pendingConfirmations: number; t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void; onOpenConfirmations: () => void }) {
+function ActivityDialog({ notifications, notificationsLoading, unreadCount, pendingConfirmations, locale, t, onClose, onMarkAllRead, onOpenNotification, onOpenConfirmations }: { notifications: PayoutNotification[] | null; notificationsLoading: boolean; unreadCount: number; pendingConfirmations: number; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void; onMarkAllRead: () => void; onOpenNotification: (item: PayoutNotification) => void; onOpenConfirmations: () => void }) {
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section className="modal-sheet profile-action-modal activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-title" onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
-        <div className="modal-header"><span>{t("profile.actions.activity")}</span><h2 id="activity-title">{t("profile.activity.title")}</h2></div>
+        <div className="modal-header"><span>{t("profile.actions.activity")}</span><h2 id="activity-title">{t("profile.activity.title")}</h2>{unreadCount ? <small>{t("notifications.unreadCount", { count: unreadCount })}</small> : null}</div>
+        {unreadCount ? <button className="text-button activity-mark-read" type="button" onClick={onMarkAllRead}>{t("profile.activity.markAllRead")}</button> : null}
         {pendingConfirmations ? <button className="activity-confirmation-link" type="button" onClick={onOpenConfirmations}><Bell size={16} /><span>{t("profile.activity.pendingConfirmations", { count: pendingConfirmations })}</span><ChevronDown size={16} /></button> : null}
         {notificationsLoading ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
-        {!notificationsLoading && notifications?.length ? <div className="notification-list">{notifications.map((item) => <article className="notification-row" key={item.id}><strong>{item.title}</strong><p>{item.body}</p></article>)}</div> : null}
+        {!notificationsLoading && notifications?.length ? <div className="notification-list">{notifications.map((item) => <article className={`notification-row${item.readAt ? "" : item.createdAt ? " unread" : ""}`} key={item.id}>{item.deep_link ? <button type="button" onClick={() => onOpenNotification(item)}><strong>{item.title}</strong><p>{item.body}</p></button> : <><strong>{item.title}</strong><p>{item.body}</p></>}</article>)}</div> : null}
         {!notificationsLoading && !pendingConfirmations && notifications && notifications.length === 0 ? <p className="feed-empty">{t("profile.activity.empty")}</p> : null}
+        <NotificationControls locale={locale} t={t} />
       </section>
     </div>
   );
+}
+
+const NOTIFICATION_CATEGORIES = ["deals", "disputes", "wallet", "rewards", "team", "confirmations", "reminders", "system"] as const;
+const REQUIRED_IN_APP_NOTIFICATION_CATEGORIES = new Set<NotificationCategory>(["deals", "disputes", "wallet", "rewards", "system"]);
+type NotificationCategory = typeof NOTIFICATION_CATEGORIES[number];
+type NotificationPreference = { category: NotificationCategory; in_app_enabled: boolean; push_enabled: boolean };
+type NotificationDevice = { id: string; device_label: string | null; user_agent: string | null; enabled: boolean; last_seen_at: string };
+
+function NotificationControls({ locale, t }: { locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string }) {
+  const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
+  const [devices, setDevices] = useState<NotificationDevice[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        const [preferenceResponse, deviceResponse] = await Promise.all([
+          fetch(`/api/notifications/preferences?ts=${Date.now()}`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/notifications/subscriptions?ts=${Date.now()}`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        const preferencePayload = await preferenceResponse.json() as { preferences?: NotificationPreference[]; error?: string };
+        const devicePayload = await deviceResponse.json() as { devices?: NotificationDevice[]; error?: string };
+        if (!preferenceResponse.ok || !deviceResponse.ok) throw new Error(preferencePayload.error ?? devicePayload.error ?? "Failed to load notification settings.");
+        if (mounted) { setPreferences(preferencePayload.preferences ?? []); setDevices(devicePayload.devices ?? []); }
+      } catch (loadError) {
+        if (mounted) setError(loadError instanceof Error ? loadError.message : "Failed to load notification settings.");
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const preferenceFor = (category: NotificationCategory) => preferences.find((item) => item.category === category) ?? { category, in_app_enabled: true, push_enabled: true };
+
+  async function updatePreference(category: NotificationCategory, field: "in_app_enabled" | "push_enabled", enabled: boolean) {
+    const current = preferenceFor(category);
+    const next = { ...current, [field]: enabled };
+    setPreferences((items) => [...items.filter((item) => item.category !== category), next]);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/notifications/preferences", { method: "PUT", cache: "no-store", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ category, inAppEnabled: next.in_app_enabled, pushEnabled: next.push_enabled, locale }) });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to save notification setting.");
+    } catch (saveError) {
+      setPreferences((items) => [...items.filter((item) => item.category !== category), current]);
+      setError(saveError instanceof Error ? saveError.message : "Failed to save notification setting.");
+    }
+  }
+
+  async function disableDevice(subscriptionId: string) {
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/notifications/subscriptions", { method: "DELETE", cache: "no-store", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ subscriptionId }) });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to disable push device.");
+      setDevices((items) => items.map((item) => item.id === subscriptionId ? { ...item, enabled: false } : item));
+    } catch (disableError) {
+      setError(disableError instanceof Error ? disableError.message : "Failed to disable push device.");
+    }
+  }
+
+  return <details className="notification-settings"><summary>{t("notifications.settings")}</summary><div className="notification-settings-body">{error ? <p className="finance-error">{error}</p> : null}<div className="notification-preferences">{NOTIFICATION_CATEGORIES.map((category) => { const preference = preferenceFor(category); return <div className="notification-preference-row" key={category}><strong>{t(`notifications.category.${category}` as MessageKey)}</strong><label><input type="checkbox" checked={preference.in_app_enabled} disabled={REQUIRED_IN_APP_NOTIFICATION_CATEGORIES.has(category)} onChange={(event) => void updatePreference(category, "in_app_enabled", event.target.checked)} /> {t("notifications.inApp")}</label><label><input type="checkbox" checked={preference.push_enabled} onChange={(event) => void updatePreference(category, "push_enabled", event.target.checked)} /> Push</label></div>; })}</div><div className="notification-devices"><strong>{t("notifications.devices")}</strong>{devices.length ? devices.map((device) => <div key={device.id}><span>{device.device_label ?? t("notifications.deviceUnknown")}</span><button className="text-button" type="button" disabled={!device.enabled} onClick={() => void disableDevice(device.id)}>{device.enabled ? t("notifications.disable") : t("notifications.disabled")}</button></div>) : <small>{t("notifications.devicesEmpty")}</small>}</div></div></details>;
 }
 
 function SkillPassportDialog({ t, onClose }: { t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void }) {
@@ -2400,6 +3251,7 @@ function SystemProfileView({
         posts={posts}
         showBlogAction={false}
         showSystemProfileAction={false}
+        showTileAuthor={false}
         t={t}
         onCopyWish={onCopyWish}
         onDeletePost={onDeletePost}
@@ -2414,6 +3266,7 @@ function SystemProfileView({
 }
 
 function FeedView({
+  addingStoryWishKey,
   copyingWishId,
   currentUserId,
   dailyDraft,
@@ -2429,6 +3282,7 @@ function FeedView({
   t,
   onCreateDraft,
   onCreateExternalLink,
+  onAddStoryWish,
   onCopyWish,
   onDraftBodyChange,
   onDraftBodyChangeForPost,
@@ -2447,6 +3301,7 @@ function FeedView({
   onUploadCover,
   onToggleDraftBlock
 }: {
+  addingStoryWishKey: string | null;
   copyingWishId: string | null;
   currentUserId: string;
   dailyDraft: FeedPost | null;
@@ -2462,6 +3317,7 @@ function FeedView({
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onCreateDraft: () => void;
   onCreateExternalLink: () => void;
+  onAddStoryWish: (post: FeedPost) => void;
   onCopyWish: (wish: PublicWish) => void;
   onDraftBodyChange: (body: string) => void;
   onDraftBodyChangeForPost: (postId: string, body: string) => void;
@@ -2485,23 +3341,28 @@ function FeedView({
   return (
     <section className="feed-layout">
       <div className="feed-filter-row" role="group" aria-label={t("social.feed.title")}>
-        <button className={filter === "all" ? "active" : ""} type="button" onClick={() => onFilterChange("all")}>
+        <button aria-pressed={filter === "all"} className={filter === "all" ? "active" : ""} type="button" onClick={() => onFilterChange("all")}>
           {t("social.feed.filter.all")}
         </button>
-        <button className={filter === "stories" ? "active" : ""} type="button" onClick={() => onFilterChange("stories")}>
+        <button aria-pressed={filter === "stories"} className={filter === "stories" ? "active" : ""} type="button" onClick={() => onFilterChange("stories")}>
           {t("social.feed.filter.stories")}
         </button>
-        <button className={filter === "system" ? "active" : ""} type="button" onClick={() => onFilterChange("system")}>
+        <button aria-pressed={filter === "opportunities"} className={filter === "opportunities" ? "active" : ""} type="button" onClick={() => onFilterChange("opportunities")}>
+          {t("social.feed.filter.opportunities")}
+        </button>
+        <button aria-pressed={filter === "system"} className={filter === "system" ? "active" : ""} type="button" onClick={() => onFilterChange("system")}>
           {t("social.feed.filter.system")}
         </button>
-        <button className={filter === "reviews" ? "active" : ""} type="button" onClick={() => onFilterChange("reviews")}>
+        <button aria-pressed={filter === "reviews"} className={filter === "reviews" ? "active" : ""} type="button" onClick={() => onFilterChange("reviews")}>
           {t("social.feed.filter.reviews")}
         </button>
       </div>
+      {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
       ) : null}
       <PostList
+        addingStoryWishKey={addingStoryWishKey}
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
         emptyText={t("social.feed.empty")}
@@ -2512,15 +3373,12 @@ function FeedView({
           <div className="feed-empty-action">
             <p>{t("social.feed.empty")}</p>
             <small>{t("social.feed.emptyHint")}</small>
-            <button className="primary-button" type="button" onClick={onOpenChallenge}>
-              <Check size={15} />
-              {t("social.feed.openChallenge")}
-            </button>
           </div>
         ) : undefined}
         showBlogAction={true}
         t={t}
         onCopyWish={onCopyWish}
+        onAddStoryWish={onAddStoryWish}
         onOpenAuthor={onOpenAuthor}
         onOpenBlog={onOpenBlog}
         onOpenPost={onOpenPost}
@@ -2533,6 +3391,9 @@ function FeedView({
           {loadingMore ? t("app.common.loading") : t("social.review.loadMore")}
         </button>
       ) : null}
+      <button className="secondary-button feed-today-action" type="button" onClick={onOpenChallenge}>
+        {t("social.feed.takeStep")} <ArrowRight size={15} />
+      </button>
     </section>
   );
 }
@@ -2615,287 +3476,6 @@ function ExternalLinkComposer({
   );
 }
 
-type BlogSubTab = "posts" | "drafts";
-
-function BlogView({
-  blogPayload,
-  copyingWishId,
-  currentUserId,
-  dailyDraft,
-  manualDraft,
-  systemDrafts,
-  externalLinkUrl,
-  linkComposerOpen,
-  loading,
-  locale,
-  openDraftsNonce,
-  saving,
-  selectedBlogAuthorId,
-  t,
-  onCopyWish,
-  onOpenAuthor,
-  onOpenOwnBlog,
-  onOpenPost,
-  onOpenSystemAccount,
-  onDeletePost,
-  onPublish,
-  onCreateDraft,
-  onCreateManualPost,
-  onDraftBodyChange,
-  onManualBodyChange,
-  onManualMediaUpload,
-  onManualVisibilityChange,
-  onDraftBodyChangeForPost,
-  onToggleDraftBlock,
-  onUpdateCover,
-  onUploadCover,
-  onExternalLinkUrlChange,
-  onLinkComposerToggle,
-  onCreateExternalLink
-}: {
-  blogPayload: FeedPayload | null;
-  copyingWishId: string | null;
-  currentUserId: string;
-  dailyDraft: FeedPost | null;
-  manualDraft: FeedPost | null;
-  systemDrafts: FeedPost[];
-  externalLinkUrl: string;
-  linkComposerOpen: boolean;
-  loading: boolean;
-  locale: AppLocale;
-  openDraftsNonce: number;
-  saving: boolean;
-  selectedBlogAuthorId: string | null;
-  t: (key: MessageKey, values?: Record<string, string | number>) => string;
-  onCopyWish: (wish: PublicWish) => void;
-  onOpenAuthor: (userId: string) => void;
-  onOpenOwnBlog: () => void;
-  onOpenPost: (post: FeedPost) => void;
-  onOpenSystemAccount: (accountKey: string) => void;
-  onDeletePost: (post: FeedPost) => void;
-  onPublish: (post: FeedPost) => void;
-  onCreateDraft: () => void;
-  onCreateManualPost: (body: string, visibility: "public" | "private", file: File | null) => void;
-  onDraftBodyChange: (body: string) => void;
-  onManualBodyChange: (body: string) => void;
-  onManualMediaUpload: (post: FeedPost, file: File) => void;
-  onManualVisibilityChange: (visibility: "public" | "private") => void;
-  onDraftBodyChangeForPost: (postId: string, body: string) => void;
-  onToggleDraftBlock: (blockKey: string) => void;
-  onUpdateCover: (post: FeedPost, templateKey: string) => void;
-  onUploadCover: (post: FeedPost, file: File) => void;
-  onExternalLinkUrlChange: (url: string) => void;
-  onLinkComposerToggle: () => void;
-  onCreateExternalLink: () => void;
-}) {
-  const [blogSubTab, setBlogSubTab] = useState<BlogSubTab>("posts");
-  useEffect(() => {
-    if (openDraftsNonce) setBlogSubTab("drafts");
-  }, [openDraftsNonce]);
-  const posts = blogPayload?.posts ?? [];
-  const author = blogPayload?.author ?? posts[0]?.author ?? null;
-  const title = selectedBlogAuthorId ? formatProfileName(author, selectedBlogAuthorId) : t("social.blog.mine");
-
-  return (
-    <section className="feed-layout">
-      <section className="blog-heading">
-        <div>
-          <span>{t("social.blog.title")}</span>
-          <strong>
-            {selectedBlogAuthorId ? (
-              <UserNameWithLevel
-                label={author ? t("profile.levelBadge", { level: author.level }) : undefined}
-                level={author?.level}
-              >
-                {title}
-              </UserNameWithLevel>
-            ) : title}
-          </strong>
-        </div>
-        {selectedBlogAuthorId && selectedBlogAuthorId !== currentUserId ? (
-          <button className="secondary-button" type="button" onClick={onOpenOwnBlog}>
-            <UserRound size={16} />
-            {t("social.blog.mine")}
-          </button>
-        ) : null}
-      </section>
-      <div className="feed-filter-row" role="group" aria-label={t("social.blog.title")}>
-        <button className={blogSubTab === "posts" ? "active" : ""} type="button" onClick={() => setBlogSubTab("posts")}>
-          {t("social.blog.tab.posts")}
-        </button>
-        <button className={blogSubTab === "drafts" ? "active" : ""} type="button" onClick={() => setBlogSubTab("drafts")}>
-          {t("social.blog.tab.drafts")}
-        </button>
-      </div>
-      {blogSubTab === "posts" ? (
-        <PostList
-          copyingWishId={copyingWishId}
-          currentUserId={currentUserId}
-          emptyText={t("social.blog.empty")}
-          loading={loading}
-          locale={locale}
-          posts={posts}
-          saving={saving}
-          showBlogAction={false}
-          t={t}
-          onCopyWish={onCopyWish}
-          onOpenAuthor={onOpenAuthor}
-          onOpenBlog={onOpenAuthor}
-          onOpenPost={onOpenPost}
-          onOpenSystemAccount={onOpenSystemAccount}
-          onDeletePost={onDeletePost}
-          onPublish={onPublish}
-        />
-      ) : (
-        <section className="feed-composer">
-          <ManualPostComposer
-            draft={manualDraft}
-            locale={locale}
-            saving={saving}
-            t={t}
-            onBodyChange={onManualBodyChange}
-            onCreate={onCreateManualPost}
-            onPublish={onPublish}
-            onUpload={onManualMediaUpload}
-            onVisibilityChange={onManualVisibilityChange}
-          />
-          <div className="section-heading-row">
-            <span>{t("social.feed.systemDrafts")}</span>
-            <button className="secondary-button" type="button" disabled={saving} onClick={onCreateDraft}>
-              <Newspaper size={16} />
-              {t("social.feed.createDraft")}
-            </button>
-          </div>
-          {dailyDraft ? (
-            <DailyDraftEditor
-              locale={locale}
-              post={dailyDraft}
-              saving={saving}
-              t={t}
-              onBodyChange={onDraftBodyChange}
-              onPublish={() => onPublish(dailyDraft)}
-              onToggleBlock={onToggleDraftBlock}
-              onUpdateCover={onUpdateCover}
-              onUploadCover={onUploadCover}
-            />
-          ) : null}
-          {systemDrafts.filter((post) => post.id !== dailyDraft?.id).map((post) => (
-            <SystemDraftEditor
-              key={post.id}
-              locale={locale}
-              post={post}
-              saving={saving}
-              t={t}
-              onBodyChange={(body) => onDraftBodyChangeForPost(post.id, body)}
-              onPublish={() => onPublish(post)}
-              onUpdateCover={onUpdateCover}
-              onUploadCover={onUploadCover}
-            />
-          ))}
-          <ExternalLinkComposer
-            open={linkComposerOpen}
-            saving={saving}
-            t={t}
-            url={externalLinkUrl}
-            onToggle={onLinkComposerToggle}
-            onSubmit={onCreateExternalLink}
-            onUrlChange={onExternalLinkUrlChange}
-          />
-        </section>
-      )}
-    </section>
-  );
-}
-
-function DailyDraftEditor({
-  locale,
-  post,
-  saving,
-  t,
-  onBodyChange,
-  onPublish,
-  onToggleBlock,
-  onUpdateCover,
-  onUploadCover
-}: {
-  locale: AppLocale;
-  post: FeedPost;
-  saving: boolean;
-  t: (key: MessageKey, values?: Record<string, string | number>) => string;
-  onBodyChange: (body: string) => void;
-  onPublish: () => void;
-  onToggleBlock: (blockKey: string) => void;
-  onUpdateCover: (post: FeedPost, templateKey: string) => void;
-  onUploadCover: (post: FeedPost, file: File) => void;
-}) {
-  return (
-    <div className="daily-draft-editor">
-      <textarea value={post.body ?? ""} maxLength={700} onChange={(event) => onBodyChange(event.target.value)} />
-      <SystemEventCoverPicker post={post} saving={saving} t={t} onUpdateCover={onUpdateCover} onUploadCover={onUploadCover} />
-      <div className="stat-block-picker-heading">
-        <span>{t("social.post.visibilitySettings")}</span>
-      </div>
-      <div className="stat-block-picker">
-        {post.statBlocks.map((block) => {
-          const isPublic = block.visibility === "public";
-          const blockLabel = t(statBlockLabelKey(block.block_key));
-          return (
-            <button
-              aria-label={t(isPublic ? "social.post.hideBlock" : "social.post.showBlock", { block: blockLabel })}
-              aria-pressed={isPublic}
-              className={statBlockClassName(block, "stat-block-toggle", isPublic)}
-              type="button"
-              key={block.id}
-              onClick={() => onToggleBlock(block.block_key)}
-            >
-              <span>{blockLabel}</span>
-              <strong>{formatStatBlockValue(block, locale)}</strong>
-              <small>
-                {isPublic ? <Eye size={13} /> : <EyeOff size={13} />}
-                {t(isPublic ? "social.post.publicBlock" : "social.post.privateBlock")}
-              </small>
-            </button>
-          );
-        })}
-      </div>
-      <button className="secondary-button primary-social-action" type="button" disabled={saving || post.status === "published"} onClick={onPublish}>
-        <Send size={16} />
-        {t("social.feed.publish")}
-      </button>
-    </div>
-  );
-}
-
-function SystemDraftEditor({ locale, post, saving, t, onBodyChange, onPublish, onUpdateCover, onUploadCover }: {
-  locale: AppLocale;
-  post: FeedPost;
-  saving: boolean;
-  t: (key: MessageKey, values?: Record<string, string | number>) => string;
-  onBodyChange: (body: string) => void;
-  onPublish: () => void;
-  onUpdateCover: (post: FeedPost, templateKey: string) => void;
-  onUploadCover: (post: FeedPost, file: File) => void;
-}) {
-  return (
-    <div className="daily-draft-editor system-event-draft-editor">
-      {post.system_verified ? (
-        <div className="verified-draft-note">
-          <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span>
-          {post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
-          <small>{t("social.feed.verifiedDraftHint")}</small>
-        </div>
-      ) : null}
-      <textarea value={post.body ?? ""} maxLength={700} onChange={(event) => onBodyChange(event.target.value)} />
-      <SystemEventCoverPicker post={post} saving={saving} t={t} onUpdateCover={onUpdateCover} onUploadCover={onUploadCover} />
-      <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
-      <button className="secondary-button primary-social-action" type="button" disabled={saving || post.status === "published"} onClick={onPublish}>
-        <Send size={16} />
-        {t("social.feed.publish")}
-      </button>
-    </div>
-  );
-}
-
 function SystemEventCoverPicker({ post, saving, t, onUpdateCover, onUploadCover }: {
   post: FeedPost;
   saving: boolean;
@@ -2936,6 +3516,7 @@ function SystemEventCoverPicker({ post, saving, t, onUpdateCover, onUploadCover 
 }
 
 function PostList(props: {
+  addingStoryWishKey?: string | null;
   copyingWishId: string | null;
   currentUserId: string;
   emptyText: string;
@@ -2946,8 +3527,10 @@ function PostList(props: {
   saving?: boolean;
   showBlogAction: boolean;
   showSystemProfileAction?: boolean;
+  showTileAuthor?: boolean;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onCopyWish: (wish: PublicWish) => void;
+  onAddStoryWish?: (post: FeedPost) => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
   onOpenPost: (post: FeedPost) => void;
@@ -2955,11 +3538,15 @@ function PostList(props: {
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
 }) {
-  const { emptyState, emptyText, loading, onOpenPost, posts, t } = props;
-  if (loading && !posts.length) return <p className="finance-error neutral">{t("app.common.loading")}</p>;
+  const { addingStoryWishKey, emptyState, emptyText, loading, onAddStoryWish, onOpenPost, posts, showTileAuthor = true, t } = props;
+  if (loading && !posts.length) {
+    return <div className="feed-post-gallery feed-post-gallery-loading" aria-label={t("app.common.loading")}>
+      {Array.from({ length: 9 }, (_, index) => <span className="feed-post-tile-skeleton" key={index} />)}
+    </div>;
+  }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={posts} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({
@@ -3123,6 +3710,7 @@ export function PostDetailModal({
   post,
   t,
   onClose,
+  onAddStoryWish,
   onCopyWish,
   onDeletePost,
   onOpenAuthor,
@@ -3133,7 +3721,9 @@ export function PostDetailModal({
   onUpdateCover,
   onUploadCover,
   onUpdateReview,
-  onReposted
+  onReposted,
+  storyWishError = null,
+  storyWishSaving = false
 }: {
   copyingWishId: string | null;
   currentUserId: string | null;
@@ -3142,6 +3732,7 @@ export function PostDetailModal({
   post: FeedPost;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onClose: () => void;
+  onAddStoryWish?: (post: FeedPost) => void;
   onCopyWish: (wish: PublicWish) => void;
   onDeletePost: (post: FeedPost) => void;
   onOpenAuthor: (userId: string) => void;
@@ -3153,8 +3744,13 @@ export function PostDetailModal({
   onUploadCover?: (post: FeedPost, file: File) => void;
   onUpdateReview: (post: FeedPost, changes: ReviewEditPayload) => Promise<void>;
   onReposted?: () => void;
+  storyWishError?: string | null;
+  storyWishSaving?: boolean;
 }) {
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
+  const hasVisualMedia = post.media.some((item) => (item.media_type === "image" || item.media_type === "video") && Boolean(item.media_url));
+  const fallbackCover = hasVisualMedia ? null : getFeedPostCover(post);
+  const hasDetailCover = hasVisualMedia || Boolean(fallbackCover);
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewDraft, setReviewDraft] = useState<ReviewEditPayload>({
@@ -3177,117 +3773,143 @@ export function PostDetailModal({
     }
   }
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet post-detail-modal" role="dialog" aria-modal="true" aria-label={t("social.post.detail")} onClick={(event) => event.stopPropagation()}>
+    <div className="modal-backdrop post-detail-backdrop" role="presentation" onClick={onClose}>
+      <section className={`modal-sheet post-detail-modal${hasDetailCover ? " has-media" : ""}`} role="dialog" aria-modal="true" aria-label={t("social.post.detail")} onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}>
           <X size={18} />
         </button>
-        <div className="post-detail-author-row">
-          <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
-          {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
-          {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
-          {post.post_type === "abundance_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
-          {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
-        </div>
-        {post.system_verified && post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
-        {post.projectReview && !editingReview ? (
-          <div className="project-review-detail-meta">
-            <ReviewStars value={post.projectReview.overall_rating} />
-            <span>{t("social.review.mission", { rating: post.projectReview.mission_rating })}</span>
-            <span>{t(`appTesting.attitude.${post.projectReview.attitude}` as MessageKey)}</span>
-            <span>{t(`appTesting.area.${post.projectReview.most_useful_area}` as MessageKey)}</span>
+        {hasVisualMedia ? <PostMedia media={post.media} locale={locale} showSource /> : null}
+        {fallbackCover ? <div className="post-detail-cover"><img alt="" src={fallbackCover} /></div> : null}
+        <div className="post-detail-content">
+          <div className="post-detail-author-row">
+            <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+            {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
+            {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
+            {post.post_type === "abundance_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
+            {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
           </div>
-        ) : null}
-        {editingReview && post.projectReview ? (
-          <div className="project-review-editor">
-            <label>
-              <span>{t("appTesting.overallRating")}</span>
-              <select value={reviewDraft.overallRating} onChange={(event) => setReviewDraft((current) => ({ ...current, overallRating: Number(event.target.value) }))}>
-                {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("appTesting.missionRating")}</span>
-              <select value={reviewDraft.missionRating} onChange={(event) => setReviewDraft((current) => ({ ...current, missionRating: Number(event.target.value) }))}>
-                {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("appTesting.attitude")}</span>
-              <select value={reviewDraft.attitude} onChange={(event) => setReviewDraft((current) => ({ ...current, attitude: event.target.value }))}>
-                {APP_TESTING_ATTITUDES.map((attitude) => <option value={attitude} key={attitude}>{t(`appTesting.attitude.${attitude}` as MessageKey)}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("appTesting.mostUseful")}</span>
-              <select value={reviewDraft.mostUsefulArea} onChange={(event) => setReviewDraft((current) => ({ ...current, mostUsefulArea: event.target.value }))}>
-                {APP_TESTING_USEFUL_AREAS.map((area) => <option value={area} key={area}>{t(`appTesting.area.${area}` as MessageKey)}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("appTesting.publicReview")}</span>
-              <textarea maxLength={1500} value={reviewDraft.body} onChange={(event) => setReviewDraft((current) => ({ ...current, body: event.target.value }))} />
-            </label>
-            <div className="project-review-editor-actions">
-              <button className="secondary-button" type="button" onClick={() => setEditingReview(false)}>{t("social.review.cancel")}</button>
-              <button className="primary-button" type="button" disabled={reviewSaving || reviewDraft.body.trim().length < 100} onClick={() => { void saveReview(); }}>
-                {reviewSaving ? t("app.common.loading") : t("social.review.save")}
-              </button>
+          {post.system_verified && post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
+          {post.projectReview && !editingReview ? (
+            <div className="project-review-detail-meta">
+              <ReviewStars value={post.projectReview.overall_rating} />
+              <span>{t("social.review.mission", { rating: post.projectReview.mission_rating })}</span>
+              <span>{t(`appTesting.attitude.${post.projectReview.attitude}` as MessageKey)}</span>
+              <span>{t(`appTesting.area.${post.projectReview.most_useful_area}` as MessageKey)}</span>
             </div>
+          ) : null}
+          {editingReview && post.projectReview ? (
+            <div className="project-review-editor">
+              <label>
+                <span>{t("appTesting.overallRating")}</span>
+                <select value={reviewDraft.overallRating} onChange={(event) => setReviewDraft((current) => ({ ...current, overallRating: Number(event.target.value) }))}>
+                  {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("appTesting.missionRating")}</span>
+                <select value={reviewDraft.missionRating} onChange={(event) => setReviewDraft((current) => ({ ...current, missionRating: Number(event.target.value) }))}>
+                  {[1, 2, 3, 4, 5].map((rating) => <option value={rating} key={rating}>{rating}/5</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("appTesting.attitude")}</span>
+                <select value={reviewDraft.attitude} onChange={(event) => setReviewDraft((current) => ({ ...current, attitude: event.target.value }))}>
+                  {APP_TESTING_ATTITUDES.map((attitude) => <option value={attitude} key={attitude}>{t(`appTesting.attitude.${attitude}` as MessageKey)}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("appTesting.mostUseful")}</span>
+                <select value={reviewDraft.mostUsefulArea} onChange={(event) => setReviewDraft((current) => ({ ...current, mostUsefulArea: event.target.value }))}>
+                  {APP_TESTING_USEFUL_AREAS.map((area) => <option value={area} key={area}>{t(`appTesting.area.${area}` as MessageKey)}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("appTesting.publicReview")}</span>
+                <textarea maxLength={1500} value={reviewDraft.body} onChange={(event) => setReviewDraft((current) => ({ ...current, body: event.target.value }))} />
+              </label>
+              <div className="project-review-editor-actions">
+                <button className="secondary-button" type="button" onClick={() => setEditingReview(false)}>{t("social.review.cancel")}</button>
+                <button className="primary-button" type="button" disabled={reviewSaving || reviewDraft.body.trim().length < 100} onClick={() => { void saveReview(); }}>
+                  {reviewSaving ? t("app.common.loading") : t("social.review.save")}
+                </button>
+              </div>
+            </div>
+          ) : <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>}
+          {post.projectReview && !editingReview ? <small className="project-review-reward-note">{t("social.review.rewarded", { reward: formatMoney(3, locale) })}</small> : null}
+          <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
+          <RepostSourcePreview post={post} locale={locale} t={t} />
+          <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
+          <WishPostPreview
+            copyingWishId={copyingWishId}
+            currentUserId={currentUserId}
+            hideCopy={readOnly}
+            locale={locale}
+            post={post}
+            t={t}
+            onCopyWish={onCopyWish}
+          />
+          <ExternalLinkPreview post={post} />
+          <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
+          <FeedPostSignalButtons
+            currentUserId={currentUserId}
+            onAddStoryWish={readOnly ? undefined : onAddStoryWish}
+            post={post}
+            storyWishError={storyWishError}
+            storyWishSaving={storyWishSaving}
+            t={t}
+          />
+          <div className="post-detail-actions">
+            {post.system_verified && post.verifiedChallenge ? (
+              <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
+                <Check size={15} />
+                {t("social.feed.openChallenge")}
+              </button>
+            ) : null}
+            {post.author_user_id ? (
+              <button className="secondary-button" type="button" onClick={() => onOpenBlog(post.author_user_id!)}>
+                <BookOpen size={16} />
+                {t("social.feed.openBlog")}
+              </button>
+            ) : null}
+            {post.systemStory ? (
+              <button className="system-story-profile-link" type="button" onClick={() => onOpenSystemAccount(post.systemStory!.system_account_key)}>
+                <BookOpen size={14} />
+                {t("social.systemProfile.allChapters")}
+              </button>
+            ) : null}
+            {canDelete && post.projectReview && !editingReview ? (
+              <button className="secondary-button" type="button" onClick={() => setEditingReview(true)}>
+                <Edit3 size={15} />
+                {t("social.review.edit")}
+              </button>
+            ) : null}
+            {!readOnly && post.status === "draft" ? (
+              <button className="finance-small-icon-button primary" type="button" aria-label={t("social.feed.publish")} onClick={() => onPublish(post)}>
+                <Send size={15} />
+              </button>
+            ) : null}
+            {canDelete ? (
+              <button className="finance-small-icon-button danger" type="button" aria-label={t("social.post.delete")} onClick={() => onDeletePost(post)}>
+                <Trash2 size={15} />
+              </button>
+            ) : null}
           </div>
-        ) : <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>}
-        {post.projectReview && !editingReview ? <small className="project-review-reward-note">{t("social.review.rewarded", { reward: formatMoney(3, locale) })}</small> : null}
-        <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
-        <RepostSourcePreview post={post} locale={locale} t={t} />
-        <PostMedia media={post.media} locale={locale} portrait={post.post_type === "abundance_story"} showSource />
-        <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
-        <WishPostPreview
-          copyingWishId={copyingWishId}
-          currentUserId={currentUserId}
-          hideCopy={readOnly}
-          locale={locale}
-          post={post}
-          t={t}
-          onCopyWish={onCopyWish}
-        />
-        <ExternalLinkPreview post={post} />
-        <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
-        <div className="post-detail-actions">
-          {post.system_verified && post.verifiedChallenge ? (
-            <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
-              <Check size={15} />
-              {t("social.feed.openChallenge")}
-            </button>
-          ) : null}
-          {post.author_user_id ? (
-            <button className="secondary-button" type="button" onClick={() => onOpenBlog(post.author_user_id!)}>
-              <BookOpen size={16} />
-              {t("social.feed.openBlog")}
-            </button>
-          ) : null}
-          {post.systemStory ? (
-            <button className="system-story-profile-link" type="button" onClick={() => onOpenSystemAccount(post.systemStory!.system_account_key)}>
-              <BookOpen size={14} />
-              {t("social.systemProfile.allChapters")}
-            </button>
-          ) : null}
-          {canDelete && post.projectReview && !editingReview ? (
-            <button className="secondary-button" type="button" onClick={() => setEditingReview(true)}>
-              <Edit3 size={15} />
-              {t("social.review.edit")}
-            </button>
-          ) : null}
-          {!readOnly && post.status === "draft" ? (
-            <button className="finance-small-icon-button primary" type="button" aria-label={t("social.feed.publish")} onClick={() => onPublish(post)}>
-              <Send size={15} />
-            </button>
-          ) : null}
-          {canDelete ? (
-            <button className="finance-small-icon-button danger" type="button" aria-label={t("social.post.delete")} onClick={() => onDeletePost(post)}>
-              <Trash2 size={15} />
-            </button>
-          ) : null}
         </div>
       </section>
     </div>
@@ -3468,7 +4090,7 @@ function PostAuthor({
 }
 
 function PostMedia({ media, locale, onOpen, portrait = false, showSource = false }: { media: FeedMedia[]; locale: AppLocale; onOpen?: () => void; portrait?: boolean; showSource?: boolean }) {
-  const playableMedia = media.filter((item) => item.media_type === "image" || item.media_type === "video");
+  const playableMedia = media.filter((item) => (item.media_type === "image" || item.media_type === "video") && Boolean(item.media_url));
   if (!playableMedia.length) return null;
 
   return (
@@ -3588,21 +4210,40 @@ async function getAccessToken(): Promise<string> {
   return session.access_token;
 }
 
-function getVideoDuration(file: File): Promise<number | null> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.onloadedmetadata = () => {
-      URL.revokeObjectURL(url);
-      resolve(Number.isFinite(video.duration) ? video.duration : null);
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(null);
-    };
-    video.src = url;
+async function refreshAccessToken(): Promise<string> {
+  const supabase = getBrowserSupabaseClient();
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error) throw error;
+  if (!data.session?.access_token) throw new Error("Supabase session refresh failed.");
+  return data.session.access_token;
+}
+
+async function requestStoryWish(recommendedWishId: string, locale: AppLocale, token: string) {
+  const response = await fetch("/api/wishes", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" },
+    body: JSON.stringify({ locale, sourceRecommendedWishId: recommendedWishId })
   });
+  const payload = await response.json().catch(() => ({})) as { wish?: { id: string }; error?: string };
+  return { payload, response };
+}
+
+class StoryWishRequestError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "StoryWishRequestError";
+  }
+}
+
+function storyWishErrorMessage(error: unknown, t: (key: MessageKey) => string): string {
+  if (error instanceof StoryWishRequestError) {
+    if (error.status === 400 || error.status === 404) return t("wishes.addUnavailable");
+    if (error.status === 401 || error.status === 403) return t("wishes.addAuthError");
+    return t("wishes.addServerError");
+  }
+  if (error instanceof Error && /session/i.test(error.message)) return t("wishes.addAuthError");
+  return t("wishes.addError");
 }
 
 async function loadTeamRewardsHistory(since?: string): Promise<TeamRewardDay[]> {
@@ -3635,6 +4276,29 @@ async function loadCoreNotifications(since?: string): Promise<CoreNotificationRo
   const payload = (await response.json()) as { rows?: CoreNotificationRow[]; error?: string };
   if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load core payouts.");
   return payload.rows ?? [];
+}
+
+async function loadNotificationCenter(locale: AppLocale): Promise<{ notifications: PayoutNotification[]; unreadCount: number }> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/notifications?limit=50&locale=${locale}&ts=${Date.now()}`, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+  });
+  const payload = await response.json() as { notifications?: PayoutNotification[]; unreadCount?: number; error?: string };
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load notifications.");
+  return { notifications: payload.notifications ?? [], unreadCount: payload.unreadCount ?? 0 };
+}
+
+async function markNotificationsRead(ids?: string[]): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch("/api/notifications", {
+    method: "PATCH",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(ids ? { ids } : { all: true })
+  });
+  const payload = await response.json() as { error?: string };
+  if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to update notifications.");
 }
 
 function buildPayoutNotifications(coreRows: CoreNotificationRow[], rewardRows: TeamRewardDay[], locale: AppLocale): PayoutNotification[] {

@@ -34,18 +34,22 @@ Daily-review settings migrate from `open-abundance:reflection-settings:v1` to `o
 
 ## Push Deployment
 
-1. Apply `20260721120000_reflection_push_reminders.sql`.
-2. Generate a VAPID key pair.
-3. Configure the web app with `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY`.
-4. Configure the `send-reflection-reminders` Edge Function with:
+На 2026-09-16 reminder-миграция применена, `send-reflection-reminders` развёрнута (версия 3), VAPID-пара и cron-secret записаны в Edge Function Secrets, оба значения для cron записаны в Vault. Ручной вызов и минутный cron получили HTTP 200 при пустых очередях. Публичный VAPID endpoint вернул HTTP 200 и правильный ключ; обновлённый клиент ещё нужно опубликовать и проверить на телефоне.
+
+1. Applied: `20260721120000_reflection_push_reminders.sql`.
+2. Generated: a VAPID key pair in the local ignored `.env`.
+3. Pending for production: publish the web app client that fetches the public VAPID key from the Edge Function before requesting notification permission. No Vercel environment variable is required.
+4. Configured the `send-reflection-reminders` Edge Function with:
    - `WEB_PUSH_VAPID_PUBLIC_KEY`;
    - `WEB_PUSH_VAPID_PRIVATE_KEY`;
-   - `WEB_PUSH_VAPID_SUBJECT`;
+   - `WEB_PUSH_VAPID_SUBJECT` (uses the function's default `mailto:admin@open-abundance.app`);
    - `REMINDER_CRON_SECRET`.
-5. Store `project_url` and the same secret as `reflection_reminder_cron_secret` in Supabase Vault.
-6. Deploy `send-reflection-reminders` and verify the minute cron job.
+5. Stored `project_url` and the same secret as `reflection_reminder_cron_secret` in Supabase Vault.
+6. Deployed and verified: `send-reflection-reminders` and the minute cron returned HTTP 200 with empty queues.
 
 The server stores subscription keys, schedule, timezone, locale, opaque local IDs and delivery state. It never stores the reflection body, AI proposal or task title. Notification copy is deliberately generic.
+
+Общий in-app центр, категории, устройства и события из других подсистем реализованы в [Notifications And Web Push Plan](NOTIFICATIONS_PLAN.md); схема центра применена удалённо. Это не меняет local-first границы reflection content. Web Push остаётся на этапе публикации обновлённого клиента и проверки на устройстве.
 
 ## Verification
 

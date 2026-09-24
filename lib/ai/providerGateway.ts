@@ -107,8 +107,11 @@ export type AiJsonResult<T> = {
 };
 
 export const AI_PROVIDER_MODELS: Record<AiProvider, string> = {
-  gemini: "gemini-2.0-flash",
-  groq: "llama-3.3-70b-versatile"
+  // Keep these IDs in sync with the provider catalog. The previous models
+  // were retired and returned 404s, which made the gateway exhaust every
+  // configured provider before the user saw a response.
+  gemini: "gemini-3.6-flash",
+  groq: "openai/gpt-oss-20b"
 };
 
 const GEMINI_MODEL = AI_PROVIDER_MODELS.gemini;

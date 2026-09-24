@@ -3,6 +3,7 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Tables } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { normalizeProfileVisibility } from "@/lib/socialProfile";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,6 +13,7 @@ type PostPatchBody = {
   action?: unknown;
   attitude?: unknown;
   body?: unknown;
+  title?: unknown;
   missionRating?: unknown;
   mostUsefulArea?: unknown;
   overallRating?: unknown;
@@ -50,11 +52,26 @@ export async function PATCH(request: NextRequest, { params }: { params: { postId
     const action = normalizeAction(body.action);
     const nextStatus = getNextStatus(currentPost.status, action);
     const nextBody = normalizeBody(body.body, currentPost.body, currentPost.post_type === "project_review" ? 1500 : 700);
+    const nextTitle = normalizeTitle(body.title, currentPost.title);
     const nextVisibility = normalizeProfileVisibility(body.visibility, normalizeProfileVisibility(currentPost.visibility));
     const now = new Date().toISOString();
 
     if (currentPost.post_type === "manual" && nextVisibility !== "public" && nextVisibility !== "private") {
       return NextResponse.json({ error: "Manual posts support only public or private visibility." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+
+    if (currentPost.post_type === "external_link" && nextVisibility !== "public" && nextVisibility !== "private") {
+      return NextResponse.json({ error: "Saved links support only public or private visibility." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+
+    if (currentPost.post_type === "external_link" && nextStatus === "published") {
+      const { count, error: sourceError } = await supabase
+        .from("feed_post_external_links")
+        .select("id", { count: "exact", head: true })
+        .eq("post_id", postId)
+        .eq("relation", "source");
+      if (sourceError) return NextResponse.json({ error: sourceError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      if (!count) return NextResponse.json({ error: "A source link is required before publishing." }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     if (currentPost.post_type === "manual" && nextStatus === "published" && !currentPost.repost_of_post_id && !nextBody) {
@@ -73,6 +90,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { postId
     const { data: updatedPost, error: updatePostError } = await supabase
       .from("feed_posts")
       .update({
+        title: nextTitle,
         body: nextBody,
         visibility: nextVisibility,
         status: nextStatus,
@@ -94,6 +112,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { postId
     )));
     const statBlockError = statBlockResults.find((result) => result.error)?.error;
     if (statBlockError) return NextResponse.json({ error: statBlockError.message }, { status: 500, headers: NO_STORE_HEADERS });
+
+    if (currentPost.post_type === "external_link" && currentPost.status !== "published" && nextStatus === "published") {
+      const { data: source } = await supabase.from("feed_post_external_links").select("provider").eq("post_id", postId).eq("relation", "source").maybeSingle();
+      await recordProductEvent({ entityId: postId, entityType: "feed_post", eventName: "saved_content_published", properties: { provider: source?.provider ?? "website" }, source: "server", userId: user.id });
+    }
 
     let projectReview = null;
     if (currentPost.post_type === "project_review") {
@@ -169,26 +192,32 @@ export async function DELETE(request: NextRequest, { params }: { params: { postI
       return NextResponse.json({ error: "Only the author can delete this post." }, { status: 403, headers: NO_STORE_HEADERS });
     }
 
-    if (currentPost.post_type === "manual") {
+    let storagePaths: string[] = [];
+    if (currentPost.post_type === "manual" || currentPost.post_type === "external_link") {
       const { data: mediaRows, error: mediaError } = await supabase
         .from("feed_post_media")
         .select("storage_path")
         .eq("post_id", postId)
         .not("storage_path", "is", null);
       if (mediaError) return NextResponse.json({ error: mediaError.message }, { status: 500, headers: NO_STORE_HEADERS });
-      const storagePaths = (mediaRows ?? []).map((row) => row.storage_path).filter((path): path is string => Boolean(path));
-      if (storagePaths.length) {
-        const { error: storageError } = await supabase.storage.from("feed-media").remove(storagePaths);
-        if (storageError) return NextResponse.json({ error: storageError.message }, { status: 500, headers: NO_STORE_HEADERS });
-      }
+      storagePaths = (mediaRows ?? []).map((row) => row.storage_path).filter((path): path is string => Boolean(path));
     }
 
-    const { error: deleteError } = await supabase
-      .from("feed_posts")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", postId);
-
-    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    if (currentPost.post_type === "external_link") {
+      const { data: deleted, error: deleteError } = await supabase.rpc("delete_saved_external_content", { p_owner_user_id: user.id, p_post_id: postId });
+      if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      if (!deleted) return NextResponse.json({ error: "Post not found." }, { status: 404, headers: NO_STORE_HEADERS });
+    } else {
+      const { error: deleteError } = await supabase
+        .from("feed_posts")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", postId);
+      if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
+    if (storagePaths.length) {
+      const { error: storageError } = await supabase.storage.from("feed-media").remove(storagePaths);
+      if (storageError) return NextResponse.json({ error: storageError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    }
 
     return NextResponse.json({ deletedPostId: postId }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
@@ -224,6 +253,12 @@ function normalizeBody(value: unknown, fallback: string | null, maxLength: numbe
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, maxLength) : null;
+}
+
+function normalizeTitle(value: unknown, fallback: string | null): string | null {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, 120) : null;
 }
 
 function normalizeRating(value: unknown, fallback: number): number {

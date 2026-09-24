@@ -17,6 +17,12 @@ Features that exist in code but have not passed manual user verification are not
 
 The system-wide growth model, process priority, AI development path and challenge factory live in [docs/OPEN_ABUNDANCE_SYSTEM_GROWTH_PLAN.md](docs/OPEN_ABUNDANCE_SYSTEM_GROWTH_PLAN.md).
 
+The intended user experience, shared values, use cases and collaboration scenarios live in [docs/USER_CASES_AND_SCENARIOS.md](docs/USER_CASES_AND_SCENARIOS.md), connecting personal wishes and plans with mutual help, reusable solutions and economic participation.
+
+The shared mobile UI rule—compact overview, on-demand details, then one clear action—and the staged redesign of Challenges, Home, and Nova live in [docs/ENGAGING_INTERFACE_PLAN.md](docs/ENGAGING_INTERFACE_PLAN.md).
+
+The implementation specification for the My Blog creator workspace, compact drafts, public posts and cross-platform audience growth lives in [docs/SOCIAL_PLATFORM_INTEGRATION_PLAN.md](docs/SOCIAL_PLATFORM_INTEGRATION_PLAN.md). It records MVP decisions, integration research and acceptance criteria; the first compact-blog stage is implemented locally and awaits User QA, while integrations and rollout remain separate tasks.
+
 ## Economic Pilot Boundary
 
 - Core and Wallet are separate internal balances with user-controlled reinvestment.

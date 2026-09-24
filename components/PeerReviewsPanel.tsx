@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { ExternalLink, ShieldCheck } from "lucide-react";
-import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { translate, type AppLocale, type MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 
-type Challenge = { id: string };
+type Challenge = { core_reward_amount: number; id: string; wallet_reward_amount: number };
 type Source = {
   canonical_url?: string | null;
   platform?: string | null;
@@ -52,16 +52,11 @@ export default function PeerReviewsPanel({ challenge, locale }: { challenge: Cha
   const isSubmitted = current?.answer.status === "submitted";
   const checklistComplete = checklistKeys.every(([key]) => typeof checklist[key] === "boolean");
   const progressText = t("peerReviews.progress", { completed: progress.reviewsCompleted, valid: progress.validReviews, invalid: progress.invalidReviews });
-
-  async function token() {
-    const { data } = await getBrowserSupabaseClient().auth.getSession();
-    return data.session?.access_token ?? "";
-  }
+  const rewardAmount = Number(challenge.core_reward_amount) + Number(challenge.wallet_reward_amount);
+  const rewardSummary = formatRewardSummary(challenge, locale);
 
   async function load() {
-    const accessToken = await token();
-    if (!accessToken) return;
-    const response = await fetch(`/api/challenges/peer-reviews?challenge=${challenge.id}&ts=${Date.now()}`, { cache: "no-store", headers: { Authorization: `Bearer ${accessToken}` } });
+    const response = await fetchWithSupabaseAuth(`/api/challenges/peer-reviews?challenge=${challenge.id}&ts=${Date.now()}`, { cache: "no-store" }, { authRequired: true });
     const payload = await response.json();
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Could not load review task.");
     setCurrent(payload.current ?? null);
@@ -79,14 +74,13 @@ export default function PeerReviewsPanel({ challenge, locale }: { challenge: Cha
     setBusy(true);
     setError("");
     try {
-      const accessToken = await token();
-      const response = await fetch("/api/challenges/peer-reviews", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify(body) });
+      const response = await fetchWithSupabaseAuth("/api/challenges/peer-reviews", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, { authRequired: true });
       const payload = await response.json();
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Could not update review.");
       setCurrent(payload.current ?? null);
       if (payload.progress) setProgress(payload.progress);
       if (body.action === "submit") {
-        setMessage(payload.rewardStatus === "paid" ? t("peerReviews.reward", { amount: formatRoundedMoney(Number(payload.reward), locale) }) : payload.rewardStatus === "withheld" ? t("peerReviews.withheld", { penalty: formatRoundedMoney(0.35, locale), reward: formatRoundedMoney(0.35, locale) }) : t("peerReviews.submitted"));
+        setMessage(payload.rewardStatus === "paid" ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : payload.rewardStatus === "withheld" ? t("peerReviews.withheld", { penalty: formatRoundedMoney(rewardAmount, locale), reward: formatRoundedMoney(rewardAmount, locale) }) : t("peerReviews.submitted"));
         setChecklist({});
         setVerdict("");
         setNotes("");
@@ -111,9 +105,9 @@ export default function PeerReviewsPanel({ challenge, locale }: { challenge: Cha
       <div className="peer-reviews-progress">
         <ShieldCheck aria-hidden="true" size={18} />
         <span>{progressText}</span>
-        <strong>{t("peerReviews.reward", { amount: formatRoundedMoney(0.35, locale) })}</strong>
+        <strong>{rewardSummary}</strong>
       </div>
-      {progress.nextRewardBlocked ? <p className="challenge-note">{t("peerReviews.rewardBlocked", { reward: formatRoundedMoney(0.35, locale) })}</p> : null}
+      {progress.nextRewardBlocked ? <p className="challenge-note">{t("peerReviews.rewardBlocked", { reward: rewardSummary })}</p> : null}
 
       {!current ? (
         <div className="peer-reviews-empty">
@@ -164,4 +158,11 @@ export default function PeerReviewsPanel({ challenge, locale }: { challenge: Cha
       {error ? <p className="challenge-error">{error}</p> : null}
     </section>
   );
+}
+
+function formatRewardSummary(challenge: Challenge, locale: AppLocale): string {
+  const rewards: string[] = [];
+  if (challenge.core_reward_amount > 0) rewards.push(`Core +${formatRoundedMoney(challenge.core_reward_amount, locale)}`);
+  if (challenge.wallet_reward_amount > 0) rewards.push(`Wallet +${formatRoundedMoney(challenge.wallet_reward_amount, locale)}`);
+  return rewards.length > 0 ? rewards.join(" · ") : `Core +${formatRoundedMoney(0, locale)}`;
 }

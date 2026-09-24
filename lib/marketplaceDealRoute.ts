@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { MARKETPLACE_RATING_ERROR, normalizeMarketplaceRating } from "@/lib/marketplaceRating";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 type Action = "accept" | "cancel" | "deliver" | "confirm" | "dispute" | "review";
@@ -21,14 +22,14 @@ export async function handleMarketplaceDealAction(request: NextRequest, dealId: 
             : action === "dispute"
               ? "dispute_marketplace_deal"
               : "create_marketplace_review";
-    const rating = Number(body.rating);
+    const rating = normalizeMarketplaceRating(body.rating);
     const args = action === "review"
       ? { p_deal_id: dealId, p_buyer_user_id: user.id, p_rating: rating, p_review_text: typeof body.reviewText === "string" ? body.reviewText : "" }
       : action === "dispute"
         ? { p_deal_id: dealId, p_actor_user_id: user.id, p_reason: typeof body.reason === "string" ? body.reason : "" }
         : { p_deal_id: dealId, p_actor_user_id: user.id };
-    if (action === "review" && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
-      return NextResponse.json({ error: "Rating must be between 1 and 5." }, { status: 400, headers: NO_STORE_HEADERS });
+    if (action === "review" && rating === null) {
+      return NextResponse.json({ error: MARKETPLACE_RATING_ERROR }, { status: 400, headers: NO_STORE_HEADERS });
     }
     const { data, error: rpcError } = await (supabase as any).rpc(rpc, args);
     if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500, headers: NO_STORE_HEADERS });

@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Database, Tables } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,6 +15,7 @@ type DirectConversation = Tables<"direct_conversations">;
 type DirectMessage = Tables<"direct_messages">;
 type MessageBody = {
   body?: unknown;
+  contentPostId?: unknown;
 };
 type ProfileRow = Pick<Tables<"user_profiles">, "user_id" | "username" | "display_name" | "avatar_url" | "avatar_position" | "level" | "created_at">;
 
@@ -49,11 +52,58 @@ export async function POST(request: NextRequest, { params }: { params: { targetU
     if (error || !user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     if (targetUserId === user.id) return NextResponse.json({ error: "Cannot message yourself." }, { status: 400, headers: NO_STORE_HEADERS });
 
-    const body = normalizeMessageBody(await readJsonBody(request));
-    if (!body) return NextResponse.json({ error: "Message is empty." }, { status: 400, headers: NO_STORE_HEADERS });
+    const requestBody = await readJsonBody(request);
+    const hasContentPostId = requestBody.contentPostId !== undefined && requestBody.contentPostId !== null && requestBody.contentPostId !== "";
+    const contentPostId = normalizeUuid(requestBody.contentPostId);
+    if (hasContentPostId && !contentPostId) {
+      return NextResponse.json({ error: "Invalid saved material id." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+    const body = normalizeMessageBody(requestBody);
+    if (!contentPostId && !body) return NextResponse.json({ error: "Message is empty." }, { status: 400, headers: NO_STORE_HEADERS });
 
     const targetProfile = await loadProfile(supabase, targetUserId);
     if (!targetProfile) return NextResponse.json({ error: "Profile not found." }, { status: 404, headers: NO_STORE_HEADERS });
+
+    if (contentPostId) {
+      if (!SHARE_TO_OA_ENABLED) return NextResponse.json({ error: "Sharing saved materials is not enabled yet." }, { status: 404, headers: NO_STORE_HEADERS });
+      const idempotencyKey = normalizeIdempotencyKey(request.headers.get("Idempotency-Key"));
+      if (!idempotencyKey) {
+        return NextResponse.json({ error: "A valid Idempotency-Key header is required to share saved material." }, { status: 400, headers: NO_STORE_HEADERS });
+      }
+
+      const { data: messageId, error: shareError } = await supabase.rpc("share_saved_content_message", {
+        p_body: body,
+        p_client_idempotency_key: idempotencyKey,
+        p_post_id: contentPostId,
+        p_sender_user_id: user.id,
+        p_target_user_id: targetUserId
+      });
+      if (shareError) {
+        const mappedError = mapShareError(shareError.message);
+        return NextResponse.json({ error: mappedError.message }, { status: mappedError.status, headers: NO_STORE_HEADERS });
+      }
+      await recordProductEvent({ entityId: contentPostId, entityType: "feed_post", eventName: "saved_content_sent", properties: {}, source: "server", userId: user.id });
+
+      const [{ data: message, error: messageError }, conversation] = await Promise.all([
+        supabase.from("direct_messages").select("*").eq("id", messageId).maybeSingle(),
+        findConversation(supabase, user.id, targetUserId)
+      ]);
+      if (messageError) throw messageError;
+      if (!message || !conversation) throw new Error("Shared message could not be loaded.");
+
+      const messages = await loadMessages(supabase, conversation.id);
+      return NextResponse.json(
+        {
+          targetProfile,
+          conversation,
+          message: message as DirectMessage,
+          messages
+        },
+        { headers: NO_STORE_HEADERS }
+      );
+    }
+
+    if (!body) return NextResponse.json({ error: "Message is empty." }, { status: 400, headers: NO_STORE_HEADERS });
 
     const canSend = await checkMessageRateLimit(supabase, user.id, targetUserId);
     if (!canSend) {
@@ -216,6 +266,21 @@ function directConversationKey(userA: string, userB: string): string {
 function normalizeUuid(value: unknown): string | null {
   if (typeof value !== "string") return null;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
+function normalizeIdempotencyKey(value: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed) ? trimmed : null;
+}
+
+function mapShareError(message: string): { status: number; message: string } {
+  if (message.includes("Saved material not found")) return { status: 404, message: "Saved material not found." };
+  if (message.includes("Recipient not found")) return { status: 404, message: "Profile not found." };
+  if (message.includes("Message limit reached")) return { status: 429, message: "Message limit reached. Try again later." };
+  if (message.includes("Idempotency key was already used")) return { status: 409, message: "This request key was already used for a different share." };
+  if (message.includes("Invalid recipient or idempotency key")) return { status: 400, message: "Invalid share request." };
+  return { status: 500, message: "Failed to share saved material." };
 }
 
 function getRouteErrorMessage(error: unknown, fallback: string): string {

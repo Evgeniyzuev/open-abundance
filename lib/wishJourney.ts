@@ -18,7 +18,15 @@ const STORY_WISH_RECOMMENDATIONS: Record<string, string> = {
   "editorial_story:first-order": "b9100000-0000-4000-8000-000000000005",
   "editorial_story:sea-for-mom": "b9100000-0000-4000-8000-000000000008",
   "editorial_story:our-own-key": "b9100000-0000-4000-8000-000000000002",
-  "editorial_story:drawing-again": "b9100000-0000-4000-8000-000000000004"
+  "editorial_story:drawing-again": "b9100000-0000-4000-8000-000000000004",
+  "editorial_story:what-is-easy": "b9100000-0000-4000-8000-000000000005",
+  "editorial_story:first-listing": "b9100000-0000-4000-8000-000000000005",
+  "editorial_story:one-dollar-a-day": "b9100000-0000-4000-8000-000000000003",
+  "editorial_story:three-steps-to-move": "b9100000-0000-4000-8000-000000000002",
+  "editorial_story:route-by-steps": "b9100000-0000-4000-8000-000000000007",
+  "editorial_story:first-thousand-lesson": "b9100000-0000-4000-8000-000000000001",
+  "editorial_story:coming-back": "b9100000-0000-4000-8000-000000000004",
+  "editorial_story:neighbour-and-phone": "b9100000-0000-4000-8000-000000000005"
 };
 
 export function recommendedWishIdForStory(sourceKey: string | null): string | null {

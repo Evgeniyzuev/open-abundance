@@ -82,6 +82,15 @@ for (const required of [
 
 const chatRoute = read("app/api/ai/chat/route.ts");
 assert.match(chatRoute, /capability: "chat\.general"/);
+assert.match(chatRoute, /provider: lastProviderAttempt\?\.provider/);
+assert.match(chatRoute, /model: lastProviderAttempt\?\.model/);
+assert.match(chatRoute, /markAiUsageEventStreamFailed/);
+assert.match(chatRoute, /stream_read_error/);
+
+const providerGateway = read("lib/ai/providerGateway.ts");
+assert.match(providerGateway, /process\.env\.GEMINI_MODEL\?\.trim\(\) \|\| "gemini-flash-latest"/);
+assert.match(providerGateway, /providerAttempts\.push\(await noteProviderFailure\(provider, error\)\)/);
+assert.match(providerGateway, /new AiGatewayError\("all_providers_failed", providerAttempts\)/);
 
 const reflectionRoute = read("app/api/ai/reflections/step/route.ts");
 assert.match(reflectionRoute, /capability: "reflection\.process"/);

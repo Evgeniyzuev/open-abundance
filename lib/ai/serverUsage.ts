@@ -68,7 +68,12 @@ type AiQuery = {
 
 type AiTable = {
   insert: (values: Record<string, unknown>) => Promise<AiRpcResult>;
+  update: (values: Record<string, unknown>) => AiUpdateQuery;
   select: (columns: string) => AiQuery;
+};
+
+type AiUpdateQuery = {
+  eq: (column: string, value: string) => Promise<AiRpcResult>;
 };
 
 type AiServiceClient = {
@@ -163,6 +168,25 @@ export async function recordAiUsageEvent(event: AiUsageEvent): Promise<void> {
     if (result.error) console.error("AI usage event was not recorded.", result.error.message ?? "unknown error");
   } catch (error) {
     console.error("AI usage event failed.", getErrorMessage(error));
+  }
+}
+
+export async function markAiUsageEventStreamFailed(
+  requestId: string,
+  provider: AiUsageProvider | undefined,
+  model: string | undefined,
+  latencyMs: number
+): Promise<void> {
+  try {
+    const result = await getAiServiceClient().from("ai_usage_events").update({
+      status: "failed",
+      provider: provider ?? null,
+      model: model ?? null,
+      latency_ms: latencyMs
+    }).eq("request_id", requestId);
+    if (result.error) console.error("AI stream failure was not recorded.", result.error.message ?? "unknown error");
+  } catch (error) {
+    console.error("AI stream failure record failed.", getErrorMessage(error));
   }
 }
 

@@ -11,6 +11,8 @@ import {
   acquireAiRequest,
   AiQuotaServiceError,
   estimateAiTokens,
+  markAiProviderFailure,
+  markAiUsageEventStreamFailed,
   recordAiUsageEvent,
   releaseAiRequest,
   reserveAiChatMessage
@@ -134,13 +136,14 @@ export async function POST(request: NextRequest) {
       modelId: aiSettings.modelId
     });
     const provider = readProvider(response.headers.get("X-AI-Provider"));
+    const model = provider === "openrouter" ? aiSettings.modelId : provider ? AI_PROVIDER_MODELS[provider] : undefined;
     await recordAiUsageEvent({
       requestId,
       userId: auth.user.id,
       capability: "chat.general",
       route: isByok ? "byok" : "system",
       provider,
-      model: provider === "openrouter" ? aiSettings.modelId : provider ? AI_PROVIDER_MODELS[provider] : undefined,
+      model,
       status: "accepted",
       inputTokens: estimateChatInputTokens(systemPrompt, messages),
       latencyMs: Date.now() - startedAt,
@@ -148,11 +151,24 @@ export async function POST(request: NextRequest) {
     });
 
     requestAcquired = false;
-    return releaseWhenStreamEnds(response, () => releaseAiRequest(auth.user!.id));
+    return releaseWhenStreamEnds(response, () => releaseAiRequest(auth.user!.id), async () => {
+      const failureCode = "stream_read_error";
+      console.error("AI chat response stream failed.", { requestId, provider, model, failureCode });
+      if (provider === "gemini" || provider === "groq") await markAiProviderFailure(provider, failureCode);
+      await markAiUsageEventStreamFailed(requestId, provider, model, Date.now() - startedAt);
+    });
   } catch (error) {
     if (requestAcquired) {
       await releaseAiRequest(auth.user.id);
       requestAcquired = false;
+    }
+
+    const providerAttempts = error instanceof AiGatewayError && error.code === "all_providers_failed"
+      ? error.providerAttempts
+      : [];
+    const lastProviderAttempt = providerAttempts.at(-1);
+    if (providerAttempts.length) {
+      console.error("AI chat exhausted configured providers.", providerAttempts);
     }
 
     await recordAiUsageEvent({
@@ -160,6 +176,8 @@ export async function POST(request: NextRequest) {
       userId: auth.user.id,
       capability: "chat.general",
       route: isByok ? "byok" : "system",
+      provider: lastProviderAttempt?.provider,
+      model: lastProviderAttempt?.model,
       status: "failed",
       inputTokens: estimateChatInputTokens(systemPrompt, messages),
       latencyMs: Date.now() - startedAt,
@@ -291,7 +309,11 @@ function readProvider(value: string | null): AiResponseProvider | undefined {
   return value === "gemini" || value === "groq" || value === "openrouter" ? value : undefined;
 }
 
-function releaseWhenStreamEnds(response: Response, release: () => Promise<void>): Response {
+function releaseWhenStreamEnds(
+  response: Response,
+  release: () => Promise<void>,
+  onStreamError: () => Promise<void>
+): Response {
   if (!response.body) {
     void release();
     return response;
@@ -315,6 +337,11 @@ function releaseWhenStreamEnds(response: Response, release: () => Promise<void>)
         }
         if (value) controller.enqueue(value);
       } catch (error) {
+        try {
+          await onStreamError();
+        } catch {
+          console.error("AI chat stream failure diagnostics failed.");
+        }
         await releaseOnce();
         controller.error(error);
       }

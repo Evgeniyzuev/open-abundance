@@ -39,10 +39,18 @@ export type AiGatewayErrorCode =
   | "byok_failed"
   | "model_not_allowed";
 
+export type AiProviderFailureAttempt = {
+  provider: AiProvider;
+  model: string;
+  status: number | null;
+  failureCode: string;
+};
+
 export class AiGatewayError extends Error {
   readonly code: AiGatewayErrorCode;
+  readonly providerAttempts: AiProviderFailureAttempt[];
 
-  constructor(code: AiGatewayErrorCode) {
+  constructor(code: AiGatewayErrorCode, providerAttempts: AiProviderFailureAttempt[] = []) {
     super(
       code === "not_configured"
         ? "AI providers are not configured."
@@ -64,6 +72,7 @@ export class AiGatewayError extends Error {
     );
     this.name = "AiGatewayError";
     this.code = code;
+    this.providerAttempts = providerAttempts;
   }
 }
 
@@ -107,10 +116,9 @@ export type AiJsonResult<T> = {
 };
 
 export const AI_PROVIDER_MODELS: Record<AiProvider, string> = {
-  // Keep these IDs in sync with the provider catalog. The previous models
-  // were retired and returned 404s, which made the gateway exhaust every
-  // configured provider before the user saw a response.
-  gemini: "gemini-3.6-flash",
+  // Google maintains this moving alias as its latest Flash model. Set
+  // GEMINI_MODEL to a pinned model ID when a deployment needs a fixed version.
+  gemini: process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest",
   groq: "openai/gpt-oss-20b"
 };
 
@@ -133,6 +141,7 @@ export async function streamAiText({
   }
 
   const providers = await getAvailableProviders();
+  const providerAttempts: AiProviderFailureAttempt[] = [];
 
   for (const { provider, apiKey } of providers) {
     try {
@@ -142,11 +151,11 @@ export async function streamAiText({
       await markAiProviderSuccess(provider);
       return response;
     } catch (error) {
-      await noteProviderFailure(provider, error);
+      providerAttempts.push(await noteProviderFailure(provider, error));
     }
   }
 
-  throw new AiGatewayError("all_providers_failed");
+  throw new AiGatewayError("all_providers_failed", providerAttempts);
 }
 
 export async function generateAiJson<T>({
@@ -157,6 +166,7 @@ export async function generateAiJson<T>({
   maxOutputTokens = 1_800,
 }: GenerateJsonOptions<T>): Promise<AiJsonResult<T>> {
   const providers = await getAvailableProviders();
+  const providerAttempts: AiProviderFailureAttempt[] = [];
 
   for (const { provider, apiKey } of providers) {
     try {
@@ -167,11 +177,11 @@ export async function generateAiJson<T>({
       await markAiProviderSuccess(provider);
       return { value, provider };
     } catch (error) {
-      await noteProviderFailure(provider, error);
+      providerAttempts.push(await noteProviderFailure(provider, error));
     }
   }
 
-  throw new AiGatewayError("all_providers_failed");
+  throw new AiGatewayError("all_providers_failed", providerAttempts);
 }
 
 function configuredProviderKeys() {
@@ -300,12 +310,18 @@ async function streamOpenRouter({
   return streamedTextResponse(stream, "openrouter");
 }
 
-async function noteProviderFailure(provider: AiProvider, error: unknown): Promise<void> {
+async function noteProviderFailure(provider: AiProvider, error: unknown): Promise<AiProviderFailureAttempt> {
   const providerError = error instanceof AiProviderRequestError ? error : null;
   const failureCode = providerError?.failureCode ?? "provider_error";
   await markAiProviderFailure(provider, failureCode, providerError?.retryAfterMs);
-  const status = providerError?.status ? ` ${providerError.status}` : "";
-  console.warn(`AI gateway: ${provider} failed${status}; trying fallback.`);
+  const attempt = {
+    provider,
+    model: AI_PROVIDER_MODELS[provider],
+    status: providerError?.status ?? null,
+    failureCode
+  };
+  console.warn("AI gateway provider failed; trying fallback.", attempt);
+  return attempt;
 }
 
 function retryAfterMs(response: Response): number | null {

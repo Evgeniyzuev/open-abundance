@@ -14,6 +14,7 @@ import { DAILY_CORE_RATE, calculateDailyIncome, calculateFutureCore, coreRequire
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatMoney, formatRateMoney } from "@/lib/moneyFormat";
 import { normalizeMarketplaceRating } from "@/lib/marketplaceRating";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
@@ -319,6 +320,11 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [reinvestError, setReinvestError] = useState<string | null>(null);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [calculatorMode, setCalculatorMode] = useState<CalculatorMode>("future");
+
+  useEffect(() => {
+    if (!active || activeTab !== "core" || !calculatorOpen || !user) return;
+    void trackClientEvent("core_calculator_opened");
+  }, [active, activeTab, calculatorOpen, user]);
   const [targetKind, setTargetKind] = useState<TargetKind>("core");
   const [useCurrentCore, setUseCurrentCore] = useState(true);
   const [startCore, setStartCore] = useState("0");
@@ -992,7 +998,10 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
             locale={locale}
             t={t}
             onToggle={() => setCalculatorOpen((open) => !open)}
-            onModeChange={setCalculatorMode}
+            onModeChange={(mode) => {
+              setCalculatorMode(mode);
+              if (user) void trackClientEvent("core_calculator_mode_selected", { mode });
+            }}
             onTargetKindChange={setTargetKind}
             onUseCurrentCoreChange={(checked) => {
               setUseCurrentCore(checked);

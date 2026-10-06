@@ -8,14 +8,32 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-const MEANINGFUL_EVENTS = [
+const ACTIVATION_EVENTS = [
   "wish_created",
   "growth_plan_saved",
   "challenge_accepted",
   "challenge_completed"
 ] as const;
 
-const REPORT_EVENTS = ["app_open", "registration_completed", ...MEANINGFUL_EVENTS];
+const JOURNEY_ACTION_EVENTS = [
+  "feed_post_opened",
+  "feed_interest",
+  "feed_not_for_me",
+  "feed_can_help",
+  "feed_want_this",
+  "feed_interest_clarified",
+  "feed_post_liked",
+  "feed_post_unliked",
+  "feed_post_commented",
+  "feed_post_reposted",
+  "growth_map_opened",
+  "core_calculator_opened",
+  "core_calculator_mode_selected"
+] as const;
+
+const PASSIVE_JOURNEY_EVENTS = ["feed_post_impression"] as const;
+const CHECK_IN_EVENTS = ["self_serve_checkin_answered", "self_serve_checkin_skipped"] as const;
+const REPORT_EVENTS = ["app_open", "registration_completed", ...ACTIVATION_EVENTS, ...JOURNEY_ACTION_EVENTS, ...PASSIVE_JOURNEY_EVENTS, ...CHECK_IN_EVENTS];
 
 export async function GET(request: NextRequest) {
   const db = getServiceRoleClient();
@@ -130,7 +148,12 @@ export async function GET(request: NextRequest) {
       d3: activity.d3,
       d7: activity.d7,
       retentionByCohort: activity.retentionByCohort,
-      actions: actionBreakdown(events, fundingRows)
+      actions: actionBreakdown(events, fundingRows),
+      journeyEvents: eventBreakdown(events, [...JOURNEY_ACTION_EVENTS, ...PASSIVE_JOURNEY_EVENTS, ...CHECK_IN_EVENTS]),
+      day2CheckIn: {
+        answers: uniqueUserPropertyBreakdown(events, "self_serve_checkin_answered", "answer"),
+        skipped: uniqueEventUsers(events, "self_serve_checkin_skipped")
+      }
     },
     referrals: {
       referredRegistrations: referredNewUsers.size,
@@ -208,7 +231,7 @@ function buildActivity(
     if (!event.user_id) continue;
     const date = toUtcDate(new Date(event.occurred_at));
     if (event.event_name === "app_open") addUser(openedByDay, date, event.user_id);
-    if (MEANINGFUL_EVENTS.includes(event.event_name as typeof MEANINGFUL_EVENTS[number])) {
+    if (ACTIVATION_EVENTS.includes(event.event_name as typeof ACTIVATION_EVENTS[number])) {
       addUser(meaningfulByDay, date, event.user_id);
     }
   }
@@ -273,7 +296,7 @@ function summarizeFunding(rows: FundingRow[], periodRegistrationIds: Set<string>
 function actionBreakdown(events: ProductEventRow[], fundingRows: FundingRow[]) {
   const groups = new Map<string, { events: number; users: Set<string> }>();
   for (const event of events) {
-    if (!event.user_id || !MEANINGFUL_EVENTS.includes(event.event_name as typeof MEANINGFUL_EVENTS[number])) continue;
+    if (!event.user_id || !ACTIVATION_EVENTS.includes(event.event_name as typeof ACTIVATION_EVENTS[number])) continue;
     addAction(groups, event.event_name, event.user_id);
   }
   for (const row of fundingRows) {
@@ -282,6 +305,17 @@ function actionBreakdown(events: ProductEventRow[], fundingRows: FundingRow[]) {
   return Array.from(groups.entries())
     .map(([action, value]) => ({ action, events: value.events, users: value.users.size }))
     .sort((left, right) => right.users - left.users || left.action.localeCompare(right.action));
+}
+
+function eventBreakdown(events: ProductEventRow[], eventNames: readonly string[]) {
+  const groups = new Map<string, { events: number; users: Set<string> }>();
+  for (const event of events) {
+    if (!event.user_id || !eventNames.includes(event.event_name)) continue;
+    addAction(groups, event.event_name, event.user_id);
+  }
+  return Array.from(groups.entries())
+    .map(([event, value]) => ({ event, events: value.events, users: value.users.size }))
+    .sort((left, right) => right.users - left.users || left.event.localeCompare(right.event));
 }
 
 function addAction(groups: Map<string, { events: number; users: Set<string> }>, action: string, userId: string) {
@@ -296,6 +330,24 @@ function propertyBreakdown(events: ProductEventRow[], eventName: string, propert
     .filter((event) => event.event_name === eventName)
     .map((event) => readStringProperty(event.properties, property) ?? "unknown");
   return stringBreakdown(values);
+}
+
+function uniqueUserPropertyBreakdown(events: ProductEventRow[], eventName: string, property: string) {
+  const answerByUser = new Map<string, string>();
+  const matchingEvents = events
+    .filter((event) => event.event_name === eventName && event.user_id)
+    .sort((left, right) => left.occurred_at.localeCompare(right.occurred_at));
+  for (const event of matchingEvents) {
+    const answer = readStringProperty(event.properties, property);
+    if (answer && event.user_id && !answerByUser.has(event.user_id)) answerByUser.set(event.user_id, answer);
+  }
+  return stringBreakdown(Array.from(answerByUser.values()));
+}
+
+function uniqueEventUsers(events: ProductEventRow[], eventName: string) {
+  return new Set(events
+    .filter((event) => event.event_name === eventName && event.user_id)
+    .map((event) => event.user_id)).size;
 }
 
 function readStringProperty(properties: Json, key: string): string | null {

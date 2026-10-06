@@ -8,6 +8,7 @@ import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
 import CoreJourneyCard from "@/components/CoreJourneyCard";
 import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import GrowthMapApp from "@/components/GrowthMapApp";
+import SelfServeCheckIn from "@/components/SelfServeCheckIn";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
 import SocialApp from "@/components/SocialApp";
@@ -607,6 +608,7 @@ export default function AppNavigation() {
             todayUnread={todayUnread}
             refreshNonce={refreshNonce}
           />
+          <SelfServeCheckIn active={showHome} />
         </div>
         <KeepAliveView active={showNotes} visited>
           <NotesApp openInboxNonce={reflectionInboxNonce} onScheduleReflection={scheduleReflection} />

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Tables } from "@/lib/database.types";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -40,19 +41,23 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
     }
 
     if (action === "like") {
-      const { error: likeError } = await supabase
+      const { data: insertedLike, error: likeError } = await supabase
         .from("feed_post_likes")
-        .upsert({ post_id: post.id, user_id: user.id }, { onConflict: "post_id,user_id", ignoreDuplicates: true });
+        .upsert({ post_id: post.id, user_id: user.id }, { onConflict: "post_id,user_id", ignoreDuplicates: true })
+        .select("id");
       if (likeError) return NextResponse.json({ error: likeError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      if (insertedLike?.length) await recordInteractionEvent("feed_post_liked", post, user.id);
     }
 
     if (action === "unlike") {
-      const { error: unlikeError } = await supabase
+      const { data: removedLikes, error: unlikeError } = await supabase
         .from("feed_post_likes")
         .delete()
         .eq("post_id", post.id)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select("id");
       if (unlikeError) return NextResponse.json({ error: unlikeError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      if (removedLikes?.length) await recordInteractionEvent("feed_post_unliked", post, user.id);
     }
 
     if (action === "comment") {
@@ -78,6 +83,7 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
         if (commentError && commentError.code !== "23505") {
           return NextResponse.json({ error: commentError.message }, { status: 500, headers: NO_STORE_HEADERS });
         }
+        if (!commentError) await recordInteractionEvent("feed_post_commented", post, user.id);
       }
     }
 
@@ -110,6 +116,7 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
         if (repostError && repostError.code !== "23505") {
           return NextResponse.json({ error: repostError.message }, { status: 500, headers: NO_STORE_HEADERS });
         }
+        if (!repostError) await recordInteractionEvent("feed_post_reposted", post, user.id);
       }
     }
 
@@ -128,12 +135,23 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
 async function getVisiblePost(supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"], postId: string) {
   const { data, error } = await supabase
     .from("feed_posts")
-    .select("id,author_user_id,status,visibility,deleted_at,repost_of_post_id")
+    .select("id,author_user_id,status,visibility,deleted_at,repost_of_post_id,post_type")
     .eq("id", postId)
     .is("deleted_at", null)
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+async function recordInteractionEvent(eventName: string, post: { id: string; post_type: string }, userId: string): Promise<void> {
+  await recordProductEvent({
+    entityId: post.id,
+    entityType: "feed_post",
+    eventName,
+    properties: { post_type: post.post_type },
+    source: "server",
+    userId
+  });
 }
 
 async function loadInteractions(

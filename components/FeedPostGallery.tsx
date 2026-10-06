@@ -1,13 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FeedPostSignalMenu } from "@/components/FeedPostSignals";
 import ProtectedImage from "@/components/ProtectedImage";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { emptyFeedPreferenceState, isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences, type FeedPreferenceState } from "@/lib/feedPreferences";
 import type { MessageKey } from "@/lib/i18n";
 import type { FeedPost } from "@/lib/socialFeed";
 import { recommendedWishIdForStory } from "@/lib/wishJourney";
+
+const trackedImpressions = new Set<string>();
 
 type FeedPostGalleryProps = {
   fallbackTitle: string;
@@ -46,6 +49,7 @@ export default function FeedPostGallery({ addingStoryWishKey, currentUserId = nu
 }
 
 function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, post, priority, showAuthor, t, wishActionLabel, onAddStoryWish, onOpen, onSignalChanged }: { adding: boolean; currentUserId: string | null; evidenceLabels?: FeedPostGalleryProps["evidenceLabels"]; fallbackTitle: string; post: FeedPost; priority: boolean; showAuthor: boolean; t?: FeedPostGalleryProps["t"]; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void; onSignalChanged: () => void }) {
+  const tileRef = useRef<HTMLElement>(null);
   const title = getFeedPostTitle(post, fallbackTitle);
   const cover = getFeedPostCover(post);
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
@@ -53,9 +57,39 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
   const canAddWish = Boolean(onAddStoryWish && recommendedWishIdForStory(post.source_key));
   const evidence = post.post_type === "reality_demo" ? evidenceLabels?.demo : post.system_verified ? evidenceLabels?.verified : null;
 
+  useEffect(() => {
+    if (!currentUserId || typeof IntersectionObserver === "undefined") return;
+    const impressionKey = `${currentUserId}:${post.id}`;
+    if (trackedImpressions.has(impressionKey)) return;
+
+    let visibleTimer: ReturnType<typeof setTimeout> | null = null;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+        if (visibleTimer !== null) return;
+        visibleTimer = setTimeout(() => {
+          trackedImpressions.add(impressionKey);
+          void trackClientEvent("feed_post_impression", { post_id: post.id, post_type: post.post_type });
+          observer.disconnect();
+        }, 1000);
+      } else if (visibleTimer !== null) {
+        clearTimeout(visibleTimer);
+        visibleTimer = null;
+      }
+    }, { threshold: [0, 0.5, 1] });
+
+    if (tileRef.current) observer.observe(tileRef.current);
+    return () => {
+      if (visibleTimer !== null) clearTimeout(visibleTimer);
+      observer.disconnect();
+    };
+  }, [currentUserId, post.id, post.post_type]);
+
   return (
-    <article className={`feed-post-tile-shell ${currentUserId ? "has-feed-signals" : ""}`}>
-      <button aria-label={title} className="feed-post-tile" type="button" onClick={() => onOpen(post)}>
+    <article ref={tileRef} className={`feed-post-tile-shell ${currentUserId ? "has-feed-signals" : ""}`}>
+      <button aria-label={title} className="feed-post-tile" type="button" onClick={() => {
+        if (currentUserId) void trackClientEvent("feed_post_opened", { post_id: post.id, post_type: post.post_type });
+        onOpen(post);
+      }}>
         {cover ? <FeedCover priority={priority} src={cover} /> : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
         {showAuthor && author ? (
           <span aria-label={author.name} className="feed-post-tile-author">

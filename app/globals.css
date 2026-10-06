@@ -338,6 +338,12 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .home-status { margin: 0 4px; color: var(--muted); font-size: 0.8125rem; }
 .home-plan-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 8px; }
 .home-card { display: grid; gap: 8px; border-radius: 16px; padding: 14px; background: var(--surface-glass); box-shadow: 0 10px 28px rgba(25,25,35,0.07); }
+.self-serve-checkin { border: 1px solid var(--line-subtle); }
+.self-serve-checkin h2 { margin: 3px 0 0; font-size: 1rem; line-height: 1.25; }
+.self-serve-checkin p { margin: 3px 0 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }
+.self-serve-checkin-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.self-serve-checkin-actions .secondary-button { min-width: 0; min-height: 38px; white-space: normal; }
+.self-serve-checkin-skip { justify-self: start; min-height: 28px; padding: 0 4px; }
 .home-card-label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.75rem; font-weight: 900; text-transform: uppercase; }
 .home-card-label svg { color: var(--blue); }
 .home-wish-card strong { overflow-wrap: anywhere; font-size: 1.1875rem; line-height: 1.15; }

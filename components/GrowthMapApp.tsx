@@ -3,6 +3,7 @@
 import { ArrowRight, ArrowUp, Backpack, BookOpen, Check, Compass, Gem, MapPin, RefreshCw, Sparkles, Users, WandSparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { readPrimaryWish } from "@/lib/wishJourney";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import type { MessageKey } from "@/lib/i18n";
@@ -83,6 +84,11 @@ export default function GrowthMapApp({ active, refreshNonce, onOpenChallenge, on
   }, [active, user]);
 
   useEffect(() => { void loadExpedition(); }, [loadExpedition, refreshNonce]);
+
+  useEffect(() => {
+    if (!active || status !== "ready" || !user) return;
+    void trackClientEvent("growth_map_opened");
+  }, [active, status, user]);
 
   if (status === "unauthenticated") {
     return <ExpeditionEmpty icon={<Compass size={38} />} title={t("expedition.authTitle")} description={t("expedition.authDescription")} />;

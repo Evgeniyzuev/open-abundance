@@ -310,6 +310,25 @@ async function streamOpenRouter({
   return streamedTextResponse(stream, "openrouter");
 }
 
+const PROVIDER_HEADER_TIMEOUT_MS = 15_000;
+
+/**
+ * fetch with a bounded wait for response headers so a stalled provider fails
+ * over to the next one instead of holding the chat until the runtime limit.
+ * The timer is cleared once headers arrive, so streaming bodies are unaffected.
+ */
+async function providerFetch(provider: "gemini" | "groq", input: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROVIDER_HEADER_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch {
+    throw new AiProviderRequestError(provider, null, controller.signal.aborted ? "timeout" : "network_error");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function noteProviderFailure(provider: AiProvider, error: unknown): Promise<AiProviderFailureAttempt> {
   const providerError = error instanceof AiProviderRequestError ? error : null;
   const failureCode = providerError?.failureCode ?? "provider_error";
@@ -342,7 +361,7 @@ async function streamGemini(
   temperature: number,
   maxOutputTokens: number
 ): Promise<Response> {
-  const response = await fetch(
+  const response = await providerFetch("gemini",
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",
@@ -406,7 +425,7 @@ async function streamGroq(
   temperature: number,
   maxOutputTokens: number
 ): Promise<Response> {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const response = await providerFetch("groq", "https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -513,7 +532,7 @@ async function generateGeminiJson(
   temperature: number,
   maxOutputTokens: number
 ): Promise<unknown> {
-  const response = await fetch(
+  const response = await providerFetch("gemini",
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",
@@ -547,7 +566,7 @@ async function generateGroqJson(
   temperature: number,
   maxOutputTokens: number
 ): Promise<unknown> {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const response = await providerFetch("groq", "https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

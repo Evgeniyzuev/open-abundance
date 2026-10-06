@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
+import { isNicheTaskKey, nicheKeyForTask } from "@/lib/nicheTasks";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 
 type ProgressRequest = {
   proofKey?: string;
@@ -8,13 +10,15 @@ type ProgressRequest = {
   minutesPerDay?: number;
   hourlyValueUsd?: number;
   verificationLogic?: string;
+  taskKey?: string;
 };
 
 const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
   calculate_time_to_goal: ["calculated", "compound_quiz_passed"],
   ai_message_sent: ["ai_message_sent"],
   attention_value_audit: ["attention_audit_completed"],
-  core_law_understood: ["core_law_understood"]
+  core_law_understood: ["core_law_understood"],
+  niche_task_chosen: ["niche_task_chosen"]
 };
 
 export async function POST(request: NextRequest) {
@@ -49,6 +53,10 @@ export async function POST(request: NextRequest) {
 
   if (body.verificationLogic === "core_law_understood" && normalizeScore(body.score) < 4) {
     return NextResponse.json({ error: "Pass at least 4 of 5 Core law questions before saving the result." }, { status: 400 });
+  }
+
+  if (body.verificationLogic === "niche_task_chosen" && !isNicheTaskKey(body.taskKey)) {
+    return NextResponse.json({ error: "Choose one of the suggested tasks." }, { status: 400 });
   }
 
   const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
@@ -95,7 +103,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
 
-  if (["attention_value_audit", "core_law_understood"].includes(body.verificationLogic) && !["accepted", "completed"].includes(existing?.status ?? "")) {
+  if (["attention_value_audit", "core_law_understood", "niche_task_chosen"].includes(body.verificationLogic) && !["accepted", "completed"].includes(existing?.status ?? "")) {
     return NextResponse.json({ error: "Accept the challenge before recording its proof." }, { status: 409 });
   }
 
@@ -109,6 +117,9 @@ export async function POST(request: NextRequest) {
     [`${proofKey}_at`]: new Date().toISOString(),
     ...(proofKey === "compound_quiz_passed" ? { compound_quiz_score: normalizeScore(body.score) } : {}),
     ...(body.verificationLogic === "core_law_understood" ? { core_law_score: normalizeScore(body.score) } : {}),
+    ...(body.verificationLogic === "niche_task_chosen" && body.taskKey
+      ? { niche_task_key: body.taskKey, niche_key: nicheKeyForTask(body.taskKey) }
+      : {}),
     ...(body.verificationLogic === "attention_value_audit"
       ? { attention_minutes_per_day: minutesPerDay, attention_hourly_value_usd: hourlyValueUsd }
       : {})
@@ -155,6 +166,17 @@ export async function POST(request: NextRequest) {
       }
       if (award?.[0]) milestoneAwards.push(award[0]);
     }
+  }
+
+  if (body.verificationLogic === "niche_task_chosen" && body.taskKey) {
+    await recordProductEvent({
+      entityId: challenge.id,
+      entityType: "challenge",
+      eventName: "niche_task_chosen",
+      properties: { niche_key: nicheKeyForTask(body.taskKey), task_key: body.taskKey },
+      source: "server",
+      userId: user.id
+    });
   }
 
   return NextResponse.json({ recorded: true, status: nextStatus, milestoneAwards });

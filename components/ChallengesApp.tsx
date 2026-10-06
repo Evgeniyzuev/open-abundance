@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
+import NicheTaskChallenge from "@/components/NicheTaskChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
@@ -1007,6 +1008,7 @@ function ChallengeDetailContent({
   const locked = !accepted && !completed && (challenge.can_accept === false || accessReasons.length > 0);
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
+  const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
   const needsCoreLawChallenge = challenge.verification_logic === "core_law_understood" && accepted && !completed && !locked;
   const needsAppTesting = challenge.verification_logic === "app_testing_feedback" && accepted && !completed && !locked;
   const needsAcquisition = challenge.verification_logic === "acquisition_publications_milestone" || challenge.verification_logic?.startsWith("acquisition_metric_") === true;
@@ -1019,11 +1021,13 @@ function ChallengeDetailContent({
   const [compoundQuizPassed, setCompoundQuizPassed] = useState(false);
   const [attentionProofRecorded, setAttentionProofRecorded] = useState(false);
   const [coreLawPassed, setCoreLawPassed] = useState(false);
+  const [nicheTaskChosen, setNicheTaskChosen] = useState(false);
 
   useEffect(() => {
     setCompoundQuizPassed(false);
     setAttentionProofRecorded(false);
     setCoreLawPassed(false);
+    setNicheTaskChosen(false);
   }, [challenge.id]);
 
   async function handleCheck() {
@@ -1035,6 +1039,12 @@ function ChallengeDetailContent({
 
     if (needsAttentionChallenge && !attentionProofRecorded) {
       setCheckMessage(t("challenges.attention.required"));
+      setCheckStatus("idle");
+      return;
+    }
+
+    if (needsNicheChallenge && !nicheTaskChosen) {
+      setCheckMessage(t("challenges.niche.required"));
       setCheckStatus("idle");
       return;
     }
@@ -1164,6 +1174,17 @@ function ChallengeDetailContent({
     if (!response.ok || payload.error) throw new Error(payload.error ?? t("challenges.attention.saveFailed"));
   }
 
+  async function recordNicheProof(taskKey: string) {
+    const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ verificationLogic: "niche_task_chosen", proofKey: "niche_task_chosen", taskKey })
+    }, { authRequired: true });
+    const payload = (await response.json()) as { error?: string };
+    if (!response.ok || payload.error) throw new Error(payload.error ?? t("challenges.niche.saveFailed"));
+  }
+
   async function recordCoreLawProof(score: number) {
     const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
       method: "POST",
@@ -1239,6 +1260,15 @@ function ChallengeDetailContent({
           locale={locale}
           onPassedChange={setAttentionProofRecorded}
           onProof={recordAttentionProof}
+          t={t}
+        />
+      ) : null}
+
+      {needsNicheChallenge ? (
+        <NicheTaskChallenge
+          locale={locale}
+          onPassedChange={setNicheTaskChosen}
+          onProof={recordNicheProof}
           t={t}
         />
       ) : null}
@@ -1602,6 +1632,10 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
       return PenLine;
     case "ai_message_sent":
       return Bot;
+    case "niche_task_chosen":
+      return Compass;
+    case "first_marketplace_listing":
+      return Store;
     case "has_referral":
     case "team_contact_active":
       return Users;

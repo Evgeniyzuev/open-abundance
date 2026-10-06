@@ -308,6 +308,24 @@ async function verifyChallenge(
     return { ok: false, reason: "Send one message to AI first, then check this challenge." };
   }
 
+  if (challenge.verification_logic === "niche_task_chosen") {
+    const progress = await getChallengeProgressProof(supabase, userId, challenge, "niche_task_chosen");
+    if (progress.error) return { ok: false, reason: "Could not check your chosen direction. Try again." };
+    if (progress.proved) return { ok: true };
+    return { ok: false, reason: "Choose a direction and a first practical task first." };
+  }
+
+  if (challenge.verification_logic === "first_marketplace_listing") {
+    const { count, error } = await db
+      .from("marketplace_listings")
+      .select("id", { count: "exact", head: true })
+      .eq("seller_user_id", userId)
+      .in("status", ["active", "reserved", "sold"]);
+    if (error) return { ok: false, reason: "Could not check your Market listings. Try again." };
+    if (Number(count ?? 0) > 0) return { ok: true };
+    return { ok: false, reason: "Publish your first listing in Wallet → Market first." };
+  }
+
   if (challenge.verification_logic === "has_wish") {
     const { data, error } = await supabase
       .from("wishes")

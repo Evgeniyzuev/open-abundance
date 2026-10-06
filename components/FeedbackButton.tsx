@@ -65,7 +65,7 @@ export default function FeedbackButton() {
             {status === "sent" ? (
               <>
                 <p>{t("feedback.thanks")}</p>
-                <button className="primary-button" type="button" onClick={close}>{t("app.common.close")}</button>
+                <button className="challenge-primary-action" type="button" onClick={close}>{t("app.common.close")}</button>
               </>
             ) : (
               <>
@@ -73,7 +73,7 @@ export default function FeedbackButton() {
                   {CATEGORIES.map((item) => (
                     <button
                       aria-checked={category === item.key}
-                      className={category === item.key ? "primary-button" : "secondary-button"}
+                      className={category === item.key ? "challenge-primary-action" : "secondary-button"}
                       key={item.key}
                       role="radio"
                       type="button"
@@ -92,7 +92,7 @@ export default function FeedbackButton() {
                   onChange={(event) => setMessage(event.target.value)}
                 />
                 {errorText ? <p className="challenge-error">{errorText}</p> : null}
-                <button className="primary-button" disabled={status === "sending" || message.trim().length < 3} type="button" onClick={() => void send()}>
+                <button className="challenge-primary-action" disabled={status === "sending" || message.trim().length < 3} type="button" onClick={() => void send()}>
                   {status === "sending" ? t("app.common.loading") : t("feedback.send")}
                 </button>
                 <button className="secondary-button" type="button" onClick={close}>{t("app.common.close")}</button>

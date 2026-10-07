@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import FeedbackButton from "@/components/FeedbackButton";
+import OperatorEntry from "@/components/OperatorEntry";
 import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
@@ -673,6 +674,7 @@ export default function AppNavigation() {
         {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
       <FeedbackButton />
+      <OperatorEntry />
       <BottomTabBar
         activeTab={activeMainTab}
         collapsed={navHidden && !bottomNavExpanded}

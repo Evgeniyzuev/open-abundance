@@ -17,8 +17,7 @@ export const fetchCache = "force-no-store";
  */
 export async function GET(request: NextRequest) {
   const auth = await getAuthenticatedUser(request);
-  if (auth.error || !auth.user) return json({ error: auth.error }, 401);
-  if (!isGrowthOperator(auth.user.id)) return json({ error: "Growth operator access required." }, 403);
+  if (auth.error || !auth.user || !isGrowthOperator(auth.user.id)) return json({ error: "Not found." }, 404);
 
   try {
     const report = await buildTreasuryCoverageReport(auth.supabase as never);

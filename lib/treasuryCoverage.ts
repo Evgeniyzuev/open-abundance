@@ -138,21 +138,36 @@ export type TreasuryAlertInput = {
   light: CoverageLight;
   lastNotifiedLight: string | null;
   lastNotifiedAt: Date | null;
+  lastDigestAt: Date | null;
   now: Date;
 };
 
 const HOUR_MS = 60 * 60 * 1000;
 const RED_REMINDER_MS = 24 * HOUR_MS;
+const UNKNOWN_REMINDER_MS = 12 * HOUR_MS;
+// The daily status digest goes out after 09:00 in Dubai (05:00 UTC).
+const DIGEST_HOUR_UTC = 5;
 
 /**
- * Decides whether Growth Operators should be notified. Only important changes
- * notify: the light turning yellow or red. A red light that persists sends one
- * reminder per day. Green, unknown and repeated yellow never notify.
+ * Decides which operator notifications are due.
+ *
+ * Alert: the light turning yellow or red, or the report failing (unknown). A red
+ * light that persists reminds once a day, unknown every 12 hours; repeated yellow
+ * and green never alert. Digest: one status message per day after 09:00 Dubai,
+ * skipped when an alert was already sent in the same run.
  */
-export function decideTreasuryAlert(input: TreasuryAlertInput): { notify: boolean } {
-  const { light, lastNotifiedLight, lastNotifiedAt, now } = input;
-  if (light !== "yellow" && light !== "red") return { notify: false };
+export function decideTreasuryAlert(input: TreasuryAlertInput): { alert: boolean; digest: boolean } {
+  const { light, lastNotifiedLight, lastNotifiedAt, lastDigestAt, now } = input;
   const age = lastNotifiedAt ? now.getTime() - lastNotifiedAt.getTime() : Infinity;
-  if (lastNotifiedLight !== light) return { notify: true };
-  return { notify: light === "red" && age >= RED_REMINDER_MS };
+
+  let alert = false;
+  if (light === "yellow" || light === "red") {
+    alert = lastNotifiedLight !== light || (light === "red" && age >= RED_REMINDER_MS);
+  } else if (light === "unknown") {
+    alert = lastNotifiedLight !== "unknown" || age >= UNKNOWN_REMINDER_MS;
+  }
+
+  const todayDigestTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), DIGEST_HOUR_UTC);
+  const digestDue = now.getTime() >= todayDigestTime && (!lastDigestAt || lastDigestAt.getTime() < todayDigestTime);
+  return { alert, digest: digestDue && !alert };
 }

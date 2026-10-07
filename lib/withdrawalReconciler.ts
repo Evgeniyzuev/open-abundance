@@ -55,6 +55,11 @@ const WINDOW_MARGIN_S = 180;
 const PAGE_SIZE = 100;
 const MAX_PAGES = 5;
 const JETTON_TRANSFER_OP = 0x0f8a7ea5;
+// A native TON transfer arrives slightly below the requested amount because the
+// forward fee is deducted from the message value (observed ~0.0001 TON on mainnet).
+const NATIVE_VALUE_TOLERANCE_NANO = BigInt(5_000_000);
+// Unresolved reviews are re-checked every few minutes instead of every minute.
+const UNRESOLVED_RECHECK_MINUTES = 10;
 
 type AnySupabase = Record<string, any>;
 
@@ -154,7 +159,11 @@ async function loadCandidates(supabase: AnySupabase): Promise<WithdrawalRecord[]
       const startedAt = Date.parse(String(row.broadcast_at ?? row.created_at));
       if (!Number.isFinite(startedAt)) continue;
       const status = String(row.status);
-      if (status === "manual_review" && row.error_code !== "broadcast_unknown") continue;
+      if (status === "manual_review") {
+        const unclearBroadcast = row.error_code === "broadcast_unknown";
+        const recheckUnresolved = row.error_code === "reconcile_unresolved" && Math.floor(now / 60_000) % UNRESOLVED_RECHECK_MINUTES === 0;
+        if (!unclearBroadcast && !recheckUnresolved) continue;
+      }
       if (status === "broadcasting" && now - startedAt < BROADCASTING_STALE_MS) continue;
       records.push({
         id: String(row.id),
@@ -217,15 +226,29 @@ function findTransfer(transactions: TonCenterTransaction[], record: WithdrawalRe
       const parsed = record.asset === "TON" ? parseNativeMessage(message) : parseJettonMessage(message);
       if (!parsed || parsed.comment !== expectedComment) continue;
       const sameDestination = safeRaw(parsed.destination) === safeRaw(record.normalizedDestination);
-      const sameAmount = parsed.amount === record.amountUnits;
+      const sameAmount = amountMatches(record.asset, parsed.amount, record.amountUnits);
       if (!sameDestination || !sameAmount) {
-        return { found: false, anomaly: "A transfer with this withdrawal comment exists but its destination or amount differs." };
+        return {
+          found: false,
+          anomaly: `A transfer with this withdrawal comment exists but its destination or amount differs (destination match: ${sameDestination}, expected amount ${record.amountUnits}, found ${parsed.amount}).`
+        };
       }
       const feeNano = Number(transaction.fee);
       return { found: true, transactionHash: transaction.transaction_id?.hash ?? "", feeTon: Number.isFinite(feeNano) && feeNano > 0 ? feeNano / 1e9 : null };
     }
   }
   return { found: false };
+}
+
+function amountMatches(asset: Asset, found: string, expected: string): boolean {
+  try {
+    const actual = BigInt(found);
+    const wanted = BigInt(expected);
+    if (asset === "USDT") return actual === wanted;
+    return actual <= wanted && wanted - actual <= NATIVE_VALUE_TOLERANCE_NANO;
+  } catch {
+    return false;
+  }
 }
 
 function parseNativeMessage(message: TonCenterMessage): { comment: string; destination: string; amount: string } | null {

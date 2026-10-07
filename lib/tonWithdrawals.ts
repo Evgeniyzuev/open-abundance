@@ -1,7 +1,7 @@
 import "server-only";
 
 import { mnemonicToPrivateKey } from "@ton/crypto";
-import { Address, internal, toNano, TonClient, WalletContractV4 } from "@ton/ton";
+import { Address, internal, SendMode, toNano, TonClient, WalletContractV4 } from "@ton/ton";
 import type { OpenedContract } from "@ton/ton";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import { resolveTonPriceResolution, type TonNetwork } from "@/lib/tonDeposits";
@@ -200,6 +200,8 @@ export async function broadcastTonWithdrawal({
     transfer = await contract.createTransfer({
       seqno,
       secretKey: keyPair.secretKey,
+      // Fees are paid by the operating wallet on top, so the recipient gets the full amount.
+      sendMode: SendMode.PAY_GAS_SEPARATELY | SendMode.IGNORE_ERRORS,
       messages: [internal({
         to: destination.raw,
         value: toNano(amountTon),

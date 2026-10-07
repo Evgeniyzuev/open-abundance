@@ -2504,7 +2504,7 @@ function TonWithdrawalModal({
               />
             </label>
             <div className="ton-withdraw-fees">
-              <div><span>{t("wallet.withdraw.payout")}</span><strong>{formatFixedUsd(String(payoutUsd), locale)}</strong></div>
+              <div><span>{t("wallet.withdraw.payout")}</span><strong>{amountValid ? `${amountValue} TON · ` : ""}{formatFixedUsd(String(payoutUsd), locale)}</strong></div>
               <div><span>{t("wallet.withdraw.serviceFee", { percent: quote.serviceFeePercent })}</span><strong>{formatFixedUsd(String(serviceFeeUsd), locale)}</strong></div>
               <div><span>{t("wallet.withdraw.networkFee")}</span><strong>{formatFixedUsd(String(networkFeeUsd), locale)}</strong></div>
               <div className="ton-withdraw-total"><span>{t("wallet.withdraw.total")}</span><strong>{formatFixedUsd(String(totalDebitUsd), locale)}</strong></div>

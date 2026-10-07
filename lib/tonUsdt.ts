@@ -7,6 +7,7 @@ import {
   Cell,
   internal,
   JettonMaster,
+  SendMode,
   toNano,
   TonClient,
   WalletContractV4,
@@ -394,6 +395,7 @@ export async function broadcastTonUsdtWithdrawal({
     transfer = await contract.createTransfer({
       seqno,
       secretKey: keyPair.secretKey,
+      sendMode: SendMode.PAY_GAS_SEPARATELY | SendMode.IGNORE_ERRORS,
       messages: [internal({ to: jettonWalletAddress, value: toNano(config.transferTonAmount), body })]
     });
   } catch (error) {

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-const COLUMNS = "id,user_id,status,payout_wallet_amount,total_reserved_amount,error_code,transaction_hash,created_at,broadcast_at,confirmed_at,refunded_at";
+const COLUMNS = "id,user_id,status,payout_wallet_amount,total_reserved_amount,error_code,error_message,transaction_hash,created_at,broadcast_at,confirmed_at,refunded_at";
 
 /**
  * GET /api/internal/treasury/withdrawals
@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       totalReserved: row.total_reserved_amount,
       status: row.status,
       errorCode: row.error_code ?? null,
+      errorMessage: row.error_message ?? null,
       transactionHash: row.transaction_hash ?? null,
       userId: row.user_id,
       createdAt: row.created_at,

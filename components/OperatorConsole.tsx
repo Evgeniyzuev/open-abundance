@@ -13,6 +13,7 @@ type WithdrawalRow = {
   payoutWalletAmount: number | string | null;
   status: string;
   errorCode: string | null;
+  errorMessage: string | null;
   transactionHash: string | null;
   userId: string;
   createdAt: string;
@@ -114,7 +115,7 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
                 {withdrawals.withdrawals.map((row) => (
                   <li key={`${row.asset}-${row.id}`} style={{ padding: "8px 10px", borderRadius: 10, background: ATTENTION_STATUSES.has(row.status) ? "rgba(217, 154, 0, 0.16)" : "rgba(0, 0, 0, 0.04)" }}>
                     <strong>{row.asset} {row.amount ?? ""}</strong> · ${Number(row.payoutWalletAmount ?? 0).toFixed(2)} · {row.status}
-                    {row.errorCode ? ` · ${row.errorCode}` : ""}
+                    {row.errorCode ? ` · ${row.errorCode}` : ""}{row.errorMessage ? ` · ${row.errorMessage}` : ""}
                     <br />
                     <span className="transfer-muted">{new Date(row.createdAt).toLocaleString()} · {row.userId.slice(0, 8)}{row.transactionHash ? ` · ${row.transactionHash.slice(0, 10)}…` : ""}</span>
                   </li>

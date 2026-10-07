@@ -32,6 +32,10 @@ export type TreasuryCoverageReport = {
     withdrawalsPaidTotal: number;
   };
   coverageRatio: number | null;
+  /** Coverage if the TON part of the reserve loses TON_STRESS_DROP of its value. */
+  stressCoverageRatio: number | null;
+  /** Share of the reserve held in volatile TON, 0..1. */
+  volatileShare: number | null;
   light: CoverageLight;
   thresholds: { green: number; yellow: number };
 };
@@ -39,6 +43,7 @@ export type TreasuryCoverageReport = {
 // Green requires a safety buffer above full coverage; yellow is covered without a buffer.
 const GREEN_THRESHOLD = 1.25;
 const YELLOW_THRESHOLD = 1;
+const TON_STRESS_DROP = 0.3;
 
 export async function buildTreasuryCoverageReport(supabase: AnySupabase): Promise<TreasuryCoverageReport> {
   const errors: string[] = [];
@@ -96,6 +101,10 @@ export async function buildTreasuryCoverageReport(supabase: AnySupabase): Promis
     ? "unknown"
     : coverageRatio >= GREEN_THRESHOLD ? "green" : coverageRatio >= YELLOW_THRESHOLD ? "yellow" : "red";
 
+  const stressTotal = totalUsd !== null ? (tonUsd ?? 0) * (1 - TON_STRESS_DROP) + (usdtUsd ?? 0) : null;
+  const stressRatio = stressTotal !== null && liabilityTotal > 0 ? stressTotal / liabilityTotal : null;
+  const volatileShare = totalUsd !== null && totalUsd > 0 ? (tonUsd ?? 0) / totalUsd : null;
+
   return {
     generatedAt: new Date().toISOString(),
     network,
@@ -113,6 +122,8 @@ export async function buildTreasuryCoverageReport(supabase: AnySupabase): Promis
       withdrawalsPaidTotal: num(summary?.withdrawals_confirmed_total)
     },
     coverageRatio: coverageRatio === Infinity ? null : coverageRatio,
+    stressCoverageRatio: stressRatio,
+    volatileShare,
     light: coverageRatio === Infinity ? "green" : light,
     thresholds: { green: GREEN_THRESHOLD, yellow: YELLOW_THRESHOLD }
   };
@@ -121,4 +132,28 @@ export async function buildTreasuryCoverageReport(supabase: AnySupabase): Promis
 function jsonRpcEndpoint(restUrl: string): string {
   const base = restUrl.replace(/\/+$/, "").replace(/\/jsonRPC$/i, "");
   return `${base}/jsonRPC`;
+}
+
+export type TreasuryAlertInput = {
+  light: CoverageLight;
+  lastNotifiedLight: string | null;
+  lastNotifiedAt: Date | null;
+  now: Date;
+};
+
+const HOUR_MS = 60 * 60 * 1000;
+const REPEAT_AFTER_MS: Record<string, number> = { red: 6 * HOUR_MS, yellow: 24 * HOUR_MS, unknown: 12 * HOUR_MS };
+
+/**
+ * Decides whether Growth Operators should be notified. Yellow and red notify on
+ * every change of light and repeat while they persist (red every 6 hours, yellow
+ * every 24 hours). Unknown repeats at most every 12 hours so flaky provider calls
+ * do not flood operators. Green notifies once when it follows yellow or red.
+ */
+export function decideTreasuryAlert(input: TreasuryAlertInput): { notify: boolean } {
+  const { light, lastNotifiedLight, lastNotifiedAt, now } = input;
+  const age = lastNotifiedAt ? now.getTime() - lastNotifiedAt.getTime() : Infinity;
+  if (light === "green") return { notify: lastNotifiedLight === "yellow" || lastNotifiedLight === "red" };
+  if (light === "unknown") return { notify: age >= REPEAT_AFTER_MS.unknown };
+  return { notify: lastNotifiedLight !== light || age >= REPEAT_AFTER_MS[light] };
 }

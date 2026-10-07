@@ -142,18 +142,17 @@ export type TreasuryAlertInput = {
 };
 
 const HOUR_MS = 60 * 60 * 1000;
-const REPEAT_AFTER_MS: Record<string, number> = { red: 6 * HOUR_MS, yellow: 24 * HOUR_MS, unknown: 12 * HOUR_MS };
+const RED_REMINDER_MS = 24 * HOUR_MS;
 
 /**
- * Decides whether Growth Operators should be notified. Yellow and red notify on
- * every change of light and repeat while they persist (red every 6 hours, yellow
- * every 24 hours). Unknown repeats at most every 12 hours so flaky provider calls
- * do not flood operators. Green notifies once when it follows yellow or red.
+ * Decides whether Growth Operators should be notified. Only important changes
+ * notify: the light turning yellow or red. A red light that persists sends one
+ * reminder per day. Green, unknown and repeated yellow never notify.
  */
 export function decideTreasuryAlert(input: TreasuryAlertInput): { notify: boolean } {
   const { light, lastNotifiedLight, lastNotifiedAt, now } = input;
+  if (light !== "yellow" && light !== "red") return { notify: false };
   const age = lastNotifiedAt ? now.getTime() - lastNotifiedAt.getTime() : Infinity;
-  if (light === "green") return { notify: lastNotifiedLight === "yellow" || lastNotifiedLight === "red" };
-  if (light === "unknown") return { notify: age >= REPEAT_AFTER_MS.unknown };
-  return { notify: lastNotifiedLight !== light || age >= REPEAT_AFTER_MS[light] };
+  if (lastNotifiedLight !== light) return { notify: true };
+  return { notify: light === "red" && age >= RED_REMINDER_MS };
 }

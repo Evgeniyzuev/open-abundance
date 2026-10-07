@@ -14,8 +14,8 @@ export const fetchCache = "force-no-store";
  *
  * Called by pg_cron every 15 minutes with the shared scanner secret. Builds the
  * coverage report, stores the last state and sends a notification to Growth
- * Operators when the light is yellow, red or unknown (throttled), and once when
- * it recovers to green. It never blocks withdrawals.
+ * Operators only when the light turns yellow or red (plus one daily reminder
+ * while it stays red). It never blocks withdrawals.
  */
 export async function POST(request: NextRequest) {
   const expected = process.env.TON_SCANNER_SECRET?.trim();
@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
     last_ratio: report.coverageRatio,
     last_checked_at: now.toISOString(),
     ...(notified ? { last_notified_light: report.light, last_notified_at: now.toISOString() } : {}),
+    // A green light resets the alert memory so the next yellow or red notifies again.
+    ...(report.light === "green" ? { last_notified_light: null } : {}),
     updated_at: now.toISOString()
   }).eq("id", true);
 
@@ -78,17 +80,9 @@ function buildMessage(report: TreasuryCoverageReport): { title: string; body: st
   const stress = report.stressCoverageRatio === null ? "н/д" : report.stressCoverageRatio.toFixed(2);
   const reserve = report.treasury.totalUsd === null ? "н/д" : `$${report.treasury.totalUsd.toFixed(2)}`;
   const liabilities = `$${report.liabilities.total.toFixed(2)}`;
-  const titles: Record<string, string> = {
-    red: "Покрытие Wallet: красный",
-    yellow: "Покрытие Wallet: жёлтый",
-    unknown: "Покрытие Wallet: не удалось проверить",
-    green: "Покрытие Wallet восстановлено"
-  };
   return {
-    title: titles[report.light] ?? "Покрытие Wallet",
-    body: report.light === "unknown"
-      ? `Не получены данные: ${report.treasury.errors.join(", ") || "неизвестно"}. Обязательства ${liabilities}.`
-      : `Резерв ${reserve}, обязательства ${liabilities}, покрытие ${ratio}, при падении TON на 30% ${stress}.`
+    title: report.light === "red" ? "Покрытие Wallet: красный" : "Покрытие Wallet: жёлтый",
+    body: `Резерв ${reserve}, обязательства ${liabilities}, покрытие ${ratio}, при падении TON на 30% ${stress}.`
   };
 }
 

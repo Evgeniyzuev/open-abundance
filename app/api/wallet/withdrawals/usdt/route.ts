@@ -96,4 +96,5 @@ function presentWithdrawal(withdrawal: Record<string, unknown>) {
   return numericFields.reduce((result, field) => ({ ...result, [field]: numericString(withdrawal[field]) }), { ...withdrawal });
 }
 function numericString(value: unknown): string | null { const normalized = typeof value === "string" || typeof value === "number" ? String(value).trim() : ""; return /^\d+(?:\.\d+)?$/.test(normalized) ? normalized : null; }
-function withdrawalErrorStatus(message: string): number { if (message === "Wallet is not created yet.") return 404; if (message.includes("Insufficient wallet balance") || message.includes("reserve must")) return 400; return 500; }
+function withdrawalErrorStatus(message: string): number { if (message === "Wallet is not created yet.") return 404; if (message.includes("withdrawal limit")) return 429;
+  if (message.includes("Insufficient wallet balance") || message.includes("reserve must")) return 400; return 500; }

@@ -9,7 +9,8 @@ create or replace function public.reconcile_settle_ton_withdrawal(
   p_withdrawal_id uuid,
   p_outcome text,
   p_transaction_hash text,
-  p_message text
+  p_message text,
+  p_actual_fee_ton numeric default null
 )
 returns text
 language plpgsql
@@ -20,6 +21,8 @@ declare
   w public.ton_withdrawals%rowtype;
   wallet public.wallet_accounts%rowtype;
   next_balance numeric(30, 12);
+  release_ton numeric;
+  release_amount numeric(30, 12);
 begin
   if p_outcome not in ('confirmed', 'refunded', 'manual_review') then
     raise exception 'Unsupported reconciliation outcome.';
@@ -38,6 +41,24 @@ begin
     update public.wallet_ledger
     set metadata = metadata || jsonb_build_object('withdrawal_status', 'confirmed', 'transaction_hash', p_transaction_hash)
     where source_id = w.id and operation_type = 'crypto_withdrawal' and direction = 'debit';
+
+    -- Return the unused part of the network fee reserve once the real fee is known.
+    if p_actual_fee_ton is not null and p_actual_fee_ton > 0 and w.network_fee_reserve_ton > 0 then
+      release_ton := greatest(0, w.network_fee_reserve_ton - p_actual_fee_ton);
+      release_amount := trunc(w.network_fee_reserve_amount * release_ton / w.network_fee_reserve_ton, 6);
+      if release_amount > 0 then
+        select * into wallet from public.wallet_accounts where user_id = w.user_id for update;
+        if found then
+          next_balance := wallet.balance + release_amount;
+          update public.wallet_accounts set balance = next_balance, updated_at = now() where user_id = w.user_id;
+          insert into public.wallet_ledger (user_id, direction, amount, currency_code, operation_type, source_type, source_id, balance_after, idempotency_key, metadata)
+          values (w.user_id, 'credit', release_amount, wallet.currency_code, 'crypto_withdrawal', 'crypto_withdrawal', w.id, next_balance,
+            'ton_withdrawal:' || w.id::text || ':fee_release',
+            jsonb_build_object('withdrawal_status', 'fee_released', 'network_fee_reserve_ton', w.network_fee_reserve_ton, 'actual_fee_ton', p_actual_fee_ton, 'released_ton', release_ton))
+          on conflict (idempotency_key) where idempotency_key is not null do nothing;
+        end if;
+      end if;
+    end if;
     return 'confirmed';
   end if;
 
@@ -121,9 +142,9 @@ begin
 end;
 $$;
 
-revoke all on function public.reconcile_settle_ton_withdrawal(uuid, text, text, text) from public, anon, authenticated;
+revoke all on function public.reconcile_settle_ton_withdrawal(uuid, text, text, text, numeric) from public, anon, authenticated;
 revoke all on function public.reconcile_settle_ton_usdt_withdrawal(uuid, text, text, text) from public, anon, authenticated;
-grant execute on function public.reconcile_settle_ton_withdrawal(uuid, text, text, text) to service_role;
+grant execute on function public.reconcile_settle_ton_withdrawal(uuid, text, text, text, numeric) to service_role;
 grant execute on function public.reconcile_settle_ton_usdt_withdrawal(uuid, text, text, text) to service_role;
 
 create extension if not exists pg_cron;

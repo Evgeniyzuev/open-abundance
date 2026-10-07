@@ -34,6 +34,7 @@ type TonCenterMessage = {
 type TonCenterTransaction = {
   utime?: number;
   transaction_id?: { lt?: string; hash?: string };
+  fee?: string;
   out_msgs?: TonCenterMessage[];
 };
 
@@ -86,10 +87,14 @@ export async function reconcileWithdrawals(supabase: AnySupabase, notifyOperator
     let outcome: Outcome = "pending";
     let transactionHash = "";
     let message = "";
+    let actualFeeTon: number | null = null;
     if (match.found) {
       if (age >= MIN_CONFIRM_AGE_MS) {
         outcome = "confirmed";
         transactionHash = match.transactionHash;
+        // Only native TON payouts release unused fee reserve: a Jetton payout also pays gas
+        // inside the Jetton wallet, which cannot be attributed from the operating wallet alone.
+        actualFeeTon = record.asset === "TON" ? match.feeTon : null;
       }
     } else if (match.anomaly) {
       outcome = "manual_review";
@@ -112,7 +117,8 @@ export async function reconcileWithdrawals(supabase: AnySupabase, notifyOperator
       p_withdrawal_id: record.id,
       p_outcome: outcome,
       p_transaction_hash: transactionHash,
-      p_message: message
+      p_message: message,
+      ...(record.asset === "TON" ? { p_actual_fee_ton: actualFeeTon } : {})
     });
     if (error) {
       summary.pending += 1;
@@ -202,7 +208,7 @@ async function loadWalletHistory(endpoint: string, apiKey: string | undefined, a
   return { transactions, covered };
 }
 
-type MatchResult = { found: true; transactionHash: string; anomaly?: undefined } | { found: false; anomaly?: string };
+type MatchResult = { found: true; transactionHash: string; feeTon: number | null; anomaly?: undefined } | { found: false; anomaly?: string };
 
 function findTransfer(transactions: TonCenterTransaction[], record: WithdrawalRecord): MatchResult {
   const expectedComment = record.asset === "TON" ? `OA withdrawal ${record.id}` : `OA USDT withdrawal ${record.id}`;
@@ -215,7 +221,8 @@ function findTransfer(transactions: TonCenterTransaction[], record: WithdrawalRe
       if (!sameDestination || !sameAmount) {
         return { found: false, anomaly: "A transfer with this withdrawal comment exists but its destination or amount differs." };
       }
-      return { found: true, transactionHash: transaction.transaction_id?.hash ?? "" };
+      const feeNano = Number(transaction.fee);
+      return { found: true, transactionHash: transaction.transaction_id?.hash ?? "", feeTon: Number.isFinite(feeNano) && feeNano > 0 ? feeNano / 1e9 : null };
     }
   }
   return { found: false };

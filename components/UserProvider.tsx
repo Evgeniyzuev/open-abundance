@@ -95,6 +95,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingLevelUps, setPendingLevelUps] = useState<number[]>([]);
+  const acknowledgeLevelUpRef = useRef<(level: number) => void>(() => undefined);
   const [guestLocale, setGuestLocale] = useState<AppLocale>("en");
   const [displayCurrency, setDisplayCurrencyState] = useState<DisplayCurrency>(DEFAULT_DISPLAY_CURRENCY);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRatesSnapshot | null>(null);
@@ -439,8 +440,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     const levels = Array.from({ length: core.level - core.last_seen_level }, (_, index) => core.last_seen_level + index + 1);
-    setPendingLevelUps(levels);
+    // Level 1 arrives together with the registration reward, which already has its own receipt.
+    const visibleLevels = levels.filter((level) => level > 1);
+    setPendingLevelUps(visibleLevels);
+    if (visibleLevels.length === 0 && levels.length > 0) acknowledgeLevelUpRef.current(levels[levels.length - 1]);
   }, [core]);
+
+  acknowledgeLevelUpRef.current = acknowledgeLevelUp;
 
   function acknowledgeLevelUp(level: number) {
     const supabase = getBrowserSupabaseClient();

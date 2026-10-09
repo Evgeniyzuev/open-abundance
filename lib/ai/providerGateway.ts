@@ -124,6 +124,8 @@ export const AI_PROVIDER_MODELS: Record<AiProvider, string> = {
 
 const GEMINI_MODEL = AI_PROVIDER_MODELS.gemini;
 const GROQ_MODEL = AI_PROVIDER_MODELS.groq;
+// Set GEMINI_DISABLE_THINKING=false to restore the model default reasoning behaviour.
+const GEMINI_DISABLE_THINKING = process.env.GEMINI_DISABLE_THINKING?.trim().toLowerCase() !== "false";
 
 export async function streamAiText({
   systemPrompt,
@@ -361,7 +363,7 @@ async function streamGemini(
   temperature: number,
   maxOutputTokens: number
 ): Promise<Response> {
-  const response = await providerFetch("gemini",
+  const requestStream = (disableThinking: boolean) => providerFetch("gemini",
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",
@@ -372,10 +374,18 @@ async function streamGemini(
           role: message.role === "assistant" ? "model" : "user",
           parts: [{ text: message.content }],
         })),
-        generationConfig: { temperature, maxOutputTokens },
+        // Chat answers are short and conversational. Without a thinking budget the
+        // "flash-latest" alias spends seconds reasoning before the first token.
+        generationConfig: disableThinking
+          ? { temperature, maxOutputTokens, thinkingConfig: { thinkingBudget: 0 } }
+          : { temperature, maxOutputTokens },
       }),
     }
   );
+
+  let response = await requestStream(GEMINI_DISABLE_THINKING);
+  // A model that rejects the thinking setting must still answer, just more slowly.
+  if (response.status === 400 && GEMINI_DISABLE_THINKING) response = await requestStream(false);
 
   if (!response.ok) {
     throw new AiProviderRequestError("gemini", response.status, `http_${response.status}`, retryAfterMs(response));

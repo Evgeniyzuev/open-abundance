@@ -28,7 +28,9 @@ const JOURNEY_ACTION_EVENTS = [
   "feed_post_reposted",
   "growth_map_opened",
   "core_calculator_opened",
-  "core_calculator_mode_selected"
+  "core_calculator_mode_selected",
+  "niche_task_chosen",
+  "feedback_submitted"
 ] as const;
 
 const PASSIVE_JOURNEY_EVENTS = ["feed_post_impression"] as const;
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
   if (!token) return json({ error: "Authentication required." }, 401);
   const { data: authData, error: authError } = await db.auth.getUser(token);
   if (authError || !authData.user) return json({ error: "Invalid session." }, 401);
-  if (!isGrowthOperator(authData.user.id)) return json({ error: "Growth operator access required." }, 403);
+  if (!isGrowthOperator(authData.user.id)) return json({ error: "Not found." }, 404);
 
   const today = new Date();
   const defaultTo = toUtcDate(today);
@@ -100,6 +102,14 @@ export async function GET(request: NextRequest) {
     feedbackResult
   ].find((result) => result.error)?.error;
   if (firstError) return json({ error: firstError.message }, 500);
+
+  const extra = db as any;
+  const [userFeedbackResult, paymentRequestsResult] = await Promise.all([
+    extra.from("user_feedback").select("category").gte("created_at", fromTimestamp).lt("created_at", toExclusiveTimestamp),
+    extra.from("wallet_payment_requests").select("status").gte("created_at", fromTimestamp).lt("created_at", toExclusiveTimestamp)
+  ]);
+  const feedbackMessages = (userFeedbackResult.data ?? []) as Array<{ category: string }>;
+  const paymentRequests = (paymentRequestsResult.data ?? []) as Array<{ status: string }>;
 
   const registrations = (registrationsResult.data ?? []) as RegistrationRow[];
   const events = (eventsResult.data ?? []) as ProductEventRow[];
@@ -171,6 +181,14 @@ export async function GET(request: NextRequest) {
       verifiedResults: verifiedResults.length,
       feedbackSubmitted: feedback.length,
       averageFeedback: average(feedback.map((row) => row.overall_rating))
+    },
+    feedbackMessages: {
+      total: feedbackMessages.length,
+      byCategory: stringBreakdown(feedbackMessages.map((row) => row.category))
+    },
+    payments: {
+      requestsCreated: paymentRequests.length,
+      requestsPaid: paymentRequests.filter((row) => row.status === "paid").length
     },
     freshness: {
       lastEventAt: latest(events.map((row) => row.occurred_at)),

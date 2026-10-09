@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import FeedbackButton from "@/components/FeedbackButton";
 import OperatorEntry from "@/components/OperatorEntry";
+import PayRequestEntry from "@/components/PayRequestEntry";
 import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AiChatApp from "@/components/AiChatApp";
@@ -675,6 +676,7 @@ export default function AppNavigation() {
       </section>
       <FeedbackButton />
       <OperatorEntry />
+      <PayRequestEntry />
       <BottomTabBar
         activeTab={activeMainTab}
         collapsed={navHidden && !bottomNavExpanded}

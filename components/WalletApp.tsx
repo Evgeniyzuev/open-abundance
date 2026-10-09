@@ -7,6 +7,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import P2PWalletPanel from "@/components/P2PWalletPanel";
+import PaymentRequestModal from "@/components/PaymentRequestModal";
+import RecipientSearch from "@/components/RecipientSearch";
 import { TonUsdtDepositModal, TonUsdtWithdrawalModal } from "@/components/TonUsdtWalletModals";
 import { WalletCryptoMethodModal, type WalletCryptoMethod } from "@/components/WalletCryptoMethodModal";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
@@ -343,6 +345,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [usdtWithdrawOpen, setUsdtWithdrawOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
   const [marketListings, setMarketListings] = useState<MarketplaceListing[] | null>(null);
   const [marketListingLimit, setMarketListingLimit] = useState(1);
   const [marketOpenListingCount, setMarketOpenListingCount] = useState(0);
@@ -830,6 +833,14 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                   </div>
                   <span className="wallet-action-label">{t("wallet.transfer.title")}</span>
                 </button>
+                <button className="wallet-action-button" type="button" onClick={() => setRequestOpen(true)} aria-label={t("pay.request.action")}>
+                  <div className="wallet-action-icon-wrap">
+                    <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 19V5M5 12l7 7 7-7" />
+                    </svg>
+                  </div>
+                  <span className="wallet-action-label">{t("pay.request.action")}</span>
+                </button>
                 <button className="wallet-action-button" type="button" onClick={() => setTopupOpen(true)} aria-label={t("wallet.topup.title")}>
                   <div className="wallet-action-icon-wrap">
                     <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1150,6 +1161,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
       {usdtWithdrawOpen && wallet ? (
         <TonUsdtWithdrawalModal locale={locale} t={t} wallet={wallet} onClose={() => setUsdtWithdrawOpen(false)} onSuccess={async (newWallet) => { applyServerData({ wallet: newWallet }); setWalletHistoryRows(null); await onRefresh(); }} />
       ) : null}
+      {requestOpen ? <PaymentRequestModal locale={locale} onClose={() => setRequestOpen(false)} /> : null}
       {transferOpen && wallet ? (
         <WalletTransferModal
           locale={locale}
@@ -3138,16 +3150,13 @@ function WalletTransferModal({
                 ))}
               </div>
             ) : null}
-            <input
-              type="text"
-              value={recipientUserId}
-              onChange={(event) => {
-                setRecipientUserId(event.target.value);
-                setRecipientPreview(null);
+            <RecipientSearch
+              t={t}
+              onSelect={(person) => {
+                setRecipientUserId(person.user_id);
+                setRecipientPreview(person as unknown as WalletRecipient);
                 setError(null);
               }}
-              onBlur={() => { void resolveRecipient(); }}
-              placeholder={t("wallet.transfer.recipientPlaceholder")}
             />
           </div>
 

@@ -836,7 +836,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 <button className="wallet-action-button" type="button" onClick={() => setRequestOpen(true)} aria-label={t("pay.request.action")}>
                   <div className="wallet-action-icon-wrap">
                     <svg className="wallet-action-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 19V5M5 12l7 7 7-7" />
+                      <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v7h-3" />
                     </svg>
                   </div>
                   <span className="wallet-action-label">{t("pay.request.action")}</span>

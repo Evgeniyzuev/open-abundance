@@ -1,5 +1,6 @@
 "use client";
 
+import { personLabel } from "@/lib/personName";
 import NicknameField from "@/components/NicknameField";
 import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -4355,7 +4356,7 @@ function formatTeamAssignment(
 }
 
 function formatProfileName(profile: TeamProfile | null, fallback: string): string {
-  return profile?.display_name ?? (profile?.username ? `@${profile.username}` : fallback.slice(0, 8));
+  return personLabel(profile, fallback.slice(0, 8));
 }
 
 function localizedMediaAlt(value: unknown, locale: AppLocale): string {

@@ -169,7 +169,7 @@ export default function FeedPostInteractions({
         <div className="feed-comment-list">
           {payload.comments.map((comment) => (
             <article key={comment.id}>
-              <strong>{comment.author?.display_name ?? comment.author?.username ?? t("social.feed.comment")}</strong>
+              <strong>{comment.author?.display_name ?? (comment.author?.username ? `@${comment.author.username}` : t("social.feed.comment"))}{comment.author?.display_name && comment.author?.username ? <small className="profile-handle"> @{comment.author.username}</small> : null}</strong>
               <p>{comment.body}</p>
               <time dateTime={comment.created_at}>{formatCommentDate(comment.created_at, locale)}</time>
             </article>

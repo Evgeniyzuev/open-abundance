@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createServiceSupabaseClient } from "@/lib/serverSupabase";
+import { validateUsername } from "@/lib/username";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * GET /@nickname  (rewritten to /u/by-username/nickname)
+ *
+ * Short link to a public profile. A nickname released in the last 30 days still leads to the
+ * person who used it, so shared links do not break the moment someone renames. Unknown names get a
+ * plain 404. Temporary redirects are used because a nickname can change.
+ */
+export async function GET(request: NextRequest, { params }: { params: { username: string } }) {
+  const requested = decodeURIComponent(params.username);
+  const format = validateUsername(requested);
+  if (!format.ok && format.reason !== "reserved") return notFound();
+  const name = format.ok ? format.value : requested.toLowerCase();
+
+  const db = createServiceSupabaseClient() as any;
+  const { data: owner } = await db.from("user_profiles").select("user_id").eq("username", name).is("deleted_at", null).maybeSingle();
+  let userId: string | null = owner?.user_id ?? null;
+
+  if (!userId) {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
+    const { data: previous } = await db
+      .from("username_changes")
+      .select("user_id")
+      .eq("old_username", name)
+      .gt("changed_at", since)
+      .order("changed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    userId = previous?.user_id ?? null;
+  }
+
+  if (!userId) return notFound();
+  return NextResponse.redirect(new URL(`/u/${userId}`, request.url), 307);
+}
+
+function notFound() {
+  return new NextResponse("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { personLabel } from "@/lib/personName";
 import { useCallback, useEffect, useState } from "react";
 import { UserLevelBadge } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";
@@ -108,7 +109,7 @@ export default function PayRequestEntry() {
   if (!requestId || !user) return null;
 
   const status = view?.request.status;
-  const name = view ? view.payee.display_name || view.payee.username || t("pay.confirm.someone") : "";
+  const name = view ? personLabel(view.payee, t("pay.confirm.someone")) : "";
   const blocked = view
     ? view.request.isOwn ? t("pay.confirm.own")
       : status === "paid" ? (view.request.paidByMe ? t("pay.confirm.paidMe") : t("pay.confirm.alreadyPaid"))

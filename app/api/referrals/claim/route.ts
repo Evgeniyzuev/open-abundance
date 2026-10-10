@@ -15,7 +15,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await readJsonBody(request);
-    const referralCode = normalizeReferralCode(body.referralCode);
+    const rawCode = typeof body.referralCode === "string" ? body.referralCode.trim() : "";
+    const referralCode = rawCode.startsWith("@")
+      ? await resolveNicknameReferral(supabase, rawCode)
+      : normalizeReferralCode(body.referralCode);
     const guestId = normalizeUuid(body.guestId);
     const capturedAt = normalizeDate(body.capturedAt);
     const { data: assignmentRows, error: assignmentError } = await supabase.rpc("claim_referral_and_assign_team", {
@@ -83,4 +86,21 @@ function normalizeDate(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
+}
+
+/** `?ref=@nickname` is an alias for that person's active referral code; unknown names give no code. */
+async function resolveNicknameReferral(supabase: any, alias: string): Promise<string | undefined> {
+  const name = alias.replace(/^@+/, "").trim().toLowerCase();
+  if (!/^[a-z][a-z0-9]{4,23}$/.test(name)) return undefined;
+  const { data: owner } = await supabase.from("user_profiles").select("user_id").eq("username", name).is("deleted_at", null).maybeSingle();
+  if (!owner?.user_id) return undefined;
+  const { data: code } = await supabase
+    .from("referral_codes")
+    .select("code")
+    .eq("user_id", owner.user_id)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return typeof code?.code === "string" ? code.code : undefined;
 }

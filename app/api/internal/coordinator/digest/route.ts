@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       queued,
       // One row per person with flags only, for the operator's own review. Short ids, no names.
       table: participants.map((participant) => ({
-        id: participant.id.slice(0, 8),
+        id: participant.username ? `@${participant.username}` : participant.id.slice(0, 8),
         registeredAt: participant.registeredAt.slice(0, 10),
         core: participant.coreBalance,
         stories: participant.storiesViewed,

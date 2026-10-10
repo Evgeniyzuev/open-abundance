@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    // Folders starting with "@" are parallel routes in the App Router, so the short link is a rewrite.
+    return [{ source: "/@:username", destination: "/u/by-username/:username" }];
+  },
   async headers() {
     return [
       {

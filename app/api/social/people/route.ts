@@ -1,3 +1,4 @@
+import { usernameMatchRank } from "@/lib/personName";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
@@ -104,7 +105,8 @@ export async function GET(request: NextRequest) {
         },
         lastPublicActivityAt: influenceSummaries.get(profile.user_id)?.publicPosts ? null : null
       }))
-      .sort((a, b) => scorePerson(b, filter, teamIds, referralIds, activeAuthorIds, viewerProfile?.level ?? 0) - scorePerson(a, filter, teamIds, referralIds, activeAuthorIds, viewerProfile?.level ?? 0))
+      .sort((a, b) => (search ? usernameMatchRank(b.profile, search) - usernameMatchRank(a.profile, search) : 0)
+        || scorePerson(b, filter, teamIds, referralIds, activeAuthorIds, viewerProfile?.level ?? 0) - scorePerson(a, filter, teamIds, referralIds, activeAuthorIds, viewerProfile?.level ?? 0))
       .slice(0, limit);
 
     return NextResponse.json({ people, filter, query: search }, { headers: NO_STORE_HEADERS });

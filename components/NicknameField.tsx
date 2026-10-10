@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
@@ -20,6 +21,7 @@ export default function NicknameField({ onSaved }: { onSaved?: (username: string
   const [check, setCheck] = useState<Check>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; key: MessageKey } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => setValue(profile?.username ?? ""), [profile?.username]);
 
@@ -92,6 +94,21 @@ export default function NicknameField({ onSaved }: { onSaved?: (username: string
           />
         </div>
       </label>
+      {current ? (
+        <div className="nickname-link">
+          <code>{typeof window === "undefined" ? "" : `${window.location.origin}/@${current}`}</code>
+          <button
+            type="button"
+            aria-label={t("nickname.copyLink")}
+            onClick={() => {
+              void navigator.clipboard.writeText(`${window.location.origin}/@${current}`).then(() => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1600);
+              }).catch(() => undefined);
+            }}
+          >{copied ? <Check size={16} /> : <Copy size={16} />}</button>
+        </div>
+      ) : null}
       <small className="nickname-rules">{t("nickname.rules")}</small>
       {statusKey ? <small className={check?.status === "available" ? "nickname-status ok" : "nickname-status"} role="status">{t(statusKey)}</small> : null}
       {check?.suggestions?.length ? (

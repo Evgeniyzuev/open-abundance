@@ -1,5 +1,6 @@
 "use client";
 
+import { personLabel } from "@/lib/personName";
 import { BookOpen, ExternalLink, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -239,7 +240,7 @@ async function getAccessToken(): Promise<string> {
 }
 
 function formatProfileName(profile: { display_name: string | null; username: string | null }, fallback: string): string {
-  return profile.display_name ?? (profile.username ? `@${profile.username}` : fallback.slice(0, 8));
+  return personLabel(profile, fallback.slice(0, 8));
 }
 
 function readableHost(value: string): string {

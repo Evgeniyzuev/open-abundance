@@ -1,5 +1,6 @@
 "use client";
 
+import { personLabel } from "@/lib/personName";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import FeedPostGallery, { getFeedPostCover, getFeedPostTitle } from "@/components/FeedPostGallery";
@@ -73,7 +74,8 @@ export function PublicBlog({ authorId, locale, active = true, revision = "", t, 
   return <section className="blog-public" aria-label={t("social.blog.authorPosts")}>
     {payload ? <header className="blog-author-header">
       <div className="profile-avatar">{author?.avatar_url ? <img src={author.avatar_url} alt="" style={{ objectPosition: author.avatar_position ?? "50% 50%" }} /> : <span>{(author?.display_name ?? author?.username ?? "OA").slice(0, 2)}</span>}</div>
-      <h2>{author?.display_name ?? author?.username ?? t("social.blog.authorFallback")}</h2>
+      <h2>{author?.display_name ?? (author?.username ? `@${author.username}` : t("social.blog.authorFallback"))}</h2>
+      {author?.display_name && author?.username ? <small className="profile-handle">@{author.username}</small> : null}
       {payload.blogHeader?.bio ? <p>{payload.blogHeader.bio}</p> : null}
       <div className="blog-author-links">{payload.blogHeader?.links.map((link) => <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer">{link.label || link.url}</a>)}</div>
     </header> : null}
@@ -426,9 +428,9 @@ function ExternalShareActions({ postId, t }: { postId: string; t: Translate }) {
     <button type="button" className="secondary-button" aria-expanded={open} onClick={() => { setOpen((value) => !value); setNotice(""); }}>{t("social.share.sendToOa")}</button>
     {open ? <div className="external-recipient-picker">
       <label>{t("social.share.recipientSearch")}<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-      {people.map((person) => <button key={person.user_id} type="button" className="text-button" disabled={loading} onClick={() => void send(person)}>{person.display_name || person.username || person.user_id}</button>)}
+      {people.map((person) => <button key={person.user_id} type="button" className="text-button" disabled={loading} onClick={() => void send(person)}>{personLabel(person, person.user_id.slice(0, 8))}</button>)}
       {recipients.length ? <div><strong>{t("social.share.recipients")}</strong>{recipients.map((person) => <div key={person.user_id}>
-        <span>{person.display_name || person.username || person.user_id}</span><button type="button" className="text-button" onClick={() => void revoke(person)}>{t("social.share.revoke")}</button>
+        <span>{personLabel(person, person.user_id.slice(0, 8))}</span><button type="button" className="text-button" onClick={() => void revoke(person)}>{t("social.share.revoke")}</button>
       </div>)}</div> : null}
       {notice ? <p role="status">{notice}</p> : null}
       {error ? <p role="alert" className="finance-error">{error}</p> : null}

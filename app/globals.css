@@ -2810,3 +2810,7 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .nickname-status.ok { color: var(--green, #1a7f4b); }
 .nickname-suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .nickname-notice p { margin: 0; }
+.profile-handle { color: var(--muted); font-size: .8rem; font-weight: 800; }
+.nickname-link { display: flex; align-items: center; gap: 8px; border-radius: 10px; padding: 6px 6px 6px 10px; background: var(--accent-soft); }
+.nickname-link code { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: .78rem; }
+.nickname-link button { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: var(--surface); color: var(--blue); }

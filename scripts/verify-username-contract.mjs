@@ -11,6 +11,7 @@ import {
   usernameCandidates,
   validateUsername
 } from "../lib/username.ts";
+import { personHandle, personLabel, personName, usernameMatchRank } from "../lib/personName.ts";
 
 // Run with: node --experimental-strip-types scripts/verify-username-contract.mjs
 
@@ -89,5 +90,39 @@ assert.doesNotMatch(claim, /user\.email/, "the registration route must not use t
 assert.match(claim, /claimGeneratedUsername/);
 assert.match(claim, /looksLikeEmail\(existingProfile\.display_name\)/, "an email-like stored name is replaced");
 assert.doesNotMatch(claim, /username: textMetadata/, "sign-in must not overwrite the nickname");
+
+
+// --- Showing people: name, then @nickname, never an email ---
+assert.equal(personName({ display_name: "Anna Petrova", username: "annapetrova" }, "x"), "Anna Petrova");
+assert.equal(personName({ display_name: null, username: "annapetrova" }, "x"), "@annapetrova");
+assert.equal(personName({ display_name: "a@b.com", username: "annapetrova" }, "x"), "@annapetrova", "an email-like name is never shown");
+assert.equal(personName({ display_name: "a@b.com", username: null }, "fallback"), "fallback");
+assert.equal(personName(null, "fallback"), "fallback");
+assert.equal(personLabel({ display_name: "Anna Petrova", username: "annapetrova" }, "x"), "Anna Petrova (@annapetrova)");
+assert.equal(personLabel({ display_name: null, username: "annapetrova" }, "x"), "@annapetrova", "no duplicate when the name is the handle");
+assert.equal(personHandle({ username: null }), "");
+
+// --- Search ranking: exact nickname, then prefix, then contains ---
+assert.equal(usernameMatchRank({ username: "ivan4821" }, "ivan4821"), 3);
+assert.equal(usernameMatchRank({ username: "ivan4821" }, "@IVAN"), 2);
+assert.equal(usernameMatchRank({ username: "ivan4821" }, "van4"), 1);
+assert.equal(usernameMatchRank({ username: "ivan4821" }, "petrov"), 0);
+assert.equal(usernameMatchRank({ username: null }, "ivan"), 0);
+
+// --- Short links and referral alias ---
+const config = read("next.config.mjs");
+assert.match(config, /source: "\/@:username"/, "/@nickname is rewritten to the redirect route");
+const redirect = read("app/u/by-username/[username]/route.ts");
+assert.match(redirect, /NextResponse\.redirect\(.*307\)/, "the short link uses a temporary redirect");
+assert.match(redirect, /username_changes/, "a nickname released in the last 30 days still leads to its owner");
+assert.match(redirect, /30 \* 24 \* 60 \* 60_000/);
+const referral = read("app/api/referrals/claim/route.ts");
+assert.match(referral, /startsWith\("@"\)/, "?ref=@nickname is accepted");
+assert.match(referral, /resolveNicknameReferral/);
+
+// --- No email used as a name in the interface ---
+for (const file of ["components/SocialApp.tsx", "components/ChallengesApp.tsx", "components/PublicUserPage.tsx", "components/BlogWorkspace.tsx"]) {
+  assert.doesNotMatch(read(file), /\?\? *user\?\.email|\|\| *user\?\.email/, file + " must not fall back to the email");
+}
 
 console.log("username contract ok");

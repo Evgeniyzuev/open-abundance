@@ -1,5 +1,6 @@
 "use client";
 
+import { personLabel } from "@/lib/personName";
 import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, Plus, RotateCcw, TrendingUp } from "lucide-react";
@@ -3151,7 +3152,7 @@ function WalletTransferModal({
           {receipt ? (
             <div className="transfer-receipt">
               <strong>{t("wallet.transfer.receipt")}</strong>
-              <span>{formatAdaptiveMoney(receipt.amount, locale)} · {recipientPreview?.display_name || recipientPreview?.username || shortId(recipientUserId)}</span>
+              <span>{formatAdaptiveMoney(receipt.amount, locale)} · {personLabel(recipientPreview, shortId(recipientUserId))}</span>
               <small>{t("wallet.transfer.receiptSource")}: {receipt.sourceId}</small>
               <small>{t("wallet.transfer.receiptBalance", { balance: formatAdaptiveMoney(receipt.sender.balanceAfter ?? 0, locale) })}</small>
               <button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.close")}</button>
@@ -3226,7 +3227,7 @@ function WalletTransferModal({
 
           {recipientPreview ? (
             <p className="transfer-summary">
-              {t("wallet.transfer.summary", { amount: formatAdaptiveMoney(parsedAmount, locale), recipient: recipientPreview.display_name || recipientPreview.username || shortId(recipientPreview.user_id) })}
+              {t("wallet.transfer.summary", { amount: formatAdaptiveMoney(parsedAmount, locale), recipient: personLabel(recipientPreview, shortId(recipientPreview.user_id)) })}
               {recipientPreview ? (
                 <>
                   {" "}
@@ -3579,7 +3580,7 @@ function formatDay(value: string, locale: AppLocale): string {
 }
 
 function contactName(contact: WalletTransferContact): string {
-  return contact.profile?.display_name || contact.profile?.username || shortId(contact.contact_user_id);
+  return personLabel(contact.profile, shortId(contact.contact_user_id));
 }
 
 function contactInitial(contact: WalletTransferContact): string {
@@ -3587,7 +3588,7 @@ function contactInitial(contact: WalletTransferContact): string {
 }
 
 function sellerName(listing: MarketplaceListing): string {
-  return listing.sellerProfile?.display_name || listing.sellerProfile?.username || shortId(listing.seller_user_id);
+  return personLabel(listing.sellerProfile, shortId(listing.seller_user_id));
 }
 
 function artifactInitial(listing: MarketplaceListing): string {

@@ -20,6 +20,7 @@ export type HelpProfileRecord = { offers: string[]; needs: string[]; consent: bo
 
 export type ParticipantRecord = {
   id: string;
+  username?: string | null;
   registeredAt: string;
   coreBalance: number;
   coreGrowth: GrowthSources;

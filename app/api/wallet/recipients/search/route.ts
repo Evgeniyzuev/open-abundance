@@ -1,3 +1,4 @@
+import { usernameMatchRank } from "@/lib/personName";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { cleanSearchTerm } from "@/lib/paymentRequests";
@@ -23,9 +24,11 @@ export async function GET(request: NextRequest) {
     .neq("user_id", user.id)
     .or(`display_name.ilike.%${needle}%,username.ilike.%${needle}%`)
     .order("updated_at", { ascending: false })
-    .limit(8);
+    .limit(24);
   if (searchError) return json({ error: searchError.message }, 500);
-  return json({ people: data ?? [] }, 200);
+  // A nickname typed exactly, or its beginning, comes before people whose name only contains it.
+  const ranked = [...(data ?? [])].sort((a: any, b: any) => usernameMatchRank(b, needle) - usernameMatchRank(a, needle));
+  return json({ people: ranked.slice(0, 8) }, 200);
 }
 
 function json(body: unknown, status: number) {

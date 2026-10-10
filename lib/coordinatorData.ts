@@ -18,7 +18,7 @@ export async function loadParticipantRecords(db: AnyDb, now = Date.now()): Promi
   const since = new Date(now - EVENT_WINDOW_DAYS * DAY_MS).toISOString();
 
   const [profiles, cores, wishes, posts, ai, challenges, feedback, referrals, economy, helpProfiles, events] = await Promise.all([
-    db.from("user_profiles").select("user_id,created_at"),
+    db.from("user_profiles").select("user_id,created_at,username"),
     db.from("core_accounts").select("user_id,balance"),
     db.from("wishes").select("owner_user_id").is("deleted_at", null),
     db.from("feed_posts").select("author_user_id").is("source_key", null).is("repost_of_post_id", null).is("deleted_at", null).eq("status", "published").not("author_user_id", "is", null),
@@ -122,6 +122,7 @@ export async function loadParticipantRecords(db: AnyDb, now = Date.now()): Promi
 
     return {
       id,
+      username: profile.username ?? null,
       registeredAt: profile.created_at,
       coreBalance: balances.get(id) ?? 0,
       coreGrowth: growth.get(id) ?? { challengeRewards: 0, leaderBonus: 0, reinvest: 0, walletTopups: 0, otherSystem: 0 },

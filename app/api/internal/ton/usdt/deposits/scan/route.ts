@@ -10,12 +10,13 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 type TonCenterPayload = { ok?: boolean; result?: TonCenterTransaction[]; previous_transaction?: { lt?: string; hash?: string }; error?: string; description?: string };
+type TonCenterMessage = { source?: string | null; destination?: string | null; msg_data?: { body?: string; text?: string } | null; bounced?: boolean };
 type TonCenterTransaction = {
   utime?: number;
   transaction_id?: { hash?: string; lt?: string };
   description?: Record<string, unknown> | null;
-  in_msg?: { source?: string | null; destination?: string | null; msg_data?: { body?: string; text?: string } | null; bounced?: boolean } | null;
-  out_msgs?: unknown[];
+  in_msg?: TonCenterMessage | null;
+  out_msgs?: TonCenterMessage[];
 };
 type ParsedEvent = { event: Record<string, unknown>; rejectionReason: "bounced" | "aborted" | null };
 
@@ -135,7 +136,17 @@ function parseIncomingNotification(transaction: TonCenterTransaction, config: No
   const expectedReceiver = normalizeRawAddress(config.depositJettonWalletAddress);
   const source = normalizeRawAddress(message?.source);
   if (!transactionHash || !logicalTime || !/^\d+$/.test(logicalTime) || !message || !receiver || receiver !== expectedReceiver || !source) return null;
-  const parsedBody = parseNotificationBody(message.msg_data?.body);
+  // A transfer reaches the deposit jetton wallet as `internal_transfer` from the sender's jetton
+  // wallet. The wallet then reports it to the owner with a `transfer_notification` in its OUTGOING
+  // messages, so that notification is what carries amount, sender and comment. A transfer the wallet
+  // rejected or bounced produces no notification, so requiring one also proves it was accepted.
+  const expectedOwner = normalizeRawAddress(config.depositOwnerAddress);
+  let parsedBody: ReturnType<typeof parseNotificationBody> = null;
+  for (const outgoing of transaction.out_msgs ?? []) {
+    if (!expectedOwner || normalizeRawAddress(outgoing.destination) !== expectedOwner) continue;
+    parsedBody = parseNotificationBody(outgoing.msg_data?.body);
+    if (parsedBody) break;
+  }
   if (!parsedBody) return null;
   const description = transaction.description;
   const computePhase = description?.compute_phase as Record<string, unknown> | undefined;

@@ -21,7 +21,7 @@ type TransferResponse = {
     sourceId: string;
     idempotencyKey: string;
     sender: { userId: string; ledgerId: string | null; balanceAfter: number | null };
-    recipient: { userId: string; username: string | null; displayName: string | null; level: number; ledgerId: string | null; balanceAfter: number | null };
+    recipient: { userId: string; username: string | null; displayName: string | null; level: number; ledgerId: string | null };
   };
   wallet: WalletRow;
 };
@@ -164,7 +164,6 @@ export async function POST(request: NextRequest) {
   if (ledgerError) return jsonResponse({ error: ledgerError.message }, { status: 500 });
   const canonicalSourceId = ledgerRows?.find((row) => row.id === transferRow?.sender_wallet_ledger_id)?.source_id ?? sourceId;
   const senderLedger = ledgerRows?.find((row) => row.id === transferRow?.sender_wallet_ledger_id);
-  const recipientLedger = ledgerRows?.find((row) => row.id === transferRow?.recipient_wallet_ledger_id);
   const response: TransferResponse = {
     transfer: {
       amount,
@@ -179,8 +178,7 @@ export async function POST(request: NextRequest) {
         username: recipientProfile.username,
         displayName: recipientProfile.display_name,
         level: recipientProfile.level,
-        ledgerId: transferRow?.recipient_wallet_ledger_id ?? null,
-        balanceAfter: recipientLedger?.balance_after ?? null
+        ledgerId: transferRow?.recipient_wallet_ledger_id ?? null
       }
     },
     wallet

@@ -141,6 +141,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
         {inProgress ? <>
           <p className="usdt-must-comment" role="alert">{t("wallet.usdt.deposit.mustComment")}</p>
           <p className="transfer-summary">{t(bound.length > 0 ? "wallet.usdt.deposit.bindAnotherHint" : "wallet.usdt.deposit.bindHint")}</p>
+          <p className="usdt-no-bind-note">{t("wallet.usdt.deposit.noBindNote")}</p>
           <div className="ton-deposit-qr"><QRCodeSVG value={invoice.transferLink} size={176} includeMargin /></div>
           <CopyField label={t("wallet.usdt.deposit.address")} value={invoice.deposit_owner_address} copied={copied === "address"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(invoice.deposit_owner_address, "address")} />
           <CopyField label={t("wallet.usdt.deposit.comment")} value={invoice.comment} emphasized copied={copied === "comment"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(invoice.comment, "comment")} />

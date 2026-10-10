@@ -235,7 +235,6 @@ type WalletTransferReceipt = {
   sourceId: string;
   idempotencyKey: string;
   sender: { balanceAfter: number | null };
-  recipient: { balanceAfter: number | null };
 };
 
 const HALF_YEAR_DAYS = 365.25 / 2;
@@ -3153,7 +3152,7 @@ function WalletTransferModal({
               <strong>{t("wallet.transfer.receipt")}</strong>
               <span>{formatAdaptiveMoney(receipt.amount, locale)} · {recipientPreview?.display_name || recipientPreview?.username || shortId(recipientUserId)}</span>
               <small>{t("wallet.transfer.receiptSource")}: {receipt.sourceId}</small>
-              <small>{t("wallet.transfer.receiptBalances", { sender: formatAdaptiveMoney(receipt.sender.balanceAfter ?? 0, locale), recipient: formatAdaptiveMoney(receipt.recipient.balanceAfter ?? 0, locale) })}</small>
+              <small>{t("wallet.transfer.receiptBalance", { balance: formatAdaptiveMoney(receipt.sender.balanceAfter ?? 0, locale) })}</small>
               <button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.close")}</button>
             </div>
           ) : null}

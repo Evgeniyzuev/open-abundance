@@ -1930,7 +1930,6 @@ function CoreLevelProgress({
   const threshold = Number.isFinite(core.next_level_threshold ?? NaN) && (core.next_level_threshold ?? 0) > 0 ? core.next_level_threshold ?? null : null;
   const progress = threshold ? clamp((core.balance / threshold) * 100, 0, 100) : 100;
   const displayProgress = Math.round(progress);
-  const nextLevel = threshold ? core.level + 1 : core.level;
   const chargeClass = progress >= 80 ? " high-charge" : progress >= 40 ? " medium-charge" : "";
 
   return (
@@ -1962,7 +1961,6 @@ function CoreLevelProgress({
         </div>
         <div className="core-level-meta">
           <span>{displayProgress}%</span>
-          <span>{threshold ? `${t("app.common.level")} ${nextLevel}` : t("wallet.coreProgress.max")}</span>
         </div>
       </div>
       {wallet && wallet.balance > 0 ? (

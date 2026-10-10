@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { normalizeLocale } from "@/lib/i18n";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { looksLikeEmail, usernameBase, usernameCandidates } from "@/lib/username";
 
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -40,13 +41,15 @@ export async function POST(request: NextRequest) {
   const givenName = textMetadata(user.user_metadata.given_name);
   const familyName = textMetadata(user.user_metadata.family_name);
   const googleName = [givenName, familyName].filter(Boolean).join(" ");
-  const displayName = fullName ?? (googleName || user.email || null);
-  const avatarUrl = textMetadata(user.user_metadata.avatar_url) ?? textMetadata(user.user_metadata.picture);
+  // The public name is never taken from the email. Without a name it stays empty here and is
+  // filled with the generated nickname below.
+  const providerName = fullName ?? (googleName || null);
+  const providerAvatarUrl = textMetadata(user.user_metadata.avatar_url) ?? textMetadata(user.user_metadata.picture);
   const now = new Date().toISOString();
   const anonymousId = cleanAttribution(body.anonymousId);
   const { data: existingProfile, error: existingProfileError } = await supabase
     .from("user_profiles")
-    .select("default_locale,onboarding_state")
+    .select("default_locale,onboarding_state,display_name,username,first_name,last_name,avatar_url")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -56,14 +59,19 @@ export async function POST(request: NextRequest) {
 
   const isNewRegistration = !existingProfile;
 
+  // Sign-in must not overwrite what the person set themselves (name, avatar); it only fills gaps.
+  // A stored name that looks like an email counts as missing so it is replaced and never shown.
+  const storedName = existingProfile?.display_name && !looksLikeEmail(existingProfile.display_name) ? existingProfile.display_name : null;
+  const displayName = storedName ?? providerName;
+  const avatarUrl = existingProfile?.avatar_url ?? providerAvatarUrl ?? null;
+
   const { error: profileError } = await supabase.from("user_profiles").upsert(
     {
       user_id: user.id,
-      username: textMetadata(user.user_metadata.user_name) ?? null,
-      first_name: givenName ?? null,
-      last_name: familyName ?? null,
+      first_name: existingProfile?.first_name ?? givenName ?? null,
+      last_name: existingProfile?.last_name ?? familyName ?? null,
       display_name: displayName,
-      avatar_url: avatarUrl ?? null,
+      avatar_url: avatarUrl,
       default_locale: normalizeLocale(existingProfile?.default_locale ?? defaultLocale),
       onboarding_state: {
         ...readObject(existingProfile?.onboarding_state),
@@ -77,6 +85,19 @@ export async function POST(request: NextRequest) {
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
+  // Every profile gets a nickname generated from the person's name. When there is no real name,
+  // the nickname also becomes the public display name.
+  if (!existingProfile?.username) {
+    const claimed = await claimGeneratedUsername(supabase, user.id, {
+      firstName: existingProfile?.first_name ?? givenName,
+      lastName: existingProfile?.last_name ?? familyName,
+      displayName
+    });
+    if (claimed && !displayName) {
+      await supabase.from("user_profiles").update({ display_name: claimed }).eq("user_id", user.id).is("display_name", null);
+    }
   }
 
   const { error: coreError } = await supabase.from("core_accounts").upsert(
@@ -214,4 +235,19 @@ function cleanAttribution(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const normalized = value.trim();
   return normalized ? normalized.slice(0, 100) : undefined;
+}
+
+/** Tries generated nicknames until one is free; returns the claimed nickname or null. */
+async function claimGeneratedUsername(
+  supabase: ReturnType<typeof createClient<Database>>,
+  userId: string,
+  source: { firstName?: string | null; lastName?: string | null; displayName?: string | null }
+): Promise<string | null> {
+  for (const candidate of usernameCandidates(usernameBase(source))) {
+    const { data, error } = await (supabase as any).rpc("claim_username", { p_user_id: userId, p_username: candidate, p_source: "registration" });
+    if (error) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.result_code === "ok" || row?.result_code === "unchanged") return row.new_username as string;
+  }
+  return null;
 }

@@ -12,6 +12,7 @@ import CoreJourneyCard from "@/components/CoreJourneyCard";
 import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import GrowthMapApp from "@/components/GrowthMapApp";
 import InstallPingAck from "@/components/InstallPingAck";
+import NicknameNotice from "@/components/NicknameNotice";
 import SelfServeCheckIn from "@/components/SelfServeCheckIn";
 import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
@@ -614,6 +615,7 @@ export default function AppNavigation() {
             refreshNonce={refreshNonce}
           />
           <InstallPingAck />
+          <NicknameNotice active={showHome} />
           <SelfServeCheckIn active={showHome} />
           <WishOutcomeCheck active={showHome} />
         </div>

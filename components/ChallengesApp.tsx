@@ -615,7 +615,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
         <ChallengeDetailContent
           author={{
             avatarUrl: profile?.avatar_url ?? null,
-            displayName: profile?.display_name ?? profile?.username ?? user?.email ?? t("profile.guest"),
+            displayName: profile?.display_name ?? (profile?.username ? `@${profile.username}` : t("profile.guest")),
             level: effectiveUserLevel
           }}
           challenge={challenge}

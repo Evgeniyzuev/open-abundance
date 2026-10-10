@@ -1,5 +1,6 @@
 "use client";
 
+import NicknameField from "@/components/NicknameField";
 import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -1018,8 +1019,8 @@ export default function SocialApp({
     });
   }, [active, activeTab, loadBlog, loadFeed, loadPeopleHub, loadProfileTab, loadReferralLink, loadSystemProfile, loadTeamChallenges, loadTeamContext, loadTeamTasks, refreshNonce, selectedSystemAccountKey, user]);
 
-  const displayName = profile?.display_name ?? user?.email ?? t("profile.guest");
-  const handle = profile?.username ? `@${profile.username}` : user?.email ?? t("profile.localMode");
+  const displayName = profile?.display_name ?? (profile?.username ? `@${profile.username}` : t("profile.guest"));
+  const handle = profile?.username ? `@${profile.username}` : t("profile.localMode");
   const pendingIncomingConfirmations = trustConfirmations?.filter((item) => item.counterparty_user_id === user?.id && item.status === "pending").length ?? 0;
   const combinedError = error ?? socialError;
 
@@ -2810,7 +2811,7 @@ function ProfileEditorDialog({
             onRemove={() => onChange((current) => ({ ...current, avatarUrl: "", avatarRemoved: true }))}
           />
           <label className="finance-field"><span>{t("profile.public.displayName")}</span><input required minLength={1} maxLength={80} value={editor.displayName} onChange={(event) => onChange((current) => ({ ...current, displayName: event.target.value }))} /></label>
-          {profile?.username ? <p className="profile-readonly-hint">@{profile.username}</p> : null}
+          <NicknameField />
           <label className="finance-field"><span>{t("profile.public.bio")}</span><textarea maxLength={700} value={editor.bio} onChange={(event) => onChange((current) => ({ ...current, bio: event.target.value }))} /></label>
           <div className="term-row">
             <label className="finance-field"><span>{t("profile.public.linkLabel")}</span><input maxLength={40} value={editor.linkLabel} onChange={(event) => onChange((current) => ({ ...current, linkLabel: event.target.value }))} /></label>

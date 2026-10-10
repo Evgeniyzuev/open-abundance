@@ -2799,3 +2799,14 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .usdt-linked-chip { border-radius: 999px; padding: 4px 10px; background: var(--accent-soft); color: var(--blue); font-family: ui-monospace, monospace; font-size: .78rem; font-weight: 800; }
 .usdt-linked-chip.active { background: var(--blue); color: #fff; }
 .usdt-no-bind-note { margin: 0; border-left: 4px solid var(--blue); border-radius: 8px; padding: 8px 12px; background: var(--accent-soft); color: var(--text); font-size: .875rem; font-weight: 800; line-height: 1.35; }
+
+/* Nickname field and first-run notice */
+.nickname-field { display: grid; gap: 6px; }
+.nickname-input { display: flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; background: var(--surface-muted); }
+.nickname-input b { color: var(--muted); }
+.nickname-input input { flex: 1; min-width: 0; min-height: 44px; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 1rem; }
+.nickname-rules { color: var(--muted); font-size: .78rem; line-height: 1.35; }
+.nickname-status { color: var(--danger, #b42318); font-size: .84rem; font-weight: 800; }
+.nickname-status.ok { color: var(--green, #1a7f4b); }
+.nickname-suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.nickname-notice p { margin: 0; }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
-import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
+import { Calculator, Check, ChevronDown, ChevronUp, Plus, RotateCcw, TrendingUp } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import CoreCtaButton from "@/components/CoreCtaButton";
 import CoreSheet from "@/components/CoreSheet";
@@ -1928,7 +1928,8 @@ function CoreLevelProgress({
 }) {
   const threshold = Number.isFinite(core.next_level_threshold ?? NaN) && (core.next_level_threshold ?? 0) > 0 ? core.next_level_threshold ?? null : null;
   const progress = threshold ? clamp((core.balance / threshold) * 100, 0, 100) : 100;
-  const displayProgress = Math.round(progress);
+  // Whole percent, rounded down: the panel never reads 100% because at 100% the level has risen.
+  const displayProgress = threshold ? Math.min(99, Math.floor(progress)) : 100;
   const chargeClass = progress >= 80 ? " high-charge" : progress >= 40 ? " medium-charge" : "";
 
   return (
@@ -1961,8 +1962,8 @@ function CoreLevelProgress({
         </div>
       </div>
       {wallet && wallet.balance > 0 ? (
-        <button className="finance-small-icon-button primary topup-core-button" type="button" title={t("wallet.topup.title")} onClick={onTopup}>
-          ⚛️
+        <button className="finance-small-icon-button primary topup-core-button" type="button" aria-label={t("wallet.topup.title")} title={t("wallet.topup.title")} onClick={onTopup}>
+          <Plus size={16} />
         </button>
       ) : null}
     </section>

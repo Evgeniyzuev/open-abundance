@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import CoreCtaButton from "@/components/CoreCtaButton";
+import CoreSheet from "@/components/CoreSheet";
 import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import P2PWalletPanel from "@/components/P2PWalletPanel";
@@ -338,6 +340,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [targetDailyIncome, setTargetDailyIncome] = useState("10");
   const [targetCalculationTouched, setTargetCalculationTouched] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
+  const [coreSheet, setCoreSheet] = useState<{ open: boolean; view: "menu" | "story" }>({ open: false, view: "menu" });
+  const closeCoreSheet = useCallback(() => setCoreSheet((current) => ({ ...current, open: false })), []);
   const [depositMethodOpen, setDepositMethodOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [usdtDepositOpen, setUsdtDepositOpen] = useState(false);
@@ -588,6 +592,15 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   function toggleCoreHistory() {
     const nextOpen = !historyOpen;
     setHistoryOpen(nextOpen);
+  }
+
+  /** Closes the Core sheet and brings the matching control into view. The sheet only navigates. */
+  function goToCoreControl(selector: string, beforeScroll?: () => void) {
+    closeCoreSheet();
+    beforeScroll?.();
+    window.setTimeout(() => {
+      document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
   }
 
   function toggleWalletHistory() {
@@ -867,20 +880,11 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 </button>
               </div>
               <div className="px-4 mb-6" style={{ marginTop: 8 }}>
-                <button className="wallet-core-button" type="button" onClick={() => setTopupOpen(true)}>
-                  <span>
-                    <span className="wallet-core-icon">⚛️</span>
-                    <span className="wallet-core-text">
-                      <span>Abundance Core</span>
-                      <span>Tap to stash cash & grow</span>
-                    </span>
-                  </span>
-                  <span className="wallet-core-arrow">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M7 17l9.2-9.2M17 17V7H7" />
-                    </svg>
-                  </span>
-                </button>
+                <CoreCtaButton
+                  t={t}
+                  hint={wallet && wallet.balance > 0 ? t("wallet.coreCta.available", { amount: formatAdaptiveMoney(wallet.balance, locale) }) : undefined}
+                  onClick={() => setTopupOpen(true)}
+                />
               </div>
             </>
           ) : null}
@@ -971,7 +975,26 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
 
       {activeTab === "core" ? (
         <>
-          {user && core ? <CoreLevelProgress core={core} locale={locale} t={t} wallet={wallet} onTopup={() => setTopupOpen(true)} /> : null}
+          {user && core ? (
+            <CoreLevelProgress
+              core={core}
+              locale={locale}
+              t={t}
+              wallet={wallet}
+              onTopup={() => setTopupOpen(true)}
+              onOpen={() => setCoreSheet({ open: true, view: "menu" })}
+              onStory={() => setCoreSheet({ open: true, view: "story" })}
+            />
+          ) : null}
+          {user && core ? (
+            <div className="core-cta-wrap">
+              <CoreCtaButton
+                t={t}
+                hint={wallet && wallet.balance > 0 ? t("wallet.coreCta.available", { amount: formatAdaptiveMoney(wallet.balance, locale) }) : undefined}
+                onClick={() => setTopupOpen(true)}
+              />
+            </div>
+          ) : null}
           {user ? (
             <ReinvestPanel
               value={reinvestValue}
@@ -1095,6 +1118,26 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
       ) : null}
 
       {error ? <p className="finance-error">{error}</p> : null}
+
+      {user && core ? (
+        <CoreSheet
+          open={coreSheet.open && activeTab === "core"}
+          initialView={coreSheet.view}
+          t={t}
+          levelText={`${t("app.common.level")} ${core.level}`}
+          balanceText={formatAdaptiveMoney(core.balance, locale)}
+          dailyText={t("core.sheet.daily", { amount: formatAdaptiveMoney(currentDailyIncome.toCore + currentDailyIncome.toWallet, locale) })}
+          canTopup={Boolean(wallet && wallet.balance > 0)}
+          onClose={closeCoreSheet}
+          onTopup={() => {
+            closeCoreSheet();
+            setTopupOpen(true);
+          }}
+          onReinvest={() => goToCoreControl(".reinvest-panel")}
+          onCalculator={() => goToCoreControl(".calculator-panel", () => setCalculatorOpen(true))}
+          onHistory={() => goToCoreControl(".history-section", () => setHistoryOpen(true))}
+        />
+      ) : null}
 
       {topupOpen && core && wallet ? (
         <TopupCoreModal
@@ -1872,13 +1915,17 @@ function CoreLevelProgress({
   locale,
   t,
   wallet,
-  onTopup
+  onTopup,
+  onOpen,
+  onStory
 }: {
   core: CoreAccount;
   locale: AppLocale;
   t: TFunction;
   wallet: WalletRow | null;
   onTopup: () => void;
+  onOpen: () => void;
+  onStory: () => void;
 }) {
   const threshold = Number.isFinite(core.next_level_threshold ?? NaN) && (core.next_level_threshold ?? 0) > 0 ? core.next_level_threshold ?? null : null;
   const progress = threshold ? clamp((core.balance / threshold) * 100, 0, 100) : 100;
@@ -1887,7 +1934,8 @@ function CoreLevelProgress({
   const chargeClass = progress >= 80 ? " high-charge" : progress >= 40 ? " medium-charge" : "";
 
   return (
-    <section className={`core-level-panel${chargeClass}`} aria-label={t("wallet.coreProgress.aria")}>
+    <section className={`core-level-panel is-interactive${chargeClass}`} aria-label={t("wallet.coreProgress.aria")}>
+      <button className="core-level-open" type="button" aria-label={t("core.sheet.open")} onClick={onOpen} />
       <div className="core-reactor" aria-hidden="true">
         <span className="core-reactor-halo" />
         <span className="core-reactor-orb">
@@ -1914,6 +1962,7 @@ function CoreLevelProgress({
           <span>{threshold ? `${t("app.common.level")} ${nextLevel}` : t("wallet.coreProgress.max")}</span>
         </div>
       </div>
+      <button className="core-level-help" type="button" aria-label={t("core.sheet.whatIs")} title={t("core.sheet.whatIs")} onClick={onStory}>?</button>
       {wallet && wallet.balance > 0 ? (
         <button className="finance-small-icon-button primary topup-core-button" type="button" title={t("wallet.topup.title")} onClick={onTopup}>
           ⚛️

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import { buildTonUsdtTransferLink, loadTonUsdtConfig, normalizeTonUsdtAddress, parseTonUsdtUnits } from "@/lib/tonUsdt";
+import { buildTonUsdtTransferLink, friendlyWalletAddress, loadTonUsdtConfig, normalizeTonUsdtAddress, parseTonUsdtUnits } from "@/lib/tonUsdt";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -68,17 +68,17 @@ export async function GET(request: NextRequest) {
     const { data: bound, error: boundError } = await db.from("ton_usdt_bound_senders").select("sender_owner_address,network,created_at").eq("user_id", user.id).order("created_at", { ascending: true });
     if (boundError) return jsonResponse({ error: boundError.message }, { status: 500 });
     const boundSenders = (bound ?? []).map((row: Record<string, any>) => ({
-      address: normalizeTonUsdtAddress(row.sender_owner_address, row.network)?.friendly ?? row.sender_owner_address,
+      address: friendlyWalletAddress(row.sender_owner_address, row.network) ?? row.sender_owner_address,
       createdAt: row.created_at
     }));
 
     // The address people send to, and a link without comment or amount for bound senders.
-    let depositAddress: string | null = invoice ? normalizeTonUsdtAddress(invoice.deposit_owner_address, invoice.network)?.friendly ?? null : null;
+    let depositAddress: string | null = invoice ? friendlyWalletAddress(invoice.deposit_owner_address, invoice.network) : null;
     let boundTransferLink: string | null = null;
     if (boundSenders.length > 0) {
       const config = await loadTonUsdtConfig(supabase as any).catch(() => null);
       if (config?.ready) {
-        const owner = normalizeTonUsdtAddress(config.depositOwnerAddress, config.network)?.friendly ?? null;
+        const owner = friendlyWalletAddress(config.depositOwnerAddress, config.network);
         const master = normalizeTonUsdtAddress(config.masterAddress, config.network)?.friendly ?? null;
         depositAddress = owner ?? depositAddress;
         if (owner && master) boundTransferLink = buildTonUsdtTransferLink(owner, master);
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
 function presentInvoice(invoice: Record<string, any>, decimals: number) {
   const expected = numericString(invoice.expected_amount_units);
-  const owner = normalizeTonUsdtAddress(invoice.deposit_owner_address, invoice.network)?.friendly ?? invoice.deposit_owner_address;
+  const owner = friendlyWalletAddress(invoice.deposit_owner_address, invoice.network) ?? invoice.deposit_owner_address;
   const master = normalizeTonUsdtAddress(invoice.master_address, invoice.network)?.friendly ?? invoice.master_address;
   return { ...invoice, deposit_owner_address: owner, master_address: master, expected_amount_units: expected, comment: invoice.invoice_code, transferLink: buildTonUsdtTransferLink(owner, master, expected, invoice.invoice_code), decimals };
 }

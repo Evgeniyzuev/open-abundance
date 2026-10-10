@@ -334,6 +334,16 @@ export function normalizeTonUsdtAddress(value: unknown, network: TonNetwork): { 
   }
 }
 
+/** Wallet-style (non-bounceable, "UQ...") form of an address, which is what wallet apps show and expect. */
+export function friendlyWalletAddress(value: unknown, network: TonNetwork): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    return Address.parse(value.trim()).toString({ bounceable: false, testOnly: network === "testnet" });
+  } catch {
+    return null;
+  }
+}
+
 export function buildTonUsdtTransferLink(ownerAddress: string, masterAddress: string, amountUnits?: string | null, invoiceCode?: string): string {
   const params = new URLSearchParams({ jetton: masterAddress });
   if (amountUnits) params.set("amount", amountUnits);

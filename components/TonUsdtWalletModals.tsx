@@ -29,6 +29,7 @@ type DepositPayload = {
 const AMOUNT_WINDOW_MS = 10 * 60_000;
 const IN_PROGRESS_STATUSES = ["waiting", "detected", "finalizing", "confirmed_pending_credit", "awaiting_rate"];
 const CREDITED_STATUSES = ["credited", "credited_late", "credited_amount_mismatch"];
+const BIND_NOTE_RESULTS = ["busy", "taken", "unknown", "error", "invalid"];
 
 export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale: AppLocale; t: TFunction; onClose: () => void; onRefresh: () => Promise<void> }) {
   const [data, setData] = useState<DepositPayload | null>(null);
@@ -106,7 +107,8 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
   // issues a binding invoice with the comment and the exact amount again).
   const showBoundView = bound.length > 0 && (mode === "bound" || !inProgress);
   const justBound = Boolean(invoice && creditedNow && data?.bindingResult === "bound");
-  const bindNote = data?.bindingResult && data.bindingResult !== "bound" && data.bindingResult !== "already_bound"
+  // Only results that have a message are shown; older events may carry a result that no longer does.
+  const bindNote = data?.bindingResult && BIND_NOTE_RESULTS.includes(data.bindingResult)
     ? t(`wallet.usdt.deposit.bindNote.${data.bindingResult}` as MessageKey)
     : null;
 

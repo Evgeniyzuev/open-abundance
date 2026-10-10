@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { loadTonUsdtConfig, resolveTonUsdtPriceResolution } from "@/lib/tonUsdt";
+import { checkSenderEligibility } from "@/lib/tonUsdtSender";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -42,10 +43,15 @@ export async function POST(request: NextRequest) {
         const { data: settlementRows, error: settlementError } = await supabase.rpc("settle_ton_usdt_deposit", { p_chain_event_id: retry.chain_event_id });
         if (settlementError) throw new Error(settlementError.message);
         const status = settlementRows?.[0]?.event_status;
-        if (finalizedEvent || ["credited", "credited_late", "credited_amount_mismatch", "unmatched"].includes(status ?? "")) {
+        if (finalizedEvent || ["credited", "credited_late", "credited_amount_mismatch", "credited_bound_sender", "unmatched"].includes(status ?? "")) {
           const { error: completeError } = await supabase.rpc("complete_ton_usdt_deposit_settlement_retry", { p_chain_event_id: retry.chain_event_id });
           if (completeError) throw new Error(completeError.message);
           settled += 1;
+          // A deposit credited through its secret comment proves the sender can send from that
+          // address, so bind it. This never fails the settlement.
+          if (["credited", "credited_late", "credited_amount_mismatch"].includes(status ?? "")) {
+            await tryBindSender(supabase, config.endpoint, config.network, retry.chain_event_id);
+          }
         }
       } catch (settlementError) {
         await supabase.rpc("fail_ton_usdt_deposit_settlement_retry", { p_chain_event_id: retry.chain_event_id, p_error_code: "settlement_failed", p_error_message: settlementError instanceof Error ? settlementError.message : "TON USDT settlement failed." });
@@ -55,5 +61,40 @@ export async function POST(request: NextRequest) {
     return jsonResponse({ assetCode: "USDT", processed: claimed.length, settled, retrying });
   } catch (routeError) {
     return jsonResponse({ error: routeError instanceof Error ? routeError.message : "Failed to settle TON USDT deposits." }, { status: 500 });
+  }
+}
+
+/**
+ * Binds the sender of a comment-matched deposit to the account that was credited, unless the
+ * address looks shared (exchange or service), already belongs to someone else, or cannot be
+ * checked. The outcome is stored on the event so the deposit screen can explain it.
+ */
+async function tryBindSender(supabase: any, restEndpoint: string, network: string, eventId: string): Promise<void> {
+  try {
+    const { data: event } = await supabase.from("ton_usdt_chain_events").select("id,sender_owner_address,settlement_user_id,sender_binding_result").eq("id", eventId).maybeSingle();
+    if (!event?.sender_owner_address || !event.settlement_user_id || event.sender_binding_result) return;
+    const record = (result: string) => supabase.from("ton_usdt_chain_events").update({ sender_binding_result: result }).eq("id", eventId);
+
+    const { data: existing } = await supabase.from("ton_usdt_bound_senders").select("user_id").eq("sender_owner_address", event.sender_owner_address).maybeSingle();
+    if (existing) {
+      await record(existing.user_id === event.settlement_user_id ? "already_bound" : "taken");
+      return;
+    }
+
+    const eligibility = await checkSenderEligibility(restEndpoint, event.sender_owner_address, process.env.TONCENTER_API_KEY?.trim());
+    if (eligibility !== "eligible") {
+      await record(eligibility === "busy" ? "busy" : "unknown");
+      return;
+    }
+
+    const { data, error } = await supabase.rpc("bind_ton_usdt_sender", {
+      p_user_id: event.settlement_user_id,
+      p_sender: event.sender_owner_address,
+      p_network: network,
+      p_event_id: eventId
+    });
+    await record(error ? "error" : String(data?.result ?? "error"));
+  } catch {
+    // Binding is a convenience; the deposit itself is already credited.
   }
 }

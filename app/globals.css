@@ -2782,3 +2782,17 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .core-story-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
 .core-story-dots span.active { width: 20px; border-radius: 999px; background: var(--blue); }
 .core-story-nav { display: flex; justify-content: space-between; gap: 8px; }
+
+/* USDT deposit: clean two-field layout with an unmissable comment warning */
+.usdt-must-comment { margin: 0; border: 2px solid #d92d20; border-radius: 14px; padding: 12px 14px; background: #fff1f0; color: #b42318; font-size: 1rem; font-weight: 900; line-height: 1.35; text-align: center; }
+.usdt-copy-field { display: grid; gap: 4px; }
+.usdt-copy-field > span { color: var(--muted); font-size: .72rem; font-weight: 850; text-transform: uppercase; }
+.usdt-copy-field > div { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 8px 8px 12px; background: var(--surface-muted); }
+.usdt-copy-field code { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: .8rem; line-height: 1.35; }
+.usdt-copy-field button { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--surface); color: var(--blue); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.usdt-copy-field.emphasized > div { border: 2px solid #d92d20; background: #fff1f0; }
+.usdt-copy-field.emphasized > span { color: #b42318; }
+.usdt-bound-view h3 { margin: 0; font-size: 1.1rem; }
+.usdt-bound-banner { margin: 0; border-radius: 12px; padding: 10px 12px; background: var(--success-soft, #e7f7ee); color: var(--green, #1a7f4b); font-weight: 800; }
+.usdt-bound-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.usdt-bound-list code { border-radius: 999px; padding: 4px 10px; background: var(--accent-soft); color: var(--blue); font-size: .78rem; font-weight: 800; }

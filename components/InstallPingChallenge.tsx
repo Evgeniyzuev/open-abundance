@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { InstallGuideDetails } from "@/components/InstallGuide";
 import type { MessageKey } from "@/lib/i18n";
 import { isStandaloneDisplay, type InstallPingState } from "@/lib/installPing";
 import { enablePushAndGetSubscription } from "@/lib/pushReminders";
-import { canPromptPwaInstall, promptPwaInstall } from "@/lib/pwaInstall";
+import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -24,7 +25,14 @@ export default function InstallPingChallenge({ locale, t, onPassedChange }: Inst
   const [state, setState] = useState<InstallPingState>({ status: "none" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [installPromptAvailable, setInstallPromptAvailable] = useState(false);
   const standalone = isStandaloneDisplay();
+
+  useEffect(() => {
+    const update = () => setInstallPromptAvailable(canPromptPwaInstall());
+    update();
+    return subscribeToPwaInstallPrompt(update);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -100,10 +108,13 @@ export default function InstallPingChallenge({ locale, t, onPassedChange }: Inst
       {state.status === "none" || state.status === "failed" ? (
         <>
           {!standalone ? <p className="challenge-note">{t("challenges.install.openInstalled")}</p> : null}
-          {!standalone && canPromptPwaInstall() ? (
-            <button className="secondary-button" type="button" onClick={() => void promptPwaInstall()}>
-              {t("challenges.install.installButton")}
-            </button>
+          {!standalone ? (
+            <InstallGuideDetails
+              installPromptAvailable={installPromptAvailable}
+              isDesktop={!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)}
+              t={t}
+              onInstall={() => { void promptPwaInstall(); }}
+            />
           ) : null}
           <button className="challenge-primary-action" disabled={!standalone || busy} type="button" onClick={() => void start()}>
             {busy ? t("app.common.loading") : state.status === "failed" ? t("challenges.install.retry") : t("challenges.install.start")}

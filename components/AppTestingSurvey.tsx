@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, Download, House, MoreVertical, Share2, Smartphone, Star } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { Check, Smartphone, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { InstallGuide } from "@/components/InstallGuide";
 import type { CoreAccount, WalletAccount } from "@/components/UserProvider";
 import {
   APP_TESTING_ATTITUDES,
@@ -234,7 +234,6 @@ export default function AppTestingSurvey({
             <InstallGuide
               installPromptAvailable={installPromptAvailable}
               isDesktop={isDesktop}
-              locale={locale}
               platform={draft.platform}
               t={t}
               onInstall={() => { void installAndroidApp(); }}
@@ -342,54 +341,6 @@ function formatRewardSummary(coreAmount: number, walletAmount: number, locale: A
   if (coreAmount > 0) rewards.push(`Core +${formatRoundedMoney(coreAmount, locale)}`);
   if (walletAmount > 0) rewards.push(`Wallet +${formatRoundedMoney(walletAmount, locale)}`);
   return rewards.length > 0 ? rewards.join(" · ") : `Core +${formatRoundedMoney(0, locale)}`;
-}
-
-function InstallGuide({
-  installPromptAvailable,
-  isDesktop,
-  platform,
-  t,
-  onInstall,
-  onPlatformChange
-}: {
-  installPromptAvailable: boolean;
-  isDesktop: boolean;
-  locale: AppLocale;
-  platform: AppTestingDraft["platform"];
-  t: TFunction;
-  onInstall: () => void;
-  onPlatformChange: (platform: "ios" | "android") => void;
-}) {
-  const shownPlatform = platform === "ios" ? "ios" : "android";
-  const steps = shownPlatform === "ios"
-    ? [{ icon: Share2, key: "share" }, { icon: Smartphone, key: "home" }, { icon: House, key: "open" }]
-    : [{ icon: MoreVertical, key: "menu" }, { icon: Download, key: "install" }, { icon: House, key: "open" }];
-  return (
-    <div className="app-testing-install-guide">
-      <div className="app-testing-platform-tabs">
-        <button className={shownPlatform === "ios" ? "active" : ""} type="button" onClick={() => onPlatformChange("ios")}>iOS</button>
-        <button className={shownPlatform === "android" ? "active" : ""} type="button" onClick={() => onPlatformChange("android")}>Android</button>
-      </div>
-      <div className="install-visual-grid" role="img" aria-label={t(`appTesting.installGuide.${shownPlatform}` as MessageKey)}>
-        {steps.map(({ icon: Icon, key }, index) => (
-          <div className="install-visual-step" key={key}>
-            <span>{index + 1}</span>
-            <Icon size={26} />
-            <small>{t(`appTesting.installStep.${shownPlatform}.${key}` as MessageKey)}</small>
-          </div>
-        ))}
-      </div>
-      {shownPlatform === "android" && installPromptAvailable ? (
-        <button className="app-testing-open-area" type="button" onClick={onInstall}>{t("appTesting.installNow")}</button>
-      ) : null}
-      {isDesktop ? (
-        <div className="app-testing-qr">
-          <QRCodeSVG value={typeof window === "undefined" ? "/" : window.location.origin} size={132} level="M" marginSize={1} />
-          <p>{t("appTesting.desktopQr")}</p>
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 function OutcomeEditor({ answer, section, t, onChange }: {

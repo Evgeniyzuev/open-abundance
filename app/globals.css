@@ -2305,6 +2305,12 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .app-testing-rating button.active { color: #f1a900; }
 .app-testing-install-guide { display: grid; gap: 10px; }
 .app-testing-platform-tabs, .feed-filter-row { display: flex; gap: 7px; overflow-x: auto; }
+.install-guide-details { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--surface); }
+.install-guide-details summary { cursor: pointer; font-weight: 800; }
+.install-guide-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: .875rem; line-height: 1.4; }
+.install-guide-shot { margin: 0; display: grid; gap: 6px; justify-items: center; }
+.install-guide-shot img { width: 100%; max-width: 340px; height: auto; border-radius: 14px; border: 1px solid var(--line); }
+.install-guide-shot figcaption { color: var(--muted); font-size: .78rem; line-height: 1.35; text-align: center; }
 .install-visual-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
 .install-visual-step { position: relative; display: grid; place-items: center; gap: 8px; min-height: 122px; border: 1px solid var(--line); border-radius: 16px; padding: 17px 8px 10px; background: linear-gradient(160deg, var(--surface), var(--surface-muted)); color: var(--accent-fill); text-align: center; }
 .install-visual-step > span { position: absolute; top: 7px; left: 8px; display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; background: var(--accent-fill); color: #fff; font-size: 0.65rem; font-weight: 900; }

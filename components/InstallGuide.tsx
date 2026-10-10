@@ -3,6 +3,7 @@
 import { Download, House, MoreVertical, Share2, Smartphone } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
+import { InstallIllustration, type InstallIllustrationKind } from "@/components/InstallGuideIllustrations";
 import type { MessageKey } from "@/lib/i18n";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -16,6 +17,25 @@ const STEP_SCREENSHOTS: Partial<Record<Platform, Partial<Record<string, string>>
 const DETAIL_STEPS: Record<Platform, MessageKey[]> = {
   ios: ["installGuide.detail.ios.1", "installGuide.detail.ios.2", "installGuide.detail.ios.3", "installGuide.detail.ios.4"],
   android: ["installGuide.detail.android.1", "installGuide.detail.android.2", "installGuide.detail.android.3", "installGuide.detail.android.4"]
+};
+
+/** Schematic drawing shown under a numbered step (index from 0). Steps without one show text only. */
+const STEP_ILLUSTRATIONS: Record<Platform, Array<InstallIllustrationKind | null>> = {
+  ios: [null, "ios-share", null, "home-icon"],
+  android: [null, "android-menu", "android-install", "home-icon"]
+};
+
+const OFFICIAL_GUIDE: Record<Platform, { url: (locale: string) => string; label: MessageKey }> = {
+  ios: {
+    url: (locale) => locale === "ru"
+      ? "https://support.apple.com/ru-ru/guide/iphone/iphea86e5236/ios"
+      : "https://support.apple.com/guide/iphone/iphea86e5236/ios",
+    label: "installGuide.official.ios"
+  },
+  android: {
+    url: (locale) => `https://support.google.com/chrome/answer/9658361?hl=${locale === "ru" ? "ru" : "en"}`,
+    label: "installGuide.official.android"
+  }
 };
 
 export function detectInstallPlatform(): Platform {
@@ -79,11 +99,13 @@ export function InstallGuide({
 export function InstallGuideDetails({
   installPromptAvailable,
   isDesktop,
+  locale,
   t,
   onInstall
 }: {
   installPromptAvailable: boolean;
   isDesktop: boolean;
+  locale: string;
   t: TFunction;
   onInstall: () => void;
 }) {
@@ -102,7 +124,15 @@ export function InstallGuideDetails({
         onPlatformChange={setPlatform}
       />
       <ol className="install-guide-steps">
-        {DETAIL_STEPS[platform].map((key) => <li key={key}>{t(key)}</li>)}
+        {DETAIL_STEPS[platform].map((key, index) => {
+          const illustration = STEP_ILLUSTRATIONS[platform][index];
+          return (
+            <li key={key}>
+              {t(key)}
+              {illustration ? <InstallIllustration kind={illustration} label={t(key)} /> : null}
+            </li>
+          );
+        })}
       </ol>
       {screenshot ? (
         <figure className="install-guide-shot">
@@ -112,6 +142,9 @@ export function InstallGuideDetails({
         </figure>
       ) : null}
       <p className="challenge-note">{t(platform === "ios" ? "installGuide.note.ios" : "installGuide.note.android")}</p>
+      <a className="install-guide-official" href={OFFICIAL_GUIDE[platform].url(locale)} rel="noopener noreferrer" target="_blank">
+        {t(OFFICIAL_GUIDE[platform].label)}
+      </a>
     </details>
   );
 }

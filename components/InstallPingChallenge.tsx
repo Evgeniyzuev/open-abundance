@@ -112,6 +112,7 @@ export default function InstallPingChallenge({ locale, t, onPassedChange }: Inst
             <InstallGuideDetails
               installPromptAvailable={installPromptAvailable}
               isDesktop={!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)}
+              locale={locale}
               t={t}
               onInstall={() => { void promptPwaInstall(); }}
             />

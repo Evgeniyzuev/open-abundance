@@ -37,6 +37,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
   const [copied, setCopied] = useState<string | null>(null);
   const autoCreated = useRef(false);
   const [now, setNow] = useState(() => Date.now());
+  const [mode, setMode] = useState<"auto" | "bound" | "bind">("auto");
 
   const invoice = data?.invoice ?? null;
   const bound = data?.boundSenders ?? [];
@@ -101,7 +102,9 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
     try { await navigator.clipboard.writeText(value); setCopied(key); window.setTimeout(() => setCopied((current) => current === key ? null : current), 1600); } catch { setError(t("wallet.usdt.deposit.error.copy")); }
   }
 
-  const showBoundView = bound.length > 0 && !inProgress;
+  // With a linked address the person chooses: top up from it, or link another address (which
+  // issues a binding invoice with the comment and the exact amount again).
+  const showBoundView = bound.length > 0 && (mode === "bound" || !inProgress);
   const justBound = Boolean(invoice && creditedNow && data?.bindingResult === "bound");
   const bindNote = data?.bindingResult && data.bindingResult !== "bound" && data.bindingResult !== "already_bound"
     ? t(`wallet.usdt.deposit.bindNote.${data.bindingResult}` as MessageKey)
@@ -123,7 +126,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
         {data.boundTransferLink ? <div className="ton-deposit-qr"><QRCodeSVG value={data.boundTransferLink} size={160} includeMargin /></div> : null}
         {data.depositAddress ? <CopyField label={t("wallet.usdt.deposit.address")} value={data.depositAddress} copied={copied === "address"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(data.depositAddress as string, "address")} /> : null}
         <p className="transfer-muted">{t("wallet.usdt.deposit.bound.exchangeNote")}</p>
-        <button className="secondary-button" type="button" disabled={creating} onClick={() => void createInvoice()}>{creating ? t("app.common.loading") : t("wallet.usdt.deposit.bound.another")}</button>
+        <button className="secondary-button" type="button" disabled={creating} onClick={() => { setMode("bind"); void createInvoice(inProgress ? false : true); }}>{creating ? t("app.common.loading") : t("wallet.usdt.deposit.bound.another")}</button>
       </div> : null}
 
       {data && !showBoundView && invoice ? <div className="ton-deposit-body">
@@ -135,7 +138,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
         </div> : null}
         {inProgress ? <>
           <p className="usdt-must-comment" role="alert">{t("wallet.usdt.deposit.mustComment")}</p>
-          <p className="transfer-summary">{t("wallet.usdt.deposit.bindHint")}</p>
+          <p className="transfer-summary">{t(bound.length > 0 ? "wallet.usdt.deposit.bindAnotherHint" : "wallet.usdt.deposit.bindHint")}</p>
           <div className="ton-deposit-qr"><QRCodeSVG value={invoice.transferLink} size={176} includeMargin /></div>
           <CopyField label={t("wallet.usdt.deposit.address")} value={invoice.deposit_owner_address} copied={copied === "address"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(invoice.deposit_owner_address, "address")} />
           <CopyField label={t("wallet.usdt.deposit.comment")} value={invoice.comment} emphasized copied={copied === "comment"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(invoice.comment, "comment")} />
@@ -149,6 +152,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
           <div className="ton-deposit-status"><span>{t("wallet.usdt.deposit.status")}</span><strong>{usdtDepositStatus(invoice.status, t)}</strong></div>
           <p className="transfer-muted">{t("wallet.usdt.deposit.averageCreditTime")}</p>
         </> : null}
+        {bound.length > 0 ? <button className="secondary-button" type="button" onClick={() => setMode("bound")}>{t("wallet.usdt.deposit.backToBound")}</button> : null}
         {!inProgress && !bindingPending ? <button className="challenge-primary-action" type="button" disabled={creating} onClick={() => void createInvoice()}>{creating ? t("app.common.loading") : t("wallet.usdt.deposit.new")}</button> : null}
       </div> : null}
 

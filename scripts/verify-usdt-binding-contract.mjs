@@ -62,7 +62,12 @@ assert.match(windowMigration, /v_candidates = 1/, "an amount is matched only whe
 assert.match(windowMigration, /candidate\.expected_amount_units = v_event\.amount_units/, "the amount must match exactly");
 assert.match(windowMigration, /1 \+ floor\(random\(\) \* 999\)/, "the tag is 0.000001-0.000999 USDT");
 assert.match(windowMigration, /interval '15 minutes'/, "tags are unique across overlapping windows");
-assert.match(windowMigration, /sender_binding_result = case when v_by_amount then 'amount_match'/, "an amount match never binds the sender");
+const matchBinding = read("supabase/migrations/20261010150000_usdt_amount_match_binding.sql");
+assert.doesNotMatch(matchBinding, /sender_binding_result = case when v_by_amount/, "an amount match must not block the sender binding");
+assert.match(matchBinding, /'attribution', case when v_by_amount then 'amount_window' else 'comment' end/);
+assert.match(matchBinding, /v_candidates = 1/, "an amount is still matched only when exactly one invoice fits");
+assert.match(settle, /eligibility !== "eligible"/, "amount matches are bound only for personal-looking addresses");
+assert.match(modal, /backToBound/, "a person with a linked address can choose between topping up and linking another");
 assert.match(windowMigration, /'attribution', case when v_by_amount then 'amount_window' else 'comment' end/);
 assert.ok(windowMigration.includes("revoke all on function public.issue_ton_usdt_amount_window(uuid, numeric) from public, anon, authenticated"));
 assert.ok(windowMigration.includes("grant execute on function public.issue_ton_usdt_amount_window(uuid, numeric) to service_role"));

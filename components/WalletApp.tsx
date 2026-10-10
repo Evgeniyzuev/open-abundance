@@ -1935,6 +1935,7 @@ function CoreLevelProgress({
   return (
     <section className={`core-level-panel is-interactive${chargeClass}`} aria-label={t("wallet.coreProgress.aria")}>
       <button className="core-level-open" type="button" aria-label={t("core.sheet.open")} onClick={onOpen} />
+      <button className="core-level-help" type="button" aria-label={t("core.sheet.whatIs")} title={t("core.sheet.whatIs")} onClick={onStory}>?</button>
       <div className="core-reactor" aria-hidden="true">
         <span className="core-reactor-halo" />
         <span className="core-reactor-orb">
@@ -1946,7 +1947,7 @@ function CoreLevelProgress({
         <div className="core-level-head">
           <span className="core-level-label">
             {t("app.common.level")} {core.level}
-            <button className="core-level-help" type="button" aria-label={t("core.sheet.whatIs")} title={t("core.sheet.whatIs")} onClick={onStory}>?</button>
+            {threshold ? <b className="core-level-percent">{displayProgress}%</b> : null}
           </span>
           <strong>{threshold ? `${formatAdaptiveMoney(core.balance, locale)} / ${formatAdaptiveMoney(threshold, locale)}` : t("wallet.coreProgress.max")}</strong>
         </div>
@@ -1958,9 +1959,6 @@ function CoreLevelProgress({
           aria-valuenow={threshold ? Math.min(core.balance, threshold) : Math.max(1, core.balance)}
         >
           <div className="core-level-fill" style={{ width: `${displayProgress}%` }} />
-        </div>
-        <div className="core-level-meta">
-          <span>{displayProgress}%</span>
         </div>
       </div>
       {wallet && wallet.balance > 0 ? (

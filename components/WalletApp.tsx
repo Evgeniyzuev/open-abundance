@@ -1945,7 +1945,10 @@ function CoreLevelProgress({
       </div>
       <div className="core-level-content">
         <div className="core-level-head">
-          <span>{t("app.common.level")} {core.level}</span>
+          <span className="core-level-label">
+            {t("app.common.level")} {core.level}
+            <button className="core-level-help" type="button" aria-label={t("core.sheet.whatIs")} title={t("core.sheet.whatIs")} onClick={onStory}>?</button>
+          </span>
           <strong>{threshold ? `${formatAdaptiveMoney(core.balance, locale)} / ${formatAdaptiveMoney(threshold, locale)}` : t("wallet.coreProgress.max")}</strong>
         </div>
         <div
@@ -1962,7 +1965,6 @@ function CoreLevelProgress({
           <span>{threshold ? `${t("app.common.level")} ${nextLevel}` : t("wallet.coreProgress.max")}</span>
         </div>
       </div>
-      <button className="core-level-help" type="button" aria-label={t("core.sheet.whatIs")} title={t("core.sheet.whatIs")} onClick={onStory}>?</button>
       {wallet && wallet.balance > 0 ? (
         <button className="finance-small-icon-button primary topup-core-button" type="button" title={t("wallet.topup.title")} onClick={onTopup}>
           ⚛️

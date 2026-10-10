@@ -2764,7 +2764,8 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .core-level-panel.is-interactive:active { transform: scale(0.99); }
 .core-level-open { position: absolute; inset: 0; z-index: 1; border-radius: inherit; background: transparent; }
 .core-level-help, .core-level-panel .topup-core-button { position: relative; z-index: 2; }
-.core-level-help { position: absolute; top: 8px; right: 10px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--blue); font-weight: 900; font-size: .8rem; }
+.core-level-label { display: inline-flex; align-items: center; gap: 6px; }
+.core-level-help { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--accent-soft); color: var(--blue); font-weight: 900; font-size: .72rem; }
 .core-sheet { max-height: 88vh; overflow-y: auto; }
 .core-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .core-sheet-head span { color: var(--muted); font-size: .78rem; font-weight: 800; }

@@ -7,7 +7,7 @@ import webpush from "npm:web-push@3.6.7";
 type ReminderJob = {
   id: string;
   subscription_id: string;
-  kind: "action" | "today_daily";
+  kind: "action" | "today_daily" | "install_ping";
   locale: "ru" | "en";
   deep_link: string;
   timezone: string;
@@ -93,7 +93,7 @@ Deno.serve(async (request) => {
       await webpush.sendNotification({
         endpoint: pushSubscription.endpoint,
         keys: { p256dh: pushSubscription.p256dh, auth: pushSubscription.auth }
-      }, JSON.stringify(buildPayload(job)), { TTL: 3600 });
+      }, JSON.stringify(buildPayload(job)), job.kind === "install_ping" ? { TTL: 180, urgency: "high" } : { TTL: 3600 });
       await finishJob(supabase, job.id, true, null);
       await supabase.from("push_subscriptions").update({ last_success_at: new Date().toISOString() }).eq("id", job.subscription_id);
       sent += 1;
@@ -157,6 +157,14 @@ function buildNotificationPayload(delivery: NotificationDelivery) {
 
 function buildPayload(job: ReminderJob) {
   const isRussian = job.locale === "ru";
+  if (job.kind === "install_ping") {
+    return {
+      title: "Open Abundance",
+      body: isRussian ? "Откройте приложение в течение 3 минут, чтобы получить награду." : "Open the app within 3 minutes to get your reward.",
+      deepLink: job.deep_link,
+      tag: `open-abundance-reminder:${job.id}`
+    };
+  }
   return {
     title: job.kind === "today_daily"
       ? (isRussian ? "Ваш личный план на сегодня готов" : "Your personal plan for today is ready")

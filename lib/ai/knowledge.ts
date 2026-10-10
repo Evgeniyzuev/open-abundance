@@ -70,6 +70,7 @@ const OPEN_ABUNDANCE_KNOWLEDGE = `
 
 ## Pilot coordination and fairness
 - The closed pilot has two starter challenges at level 1: choosing a direction with a first practical task, and posting a first listing on Market. A feedback button ("suggest an improvement") is available to signed-in users.
+- A separate level-1 challenge confirms the app is installed: after enabling notifications from the installed app, the person gets one notification today and up to five tomorrow, and must open the app within 3 minutes of any of them. It can be restarted if missed. Do not promise delivery times.
 - On the Wishes screen, under "Mine", a person can optionally mark what they can help with and what they need, and consent to those tags being used for matching. Matching is done by hand by the operator in the pilot; the tags are never published. You can suggest filling them in, but you cannot see them, match people, or contact anyone.
 - The app occasionally asks, with one tap, whether it brought the person closer to their main wish. This answer is the main satisfaction signal. Treat it as feedback on the product, never as a judgement of the person.
 - Fairness principle: grow total Core without widening the gap between participants. Challenge rewards are fixed per accepted result, not proportional to existing Core, and help is offered first to people with fewer results so far. Do not suggest that topping up Core is the way to progress; earned results are.

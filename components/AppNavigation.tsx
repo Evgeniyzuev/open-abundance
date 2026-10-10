@@ -11,6 +11,7 @@ import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
 import CoreJourneyCard from "@/components/CoreJourneyCard";
 import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import GrowthMapApp from "@/components/GrowthMapApp";
+import InstallPingAck from "@/components/InstallPingAck";
 import SelfServeCheckIn from "@/components/SelfServeCheckIn";
 import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
@@ -612,6 +613,7 @@ export default function AppNavigation() {
             todayUnread={todayUnread}
             refreshNonce={refreshNonce}
           />
+          <InstallPingAck />
           <SelfServeCheckIn active={showHome} />
           <WishOutcomeCheck active={showHome} />
         </div>

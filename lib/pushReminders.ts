@@ -207,3 +207,10 @@ function urlBase64ToUint8Array(value: string): Uint8Array {
   const raw = window.atob(base64);
   return Uint8Array.from([...raw].map((character) => character.charCodeAt(0)));
 }
+
+/** Asks for notification permission and returns the device's push subscription for server registration. */
+export async function enablePushAndGetSubscription(): Promise<PushSubscriptionJSON | null> {
+  if (!(await enableDailyPush())) return null;
+  const subscription = await getSubscription();
+  return subscription ? subscription.toJSON() : null;
+}

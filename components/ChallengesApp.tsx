@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
+import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Smartphone, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
+import InstallPingChallenge from "@/components/InstallPingChallenge";
 import NicheTaskChallenge from "@/components/NicheTaskChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
@@ -1009,6 +1010,7 @@ function ChallengeDetailContent({
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
+  const needsInstallPingChallenge = challenge.verification_logic === "install_ping_answered" && accepted && !completed && !locked;
   const needsCoreLawChallenge = challenge.verification_logic === "core_law_understood" && accepted && !completed && !locked;
   const needsAppTesting = challenge.verification_logic === "app_testing_feedback" && accepted && !completed && !locked;
   const needsAcquisition = challenge.verification_logic === "acquisition_publications_milestone" || challenge.verification_logic?.startsWith("acquisition_metric_") === true;
@@ -1022,12 +1024,14 @@ function ChallengeDetailContent({
   const [attentionProofRecorded, setAttentionProofRecorded] = useState(false);
   const [coreLawPassed, setCoreLawPassed] = useState(false);
   const [nicheTaskChosen, setNicheTaskChosen] = useState(false);
+  const [installPingPassed, setInstallPingPassed] = useState(false);
 
   useEffect(() => {
     setCompoundQuizPassed(false);
     setAttentionProofRecorded(false);
     setCoreLawPassed(false);
     setNicheTaskChosen(false);
+    setInstallPingPassed(false);
   }, [challenge.id]);
 
   async function handleCheck() {
@@ -1045,6 +1049,12 @@ function ChallengeDetailContent({
 
     if (needsNicheChallenge && !nicheTaskChosen) {
       setCheckMessage(t("challenges.niche.required"));
+      setCheckStatus("idle");
+      return;
+    }
+
+    if (needsInstallPingChallenge && !installPingPassed) {
+      setCheckMessage(t("challenges.install.required"));
       setCheckStatus("idle");
       return;
     }
@@ -1271,6 +1281,10 @@ function ChallengeDetailContent({
           onProof={recordNicheProof}
           t={t}
         />
+      ) : null}
+
+      {needsInstallPingChallenge ? (
+        <InstallPingChallenge locale={locale} onPassedChange={setInstallPingPassed} t={t} />
       ) : null}
 
       {needsCoreLawChallenge ? (
@@ -1636,6 +1650,8 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
       return Compass;
     case "first_marketplace_listing":
       return Store;
+    case "install_ping_answered":
+      return Smartphone;
     case "has_referral":
     case "team_contact_active":
       return Users;

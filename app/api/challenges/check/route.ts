@@ -315,6 +315,14 @@ async function verifyChallenge(
     return { ok: false, reason: "Choose a direction and a first practical task first." };
   }
 
+  if (challenge.verification_logic === "install_ping_answered") {
+    const { data, error } = await db.rpc("install_ping_state", { p_user_id: userId });
+    if (error) return { ok: false, reason: "Could not check the notification test. Try again." };
+    if (data?.status === "completed") return { ok: true };
+    if (data?.status === "failed") return { ok: false, reason: "The notification test was not completed in time. Start it again." };
+    return { ok: false, reason: "Open the app within 3 minutes of a notification to complete this challenge." };
+  }
+
   if (challenge.verification_logic === "first_marketplace_listing") {
     const { count, error } = await db
       .from("marketplace_listings")

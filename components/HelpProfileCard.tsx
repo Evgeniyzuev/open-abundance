@@ -20,8 +20,11 @@ export default function HelpProfileCard() {
   const [loaded, setLoaded] = useState(false);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
+  // The user object is replaced on every context refresh; key the load on the stable id.
+  const userId = user?.id ?? null;
+
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     let cancelled = false;
     fetchWithSupabaseAuth("/api/help-profile", { cache: "no-store" }, { authRequired: true })
       .then((response) => (response.ok ? (response.json() as Promise<Profile>) : null))
@@ -35,7 +38,7 @@ export default function HelpProfileCard() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [userId]);
 
   if (!user || !loaded) return null;
 

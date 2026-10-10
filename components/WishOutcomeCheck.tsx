@@ -25,12 +25,16 @@ type AskedWish = { id: string; title: string };
 export default function WishOutcomeCheck({ active }: { active: boolean }) {
   const { t, user } = useUserContext();
   const [wish, setWish] = useState<AskedWish | null>(null);
+  // The user object is replaced on every context refresh; key the effect on stable values so the
+  // wishes request is made once per visit instead of on every refresh.
+  const userId = user?.id ?? null;
+  const userCreatedAt = user?.created_at ?? null;
 
   useEffect(() => {
     setWish(null);
-    if (!active || !user) return;
-    if (!checkInSettled(user.id, user.created_at)) return;
-    const lastAsked = readLastAsked(user.id);
+    if (!active || !userId || !userCreatedAt) return;
+    if (!checkInSettled(userId, userCreatedAt)) return;
+    const lastAsked = readLastAsked(userId);
     if (lastAsked !== null && Date.now() - lastAsked < REASK_AFTER_DAYS * DAY_MS) return;
 
     let cancelled = false;
@@ -48,7 +52,7 @@ export default function WishOutcomeCheck({ active }: { active: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [active, user]);
+  }, [active, userId, userCreatedAt]);
 
   if (!active || !user || !wish) return null;
 

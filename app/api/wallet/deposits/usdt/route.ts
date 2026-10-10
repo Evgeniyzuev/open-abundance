@@ -9,7 +9,7 @@ export const fetchCache = "force-no-store";
 
 const VISIBLE_STATUSES = ["waiting", "detected", "finalizing", "confirmed_pending_credit", "awaiting_rate", "credited", "credited_late", "credited_amount_mismatch", "unmatched", "cancelled", "expired"];
 
-type CreateDepositBody = { replaceActive?: unknown };
+type CreateDepositBody = { replaceActive?: unknown; refreshAmount?: unknown };
 
 /** The binding payment is always exactly 1 USDT: small enough to be a test, enough to prove control. */
 const BINDING_AMOUNT_USDT = "1";
@@ -39,8 +39,17 @@ export async function POST(request: NextRequest) {
       p_expires_at: expiresAt,
       p_replace_active: body.replaceActive === true
     });
-    const invoice = rows?.[0];
+    let invoice = rows?.[0];
     if (createError || !invoice) return jsonResponse({ error: createError?.message ?? "Failed to create TON USDT invoice." }, { status: 500 });
+
+    // A new invoice, or an explicit request, opens a fresh 10-minute window with a unique amount
+    // (1 USDT plus a tag) for wallets that cannot add a comment.
+    if (invoice.status === "waiting" && (!invoice.reused || body.refreshAmount === true)) {
+      const { data: issued, error: issueError } = await db.rpc("issue_ton_usdt_amount_window", { p_user_id: user.id, p_base_units: expectedAmountUnits });
+      if (issueError) return jsonResponse({ error: issueError.message }, { status: 500 });
+      const window = issued?.[0];
+      if (window) invoice = { ...invoice, expected_amount_units: window.expected_amount_units, amount_window_started_at: window.amount_window_started_at };
+    }
     return jsonResponse({ invoice: presentInvoice(invoice, config.decimals), reused: invoice.reused }, { status: invoice.reused ? 200 : 201 });
   } catch (routeError) {
     return jsonResponse({ error: routeError instanceof Error ? routeError.message : "Failed to create TON USDT invoice." }, { status: 500 });
@@ -54,7 +63,7 @@ export async function GET(request: NextRequest) {
     const activeOnly = request.nextUrl.searchParams.get("active") === "true";
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
     const db = supabase as any;
-    let query = db.from("ton_usdt_deposit_invoices").select("id,user_id,network,asset_code,master_address,invoice_code,deposit_owner_address,deposit_jetton_wallet_address,expected_amount_units,status,expires_at,created_at,updated_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(activeOnly ? 1 : limit);
+    let query = db.from("ton_usdt_deposit_invoices").select("id,user_id,network,asset_code,master_address,invoice_code,deposit_owner_address,deposit_jetton_wallet_address,expected_amount_units,status,expires_at,amount_window_started_at,created_at,updated_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(activeOnly ? 1 : limit);
     if (activeOnly) query = query.in("status", VISIBLE_STATUSES);
     const { data: invoices, error: invoicesError } = await query;
     if (invoicesError) return jsonResponse({ error: invoicesError.message }, { status: 500 });

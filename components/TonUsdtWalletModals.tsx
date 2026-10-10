@@ -11,7 +11,7 @@ import { formatRateMoney } from "@/lib/moneyFormat";
 
 type WalletRow = Tables<"wallet_accounts">;
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
-type DepositInvoice = { id: string; invoice_code: string; comment: string; deposit_owner_address: string; deposit_jetton_wallet_address: string; master_address: string; expected_amount_units: string | null; network: string; asset_code: string; status: string; transferLink: string };
+type DepositInvoice = { id: string; invoice_code: string; comment: string; deposit_owner_address: string; deposit_jetton_wallet_address: string; master_address: string; expected_amount_units: string | null; network: string; asset_code: string; status: string; transferLink: string; amount_window_started_at?: string | null };
 type DepositEvent = { transaction_hash: string; amount_units: string; status: string; settled_usd_amount: string | null; usdt_usd_rate: string | null; rejection_reason: string | null };
 type WithdrawalQuote = { network: string; assetCode: "USDT"; masterAddress: string; serviceFeePercent: string; networkFeeReserveTon: string; minAmountUsdt: string; maxAmountUsdt: string; usdtUsdRate: string; tonUsdRate: string; networkFeeReserveAmount?: string };
 type Withdrawal = { id: string; status: string; network: string; destination_address: string; amount_usdt: string | null; amount_units: string | null; payout_wallet_amount: string | null; service_fee_percent: string | null; service_fee_amount: string | null; network_fee_reserve_amount: string | null; total_reserved_amount: string | null; message_hash: string | null; error_message: string | null };
@@ -26,6 +26,7 @@ type DepositPayload = {
   error?: string;
 };
 
+const AMOUNT_WINDOW_MS = 10 * 60_000;
 const IN_PROGRESS_STATUSES = ["waiting", "detected", "finalizing", "confirmed_pending_credit", "awaiting_rate"];
 const CREDITED_STATUSES = ["credited", "credited_late", "credited_amount_mismatch"];
 
@@ -35,6 +36,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const autoCreated = useRef(false);
+  const [now, setNow] = useState(() => Date.now());
 
   const invoice = data?.invoice ?? null;
   const bound = data?.boundSenders ?? [];
@@ -49,10 +51,10 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
     return payload;
   }, []);
 
-  const createInvoice = useCallback(async () => {
+  const createInvoice = useCallback(async (refreshAmount = false) => {
     setCreating(true); setError(null);
     try {
-      const payload = await loadJson<{ invoice?: DepositInvoice; error?: string }>("/api/wallet/deposits/usdt", { method: "POST", body: JSON.stringify({}) });
+      const payload = await loadJson<{ invoice?: DepositInvoice; error?: string }>("/api/wallet/deposits/usdt", { method: "POST", body: JSON.stringify({ refreshAmount }) });
       if (!payload.invoice) throw new Error(payload.error ?? t("wallet.usdt.deposit.error.create"));
       await load();
     } catch (createError) {
@@ -85,6 +87,15 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
     }, 15_000);
     return () => window.clearInterval(interval);
   }, [inProgress, bindingPending, load, onRefresh]);
+
+  useEffect(() => {
+    if (!inProgress) return;
+    const tick = window.setInterval(() => setNow(Date.now()), 15_000);
+    return () => window.clearInterval(tick);
+  }, [inProgress]);
+
+  const windowEndsAt = invoice?.amount_window_started_at ? Date.parse(invoice.amount_window_started_at) + AMOUNT_WINDOW_MS : 0;
+  const windowOpen = windowEndsAt > now;
 
   async function copy(value: string, key: string) {
     try { await navigator.clipboard.writeText(value); setCopied(key); window.setTimeout(() => setCopied((current) => current === key ? null : current), 1600); } catch { setError(t("wallet.usdt.deposit.error.copy")); }
@@ -128,6 +139,13 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
           <div className="ton-deposit-qr"><QRCodeSVG value={invoice.transferLink} size={176} includeMargin /></div>
           <CopyField label={t("wallet.usdt.deposit.address")} value={invoice.deposit_owner_address} copied={copied === "address"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(invoice.deposit_owner_address, "address")} />
           <CopyField label={t("wallet.usdt.deposit.comment")} value={invoice.comment} emphasized copied={copied === "comment"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(invoice.comment, "comment")} />
+          {windowOpen && invoice.expected_amount_units ? <>
+            <CopyField label={t("wallet.usdt.deposit.amountField")} value={tonUsdtUnitsToDecimal(invoice.expected_amount_units)} copied={copied === "amount"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(tonUsdtUnitsToDecimal(invoice.expected_amount_units as string), "amount")} />
+            <p className="transfer-muted">{t("wallet.usdt.deposit.amountUntil", { time: new Date(windowEndsAt).toLocaleTimeString(locale === "ru" ? "ru-RU" : "en-US", { hour: "2-digit", minute: "2-digit" }) })}</p>
+          </> : <>
+            <p className="transfer-muted">{t("wallet.usdt.deposit.amountExpired")}</p>
+            <button className="secondary-button" type="button" disabled={creating} onClick={() => void createInvoice(true)}>{creating ? t("app.common.loading") : t("wallet.usdt.deposit.amountRefresh")}</button>
+          </>}
           <div className="ton-deposit-status"><span>{t("wallet.usdt.deposit.status")}</span><strong>{usdtDepositStatus(invoice.status, t)}</strong></div>
           <p className="transfer-muted">{t("wallet.usdt.deposit.averageCreditTime")}</p>
         </> : null}

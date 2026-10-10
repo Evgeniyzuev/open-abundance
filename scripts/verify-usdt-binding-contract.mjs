@@ -54,4 +54,22 @@ assert.match(modal, /usdt-must-comment/, "the comment warning is always shown on
 assert.match(modal, /role="alert"/);
 assert.doesNotMatch(modal.slice(modal.indexOf("export function TonUsdtDepositModal"), modal.indexOf("export function TonUsdtWithdrawalModal")), /deposit_jetton_wallet_address|master_address/, "the deposit screen shows only the address and the comment");
 
+
+// --- Exact-amount window for wallets without a comment field (e.g. Telegram Wallet) ---
+const windowMigration = read("supabase/migrations/20261010140000_usdt_amount_window.sql");
+assert.match(windowMigration, /interval '10 minutes'/, "the amount window is 10 minutes");
+assert.match(windowMigration, /v_candidates = 1/, "an amount is matched only when exactly one invoice fits");
+assert.match(windowMigration, /candidate\.expected_amount_units = v_event\.amount_units/, "the amount must match exactly");
+assert.match(windowMigration, /1 \+ floor\(random\(\) \* 999\)/, "the tag is 0.000001-0.000999 USDT");
+assert.match(windowMigration, /interval '15 minutes'/, "tags are unique across overlapping windows");
+assert.match(windowMigration, /sender_binding_result = case when v_by_amount then 'amount_match'/, "an amount match never binds the sender");
+assert.match(windowMigration, /'attribution', case when v_by_amount then 'amount_window' else 'comment' end/);
+assert.ok(windowMigration.includes("revoke all on function public.issue_ton_usdt_amount_window(uuid, numeric) from public, anon, authenticated"));
+assert.ok(windowMigration.includes("grant execute on function public.issue_ton_usdt_amount_window(uuid, numeric) to service_role"));
+// Order of attribution: comment, then bound sender, then amount.
+const settleBody = windowMigration.slice(windowMigration.indexOf("create or replace function public.settle_ton_usdt_deposit"));
+assert.ok(settleBody.indexOf("-- 1. comment") < settleBody.indexOf("-- 2. bound sender") && settleBody.indexOf("-- 2. bound sender") < settleBody.indexOf("-- 3. exact amount"));
+assert.match(route, /issue_ton_usdt_amount_window/);
+assert.match(modal, /amountRefresh/);
+
 console.log("usdt binding contract ok");

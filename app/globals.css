@@ -2796,3 +2796,5 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .usdt-bound-banner { margin: 0; border-radius: 12px; padding: 10px 12px; background: var(--success-soft, #e7f7ee); color: var(--green, #1a7f4b); font-weight: 800; }
 .usdt-bound-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .usdt-bound-list code { border-radius: 999px; padding: 4px 10px; background: var(--accent-soft); color: var(--blue); font-size: .78rem; font-weight: 800; }
+.usdt-linked-chip { border-radius: 999px; padding: 4px 10px; background: var(--accent-soft); color: var(--blue); font-family: ui-monospace, monospace; font-size: .78rem; font-weight: 800; }
+.usdt-linked-chip.active { background: var(--blue); color: #fff; }

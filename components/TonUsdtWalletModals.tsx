@@ -156,6 +156,7 @@ export function TonUsdtWithdrawalModal({ locale, t, wallet, onClose, onSuccess }
   const [enabled, setEnabled] = useState(false);
   const [amount, setAmount] = useState("");
   const [destination, setDestination] = useState("");
+  const [linkedAddresses, setLinkedAddresses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +176,19 @@ export function TonUsdtWithdrawalModal({ locale, t, wallet, onClose, onSuccess }
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
   }, [t]);
+
+  // The linked deposit address is the default destination, so money goes back where it came from.
+  // The person can type any other address.
+  useEffect(() => {
+    let mounted = true;
+    void loadJson<DepositPayload>("/api/wallet/deposits/usdt?active=true").then((payload) => {
+      if (!mounted) return;
+      const addresses = (payload.boundSenders ?? []).map((item) => item.address);
+      setLinkedAddresses(addresses);
+      if (addresses[0]) setDestination((current) => current || addresses[0]);
+    }).catch(() => undefined);
+    return () => { mounted = false; };
+  }, []);
 
   const parsedAmount = Number(amount.replace(",", "."));
   const payout = quote && Number.isFinite(parsedAmount) ? parsedAmount * Number(quote.usdtUsdRate) : 0;
@@ -202,6 +216,9 @@ export function TonUsdtWithdrawalModal({ locale, t, wallet, onClose, onSuccess }
       {!enabled ? <p className="topup-error">{error ?? t("wallet.usdt.withdraw.unavailable.setup")}</p> : <>
         <label className="finance-field"><span>{t("wallet.usdt.withdraw.amount")}</span><input inputMode="decimal" value={amount} onChange={(input) => { setAmount(input.target.value); setError(null); }} placeholder="Например, 10" /></label>
         <label className="finance-field"><span>{t("wallet.usdt.withdraw.address")}</span><input value={destination} onChange={(input) => { setDestination(input.target.value); setError(null); }} placeholder="TON-адрес" autoComplete="off" /></label>
+        {linkedAddresses.length > 0 ? <div className="usdt-bound-list" aria-label={t("wallet.usdt.deposit.bound.addresses")}>
+          {linkedAddresses.map((address) => <button className={destination === address ? "usdt-linked-chip active" : "usdt-linked-chip"} key={address} type="button" onClick={() => { setDestination(address); setError(null); }}>{shortAddress(address)}</button>)}
+        </div> : null}
         <div className="ton-withdraw-fees"><div><span>{t("wallet.usdt.withdraw.payout")}</span><strong>{formatUsd(String(payout), locale)}</strong></div><div><span>{t("wallet.usdt.withdraw.serviceFee", { percent: quote.serviceFeePercent })}</span><strong>{formatUsd(String(service), locale)}</strong></div><div><span>{t("wallet.usdt.withdraw.networkFee")}</span><strong>{formatUsd(String(network), locale)}</strong></div><div className="ton-withdraw-total"><span>{t("wallet.usdt.withdraw.total")}</span><strong>{formatUsd(String(total), locale)}</strong></div></div>
         {!amountValid && amount ? <p className="topup-error">{t("wallet.usdt.withdraw.error.amountRange", { min: quote.minAmountUsdt, max: quote.maxAmountUsdt })}</p> : null}{amountValid && !balanceValid ? <p className="topup-error">{t("wallet.usdt.withdraw.error.insufficient")}</p> : null}
         <div className="topup-modal-actions"><button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button><button className="challenge-primary-action" type="button" disabled={!amountValid || !destination.trim() || !balanceValid || saving} onClick={() => void createWithdrawal()}>{saving ? t("app.common.loading") : t("wallet.usdt.withdraw.confirm")}</button></div>

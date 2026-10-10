@@ -12,6 +12,7 @@ import CoreJourneyCard from "@/components/CoreJourneyCard";
 import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import GrowthMapApp from "@/components/GrowthMapApp";
 import SelfServeCheckIn from "@/components/SelfServeCheckIn";
+import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
 import SocialApp from "@/components/SocialApp";
@@ -612,6 +613,7 @@ export default function AppNavigation() {
             refreshNonce={refreshNonce}
           />
           <SelfServeCheckIn active={showHome} />
+          <WishOutcomeCheck active={showHome} />
         </div>
         <KeepAliveView active={showNotes} visited>
           <NotesApp openInboxNonce={reflectionInboxNonce} onScheduleReflection={scheduleReflection} />

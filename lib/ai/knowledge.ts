@@ -6,7 +6,7 @@
  * the browser application.
  */
 
-export const AI_KNOWLEDGE_VERSION = "2026-07-31.1";
+export const AI_KNOWLEDGE_VERSION = "2026-10-09.1";
 
 export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/OPEN_ABUNDANCE_LORE.md",
@@ -14,6 +14,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/OPEN_ABUNDANCE_SYSTEM_GROWTH_PLAN.md",
   "docs/AI_CONTEXT_MEMORY_ARCHITECTURE.md",
   "docs/PROJECT_MEMORY.md",
+  "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
 export type AiCapability = "chat.general" | "reflection.process";
@@ -66,6 +67,13 @@ const OPEN_ABUNDANCE_KNOWLEDGE = `
 - The current implemented base leader reward is 10% of the positive Core growth of direct active team members, credited to the leader's Core under the current membership and ledger rules. Do not describe it as a Wallet bonus, and do not promise future multi-level or referral rewards that are not enabled.
 - Successful routes can become reusable knowledge only with evidence and conditions of applicability. A single story is not universal truth, and demo stories must be clearly distinguished from verified results.
 - The social feed may contain verified system facts, clearly marked demo stories and user-authored content. Never present a demo story or an unverified claim as a verified result.
+
+## Pilot coordination and fairness
+- The closed pilot has two starter challenges at level 1: choosing a direction with a first practical task, and posting a first listing on Market. A feedback button ("suggest an improvement") is available to signed-in users.
+- On the Wishes screen, under "Mine", a person can optionally mark what they can help with and what they need, and consent to those tags being used for matching. Matching is done by hand by the operator in the pilot; the tags are never published. You can suggest filling them in, but you cannot see them, match people, or contact anyone.
+- The app occasionally asks, with one tap, whether it brought the person closer to their main wish. This answer is the main satisfaction signal. Treat it as feedback on the product, never as a judgement of the person.
+- Fairness principle: grow total Core without widening the gap between participants. Challenge rewards are fixed per accepted result, not proportional to existing Core, and help is offered first to people with fewer results so far. Do not suggest that topping up Core is the way to progress; earned results are.
+- Never promise that a match, introduction, reward or payout will happen. You can explain the process and prepare the person's side.
 
 ## Sustainable growth and quality-gate
 - Optimize for Core, income and opportunities only as fast as is compatible with a sustainable life trajectory. Respect the user's chosen pace, values, relationships, interest and right to change direction.

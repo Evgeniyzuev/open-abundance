@@ -2,6 +2,7 @@
 
 import { Heart, MessageCircle, Repeat2, Send, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import type { FeedPost } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
@@ -91,13 +92,16 @@ export default function FeedPostInteractions({
       ? `${window.location.origin}/p/${post.id}`
       : `${window.location.origin}/u/${post.author_user_id ?? "open-abundance"}/blog?post=${post.id}`;
     const shareText = post.body?.trim() || t("social.post.detail");
+    const method = typeof navigator.share === "function" ? "native" : "copy";
     try {
-      if (navigator.share) {
+      if (method === "native") {
         await navigator.share({ title: shareText.slice(0, 80), text: shareText, url });
       } else {
         await navigator.clipboard.writeText(`${shareText}\n${url}`);
       }
       setShareOpen(true);
+      // Share intent only: the app cannot see whether a post appears in an outside network.
+      void trackClientEvent("feed_post_shared_external", { post_id: post.id, method });
     } catch {
       // A cancelled native share is not an application error.
     }

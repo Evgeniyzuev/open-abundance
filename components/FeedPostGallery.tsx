@@ -7,6 +7,7 @@ import ProtectedImage from "@/components/ProtectedImage";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import { emptyFeedPreferenceState, isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences, type FeedPreferenceState } from "@/lib/feedPreferences";
 import type { MessageKey } from "@/lib/i18n";
+import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import type { FeedPost } from "@/lib/socialFeed";
 import { recommendedWishIdForStory } from "@/lib/wishJourney";
 
@@ -60,7 +61,7 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
   useEffect(() => {
     if (!currentUserId || typeof IntersectionObserver === "undefined") return;
     const impressionKey = `${currentUserId}:${post.id}`;
-    if (trackedImpressions.has(impressionKey)) return;
+    if (trackedImpressions.has(impressionKey) || hasBeenSeen(`impression.${currentUserId}`, post.id)) return;
 
     let visibleTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new IntersectionObserver(([entry]) => {
@@ -68,6 +69,7 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
         if (visibleTimer !== null) return;
         visibleTimer = setTimeout(() => {
           trackedImpressions.add(impressionKey);
+          markSeen(`impression.${currentUserId}`, post.id);
           void trackClientEvent("feed_post_impression", { post_id: post.id, post_type: post.post_type });
           observer.disconnect();
         }, 1000);

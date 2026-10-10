@@ -24,6 +24,16 @@ type WithdrawalsPayload = {
   limits: { enabled: boolean; perUserDaily: number; globalDaily: number; usedLast24h: number } | null;
 };
 
+type Recommendation = {
+  id: string;
+  kind: string;
+  title: string;
+  rationale: string;
+  expected_effect: string;
+  risk: string;
+  target_user_ids: string[];
+};
+
 const LIGHT_COLORS: Record<string, string> = { green: "#1a9b57", yellow: "#d99a00", red: "#d33a3a", unknown: "#7a7f87" };
 const ATTENTION_STATUSES = new Set(["manual_review", "failed"]);
 
@@ -33,6 +43,34 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
   const [withdrawals, setWithdrawals] = useState<WithdrawalsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [proposals, setProposals] = useState<Recommendation[]>([]);
+  const [proposalBusy, setProposalBusy] = useState(false);
+
+  const loadProposals = useCallback(async (generate: boolean) => {
+    setProposalBusy(true);
+    try {
+      if (generate) await fetchWithSupabaseAuth("/api/internal/coordinator/digest?propose=1", { cache: "no-store" }, { authRequired: true });
+      const response = await fetchWithSupabaseAuth("/api/internal/coordinator/recommendations", { cache: "no-store" }, { authRequired: true });
+      if (response.ok) setProposals(((await response.json()) as { items: Recommendation[] }).items);
+    } catch {
+      // The treasury panel stays usable if the coordinator queue is unavailable.
+    } finally {
+      setProposalBusy(false);
+    }
+  }, []);
+
+  async function decide(id: string, status: "approved" | "rejected") {
+    setProposalBusy(true);
+    try {
+      await fetchWithSupabaseAuth(
+        "/api/internal/coordinator/recommendations",
+        { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) },
+        { authRequired: true }
+      );
+    } finally {
+      await loadProposals(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,7 +92,8 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadProposals(false);
+  }, [load, loadProposals]);
 
   const usd = (value: number | null | undefined) => (value === null || value === undefined ? "—" : `$${value.toFixed(2)}`);
   const ratio = (value: number | null | undefined) => (value === null || value === undefined ? "—" : value.toFixed(2));
@@ -124,6 +163,29 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
             )}
           </section>
         ) : null}
+
+        <section aria-label={t("operator.coordinator")}>
+          <h3 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            {t("operator.coordinator.queue")}
+            <button className="secondary-button" type="button" disabled={proposalBusy} onClick={() => void loadProposals(true)}>{t("operator.coordinator.refresh")}</button>
+          </h3>
+          {proposals.length === 0 ? <p className="transfer-muted">{t("operator.coordinator.empty")}</p> : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+              {proposals.map((item) => (
+                <li key={item.id} style={{ padding: "8px 10px", borderRadius: 10, background: "rgba(0, 0, 0, 0.04)" }}>
+                  <strong>{item.title}</strong>
+                  <br />
+                  <span className="transfer-muted">{item.rationale}</span>
+                  {item.target_user_ids.length ? <><br /><span className="transfer-muted">{item.target_user_ids.join(", ")}</span></> : null}
+                  <span style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                    <button className="secondary-button" type="button" disabled={proposalBusy} onClick={() => void decide(item.id, "approved")}>{t("operator.coordinator.approve")}</button>
+                    <button className="secondary-button" type="button" disabled={proposalBusy} onClick={() => void decide(item.id, "rejected")}>{t("operator.coordinator.reject")}</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </section>
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import QrScanButton from "@/components/QrScanner";
+import { parseScanned } from "@/lib/qrPayload";
 import { Check, Copy } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -240,7 +242,7 @@ export function TonUsdtWithdrawalModal({ locale, t, wallet, onClose, onSuccess }
       <div className="topup-balance-info"><div className="topup-balance-card"><span>{t("wallet.availableBalance")}</span><strong className="wallet-color">{formatUsd(String(wallet.balance), locale)}</strong></div><div className="topup-balance-card"><span>{t("wallet.usdt.withdraw.rate")}</span><strong>{formatUsd(quote.usdtUsdRate, locale)} / USDT</strong></div></div>
       {!enabled ? <p className="topup-error">{error ?? t("wallet.usdt.withdraw.unavailable.setup")}</p> : <>
         <label className="finance-field"><span>{t("wallet.usdt.withdraw.amount")}</span><input inputMode="decimal" value={amount} onChange={(input) => { setAmount(input.target.value); setError(null); }} placeholder="Например, 10" /></label>
-        <label className="finance-field"><span>{t("wallet.usdt.withdraw.address")}</span><input value={destination} onChange={(input) => { setDestination(input.target.value); setError(null); }} placeholder="TON-адрес" autoComplete="off" /></label>
+        <label className="finance-field"><span>{t("wallet.usdt.withdraw.address")}</span><div className="input-with-scan"><input value={destination} onChange={(input) => { setDestination(input.target.value); setError(null); }} placeholder="TON-адрес" autoComplete="off" /><QrScanButton onScan={(text) => { const scanned = parseScanned(text); if (scanned.kind === "ton") { setDestination(scanned.address); setError(null); } else setError(t("scan.wrongAddress")); }} /></div></label>
         {linkedAddresses.length > 0 ? <div className="usdt-bound-list" aria-label={t("wallet.usdt.deposit.bound.addresses")}>
           {linkedAddresses.map((address) => <button className={destination === address ? "usdt-linked-chip active" : "usdt-linked-chip"} key={address} type="button" onClick={() => { setDestination(address); setError(null); }}>{shortAddress(address)}</button>)}
         </div> : null}

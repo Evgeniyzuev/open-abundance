@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
@@ -15,10 +15,12 @@ export type RecipientCandidate = {
 type Props = {
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onSelect: (person: RecipientCandidate) => void;
+  /** A control shown next to the field, e.g. the QR scanner. */
+  trailing?: ReactNode;
 };
 
 /** Search people by name or @username to pay them, instead of pasting an id. */
-export default function RecipientSearch({ t, onSelect }: Props) {
+export default function RecipientSearch({ t, onSelect, trailing }: Props) {
   const [query, setQuery] = useState("");
   const [people, setPeople] = useState<RecipientCandidate[]>([]);
   const [searching, setSearching] = useState(false);
@@ -51,13 +53,16 @@ export default function RecipientSearch({ t, onSelect }: Props) {
   const showEmpty = query.trim().replace(/^@/, "").length >= 2 && !searching && people.length === 0;
   return (
     <div className="recipient-search">
-      <input
-        type="text"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={t("pay.search.placeholder")}
-        autoComplete="off"
-      />
+      <div className={trailing ? "input-with-scan" : undefined}>
+        <input
+          type="text"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t("pay.search.placeholder")}
+          autoComplete="off"
+        />
+        {trailing}
+      </div>
       {people.length > 0 ? (
         <div className="transfer-contact-list">
           {people.map((person) => (

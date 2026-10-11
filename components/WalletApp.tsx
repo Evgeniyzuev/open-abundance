@@ -11,6 +11,7 @@ import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import P2PWalletPanel from "@/components/P2PWalletPanel";
 import PaymentRequestModal from "@/components/PaymentRequestModal";
+import QrScanButton from "@/components/QrScanner";
 import RecipientSearch from "@/components/RecipientSearch";
 import { TonUsdtDepositModal, TonUsdtWithdrawalModal } from "@/components/TonUsdtWalletModals";
 import { WalletCryptoMethodModal, type WalletCryptoMethod } from "@/components/WalletCryptoMethodModal";
@@ -24,6 +25,7 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
+import { parseScanned } from "@/lib/qrPayload";
 import { isUuid } from "@/lib/uuid";
 
 type WalletTab = "wallet" | "core" | "market" | "p2p";
@@ -1309,18 +1311,32 @@ function EconomyMetricsPanel({
 }) {
   const periods: EconomyPeriodType[] = ["day", "month", "year", "lifetime"];
   const value = (amount: number | null | undefined) => formatAdaptiveMoney(Number(amount ?? 0), locale);
+  // Folded by default and remembered on this device: the figures are for reference, not for every visit.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    try { setOpen(window.localStorage.getItem("oa-economy-open.v1") === "1"); } catch { /* stays folded */ }
+  }, []);
+  function toggleOpen() {
+    setOpen((current) => {
+      try { window.localStorage.setItem("oa-economy-open.v1", current ? "0" : "1"); } catch { /* not remembered */ }
+      return !current;
+    });
+  }
 
   return (
-    <section className="economy-metrics-panel" aria-labelledby="economy-metrics-title">
-      <div className="economy-metrics-header">
+    <section className={open ? "economy-metrics-panel" : "economy-metrics-panel is-folded"} aria-labelledby="economy-metrics-title">
+      <button className="economy-metrics-header economy-metrics-toggle" type="button" aria-expanded={open} aria-controls="economy-metrics-body" onClick={toggleOpen}>
         <div>
           <h2 id="economy-metrics-title">{t("wallet.economy.title")}</h2>
-          <p>{t("wallet.economy.explainer")}</p>
+          {open ? <p>{t("wallet.economy.explainer")}</p> : null}
         </div>
         <span className={metric?.is_reconciled ? "economy-status is-verified" : "economy-status"}>
           {metric?.is_reconciled ? t("wallet.economy.verified") : t("wallet.economy.stale")}
         </span>
-      </div>
+        {open ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+      </button>
+      {open ? (
+      <div className="economy-metrics-body" id="economy-metrics-body">
       <div className="economy-period-switcher" role="group" aria-label={t("wallet.economy.title")}>
         {periods.map((period) => (
           <button
@@ -1350,6 +1366,8 @@ function EconomyMetricsPanel({
           <EconomyMetricCard label={t("wallet.economy.participation")} value={value(metric.participation_balance)} />
           <EconomyMetricCard label={t("wallet.economy.coreGrowth")} value={value(metric.core_growth_total)} />
         </div>
+      ) : null}
+      </div>
       ) : null}
     </section>
   );
@@ -2570,13 +2588,19 @@ function TonWithdrawalModal({
             {normalizedAmount && (!amountNano || !amountValid) ? <p className="topup-error">{t("wallet.withdraw.error.amountRange", { min: quote.minAmountTon, max: quote.maxAmountTon })}</p> : null}
             <label className="finance-field">
               <span>{t("wallet.withdraw.address")}</span>
-              <input
-                type="text"
-                value={destinationAddress}
-                onChange={(event) => { setDestinationAddress(event.target.value); setError(null); }}
-                placeholder={t("wallet.withdraw.addressPlaceholder")}
-                autoComplete="off"
-              />
+              <div className="input-with-scan">
+                <input
+                  type="text"
+                  value={destinationAddress}
+                  onChange={(event) => { setDestinationAddress(event.target.value); setError(null); }}
+                  placeholder={t("wallet.withdraw.addressPlaceholder")}
+                  autoComplete="off"
+                />
+                <QrScanButton onScan={(text) => {
+                  const scanned = parseScanned(text);
+                  if (scanned.kind === "ton") { setDestinationAddress(scanned.address); setError(null); } else setError(t("scan.wrongAddress"));
+                }} />
+              </div>
             </label>
             <div className="ton-withdraw-fees">
               <div><span>{t("wallet.withdraw.payout")}</span><strong>{amountValid ? `${amountValue} TON · ` : ""}{formatFixedUsd(String(payoutUsd), locale)}</strong></div>
@@ -3121,6 +3145,34 @@ function WalletTransferModal({
     }
   }
 
+  // A scanned code selects the person: a nickname or profile link, or a payment-request link.
+  async function applyScannedRecipient(text: string) {
+    const scanned = parseScanned(text);
+    setError(null);
+    try {
+      if (scanned.kind === "nick") {
+        const response = await fetchWithSupabaseAuth(`/api/wallet/recipients/search?q=${encodeURIComponent(scanned.nickname)}`, { cache: "no-store" }, { authRequired: true });
+        const payload = (await response.json()) as { people?: WalletRecipient[] };
+        const person = payload.people?.find((item) => item.username === scanned.nickname);
+        if (!person) { setError(t("scan.noPerson")); return; }
+        setRecipientUserId(person.user_id);
+        setRecipientPreview(person);
+      } else if (scanned.kind === "user") {
+        const person = await loadWalletRecipient(scanned.userId);
+        setRecipientUserId(person.user_id);
+        setRecipientPreview(person);
+      } else if (scanned.kind === "pay") {
+        window.location.assign(`/?pay=${scanned.requestId}`);
+      } else if (scanned.kind === "ton") {
+        setError(t("scan.tonForTransfer"));
+      } else {
+        setError(t("scan.unknown"));
+      }
+    } catch {
+      setError(t("scan.noPerson"));
+    }
+  }
+
   async function handleConfirm() {
     if (!isValid) return;
 
@@ -3224,6 +3276,7 @@ function WalletTransferModal({
                 setRecipientPreview(person as unknown as WalletRecipient);
                 setError(null);
               }}
+              trailing={<QrScanButton onScan={(text) => void applyScannedRecipient(text)} />}
             />
           </div>
 

@@ -2832,3 +2832,14 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .ai-deep-hint { color: var(--muted); font-size: 0.8rem; }
 .nova-daily-card { width: min(100vw - 12px, 598px); margin: 8px auto 0; }
 .ai-followup-label { color: var(--muted); font-size: 0.78rem; padding-inline: 4px; }
+.economy-metrics-toggle { width: 100%; align-items: center; border: 0; padding: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.economy-metrics-toggle > svg { flex: none; color: var(--muted); }
+.economy-metrics-panel.is-folded { gap: 0; }
+.economy-metrics-body { display: grid; gap: 10px; }
+.input-with-scan { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.qr-scan-button { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: var(--surface-muted); color: var(--blue); }
+.qr-scanner-body { display: grid; gap: 10px; padding: 4px 0 8px; }
+.qr-scanner-view { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 16px; background: #000; }
+.qr-scanner-view video { width: 100%; height: 100%; object-fit: cover; }
+.qr-scanner-frame { position: absolute; inset: 16%; border: 3px solid #fff; border-radius: 16px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35); pointer-events: none; }
+.qr-scanner-file { justify-self: center; cursor: pointer; }

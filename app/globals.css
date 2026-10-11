@@ -2823,3 +2823,10 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .core-level-panel.is-interactive .core-reactor, .core-level-panel.is-interactive .core-level-content { pointer-events: none; }
 .ai-msg-failed { color: var(--muted); }
 .ai-retry { align-self: start; padding: 6px 12px; font-size: 0.85rem; }
+.nova-daily-card p { margin: 0; }
+.nova-daily-head { display: flex; align-items: center; gap: 8px; }
+.nova-daily-head img { border-radius: 9px; object-fit: cover; }
+.nova-daily-close { margin-left: auto; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: var(--muted); background: transparent; }
+.ai-deep { align-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.85rem; }
+.ai-deep.is-suggested { color: var(--blue); border-color: var(--blue); font-weight: 600; }
+.ai-deep-hint { color: var(--muted); font-size: 0.8rem; }

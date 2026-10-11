@@ -55,7 +55,7 @@ const gateway = read("lib/ai/providerGateway.ts");
 assert.doesNotMatch(gateway, /encoder\.encode\(`\$\{(text|finalText)\}\n`\)/, "chunks are sent as they are, model paragraph breaks stay intact");
 
 // --- Speed: the fast provider answers chat first, a stalled one is abandoned quickly ---
-assert.match(gateway, /getAvailableProviders\(process\.env\.AI_CHAT_PRIMARY_PROVIDER/, "chat prefers the fast provider");
+assert.match(gateway, /AI_CHAT_PRIMARY_PROVIDER.*"groq"/, "chat prefers the fast provider");
 assert.match(gateway, /STREAM_HEADER_TIMEOUT_MS = 6_000/);
 assert.match(gateway, /reasoning_effort: "low"/);
 assert.match(chat, /ai-typing/);

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import ProtectedImage from "@/components/ProtectedImage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CircleHelp, History, Plus, Send, Settings2, Trash2, Volume2, VolumeX, X } from "lucide-react";
+import { CircleHelp, History, Plus, Send, Settings2, Sparkles, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
 import {
   NOVA_NAME,
@@ -32,6 +32,7 @@ import {
 } from "@/lib/ai/localChatStore";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import { plainChatText } from "@/lib/ai/plainText";
+import { isSeriousQuestion } from "@/lib/ai/seriousness";
 import type { MessageKey } from "@/lib/i18n";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { getSoundsEnabled, playUiSound, setSoundsEnabled } from "@/lib/ui/sound";
@@ -81,6 +82,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const [sharedContentLoading, setSharedContentLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [attempt, setAttempt] = useState(1);
+  const [isDeep, setIsDeep] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
   const [isSavingChat, setIsSavingChat] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
@@ -106,6 +108,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  const lastDeepRef = useRef(false);
   const contextConsentRef = useRef(false);
   const contextDecisionRef = useRef(false);
   const skipContextRef = useRef(false);
@@ -284,7 +287,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   }, []);
 
   const sendMessage = useCallback(
-    async (text: string, opts?: { retry?: boolean }) => {
+    async (text: string, opts?: { retry?: boolean; deep?: boolean }) => {
       const trimmed = text.trim();
       if (!trimmed || isLoading || inFlightRef.current || isRestoring) return;
       if (contextDialogOpen && !contextDecisionRef.current && !skipContextRef.current) return;
@@ -302,8 +305,21 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
       skipContextRef.current = false;
 
       try {
+        // A deeper answer is only offered on the system route and costs two messages of the limit.
+        const deep = Boolean(opts?.deep) && !isByok;
+        lastDeepRef.current = deep;
+        setIsDeep(deep);
         if (userId && !isByok) {
-          const nextQuota = await consumeLocalMessage(userId);
+          let nextQuota = await consumeLocalMessage(userId);
+          if (nextQuota.consumed && deep) {
+            const second = await consumeLocalMessage(userId);
+            if (!second.consumed) {
+              await refundLocalMessage(userId);
+              setQuota(second);
+              return;
+            }
+            nextQuota = second;
+          }
           setQuota(nextQuota);
           if (!nextQuota.consumed) return;
         }
@@ -312,7 +328,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         const aiMsg: ChatMessage = { role: "assistant", content: "" };
         const nextChat = activeChat ?? (userId ? createDraftChat(userId) : null);
         // A retry replaces the failed exchange: drop the error and the question it answered.
-        const base = opts?.retry ? dropFailedExchange(messages) : messages;
+        const base = opts?.retry || opts?.deep ? dropLastExchange(messages) : messages;
         const allMsgs = [...base.filter((message) => message.content.trim() && !message.failed), userMsg];
         const feedback = base
           .map((message, index) => message.role === "assistant" && message.rating ? { index, rating: message.rating } : null)
@@ -330,7 +346,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         }
 
         if (nextChat) setActiveChat(nextChat);
-        setMessages(opts?.retry ? [...base, userMsg, aiMsg] : (prev) => [...prev.filter((message) => !message.failed), userMsg, aiMsg]);
+        setMessages(opts?.retry || opts?.deep ? [...base, userMsg, aiMsg] : (prev) => [...prev.filter((message) => !message.failed), userMsg, aiMsg]);
         setAttempt(1);
         setInput("");
 
@@ -345,6 +361,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         const requestBody = JSON.stringify({
           messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
           locale,
+          deep: deep || undefined,
           contentPostId: selectedContentId ?? undefined,
           feedback,
           context: includeContext ? buildAiContext(locale, profile, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined
@@ -404,7 +421,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         if (failure) {
           // Nothing was delivered: show the error (never saved, never sent back to the model) and give the message back.
           setMessages((current) => replaceLastAssistant(current, failureText ?? t("ai.chat.error"), failureRetryable ? "retry" : "final"));
-          if (userId && !isByok) void refundLocalMessage(userId).catch(() => undefined);
+          if (userId && !isByok) void (async () => { for (let index = 0; index < (deep ? 2 : 1); index += 1) await refundLocalMessage(userId); })().catch(() => undefined);
           void trackClientEvent("ai_chat_failed", { reason: failure, retryable: failureRetryable, attempts: MAX_CHAT_ATTEMPTS });
           return;
         }
@@ -415,6 +432,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         setMessages((current) => replaceLastAssistant(current, t("ai.chat.error"), "retry"));
       } finally {
         setAttempt(1);
+        setIsDeep(false);
         setIsLoading(false);
         inFlightRef.current = false;
         abortRef.current = null;
@@ -932,12 +950,12 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
               <div className="ai-msg-content">
                 <div className={message.failed ? "ai-msg-bubble ai-msg-failed" : "ai-msg-bubble"}>
                   {message.role === "assistant" ? plainChatText(message.content) : message.content}
-                  {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing" role="status" aria-label={t("ai.chat.typing")}><i /><i /><i />{attempt > 1 ? <small>{t("ai.chat.attempt", { attempt, max: MAX_CHAT_ATTEMPTS })}</small> : null}</span> : null}
+                  {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing" role="status" aria-label={t("ai.chat.typing")}><i /><i /><i />{isDeep ? <small>{t("ai.chat.typingDeep")}</small> : attempt > 1 ? <small>{t("ai.chat.attempt", { attempt, max: MAX_CHAT_ATTEMPTS })}</small> : null}</span> : null}
                 </div>
                 {message.failed === "retry" && index === messages.length - 1 && !isLoading ? (
                   <button className="secondary-button ai-retry" type="button" onClick={() => {
                     const question = [...messages].reverse().find((item) => item.role === "user")?.content;
-                    if (question) void sendMessage(question, { retry: true });
+                    if (question) void sendMessage(question, { retry: true, deep: lastDeepRef.current });
                   }}>{t("ai.chat.retry")}</button>
                 ) : null}
                 {message.role === "assistant" && message.content.trim() && !message.failed ? (
@@ -948,6 +966,17 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
                       </button>
                     ))}
                   </div>
+                ) : null}
+                {message.role === "assistant" && message.content.trim() && !message.failed && index === messages.length - 1 && !isLoading && !isByok && userId ? (
+                  <DeepAnswerButton
+                    t={t}
+                    suggested={isSeriousQuestion(messages[index - 1]?.content) || (message.rating !== undefined && message.rating !== null && message.rating <= 2)}
+                    disabled={Boolean(quota && quota.dayRemaining < 2)}
+                    onClick={() => {
+                      const question = [...messages].reverse().find((item) => item.role === "user")?.content;
+                      if (question) void sendMessage(question, { deep: true });
+                    }}
+                  />
                 ) : null}
               </div>
             </div>
@@ -1137,10 +1166,10 @@ function replaceLastAssistant(messages: ChatMessage[], content: string, failed?:
   return next;
 }
 
-/** Removes a trailing error and the question it belonged to, so a retry sends that question again. */
-function dropFailedExchange(messages: ChatMessage[]): ChatMessage[] {
+/** Removes the last answer (or error) and the question it belonged to, so that question can be sent again. */
+function dropLastExchange(messages: ChatMessage[]): ChatMessage[] {
   const next = [...messages];
-  if (next.at(-1)?.role === "assistant" && next.at(-1)?.failed) next.pop();
+  if (next.at(-1)?.role === "assistant") next.pop();
   if (next.at(-1)?.role === "user") next.pop();
   return next;
 }
@@ -1254,4 +1283,15 @@ function extractExplicitMemory(content: string): Pick<AiMemoryItem, "kind" | "co
 function detectFeelingCandidate(content: string): string | null {
   const match = content.match(/(?:меня радует|меня беспокоит|я переживаю из-за|makes me happy|i(?:'m| am) worried about)\s+(.+)/i);
   return match?.[0]?.trim().slice(0, 180) ?? null;
+}
+
+function DeepAnswerButton({ t, suggested, disabled, onClick }: { t: (key: MessageKey, values?: Record<string, string | number>) => string; suggested: boolean; disabled: boolean; onClick: () => void }) {
+  return (
+    <>
+      {suggested ? <small className="ai-deep-hint">{t("ai.chat.deepHint")}</small> : null}
+      <button className={suggested ? "secondary-button ai-deep is-suggested" : "secondary-button ai-deep"} type="button" disabled={disabled} title={t("ai.chat.deepTitle")} onClick={onClick}>
+        <Sparkles size={14} />{t("ai.chat.deep")}
+      </button>
+    </>
+  );
 }

@@ -100,6 +100,8 @@ type StreamTextOptions = {
   routeMode?: AiRouteMode;
   userId?: string;
   modelId?: OpenRouterModelId;
+  /** A deeper, slower answer: Gemini with thinking first, then the larger Groq model. */
+  deep?: boolean;
 };
 
 type GenerateJsonOptions<T> = {
@@ -124,6 +126,7 @@ export const AI_PROVIDER_MODELS: Record<AiProvider, string> = {
 
 const GEMINI_MODEL = AI_PROVIDER_MODELS.gemini;
 const GROQ_MODEL = AI_PROVIDER_MODELS.groq;
+const GROQ_DEEP_MODEL = "openai/gpt-oss-120b";
 // Set GEMINI_DISABLE_THINKING=false to restore the model default reasoning behaviour.
 const GEMINI_DISABLE_THINKING = process.env.GEMINI_DISABLE_THINKING?.trim().toLowerCase() !== "false";
 
@@ -135,6 +138,7 @@ export async function streamAiText({
   routeMode = "system",
   userId,
   modelId,
+  deep = false,
 }: StreamTextOptions): Promise<Response> {
   if (routeMode === "byok") {
     if (!userId) throw new AiGatewayError("byok_not_configured");
@@ -143,14 +147,15 @@ export async function streamAiText({
   }
 
   // Chat is answered by the fastest provider first (Groq starts in about half a second); the other is the fallback.
-  const providers = await getAvailableProviders(process.env.AI_CHAT_PRIMARY_PROVIDER?.trim().toLowerCase() === "gemini" ? "gemini" : "groq");
+  const providers = await getAvailableProviders(deep ? "gemini" : process.env.AI_CHAT_PRIMARY_PROVIDER?.trim().toLowerCase() === "gemini" ? "gemini" : "groq");
   const providerAttempts: AiProviderFailureAttempt[] = [];
+  const answerTokens = deep ? Math.max(maxOutputTokens, 2_000) : maxOutputTokens;
 
   for (const { provider, apiKey } of providers) {
     try {
       const response = provider === "gemini"
-        ? await streamGemini(apiKey, systemPrompt, messages, temperature, maxOutputTokens)
-        : await streamGroq(apiKey, systemPrompt, messages, temperature, maxOutputTokens);
+        ? await streamGemini(apiKey, systemPrompt, messages, temperature, answerTokens, deep)
+        : await streamGroq(apiKey, systemPrompt, messages, temperature, answerTokens, deep);
       await markAiProviderSuccess(provider);
       return response;
     } catch (error) {
@@ -317,15 +322,16 @@ const PROVIDER_HEADER_TIMEOUT_MS = 15_000;
 // A streamed answer starts within seconds when the provider is healthy; waiting longer only delays the
 // fallback (measured: gemini-flash-latest sometimes stalls for 40 s or answers 503).
 const STREAM_HEADER_TIMEOUT_MS = 6_000;
+const DEEP_STREAM_HEADER_TIMEOUT_MS = 12_000;
 
 /**
  * fetch with a bounded wait for response headers so a stalled provider fails
  * over to the next one instead of holding the chat until the runtime limit.
  * The timer is cleared once headers arrive, so streaming bodies are unaffected.
  */
-async function providerFetch(provider: "gemini" | "groq", input: string, init: RequestInit): Promise<Response> {
+async function providerFetch(provider: "gemini" | "groq", input: string, init: RequestInit, timeoutOverrideMs?: number): Promise<Response> {
   const controller = new AbortController();
-  const timeoutMs = input.includes(":streamGenerateContent") ? STREAM_HEADER_TIMEOUT_MS : PROVIDER_HEADER_TIMEOUT_MS;
+  const timeoutMs = timeoutOverrideMs ?? (input.includes(":streamGenerateContent") ? STREAM_HEADER_TIMEOUT_MS : PROVIDER_HEADER_TIMEOUT_MS);
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
@@ -366,9 +372,10 @@ async function streamGemini(
   systemPrompt: string,
   messages: AiConversationMessage[],
   temperature: number,
-  maxOutputTokens: number
+  maxOutputTokens: number,
+  deep = false
 ): Promise<Response> {
-  const requestStream = (disableThinking: boolean) => providerFetch("gemini",
+  const requestStream = (thinking: "off" | "deep" | "default") => providerFetch("gemini",
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",
@@ -381,16 +388,21 @@ async function streamGemini(
         })),
         // Chat answers are short and conversational. Without a thinking budget the
         // "flash-latest" alias spends seconds reasoning before the first token.
-        generationConfig: disableThinking
+        generationConfig: thinking === "off"
           ? { temperature, maxOutputTokens, thinkingConfig: { thinkingBudget: 0 } }
-          : { temperature, maxOutputTokens },
+          : thinking === "deep"
+            ? { temperature, maxOutputTokens, thinkingConfig: { thinkingBudget: 2_048 } }
+            : { temperature, maxOutputTokens },
       }),
-    }
+    },
+    // A considered answer may take longer to start than a quick one.
+    deep ? DEEP_STREAM_HEADER_TIMEOUT_MS : undefined
   );
 
-  let response = await requestStream(GEMINI_DISABLE_THINKING);
+  const firstMode = deep ? "deep" : GEMINI_DISABLE_THINKING ? "off" : "default";
+  let response = await requestStream(firstMode);
   // A model that rejects the thinking setting must still answer, just more slowly.
-  if (response.status === 400 && GEMINI_DISABLE_THINKING) response = await requestStream(false);
+  if (response.status === 400 && firstMode !== "default") response = await requestStream("default");
 
   if (!response.ok) {
     throw new AiProviderRequestError("gemini", response.status, `http_${response.status}`, retryAfterMs(response));
@@ -438,7 +450,8 @@ async function streamGroq(
   systemPrompt: string,
   messages: AiConversationMessage[],
   temperature: number,
-  maxOutputTokens: number
+  maxOutputTokens: number,
+  deep = false
 ): Promise<Response> {
   const response = await providerFetch("groq", "https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -447,12 +460,12 @@ async function streamGroq(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: deep ? GROQ_DEEP_MODEL : GROQ_MODEL,
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       temperature,
       max_tokens: maxOutputTokens,
-      // gpt-oss reasons before it answers; low effort keeps the first word fast.
-      reasoning_effort: "low",
+      // gpt-oss reasons before it answers; low effort keeps the first word fast, a deep answer reasons more.
+      reasoning_effort: deep ? "medium" : "low",
       stream: true,
     }),
   });

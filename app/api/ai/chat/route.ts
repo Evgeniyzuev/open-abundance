@@ -33,7 +33,18 @@ type ChatRequest = {
   context?: unknown;
   feedback?: unknown;
   contentPostId?: unknown;
+  deep?: unknown;
 };
+
+const DEEP_ANSWER_INSTRUCTION = `
+
+## Deeper answer requested
+- The person asked for a more considered answer. Think it through, check any arithmetic and the assumptions behind it, and say what is uncertain.
+- Stay in plain conversational speech with the same formatting rules. Up to about 450 words, ending with one clear next step.`;
+
+async function refundCharged(userId: string, count: number): Promise<void> {
+  for (let index = 0; index < count; index += 1) await refundAiChatMessage(userId);
+}
 
 const MAX_MESSAGES = 40;
 const MAX_MESSAGE_LENGTH = 6_000;
@@ -63,6 +74,9 @@ export async function POST(request: NextRequest) {
     body.context,
     body.feedback
   );
+  // A deeper answer is only offered on the system route and costs two messages of the daily limit.
+  const deepRequested = body.deep === true;
+  if (deepRequested) systemPrompt += DEEP_ANSWER_INSTRUCTION;
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
 
@@ -88,7 +102,7 @@ export async function POST(request: NextRequest) {
   const isByok = aiSettings.routeMode === "byok";
 
   let requestAcquired = false;
-  let quotaReserved = false;
+  let quotaCharged = 0;
 
   try {
     const guard = await acquireAiRequest(auth.user.id);
@@ -113,8 +127,18 @@ export async function POST(request: NextRequest) {
     }
     requestAcquired = true;
 
-    const quota = isByok ? null : await reserveAiChatMessage(auth.user.id);
-    quotaReserved = Boolean(quota?.allowed);
+    let quota = isByok ? null : await reserveAiChatMessage(auth.user.id);
+    quotaCharged = quota?.allowed ? 1 : 0;
+    if (quota?.allowed && deepRequested) {
+      const second = await reserveAiChatMessage(auth.user.id);
+      if (second.allowed) {
+        quotaCharged = 2;
+      } else {
+        await refundAiChatMessage(auth.user.id);
+        quotaCharged = 0;
+      }
+      quota = second;
+    }
     if (quota && !quota.allowed) {
       await releaseAiRequest(auth.user.id);
       requestAcquired = false;
@@ -136,7 +160,8 @@ export async function POST(request: NextRequest) {
       messages,
       routeMode: aiSettings.routeMode,
       userId: auth.user.id,
-      modelId: aiSettings.modelId
+      modelId: aiSettings.modelId,
+      deep: deepRequested && !isByok
     });
     const provider = readProvider(response.headers.get("X-AI-Provider"));
     const model = provider === "openrouter" ? aiSettings.modelId : provider ? AI_PROVIDER_MODELS[provider] : undefined;
@@ -155,8 +180,8 @@ export async function POST(request: NextRequest) {
 
     requestAcquired = false;
     return releaseWhenStreamEnds(response, () => releaseAiRequest(auth.user!.id), async (sawData) => {
-      // A stream that broke before any text gave the person nothing: return the message to the quota.
-      if (quotaReserved && !sawData) await refundAiChatMessage(auth.user!.id);
+      // A stream that broke before any text gave the person nothing: return the messages to the quota.
+      if (!sawData) await refundCharged(auth.user!.id, quotaCharged);
       const failureCode = "stream_read_error";
       console.error("AI chat response stream failed.", { requestId, provider, model, failureCode });
       if (provider === "gemini" || provider === "groq") await markAiProviderFailure(provider, failureCode);
@@ -167,9 +192,9 @@ export async function POST(request: NextRequest) {
       await releaseAiRequest(auth.user.id);
       requestAcquired = false;
     }
-    if (quotaReserved) {
-      await refundAiChatMessage(auth.user.id);
-      quotaReserved = false;
+    if (quotaCharged > 0) {
+      await refundCharged(auth.user.id, quotaCharged);
+      quotaCharged = 0;
     }
 
     const providerAttempts = error instanceof AiGatewayError && error.code === "all_providers_failed"

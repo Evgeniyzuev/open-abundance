@@ -2,17 +2,19 @@
 
 import type { MessageKey } from "@/lib/i18n";
 
-export type WalletCryptoMethod = "ton" | "usdtTon";
+export type WalletCryptoMethod = "ton" | "usdtTon" | "cryptoPay";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 type WalletCryptoMethodModalProps = {
   direction: "deposit" | "withdraw";
+  /** CryptoBot top-up is offered only when the provider is switched on. */
+  cryptoPayEnabled?: boolean;
   t: TFunction;
   onClose: () => void;
   onSelect: (method: WalletCryptoMethod) => void;
 };
 
-export function WalletCryptoMethodModal({ direction, t, onClose, onSelect }: WalletCryptoMethodModalProps) {
+export function WalletCryptoMethodModal({ direction, cryptoPayEnabled, t, onClose, onSelect }: WalletCryptoMethodModalProps) {
   const title = direction === "deposit" ? t("wallet.deposit.title") : t("wallet.cryptoMethod.withdrawTitle");
   const prompt = direction === "deposit"
     ? t("wallet.cryptoMethod.depositPrompt")
@@ -36,6 +38,12 @@ export function WalletCryptoMethodModal({ direction, t, onClose, onSelect }: Wal
             <strong>{t("wallet.cryptoMethod.usdtTon")}</strong>
             <span>{t("wallet.cryptoMethod.usdtTonDescription")}</span>
           </button>
+          {direction === "deposit" && cryptoPayEnabled ? (
+            <button className="wallet-crypto-method-card" type="button" onClick={() => onSelect("cryptoPay")}>
+              <strong>{t("wallet.cryptoMethod.cryptoPay")}</strong>
+              <span>{t("wallet.cryptoMethod.cryptoPayDescription")}</span>
+            </button>
+          ) : null}
         </div>
       </section>
     </div>

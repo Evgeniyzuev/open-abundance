@@ -11,6 +11,7 @@ import { UserLevelBadge, UserNameWithLevel } from "@/components/UserLevelBadge";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import P2PWalletPanel from "@/components/P2PWalletPanel";
 import PaymentRequestModal from "@/components/PaymentRequestModal";
+import CryptoPayDepositModal from "@/components/CryptoPayDepositModal";
 import QrScanButton from "@/components/QrScanner";
 import RecipientSearch from "@/components/RecipientSearch";
 import { TonUsdtDepositModal, TonUsdtWithdrawalModal } from "@/components/TonUsdtWalletModals";
@@ -348,6 +349,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [depositMethodOpen, setDepositMethodOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [usdtDepositOpen, setUsdtDepositOpen] = useState(false);
+  const [cryptoPayOpen, setCryptoPayOpen] = useState(false);
+  const [cryptoPayEnabled, setCryptoPayEnabled] = useState(false);
   const [withdrawMethodOpen, setWithdrawMethodOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [usdtWithdrawOpen, setUsdtWithdrawOpen] = useState(false);
@@ -395,6 +398,17 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     })();
     return () => { cancelled = true; };
   }, [active, user, wallet]);
+
+  // CryptoBot top-up appears in the deposit menu only when the provider is switched on.
+  useEffect(() => {
+    if (!depositMethodOpen || !user) return;
+    let cancelled = false;
+    fetchWithSupabaseAuth("/api/wallet/deposits/cryptopay", { cache: "no-store" }, { authRequired: true })
+      .then((response) => response.json())
+      .then((payload: { enabled?: boolean }) => { if (!cancelled) setCryptoPayEnabled(Boolean(payload.enabled)); })
+      .catch(() => { if (!cancelled) setCryptoPayEnabled(false); });
+    return () => { cancelled = true; };
+  }, [depositMethodOpen, user]);
 
   useEffect(() => {
     if (activeTab !== "core") setHistoryOpen(false);
@@ -1181,11 +1195,13 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
       {depositMethodOpen ? (
         <WalletCryptoMethodModal
           direction="deposit"
+          cryptoPayEnabled={cryptoPayEnabled}
           t={t}
           onClose={() => setDepositMethodOpen(false)}
           onSelect={(method: WalletCryptoMethod) => {
             setDepositMethodOpen(false);
             if (method === "ton") setDepositOpen(true);
+            else if (method === "cryptoPay") setCryptoPayOpen(true);
             else setUsdtDepositOpen(true);
           }}
         />
@@ -1203,6 +1219,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
       {usdtDepositOpen ? (
         <TonUsdtDepositModal locale={locale} t={t} onClose={() => setUsdtDepositOpen(false)} onRefresh={onRefresh} />
       ) : null}
+      {cryptoPayOpen ? <CryptoPayDepositModal t={t} onClose={() => setCryptoPayOpen(false)} onRefresh={onRefresh} /> : null}
       {withdrawMethodOpen ? (
         <WalletCryptoMethodModal
           direction="withdraw"

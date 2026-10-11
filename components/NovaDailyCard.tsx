@@ -13,7 +13,7 @@ import { readPrimaryWish } from "@/lib/wishJourney";
  * push). It appears for a newcomer, someone coming back, a concrete Core step or a gentle question
  * about their main wish. Closing it three days in a row pauses cards for a week.
  */
-export default function NovaDailyCard({ active }: { active: boolean }) {
+export default function NovaDailyCard({ active, onOpenChat, onOpenCore }: { active: boolean; onOpenChat: () => void; onOpenCore: () => void }) {
   const { t, locale, user, profile, core, wallet } = useUserContext();
   const [kind, setKind] = useState<NovaCardKind | null>(null);
   const userId = user?.id ?? null;
@@ -52,7 +52,6 @@ export default function NovaDailyCard({ active }: { active: boolean }) {
   const wishTitle = readPrimaryWish(userId)?.title ?? "";
   const remaining = threshold !== null && coreBalance !== null ? Math.max(0, threshold - coreBalance) : 0;
   const values = { level: coreLevel + 1, amount: formatAdaptiveMoney(remaining, locale), wish: wishTitle };
-  const target = kind === "level" ? "/?view=wallet.core" : "/?view=home.ideas";
 
   function update(change: Partial<NovaCardState>) {
     const current = readState(userId as string);
@@ -77,7 +76,7 @@ export default function NovaDailyCard({ active }: { active: boolean }) {
         <button
           className="secondary-button"
           type="button"
-          onClick={() => { update({ acted: true }); window.location.assign(target); }}
+          onClick={() => { update({ acted: true }); setKind(null); if (kind === "level") onOpenCore(); else onOpenChat(); }}
         >{t(`nova.card.${kind}.action` as never)}</button>
       </div>
     </section>

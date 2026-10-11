@@ -601,6 +601,11 @@ export default function AppNavigation() {
       <section className="app-content">
         {showHome || (showChallenges && activeChallengeTab === "challenges") ? <CoreJourneyCard onOpen={openCore} /> : null}
         <div className="app-view" hidden={!showHome}>
+          <NovaDailyCard
+            active={showHome}
+            onOpenChat={() => { setVisitedHomeViews((current) => ({ ...current, ideas: true })); setActiveHomeTab("ideas"); setActiveMainTab("home"); }}
+            onOpenCore={openCore}
+          />
           <HomeTodayApp
             active={showHome}
             onOpenCalculator={openCalculator}
@@ -617,7 +622,6 @@ export default function AppNavigation() {
           />
           <InstallPingAck />
           <NicknameNotice active={showHome} />
-          <NovaDailyCard active={showHome} />
           <SelfServeCheckIn active={showHome} />
           <WishOutcomeCheck active={showHome} />
         </div>

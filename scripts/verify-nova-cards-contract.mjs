@@ -55,7 +55,7 @@ assert.equal(addDays("2026-10-30", 3), "2026-11-02");
 // --- Wiring ---
 const card = read("components/NovaDailyCard.tsx");
 assert.doesNotMatch(card, /fetch\(|rpc\(|\/api\//, "the daily card never calls a model or the server");
-assert.match(read("components/AppNavigation.tsx"), /<NovaDailyCard active=\{showHome\} \/>/);
+assert.match(read("components/AppNavigation.tsx"), /<NovaDailyCard\s+active=\{showHome\}/);
 
 const route = read("app/api/ai/chat/route.ts");
 assert.match(route, /body\.deep === true/);

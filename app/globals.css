@@ -2816,3 +2816,5 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .nickname-link button { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: var(--surface); color: var(--blue); }
 .mention-link { color: var(--blue); font-weight: 600; text-decoration: none; }
 .mention-link:hover { text-decoration: underline; }
+/* The orb and the text sit above the full-panel button (same z-index, later in the DOM) and swallowed taps; let them pass through. */
+.core-level-panel.is-interactive .core-reactor, .core-level-panel.is-interactive .core-level-content { pointer-events: none; }

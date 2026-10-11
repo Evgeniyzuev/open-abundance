@@ -64,7 +64,7 @@ assert.match(route, /refundCharged\(auth\.user!\.id, quotaCharged\)/, "a failed 
 const gateway = read("lib/ai/providerGateway.ts");
 assert.match(gateway, /thinkingBudget: 2_048/, "deep answers let Gemini think");
 assert.match(gateway, /openai\/gpt-oss-120b/, "the fallback for a deep answer is the larger Groq model");
-assert.match(gateway, /getAvailableProviders\(deep \? "gemini"/, "deep answers try Gemini first");
+assert.match(gateway, /AI_DEEP_PRIMARY_PROVIDER/, "the provider for deep answers can be switched");
 const chat = read("components/AiChatApp.tsx");
 assert.match(chat, /isSeriousQuestion\(/);
 assert.match(chat, /sendMessage\(question, \{ deep: true \}\)/);

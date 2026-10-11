@@ -100,7 +100,7 @@ type StreamTextOptions = {
   routeMode?: AiRouteMode;
   userId?: string;
   modelId?: OpenRouterModelId;
-  /** A deeper, slower answer: Gemini with thinking first, then the larger Groq model. */
+  /** A deeper, slower answer: the larger Groq model with more reasoning, Gemini with thinking as the other option. */
   deep?: boolean;
 };
 
@@ -146,8 +146,9 @@ export async function streamAiText({
     return streamOpenRouter({ userId, modelId, systemPrompt, messages, temperature, maxOutputTokens });
   }
 
+  // A deep answer also starts with Groq (the larger model) while Gemini is unreliable; set AI_DEEP_PRIMARY_PROVIDER=gemini to prefer it.
   // Chat is answered by the fastest provider first (Groq starts in about half a second); the other is the fallback.
-  const providers = await getAvailableProviders(deep ? "gemini" : process.env.AI_CHAT_PRIMARY_PROVIDER?.trim().toLowerCase() === "gemini" ? "gemini" : "groq");
+  const providers = await getAvailableProviders(process.env[deep ? "AI_DEEP_PRIMARY_PROVIDER" : "AI_CHAT_PRIMARY_PROVIDER"]?.trim().toLowerCase() === "gemini" ? "gemini" : "groq");
   const providerAttempts: AiProviderFailureAttempt[] = [];
   const answerTokens = deep ? Math.max(maxOutputTokens, 2_000) : maxOutputTokens;
 

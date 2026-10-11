@@ -3,7 +3,7 @@
 import { personLabel } from "@/lib/personName";
 import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
-import { Calculator, Check, ChevronDown, ChevronUp, Plus, RotateCcw, TrendingUp } from "lucide-react";
+import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import CoreCtaButton from "@/components/CoreCtaButton";
 import CoreSheet from "@/components/CoreSheet";
@@ -1009,10 +1009,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               core={core}
               locale={locale}
               t={t}
-              wallet={wallet}
-              onTopup={() => setTopupOpen(true)}
               onOpen={() => setCoreSheet({ open: true, view: "menu" })}
-              onStory={() => setCoreSheet({ open: true, view: "story" })}
             />
           ) : null}
           {user && core ? (
@@ -1944,18 +1941,12 @@ function CoreLevelProgress({
   core,
   locale,
   t,
-  wallet,
-  onTopup,
-  onOpen,
-  onStory
+  onOpen
 }: {
   core: CoreAccount;
   locale: AppLocale;
   t: TFunction;
-  wallet: WalletRow | null;
-  onTopup: () => void;
   onOpen: () => void;
-  onStory: () => void;
 }) {
   const threshold = Number.isFinite(core.next_level_threshold ?? NaN) && (core.next_level_threshold ?? 0) > 0 ? core.next_level_threshold ?? null : null;
   const progress = threshold ? clamp((core.balance / threshold) * 100, 0, 100) : 100;
@@ -1966,7 +1957,6 @@ function CoreLevelProgress({
   return (
     <section className={`core-level-panel is-interactive${chargeClass}`} aria-label={t("wallet.coreProgress.aria")}>
       <button className="core-level-open" type="button" aria-label={t("core.sheet.open")} onClick={onOpen} />
-      <button className="core-level-help" type="button" aria-label={t("core.sheet.whatIs")} title={t("core.sheet.whatIs")} onClick={onStory}>?</button>
       <div className="core-reactor" aria-hidden="true">
         <span className="core-reactor-halo" />
         <span className="core-reactor-orb">
@@ -1992,11 +1982,6 @@ function CoreLevelProgress({
           <div className="core-level-fill" style={{ width: `${displayProgress}%` }} />
         </div>
       </div>
-      {wallet && wallet.balance > 0 ? (
-        <button className="finance-small-icon-button primary topup-core-button" type="button" aria-label={t("wallet.topup.title")} title={t("wallet.topup.title")} onClick={onTopup}>
-          <Plus size={16} />
-        </button>
-      ) : null}
     </section>
   );
 }

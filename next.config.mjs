@@ -3,11 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     // Folders starting with "@" are parallel routes in the App Router, so the short link is a rewrite.
-    return [
-      { source: "/@:username", destination: "/u/by-username/:username" },
-      // A payment link to a person: opens the wallet's transfer with that person selected.
-      { source: "/pay/@:username", destination: "/?view=wallet.wallet&payto=:username" }
-    ];
+    return [{ source: "/@:username", destination: "/u/by-username/:username" }];
+  },
+  async redirects() {
+    // A payment link to a person. A redirect, not a rewrite: the client reads the query from the address bar.
+    return [{ source: "/pay/@:username", destination: "/?view=wallet.wallet&payto=:username", permanent: false }];
   },
   async headers() {
     return [

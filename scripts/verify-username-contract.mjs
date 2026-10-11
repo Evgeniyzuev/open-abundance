@@ -151,6 +151,6 @@ assert.match(read("app/api/social/feed/posts/[postId]/interactions/route.ts"), /
 assert.match(read("app/api/social/feed/posts/[postId]/route.ts"), /notifyMentions/);
 
 // --- Payment link to a person ---
-assert.match(config, /source: "\/pay\/@:username"/);
+assert.match(config, /source: "\/pay\/@:username".*permanent: false/, "the payment link is a temporary redirect so the query reaches the client");
 
 console.log("username contract ok");

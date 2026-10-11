@@ -2031,6 +2031,8 @@ export const messages = {
       "ai.chat.saveDraft.discard": "Не сохранять",
       "ai.chat.saveDraft.cancel": "Остаться в чате",
       "ai.chat.loading": "Восстанавливаем чат...",
+      "ai.chat.attempt": "Нова отвечает, попытка {attempt} из {max}…",
+      "ai.chat.retry": "Повторить",
       "ai.chat.error": "Не удалось получить ответ. Попробуйте еще раз."
   },
   en: {
@@ -4026,6 +4028,8 @@ export const messages = {
       "ai.chat.saveDraft.discard": "Don't save",
       "ai.chat.saveDraft.cancel": "Stay in chat",
       "ai.chat.loading": "Restoring chat...",
+      "ai.chat.attempt": "Nova is answering, attempt {attempt} of {max}…",
+      "ai.chat.retry": "Try again",
       "ai.chat.error": "Failed to get response. Try again."
   }
 } satisfies Record<AppLocale, Record<string, string>>;

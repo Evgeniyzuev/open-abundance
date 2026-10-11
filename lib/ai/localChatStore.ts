@@ -4,6 +4,8 @@ export type AiLocalMessage = {
   role: "user" | "assistant";
   content: string;
   rating?: 1 | 2 | 3 | 4 | 5 | null;
+  /** An error shown in place of an answer: never saved and never sent back to the model. "retry" offers a Retry button. */
+  failed?: "retry" | "final";
 };
 
 export type AiMemoryKind = "goal" | "interest" | "preference" | "reaction" | "feeling";
@@ -153,6 +155,25 @@ export async function setMemoryEnabled(userId: string, enabled: boolean): Promis
 export async function getLocalQuota(userId: string, now = new Date()): Promise<LocalQuota> {
   const usage = await withStore<AiLocalUsage | undefined>(USAGE_STORE, "readonly", (store) => store.get(userId));
   return toQuota(usage, userId, now);
+}
+
+/** Gives back a message that was counted for an answer that never came. */
+export async function refundLocalMessage(userId: string, now = new Date()): Promise<void> {
+  const dayKey = toUtcDayKey(now);
+  const monthKey = toUtcMonthKey(now);
+  const db = await openOfflineDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(USAGE_STORE, "readwrite");
+    const store = tx.objectStore(USAGE_STORE);
+    const request = store.get(userId);
+    request.onsuccess = () => {
+      const current = normalizeUsage(request.result, userId, dayKey, monthKey);
+      store.put({ ...current, dayCount: Math.max(0, current.dayCount - 1), monthCount: Math.max(0, current.monthCount - 1) });
+    };
+    request.onerror = () => reject(request.error ?? new Error("Failed to read local AI usage."));
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error ?? new Error("Failed to refund local AI usage.")); };
+  });
 }
 
 export async function consumeLocalMessage(userId: string, now = new Date()): Promise<LocalQuota> {

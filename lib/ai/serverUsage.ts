@@ -109,6 +109,15 @@ export async function reserveAiChatMessage(userId: string): Promise<AiQuotaReser
   return reservation;
 }
 
+/** Gives one message back after a failed answer; never throws (a missed refund must not hide the error). */
+export async function refundAiChatMessage(userId: string): Promise<void> {
+  try {
+    await getAiServiceClient().rpc("refund_ai_chat_message", { p_user_id: userId, p_capability: "chat.general" });
+  } catch (error) {
+    console.error("AI quota refund failed.", getErrorMessage(error));
+  }
+}
+
 export async function acquireAiRequest(userId: string): Promise<AiRequestGuardResult> {
   let result: AiRpcResult;
   try {

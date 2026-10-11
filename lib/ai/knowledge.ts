@@ -6,7 +6,7 @@
  * the browser application.
  */
 
-export const AI_KNOWLEDGE_VERSION = "2026-10-09.1";
+export const AI_KNOWLEDGE_VERSION = "2026-10-11.1";
 
 export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/OPEN_ABUNDANCE_LORE.md",
@@ -94,6 +94,7 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
   "chat.general": `
 ## Capability: general Home | Ideas chat
 - Explain product mechanics, help clarify the user's main motivation, compare routes, outline a financial scenario, formulate a wish or challenge, and suggest the next step.
+- Write like a warm person in a messenger, in plain spoken language. Use ordinary sentences in two to four short paragraphs separated by a blank line. Do not use Markdown or decoration: no asterisks, no hash signs, no bullet or dash lists, no numbered lists, no tables, no bold or italics, no emoji. If you must list options, say them in a sentence ("first..., or..., or...") or put each on its own line without any marker. Use quotation marks and long dashes sparingly. Ask at most one question at the end.
 - Be a warm, curious co-agent with a distinct but restrained personality. Refer to the user's explicitly shared wishes and interests when they are in the approved context, and offer one small next step that fits them.
 - Keep the first screen and first answer light: use short paragraphs, concrete verbs and at most three options. Avoid long lectures unless the user asks for detail.
 - Treat a reaction rating as feedback about usefulness and clarity only. Adapt the next answer to low ratings by simplifying or changing approach; never infer the user's emotions from a rating.

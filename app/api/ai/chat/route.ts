@@ -14,6 +14,7 @@ import {
   markAiProviderFailure,
   markAiUsageEventStreamFailed,
   recordAiUsageEvent,
+  refundAiChatMessage,
   releaseAiRequest,
   reserveAiChatMessage
 } from "@/lib/ai/serverUsage";
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
   const isByok = aiSettings.routeMode === "byok";
 
   let requestAcquired = false;
+  let quotaReserved = false;
 
   try {
     const guard = await acquireAiRequest(auth.user.id);
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest) {
     requestAcquired = true;
 
     const quota = isByok ? null : await reserveAiChatMessage(auth.user.id);
+    quotaReserved = Boolean(quota?.allowed);
     if (quota && !quota.allowed) {
       await releaseAiRequest(auth.user.id);
       requestAcquired = false;
@@ -151,7 +154,9 @@ export async function POST(request: NextRequest) {
     });
 
     requestAcquired = false;
-    return releaseWhenStreamEnds(response, () => releaseAiRequest(auth.user!.id), async () => {
+    return releaseWhenStreamEnds(response, () => releaseAiRequest(auth.user!.id), async (sawData) => {
+      // A stream that broke before any text gave the person nothing: return the message to the quota.
+      if (quotaReserved && !sawData) await refundAiChatMessage(auth.user!.id);
       const failureCode = "stream_read_error";
       console.error("AI chat response stream failed.", { requestId, provider, model, failureCode });
       if (provider === "gemini" || provider === "groq") await markAiProviderFailure(provider, failureCode);
@@ -161,6 +166,10 @@ export async function POST(request: NextRequest) {
     if (requestAcquired) {
       await releaseAiRequest(auth.user.id);
       requestAcquired = false;
+    }
+    if (quotaReserved) {
+      await refundAiChatMessage(auth.user.id);
+      quotaReserved = false;
     }
 
     const providerAttempts = error instanceof AiGatewayError && error.code === "all_providers_failed"
@@ -312,7 +321,7 @@ function readProvider(value: string | null): AiResponseProvider | undefined {
 function releaseWhenStreamEnds(
   response: Response,
   release: () => Promise<void>,
-  onStreamError: () => Promise<void>
+  onStreamError: (sawData: boolean) => Promise<void>
 ): Response {
   if (!response.body) {
     void release();
@@ -321,6 +330,7 @@ function releaseWhenStreamEnds(
 
   const reader = response.body.getReader();
   let released = false;
+  let sawData = false;
   const releaseOnce = async () => {
     if (released) return;
     released = true;
@@ -335,10 +345,13 @@ function releaseWhenStreamEnds(
           controller.close();
           return;
         }
-        if (value) controller.enqueue(value);
+        if (value) {
+          sawData = true;
+          controller.enqueue(value);
+        }
       } catch (error) {
         try {
-          await onStreamError();
+          await onStreamError(sawData);
         } catch {
           console.error("AI chat stream failure diagnostics failed.");
         }

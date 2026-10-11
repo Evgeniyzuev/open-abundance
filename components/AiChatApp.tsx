@@ -13,6 +13,7 @@ import {
 } from "@/lib/ai/clientContent";
 import {
   consumeLocalMessage,
+  refundLocalMessage,
   clearMemory,
   deleteChat,
   getDraftChat,
@@ -29,6 +30,8 @@ import {
   type AiLocalMessage,
   type LocalQuota
 } from "@/lib/ai/localChatStore";
+import { trackClientEvent } from "@/lib/clientAnalytics";
+import { plainChatText } from "@/lib/ai/plainText";
 import type { MessageKey } from "@/lib/i18n";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { getSoundsEnabled, playUiSound, setSoundsEnabled } from "@/lib/ui/sound";
@@ -77,6 +80,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const [sharedContent, setSharedContent] = useState<{ title: string; body: string; sourceUrl: string; thumbnailUrl: string | null } | null>(null);
   const [sharedContentLoading, setSharedContentLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [attempt, setAttempt] = useState(1);
   const [isRestoring, setIsRestoring] = useState(true);
   const [isSavingChat, setIsSavingChat] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
@@ -137,7 +141,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const novaName = NOVA_NAME[locale] ?? NOVA_NAME.en;
   const nearestWish = readPrimaryWish(userId ?? undefined);
   const additionalWishTitles = activeWishTitles.filter((title) => title !== nearestWish?.title);
-  const persistableMessages = useMemo(() => messages.filter((message) => message.content.trim()), [messages]);
+  const persistableMessages = useMemo(() => messages.filter((message) => message.content.trim() && !message.failed), [messages]);
   const isByok = aiSettings?.routeMode === "byok";
   const quotaBlocked = !isByok && Boolean(quota && (quota.dayRemaining <= 0 || quota.monthRemaining <= 0));
   const groupedSuggestions = useMemo(
@@ -280,7 +284,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   }, []);
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, opts?: { retry?: boolean }) => {
       const trimmed = text.trim();
       if (!trimmed || isLoading || inFlightRef.current || isRestoring) return;
       if (contextDialogOpen && !contextDecisionRef.current && !skipContextRef.current) return;
@@ -307,8 +311,10 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         const userMsg: ChatMessage = { role: "user", content: trimmed };
         const aiMsg: ChatMessage = { role: "assistant", content: "" };
         const nextChat = activeChat ?? (userId ? createDraftChat(userId) : null);
-        const allMsgs = [...messages.filter((message) => message.content.trim()), userMsg];
-        const feedback = messages
+        // A retry replaces the failed exchange: drop the error and the question it answered.
+        const base = opts?.retry ? dropFailedExchange(messages) : messages;
+        const allMsgs = [...base.filter((message) => message.content.trim() && !message.failed), userMsg];
+        const feedback = base
           .map((message, index) => message.role === "assistant" && message.rating ? { index, rating: message.rating } : null)
           .filter((item): item is { index: number; rating: 1 | 2 | 3 | 4 | 5 } => Boolean(item));
 
@@ -324,71 +330,91 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         }
 
         if (nextChat) setActiveChat(nextChat);
-        setMessages((prev) => [...prev, userMsg, aiMsg]);
+        setMessages(opts?.retry ? [...base, userMsg, aiMsg] : (prev) => [...prev.filter((message) => !message.failed), userMsg, aiMsg]);
+        setAttempt(1);
         setInput("");
 
         abortRef.current = new AbortController();
+        const signal = abortRef.current.signal;
         const supabase = getBrowserSupabaseClient();
         const {
           data: { session }
         } = await supabase.auth.getSession();
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-        const res = await fetch("/api/ai/chat", {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
-            locale,
-            contentPostId: selectedContentId ?? undefined,
-            feedback,
-            context: includeContext ? buildAiContext(locale, profile, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined
-          }),
-          signal: abortRef.current.signal
+        const requestBody = JSON.stringify({
+          messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
+          locale,
+          contentPostId: selectedContentId ?? undefined,
+          feedback,
+          context: includeContext ? buildAiContext(locale, profile, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined
         });
 
-        if (!res.ok) {
-          const errorPayload = await res.json().catch(() => null) as { error?: string; code?: string; quota?: LocalQuota } | null;
-          if (errorPayload?.quota) setQuota(errorPayload.quota);
-          if (errorPayload?.code === "ai_quota_exhausted") errorPayload.error = t("ai.chat.quotaLimited");
-          if (errorPayload?.code === "ai_quota_unavailable") errorPayload.error = t("ai.chat.quotaUnavailable");
-          if (errorPayload?.code === "ai_request_in_progress") errorPayload.error = t("ai.chat.requestInProgress");
-          if (errorPayload?.code === "ai_rate_limited") errorPayload.error = t("ai.chat.rateLimited");
-          if (errorPayload?.code === "ai_auth_required") errorPayload.error = t("ai.chat.authRequired");
-          if (errorPayload?.code === "ai_providers_unavailable") errorPayload.error = t("ai.chat.providerUnavailable");
-          if (errorPayload?.code === "ai_providers_failed") errorPayload.error = t("ai.chat.providersFailed");
-          if (errorPayload?.code === "ai_byok_not_configured") errorPayload.error = t("ai.chat.byokNotConfigured");
-          if (errorPayload?.code === "ai_byok_invalid") errorPayload.error = t("ai.chat.byokInvalid");
-          if (errorPayload?.code === "ai_byok_credits_exhausted") errorPayload.error = t("ai.chat.byokCredits");
-          if (errorPayload?.code === "ai_byok_rate_limited") errorPayload.error = t("ai.chat.byokRateLimited");
-          if (errorPayload?.code === "ai_byok_failed") errorPayload.error = t("ai.chat.byokFailed");
-          if (errorPayload?.code === "ai_model_not_allowed") errorPayload.error = t("ai.chat.modelNotAllowed");
-          setMessages((current) => replaceLastAssistant(current, `⚠️ ${errorPayload?.error ?? t("ai.chat.error")}`));
-          return;
+        // Up to three visible attempts: transient failures (network, a broken stream, providers down) are
+        // retried after a short pause; quota, limit and key errors are shown at once, a retry cannot fix them.
+        let acc = "";
+        let failure: string | null = null;
+        let failureText: string | null = null;
+        let failureRetryable = true;
+        for (let attempt = 1; attempt <= MAX_CHAT_ATTEMPTS; attempt += 1) {
+          if (attempt > 1) {
+            setAttempt(attempt);
+            setMessages((current) => replaceLastAssistant(current, ""));
+            await waitOrAbort(RETRY_DELAYS_MS[attempt - 2] ?? 3_000, signal);
+          }
+          acc = "";
+          failure = null;
+          failureText = null;
+          try {
+            const res = await fetch("/api/ai/chat", { method: "POST", headers, body: requestBody, signal });
+            if (!res.ok) {
+              const errorPayload = await res.json().catch(() => null) as { error?: string; code?: string; quota?: LocalQuota } | null;
+              if (errorPayload?.quota) setQuota(errorPayload.quota);
+              failure = errorPayload?.code ?? `http_${res.status}`;
+              failureRetryable = res.status >= 500 || res.status === 409 || (errorPayload?.code ? RETRYABLE_CHAT_CODES.has(errorPayload.code) : false);
+              const key = errorPayload?.code ? CHAT_ERROR_KEYS[errorPayload.code] : undefined;
+              failureText = key ? t(key) : errorPayload?.error ?? null;
+              if (failureRetryable && attempt < MAX_CHAT_ATTEMPTS) continue;
+              break;
+            }
+            const reader = res.body?.getReader();
+            if (!reader) throw new Error("No stream");
+            const decoder = new TextDecoder();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              acc += decoder.decode(value, { stream: true });
+              setMessages((current) => replaceLastAssistant(current, acc));
+            }
+            if (!acc.trim()) {
+              failure = "empty_response";
+              failureRetryable = true;
+              if (attempt < MAX_CHAT_ATTEMPTS) continue;
+            }
+            break;
+          } catch (error: unknown) {
+            if (error instanceof DOMException && error.name === "AbortError") return;
+            failure = acc ? "stream_broken" : "network_error";
+            failureRetryable = true;
+            if (attempt < MAX_CHAT_ATTEMPTS) continue;
+            break;
+          }
         }
 
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error("No stream");
-
-        const decoder = new TextDecoder();
-        let acc = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          for (const line of chunk.split("\n")) {
-            if (!line) continue;
-            acc += line;
-            setMessages((current) => replaceLastAssistant(current, acc));
-          }
+        if (failure) {
+          // Nothing was delivered: show the error (never saved, never sent back to the model) and give the message back.
+          setMessages((current) => replaceLastAssistant(current, failureText ?? t("ai.chat.error"), failureRetryable ? "retry" : "final"));
+          if (userId && !isByok) void refundLocalMessage(userId).catch(() => undefined);
+          void trackClientEvent("ai_chat_failed", { reason: failure, retryable: failureRetryable, attempts: MAX_CHAT_ATTEMPTS });
+          return;
         }
 
         if (acc.trim()) void recordAiChallengeProgress();
       } catch (error: unknown) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setMessages((current) => replaceLastAssistant(current, `⚠️ ${t("ai.chat.error")}`));
+        setMessages((current) => replaceLastAssistant(current, t("ai.chat.error"), "retry"));
       } finally {
+        setAttempt(1);
         setIsLoading(false);
         inFlightRef.current = false;
         abortRef.current = null;
@@ -581,7 +607,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     setQuestionsOpen(nextOpen);
     if (!nextOpen || suggestionsLoading || suggestedPrompts.length > 0) return;
 
-    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant" && message.content.trim());
+    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant" && message.content.trim() && !message.failed);
     if (!lastAssistant) return;
     const previousUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content ?? "";
     setSuggestionsLoading(true);
@@ -904,11 +930,17 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
                 <Image className="ai-msg-avatar" src="/nova-fox-robot.png" alt="" width={30} height={30} />
               ) : null}
               <div className="ai-msg-content">
-                <div className="ai-msg-bubble">
-                  {message.content}
-                  {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing">...</span> : null}
+                <div className={message.failed ? "ai-msg-bubble ai-msg-failed" : "ai-msg-bubble"}>
+                  {message.role === "assistant" ? plainChatText(message.content) : message.content}
+                  {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing">{attempt > 1 ? t("ai.chat.attempt", { attempt, max: MAX_CHAT_ATTEMPTS }) : "..."}</span> : null}
                 </div>
-                {message.role === "assistant" && message.content.trim() ? (
+                {message.failed === "retry" && index === messages.length - 1 && !isLoading ? (
+                  <button className="secondary-button ai-retry" type="button" onClick={() => {
+                    const question = [...messages].reverse().find((item) => item.role === "user")?.content;
+                    if (question) void sendMessage(question, { retry: true });
+                  }}>{t("ai.chat.retry")}</button>
+                ) : null}
+                {message.role === "assistant" && message.content.trim() && !message.failed ? (
                   <div className="ai-msg-rating" aria-label={t("ai.chat.rating.label")}>
                     {[1, 2, 3, 4, 5].map((rating) => (
                       <button key={rating} type="button" disabled={isLoading} className={message.rating === rating ? "is-selected" : ""} onClick={() => void rateMessage(index, rating as 1 | 2 | 3 | 4 | 5)} aria-label={`${t("ai.chat.rating.option", { rating })}: ${t(`ai.chat.rating.${rating}` as MessageKey)}`} title={t(`ai.chat.rating.${rating}` as MessageKey)}>
@@ -1096,13 +1128,48 @@ function getChatTitle(messages: ChatMessage[], locale: "ru" | "en"): string {
   return firstUserMessage?.slice(0, 72) || (locale === "ru" ? "Новый чат" : "New chat");
 }
 
-function replaceLastAssistant(messages: ChatMessage[], content: string): ChatMessage[] {
+function replaceLastAssistant(messages: ChatMessage[], content: string, failed?: ChatMessage["failed"]): ChatMessage[] {
   const next = [...messages];
   const lastIndex = next.length - 1;
   if (lastIndex >= 0 && next[lastIndex].role === "assistant") {
-    next[lastIndex] = { role: "assistant", content };
+    next[lastIndex] = failed ? { role: "assistant", content, failed } : { role: "assistant", content };
   }
   return next;
+}
+
+/** Removes a trailing error and the question it belonged to, so a retry sends that question again. */
+function dropFailedExchange(messages: ChatMessage[]): ChatMessage[] {
+  const next = [...messages];
+  if (next.at(-1)?.role === "assistant" && next.at(-1)?.failed) next.pop();
+  if (next.at(-1)?.role === "user") next.pop();
+  return next;
+}
+
+const MAX_CHAT_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [1_000, 3_000];
+const RETRYABLE_CHAT_CODES = new Set(["ai_request_in_progress", "ai_providers_unavailable", "ai_providers_failed", "ai_byok_failed", "ai_auth_unavailable", "ai_quota_unavailable"]);
+const CHAT_ERROR_KEYS: Record<string, MessageKey> = {
+  ai_quota_exhausted: "ai.chat.quotaLimited",
+  ai_quota_unavailable: "ai.chat.quotaUnavailable",
+  ai_request_in_progress: "ai.chat.requestInProgress",
+  ai_rate_limited: "ai.chat.rateLimited",
+  ai_auth_required: "ai.chat.authRequired",
+  ai_providers_unavailable: "ai.chat.providerUnavailable",
+  ai_providers_failed: "ai.chat.providersFailed",
+  ai_byok_not_configured: "ai.chat.byokNotConfigured",
+  ai_byok_invalid: "ai.chat.byokInvalid",
+  ai_byok_credits_exhausted: "ai.chat.byokCredits",
+  ai_byok_rate_limited: "ai.chat.byokRateLimited",
+  ai_byok_failed: "ai.chat.byokFailed",
+  ai_model_not_allowed: "ai.chat.modelNotAllowed"
+};
+
+function waitOrAbort(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(new DOMException("Aborted", "AbortError")); return; }
+    const timer = window.setTimeout(resolve, ms);
+    signal.addEventListener("abort", () => { window.clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); }, { once: true });
+  });
 }
 
 function upsertSavedChat(chats: AiLocalChat[], chat: AiLocalChat): AiLocalChat[] {

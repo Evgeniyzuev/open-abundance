@@ -2818,3 +2818,5 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .mention-link:hover { text-decoration: underline; }
 /* The orb and the text sit above the full-panel button (same z-index, later in the DOM) and swallowed taps; let them pass through. */
 .core-level-panel.is-interactive .core-reactor, .core-level-panel.is-interactive .core-level-content { pointer-events: none; }
+.ai-msg-failed { color: var(--muted); }
+.ai-retry { align-self: start; padding: 6px 12px; font-size: 0.85rem; }

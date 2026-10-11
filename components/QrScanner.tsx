@@ -104,7 +104,7 @@ function QrScannerModal({ onResult, onClose }: { onResult: (text: string) => voi
           <span />
         </div>
         <div className="qr-scanner-body">
-          <div className="qr-scanner-view">
+          <div className="qr-scanner-view" hidden={!cameraReady && Boolean(message)}>
             <video ref={videoRef} playsInline muted />
             {cameraReady ? <span className="qr-scanner-frame" aria-hidden="true" /> : null}
           </div>

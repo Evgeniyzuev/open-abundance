@@ -1,7 +1,7 @@
 // Pure rules for Nova's daily card on the Today screen (no imports, tested directly by node).
 // At most one card a day, in the app only, dismissible; three dismissals in a row pause cards for a week.
 
-export type NovaCardKind = "start" | "return" | "level" | "step";
+export type NovaCardKind = "start" | "week" | "return" | "level" | "step";
 
 export type NovaCardInput = {
   /** Days since the account was created, or null when unknown. */
@@ -11,6 +11,8 @@ export type NovaCardInput = {
   hasWish: boolean;
   /** Wallet has money that could go to Core and a next level exists. */
   canTopUpToNextLevel: boolean;
+  /** A weekly summary is ready and has not been shown yet. */
+  hasWeeklySummary: boolean;
 };
 
 export type NovaCardState = {
@@ -25,9 +27,10 @@ export type NovaCardState = {
 export const NOVA_CARD_PAUSE_DAYS = 7;
 export const NOVA_CARD_MAX_DISMISSALS = 3;
 
-/** Highest priority first: a newcomer, a person coming back, a concrete Core step, then a gentle question. */
+/** Highest priority first: a newcomer, the weekly summary, a person coming back, a concrete Core step, then a gentle question. */
 export function pickNovaCard(input: NovaCardInput): NovaCardKind | null {
   if (input.ageDays !== null && input.ageDays <= 2) return "start";
+  if (input.hasWeeklySummary) return "week";
   if (input.daysSinceVisit !== null && input.daysSinceVisit >= 3) return "return";
   if (input.canTopUpToNextLevel) return "level";
   if (input.hasWish) return "step";

@@ -81,14 +81,14 @@ type AiServiceClient = {
   from: (table: string) => AiTable;
 };
 
-export async function reserveAiChatMessage(userId: string): Promise<AiQuotaReservation> {
+export async function reserveAiChatMessage(userId: string, options: { capability?: string; dayLimit?: number; monthLimit?: number } = {}): Promise<AiQuotaReservation> {
   let result: AiRpcResult;
   try {
     result = await getAiServiceClient().rpc("reserve_ai_chat_message", {
       p_user_id: userId,
-      p_capability: "chat.general",
-      p_day_limit: AI_CHAT_DAY_LIMIT,
-      p_month_limit: AI_CHAT_MONTH_LIMIT
+      p_capability: options.capability ?? "chat.general",
+      p_day_limit: options.dayLimit ?? AI_CHAT_DAY_LIMIT,
+      p_month_limit: options.monthLimit ?? AI_CHAT_MONTH_LIMIT
     });
   } catch (error) {
     console.error("AI quota reservation failed.", getErrorMessage(error));
@@ -110,9 +110,9 @@ export async function reserveAiChatMessage(userId: string): Promise<AiQuotaReser
 }
 
 /** Gives one message back after a failed answer; never throws (a missed refund must not hide the error). */
-export async function refundAiChatMessage(userId: string): Promise<void> {
+export async function refundAiChatMessage(userId: string, capability = "chat.general"): Promise<void> {
   try {
-    await getAiServiceClient().rpc("refund_ai_chat_message", { p_user_id: userId, p_capability: "chat.general" });
+    await getAiServiceClient().rpc("refund_ai_chat_message", { p_user_id: userId, p_capability: capability });
   } catch (error) {
     console.error("AI quota refund failed.", getErrorMessage(error));
   }

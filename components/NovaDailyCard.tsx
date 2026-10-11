@@ -5,7 +5,9 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { decideNovaCard, pickNovaCard, type NovaCardKind, type NovaCardState } from "@/lib/novaCards";
+import { previousWeekStart } from "@/lib/novaWeekly";
 import { readPrimaryWish } from "@/lib/wishJourney";
 
 /**
@@ -16,12 +18,41 @@ import { readPrimaryWish } from "@/lib/wishJourney";
 export default function NovaDailyCard({ active, onOpenChat, onOpenCore }: { active: boolean; onOpenChat: () => void; onOpenCore: () => void }) {
   const { t, locale, user, profile, core, wallet } = useUserContext();
   const [kind, setKind] = useState<NovaCardKind | null>(null);
+  const [weekly, setWeekly] = useState<{ weekStart: string; body: string } | null>(null);
   const userId = user?.id ?? null;
   const createdAt = profile?.created_at ?? null;
   const coreLevel = core?.level ?? null;
   const coreBalance = core?.balance ?? null;
   const threshold = core?.next_level_threshold ?? null;
   const walletBalance = wallet?.balance ?? null;
+
+  // The weekly summary is requested at most once per week on this device; the server writes it once per week.
+  useEffect(() => {
+    if (!active || !userId) return;
+    const weekStart = previousWeekStart(Date.now());
+    const fetchedKey = `oa-nova-week-fetched.v1.${userId}`;
+    try {
+      if (window.localStorage.getItem(fetchedKey) === weekStart) {
+        const stored = window.localStorage.getItem(`oa-nova-week-body.v1.${userId}`);
+        if (stored) setWeekly({ weekStart, body: stored });
+        return;
+      }
+    } catch { return; }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetchWithSupabaseAuth(`/api/nova/weekly?locale=${locale}`, { cache: "no-store" }, { authRequired: true });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { summary: { weekStart: string; body: string } | null };
+        try {
+          window.localStorage.setItem(fetchedKey, weekStart);
+          if (payload.summary) window.localStorage.setItem(`oa-nova-week-body.v1.${userId}`, payload.summary.body);
+        } catch { /* it will be requested again next time */ }
+        if (!cancelled && payload.summary) setWeekly(payload.summary);
+      } catch { /* a missing summary is not an error */ }
+    })();
+    return () => { cancelled = true; };
+  }, [active, userId, locale]);
 
   useEffect(() => {
     if (!active || !userId || coreLevel === null) { setKind(null); return; }
@@ -35,17 +66,19 @@ export default function NovaDailyCard({ active, onOpenChat, onOpenCore }: { acti
         ageDays: ageDays !== null && Number.isFinite(ageDays) ? ageDays : null,
         daysSinceVisit: daysSinceVisit !== null && Number.isFinite(daysSinceVisit) ? daysSinceVisit : null,
         hasWish: Boolean(readPrimaryWish(userId)),
-        canTopUpToNextLevel: (walletBalance ?? 0) > 0 && threshold !== null && coreBalance !== null && threshold > coreBalance
+        canTopUpToNextLevel: (walletBalance ?? 0) > 0 && threshold !== null && coreBalance !== null && threshold > coreBalance,
+        hasWeeklySummary: Boolean(weekly) && window.localStorage.getItem(`oa-nova-week-shown.v1.${userId}`) !== weekly?.weekStart
       });
       const decision = decideNovaCard(readState(userId), today, candidate);
       if (decision.state) writeState(userId, decision.state);
+      if (decision.show === "week" && weekly) window.localStorage.setItem(`oa-nova-week-shown.v1.${userId}`, weekly.weekStart);
       // Remember today's visit after the decision, so "coming back" is judged against the previous visit.
       if (lastVisit !== today) window.localStorage.setItem(visitKey, today);
       setKind(decision.show);
     } catch {
       setKind(null);
     }
-  }, [active, userId, createdAt, coreLevel, coreBalance, threshold, walletBalance]);
+  }, [active, userId, createdAt, coreLevel, coreBalance, threshold, walletBalance, weekly]);
 
   if (!kind || !userId || coreLevel === null) return null;
 
@@ -71,7 +104,7 @@ export default function NovaDailyCard({ active, onOpenChat, onOpenCore }: { acti
         ><X size={16} /></button>
       </div>
       <h2 id="nova-daily-title">{t(`nova.card.${kind}.title` as never, values)}</h2>
-      <p>{t(`nova.card.${kind}.body` as never, values)}</p>
+      <p>{kind === "week" && weekly ? weekly.body : t(`nova.card.${kind}.body` as never, values)}</p>
       <div className="self-serve-checkin-actions">
         <button
           className="secondary-button"

@@ -109,6 +109,8 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
   const lastDeepRef = useRef(false);
+  const followupAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => followupAbortRef.current?.abort(), []);
   const contextConsentRef = useRef(false);
   const contextDecisionRef = useRef(false);
   const skipContextRef = useRef(false);
@@ -299,6 +301,8 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
       }
 
       inFlightRef.current = true;
+      // A second look still running must not hold up the new question.
+      followupAbortRef.current?.abort();
       setIsLoading(true);
       setSuggestedPrompts([]);
       const includeContext = contextConsentRef.current && !skipContextRef.current;
@@ -329,7 +333,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         const nextChat = activeChat ?? (userId ? createDraftChat(userId) : null);
         // A retry replaces the failed exchange: drop the error and the question it answered.
         const base = opts?.retry || opts?.deep ? dropLastExchange(messages) : messages;
-        const allMsgs = [...base.filter((message) => message.content.trim() && !message.failed), userMsg];
+        const allMsgs = mergeAdjacentAssistants([...base.filter((message) => message.content.trim() && !message.failed), userMsg]);
         const feedback = base
           .map((message, index) => message.role === "assistant" && message.rating ? { index, rating: message.rating } : null)
           .filter((item): item is { index: number; rating: 1 | 2 | 3 | 4 | 5 } => Boolean(item));
@@ -358,13 +362,14 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         } = await supabase.auth.getSession();
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const contextText = includeContext ? buildAiContext(locale, profile, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined;
         const requestBody = JSON.stringify({
           messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
           locale,
           deep: deep || undefined,
           contentPostId: selectedContentId ?? undefined,
           feedback,
-          context: includeContext ? buildAiContext(locale, profile, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined
+          context: contextText
         });
 
         // Up to three visible attempts: transient failures (network, a broken stream, providers down) are
@@ -427,6 +432,36 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         }
 
         if (acc.trim()) void recordAiChallengeProgress();
+
+        // A serious question gets a quiet second look a few seconds later (a larger model, at most three a day).
+        // It adds a short note only when it has something to correct or add; "NOTHING" means silence.
+        if (!deep && !opts?.retry && userId && !isByok && acc.trim() && isSeriousQuestion(trimmed) && followupAllowed(userId)) {
+          const history = [...allMsgs, { role: "assistant" as const, content: acc }];
+          const answer = acc;
+          const controller = new AbortController();
+          followupAbortRef.current = controller;
+          void (async () => {
+            try {
+              await waitOrAbort(3_000, controller.signal);
+              noteFollowup(userId);
+              const res = await fetch("/api/ai/chat", {
+                method: "POST",
+                headers,
+                signal: controller.signal,
+                body: JSON.stringify({ mode: "followup", messages: history.map((message) => ({ role: message.role, content: message.content })), locale, context: contextText })
+              });
+              if (!res.ok) return;
+              const note = (await res.text()).trim();
+              if (note.length < 20 || /^NOTHING\b/i.test(note)) return;
+              setMessages((current) => {
+                const last = current.at(-1);
+                return last?.role === "assistant" && last.content === answer && !last.failed ? [...current, { role: "assistant", content: note, followup: true }] : current;
+              });
+            } catch {
+              // A background second look never shows an error.
+            }
+          })();
+        }
       } catch (error: unknown) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setMessages((current) => replaceLastAssistant(current, t("ai.chat.error"), "retry"));
@@ -948,6 +983,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
                 <Image className="ai-msg-avatar" src="/nova-fox-robot.png" alt="" width={30} height={30} />
               ) : null}
               <div className="ai-msg-content">
+                {message.followup ? <small className="ai-followup-label">{t("ai.chat.followupLabel")}</small> : null}
                 <div className={message.failed ? "ai-msg-bubble ai-msg-failed" : "ai-msg-bubble"}>
                   {message.role === "assistant" ? plainChatText(message.content) : message.content}
                   {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing" role="status" aria-label={t("ai.chat.typing")}><i /><i /><i />{isDeep ? <small>{t("ai.chat.typingDeep")}</small> : attempt > 1 ? <small>{t("ai.chat.attempt", { attempt, max: MAX_CHAT_ATTEMPTS })}</small> : null}</span> : null}
@@ -1169,9 +1205,45 @@ function replaceLastAssistant(messages: ChatMessage[], content: string, failed?:
 /** Removes the last answer (or error) and the question it belonged to, so that question can be sent again. */
 function dropLastExchange(messages: ChatMessage[]): ChatMessage[] {
   const next = [...messages];
-  if (next.at(-1)?.role === "assistant") next.pop();
+  while (next.at(-1)?.role === "assistant") next.pop();
   if (next.at(-1)?.role === "user") next.pop();
   return next;
+}
+
+/** Providers expect alternating roles: a second-look note joins the answer before the next question is sent. */
+function mergeAdjacentAssistants(messages: ChatMessage[]): ChatMessage[] {
+  const merged: ChatMessage[] = [];
+  for (const message of messages) {
+    const last = merged.at(-1);
+    if (last && last.role === "assistant" && message.role === "assistant") merged[merged.length - 1] = { ...last, content: `${last.content}\n\n${message.content}` };
+    else merged.push(message);
+  }
+  return merged;
+}
+
+const FOLLOWUPS_PER_DAY = 3;
+
+function followupKey(userId: string): string {
+  return `oa-nova-followups.v1.${userId}`;
+}
+
+function followupAllowed(userId: string): boolean {
+  try {
+    const raw = window.localStorage.getItem(followupKey(userId));
+    const value = raw ? (JSON.parse(raw) as { day?: string; count?: number }) : null;
+    return !(value?.day === new Date().toISOString().slice(0, 10) && (value.count ?? 0) >= FOLLOWUPS_PER_DAY);
+  } catch {
+    return true;
+  }
+}
+
+function noteFollowup(userId: string): void {
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const raw = window.localStorage.getItem(followupKey(userId));
+    const value = raw ? (JSON.parse(raw) as { day?: string; count?: number }) : null;
+    window.localStorage.setItem(followupKey(userId), JSON.stringify({ day, count: value?.day === day ? (value.count ?? 0) + 1 : 1 }));
+  } catch { /* the server limit still applies */ }
 }
 
 const MAX_CHAT_ATTEMPTS = 3;

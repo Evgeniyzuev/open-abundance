@@ -6,6 +6,8 @@ export type AiLocalMessage = {
   rating?: 1 | 2 | 3 | 4 | 5 | null;
   /** An error shown in place of an answer: never saved and never sent back to the model. "retry" offers a Retry button. */
   failed?: "retry" | "final";
+  /** Nova's second look at an earlier answer, added later in the same chat. */
+  followup?: boolean;
 };
 
 export type AiMemoryKind = "goal" | "interest" | "preference" | "reaction" | "feeling";

@@ -34,6 +34,7 @@ type ChatRequest = {
   feedback?: unknown;
   contentPostId?: unknown;
   deep?: unknown;
+  mode?: unknown;
 };
 
 const DEEP_ANSWER_INSTRUCTION = `
@@ -42,9 +43,24 @@ const DEEP_ANSWER_INSTRUCTION = `
 - The person asked for a more considered answer. Think it through, check any arithmetic and the assumptions behind it, and say what is uncertain.
 - Stay in plain conversational speech with the same formatting rules. Up to about 450 words, ending with one clear next step.`;
 
-async function refundCharged(userId: string, count: number): Promise<void> {
-  for (let index = 0; index < count; index += 1) await refundAiChatMessage(userId);
+async function refundCharged(userId: string, count: number, capability = "chat.general"): Promise<void> {
+  for (let index = 0; index < count; index += 1) await refundAiChatMessage(userId, capability);
 }
+
+const FOLLOWUP_DAY_LIMIT = 3;
+const FOLLOWUP_MONTH_LIMIT = 40;
+const FOLLOWUP_INSTRUCTION_RU = `
+
+## Second look
+- Your answer above is already given. Take a second, more careful look at it and at the context.
+- If you find a mistake, a missing assumption, a missing risk or a clearly useful addition, write it as a short follow-up of two to four sentences in plain speech, starting with "Я ещё подумала:".
+- If the answer was already complete and correct, reply with exactly NOTHING and nothing else.`;
+const FOLLOWUP_INSTRUCTION_EN = `
+
+## Second look
+- Your answer above is already given. Take a second, more careful look at it and at the context.
+- If you find a mistake, a missing assumption, a missing risk or a clearly useful addition, write it as a short follow-up of two to four sentences in plain speech, starting with "I thought about it more:".
+- If the answer was already complete and correct, reply with exactly NOTHING and nothing else.`;
 
 const MAX_MESSAGES = 40;
 const MAX_MESSAGE_LENGTH = 6_000;
@@ -63,7 +79,10 @@ export async function POST(request: NextRequest) {
     return errorResponse("Invalid JSON body.", 400);
   }
 
-  let messages = normalizeMessages(body.messages);
+  // A "followup" is a second look at an answer already given: the conversation ends with Nova's answer.
+  const followup = body.mode === "followup";
+  const capability = followup ? "chat.followup" : "chat.general";
+  let messages = normalizeMessages(body.messages, followup);
   if (!messages) {
     return errorResponse("A valid messages array ending with a user message is required.", 400);
   }
@@ -75,8 +94,12 @@ export async function POST(request: NextRequest) {
     body.feedback
   );
   // A deeper answer is only offered on the system route and costs two messages of the daily limit.
-  const deepRequested = body.deep === true;
+  const deepRequested = body.deep === true && !followup;
   if (deepRequested) systemPrompt += DEEP_ANSWER_INSTRUCTION;
+  if (followup) {
+    systemPrompt += locale === "ru" ? FOLLOWUP_INSTRUCTION_RU : FOLLOWUP_INSTRUCTION_EN;
+    messages = [...messages, { role: "user", content: locale === "ru" ? "Посмотри ещё раз на свой ответ выше. Есть ли что исправить или добавить?" : "Take another look at your answer above. Is there anything to correct or add?" }];
+  }
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
 
@@ -110,7 +133,7 @@ export async function POST(request: NextRequest) {
       await recordAiUsageEvent({
         requestId,
         userId: auth.user.id,
-        capability: "chat.general",
+        capability,
         status: guard.reason === "concurrency" ? "concurrency_blocked" : "rate_limited",
         inputTokens: estimateChatInputTokens(systemPrompt, messages),
         latencyMs: Date.now() - startedAt,
@@ -127,14 +150,14 @@ export async function POST(request: NextRequest) {
     }
     requestAcquired = true;
 
-    let quota = isByok ? null : await reserveAiChatMessage(auth.user.id);
+    let quota = isByok ? null : await reserveAiChatMessage(auth.user.id, followup ? { capability, dayLimit: FOLLOWUP_DAY_LIMIT, monthLimit: FOLLOWUP_MONTH_LIMIT } : {});
     quotaCharged = quota?.allowed ? 1 : 0;
     if (quota?.allowed && deepRequested) {
       const second = await reserveAiChatMessage(auth.user.id);
       if (second.allowed) {
         quotaCharged = 2;
       } else {
-        await refundAiChatMessage(auth.user.id);
+        await refundAiChatMessage(auth.user.id, capability);
         quotaCharged = 0;
       }
       quota = second;
@@ -145,7 +168,7 @@ export async function POST(request: NextRequest) {
       await recordAiUsageEvent({
         requestId,
         userId: auth.user.id,
-        capability: "chat.general",
+        capability,
         route: "system",
         status: "quota_blocked",
         inputTokens: estimateChatInputTokens(systemPrompt, messages),
@@ -161,14 +184,15 @@ export async function POST(request: NextRequest) {
       routeMode: aiSettings.routeMode,
       userId: auth.user.id,
       modelId: aiSettings.modelId,
-      deep: deepRequested && !isByok
+      deep: (deepRequested || followup) && !isByok,
+      preferProvider: followup ? "gemini" : undefined
     });
     const provider = readProvider(response.headers.get("X-AI-Provider"));
     const model = provider === "openrouter" ? aiSettings.modelId : provider ? AI_PROVIDER_MODELS[provider] : undefined;
     await recordAiUsageEvent({
       requestId,
       userId: auth.user.id,
-      capability: "chat.general",
+      capability,
       route: isByok ? "byok" : "system",
       provider,
       model,
@@ -181,7 +205,7 @@ export async function POST(request: NextRequest) {
     requestAcquired = false;
     return releaseWhenStreamEnds(response, () => releaseAiRequest(auth.user!.id), async (sawData) => {
       // A stream that broke before any text gave the person nothing: return the messages to the quota.
-      if (!sawData) await refundCharged(auth.user!.id, quotaCharged);
+      if (!sawData) await refundCharged(auth.user!.id, quotaCharged, capability);
       const failureCode = "stream_read_error";
       console.error("AI chat response stream failed.", { requestId, provider, model, failureCode });
       if (provider === "gemini" || provider === "groq") await markAiProviderFailure(provider, failureCode);
@@ -193,7 +217,7 @@ export async function POST(request: NextRequest) {
       requestAcquired = false;
     }
     if (quotaCharged > 0) {
-      await refundCharged(auth.user.id, quotaCharged);
+      await refundCharged(auth.user.id, quotaCharged, capability);
       quotaCharged = 0;
     }
 
@@ -208,7 +232,7 @@ export async function POST(request: NextRequest) {
     await recordAiUsageEvent({
       requestId,
       userId: auth.user.id,
-      capability: "chat.general",
+      capability,
       route: isByok ? "byok" : "system",
       provider: lastProviderAttempt?.provider,
       model: lastProviderAttempt?.model,
@@ -244,7 +268,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function normalizeMessages(value: unknown): AiConversationMessage[] | null {
+function normalizeMessages(value: unknown, endsWithAssistant = false): AiConversationMessage[] | null {
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_MESSAGES) return null;
 
   let totalLength = 0;
@@ -262,7 +286,7 @@ function normalizeMessages(value: unknown): AiConversationMessage[] | null {
     messages.push({ role: item.role, content });
   }
 
-  return messages[messages.length - 1]?.role === "user" ? messages : null;
+  return messages[messages.length - 1]?.role === (endsWithAssistant ? "assistant" : "user") ? messages : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

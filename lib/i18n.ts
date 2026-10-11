@@ -2033,6 +2033,7 @@ export const messages = {
       "ai.chat.loading": "Восстанавливаем чат...",
       "ai.chat.attempt": "Нова отвечает, попытка {attempt} из {max}…",
       "ai.chat.retry": "Повторить",
+      "ai.chat.followupLabel": "Нова добавляет",
       "ai.chat.deep": "Подумать глубже",
       "ai.chat.deepHint": "Вопрос непростой. Можно подумать глубже, это займёт 2 сообщения из лимита.",
       "ai.chat.deepTitle": "Более обдуманный ответ, 2 сообщения из лимита",
@@ -2050,6 +2051,9 @@ export const messages = {
       "nova.card.step.title": "Один шаг к желанию",
       "nova.card.step.body": "Какой маленький шаг по желанию «{wish}» вы сделаете сегодня? Могу помочь выбрать.",
       "nova.card.step.action": "Подумать вместе",
+      "nova.card.week.title": "Итог недели",
+      "nova.card.week.body": "",
+      "nova.card.week.action": "Обсудить с Новой",
       "ai.chat.typing": "Нова печатает",
       "ai.chat.error": "Не удалось получить ответ. Попробуйте еще раз."
   },
@@ -4048,6 +4052,7 @@ export const messages = {
       "ai.chat.loading": "Restoring chat...",
       "ai.chat.attempt": "Nova is answering, attempt {attempt} of {max}…",
       "ai.chat.retry": "Try again",
+      "ai.chat.followupLabel": "Nova adds",
       "ai.chat.deep": "Think deeper",
       "ai.chat.deepHint": "This looks like a big question. I can think it through more carefully; it uses 2 messages of your limit.",
       "ai.chat.deepTitle": "A more considered answer, 2 messages of your limit",
@@ -4065,6 +4070,9 @@ export const messages = {
       "nova.card.step.title": "One step towards your wish",
       "nova.card.step.body": "What small step towards \"{wish}\" will you take today? I can help you choose.",
       "nova.card.step.action": "Think together",
+      "nova.card.week.title": "Your week",
+      "nova.card.week.body": "",
+      "nova.card.week.action": "Talk it over with Nova",
       "ai.chat.typing": "Nova is typing",
       "ai.chat.error": "Failed to get response. Try again."
   }

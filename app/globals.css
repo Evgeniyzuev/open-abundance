@@ -2831,3 +2831,4 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .ai-deep.is-suggested { color: var(--blue); border-color: var(--blue); font-weight: 600; }
 .ai-deep-hint { color: var(--muted); font-size: 0.8rem; }
 .nova-daily-card { width: min(100vw - 12px, 598px); margin: 8px auto 0; }
+.ai-followup-label { color: var(--muted); font-size: 0.78rem; padding-inline: 4px; }

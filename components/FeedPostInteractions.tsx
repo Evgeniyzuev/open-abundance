@@ -2,6 +2,7 @@
 
 import { Heart, MessageCircle, Repeat2, Send, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import MentionText from "@/components/MentionText";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import type { FeedPost } from "@/lib/socialFeed";
@@ -170,7 +171,7 @@ export default function FeedPostInteractions({
           {payload.comments.map((comment) => (
             <article key={comment.id}>
               <strong>{comment.author?.display_name ?? (comment.author?.username ? `@${comment.author.username}` : t("social.feed.comment"))}{comment.author?.display_name && comment.author?.username ? <small className="profile-handle"> @{comment.author.username}</small> : null}</strong>
-              <p>{comment.body}</p>
+              <p><MentionText text={comment.body} /></p>
               <time dateTime={comment.created_at}>{formatCommentDate(comment.created_at, locale)}</time>
             </article>
           ))}

@@ -4,6 +4,7 @@ import type { Tables } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { normalizeProfileVisibility } from "@/lib/socialProfile";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { notifyMentions } from "@/lib/serverMentions";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -101,6 +102,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { postId
       .single();
 
     if (updatePostError) return NextResponse.json({ error: updatePostError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    if (currentPost.status !== "published" && nextStatus === "published" && nextVisibility === "public") {
+      await notifyMentions(supabase, { text: `${nextTitle ?? ""} ${nextBody ?? ""}`, authorId: user.id, postId, sourceKey: `post:${postId}` });
+    }
 
     const statBlockUpdates = normalizeStatBlockUpdates(body.statBlocks);
     const statBlockResults = await Promise.all(statBlockUpdates.map((item) => (

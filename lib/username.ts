@@ -103,3 +103,16 @@ export function usernameCandidates(base: string, random: () => number = Math.ran
 export function looksLikeEmail(value: unknown): boolean {
   return typeof value === "string" && value.includes("@");
 }
+
+/**
+ * A "look-alike" key: two nicknames with the same skeleton are easy to confuse by eye
+ * (`0leg` / `oleg`, `ann1` / `annl`). The database computes the same key (`username_skeleton`) and
+ * refuses a nickname whose skeleton already belongs to someone else.
+ */
+export function usernameSkeleton(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/rn/g, "m")
+    .replace(/vv/g, "w")
+    .replace(/[01i5382]/g, (char) => ({ "0": "o", "1": "l", i: "l", "5": "s", "3": "e", "8": "b", "2": "z" })[char as "0"] ?? char);
+}

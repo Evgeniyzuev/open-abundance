@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   if (statusError) return json({ error: "Could not check the nickname." }, 500);
 
   const suggestions: string[] = [];
-  if (status === "taken" || status === "reserved") {
+  if (status === "taken" || status === "reserved" || status === "lookalike") {
     for (const candidate of usernameCandidates(usernameBase({ displayName: input }), Math.random, 2).slice(0, 8)) {
       if (suggestions.length >= 3) break;
       const { data } = await db.rpc("username_status", { p_username: candidate, p_user_id: user.id });
@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest) {
     }
     return json({ code, username: row.new_username });
   }
-  return json({ code }, code === "taken" || code === "cooldown" || code === "limit" ? 409 : 400);
+  return json({ code }, code === "taken" || code === "lookalike" || code === "cooldown" || code === "limit" ? 409 : 400);
 }
 
 function json(body: unknown, status = 200) {

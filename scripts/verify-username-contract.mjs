@@ -9,8 +9,10 @@ import {
   transliterate,
   usernameBase,
   usernameCandidates,
+  usernameSkeleton,
   validateUsername
 } from "../lib/username.ts";
+import { extractMentions, splitMentions } from "../lib/mentions.ts";
 import { personHandle, personLabel, personName, usernameMatchRank } from "../lib/personName.ts";
 
 // Run with: node --experimental-strip-types scripts/verify-username-contract.mjs
@@ -124,5 +126,31 @@ assert.match(referral, /resolveNicknameReferral/);
 for (const file of ["components/SocialApp.tsx", "components/ChallengesApp.tsx", "components/PublicUserPage.tsx", "components/BlogWorkspace.tsx"]) {
   assert.doesNotMatch(read(file), /\?\? *user\?\.email|\|\| *user\?\.email/, file + " must not fall back to the email");
 }
+
+// --- Look-alike protection ---
+assert.equal(usernameSkeleton("0leg123"), usernameSkeleton("oleg123"), "zero and o look alike");
+assert.equal(usernameSkeleton("ann1"), usernameSkeleton("annl"));
+assert.equal(usernameSkeleton("rnaria"), usernameSkeleton("maria"), "rn looks like m");
+assert.notEqual(usernameSkeleton("ivan4821"), usernameSkeleton("ivan4822"), "different digits stay different");
+const lookalikeSql = read("supabase/migrations/20261011200000_username_lookalikes_mentions.sql");
+assert.match(lookalikeSql, /translate\(replace\(replace\(lower\(p_username\), 'rn', 'm'\), 'vv', 'w'\), '01i5382', 'ollsebz'\)/, "the database uses the same skeleton");
+assert.match(lookalikeSql, /return 'lookalike'/);
+assert.match(lookalikeSql, /'social'/, "mentions have their own notification category");
+
+// --- Mentions ---
+assert.deepEqual(extractMentions("hi @Ivan4821 and @anna99999, @ivan4821 again"), ["ivan4821", "anna99999"]);
+assert.deepEqual(extractMentions("mail me at a@ivan4821.com or foo.@bar12345"), [], "an address is not a mention");
+assert.deepEqual(extractMentions("@abcd too short"), []);
+assert.equal(extractMentions("@aaaaa1 @bbbbb1 @ccccc1 @ddddd1 @eeeee1 @fffff1").length, 5, "at most five people per text");
+assert.deepEqual(splitMentions("hello @ivan4821!"), [{ text: "hello " }, { text: "@ivan4821", mention: "ivan4821" }, { text: "!" }]);
+assert.deepEqual(splitMentions("plain"), [{ text: "plain" }]);
+const notify = read("lib/serverMentions.ts");
+assert.match(notify, /person\.user_id === input\.authorId/, "the author is never notified about their own text");
+assert.match(notify, /mention:\$\{input\.sourceKey\}/, "one event per source and person");
+assert.match(read("app/api/social/feed/posts/[postId]/interactions/route.ts"), /notifyMentions/);
+assert.match(read("app/api/social/feed/posts/[postId]/route.ts"), /notifyMentions/);
+
+// --- Payment link to a person ---
+assert.match(config, /source: "\/pay\/@:username"/);
 
 console.log("username contract ok");

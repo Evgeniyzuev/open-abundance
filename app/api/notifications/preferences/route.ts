@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-const CATEGORIES = ["deals", "disputes", "wallet", "rewards", "team", "confirmations", "reminders", "system"] as const;
+const CATEGORIES = ["deals", "disputes", "wallet", "rewards", "team", "confirmations", "reminders", "social", "system"] as const;
 type Category = typeof CATEGORIES[number];
 
 export async function GET(request: NextRequest) {

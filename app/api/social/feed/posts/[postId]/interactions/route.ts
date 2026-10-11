@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Tables } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { notifyMentions } from "@/lib/serverMentions";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -74,16 +75,19 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
         .maybeSingle();
       if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500, headers: NO_STORE_HEADERS });
       if (!existing) {
-        const { error: commentError } = await supabase.from("feed_post_comments").insert({
+        const { data: insertedComment, error: commentError } = await supabase.from("feed_post_comments").insert({
           post_id: post.id,
           user_id: user.id,
           body: commentBody,
           client_idempotency_key: idempotencyKey
-        });
+        }).select("id").single();
         if (commentError && commentError.code !== "23505") {
           return NextResponse.json({ error: commentError.message }, { status: 500, headers: NO_STORE_HEADERS });
         }
-        if (!commentError) await recordInteractionEvent("feed_post_commented", post, user.id);
+        if (!commentError) {
+          await recordInteractionEvent("feed_post_commented", post, user.id);
+          if (insertedComment?.id) await notifyMentions(supabase, { text: commentBody, authorId: user.id, postId: post.id, sourceKey: `comment:${insertedComment.id}` });
+        }
       }
     }
 

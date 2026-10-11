@@ -20,6 +20,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatMoney, formatRateMoney } from "@/lib/moneyFormat";
 import { normalizeMarketplaceRating } from "@/lib/marketplaceRating";
 import { trackClientEvent } from "@/lib/clientAnalytics";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
@@ -349,6 +350,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [usdtWithdrawOpen, setUsdtWithdrawOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [payTo, setPayTo] = useState<WalletRecipient | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const [marketListings, setMarketListings] = useState<MarketplaceListing[] | null>(null);
   const [marketListingLimit, setMarketListingLimit] = useState(1);
@@ -364,6 +366,33 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const calculatorRequestNonce = calculatorRequest?.nonce;
   const calculatorRequestDailyAdditions = calculatorRequest?.dailyAdditions;
   const calculatorRequestTargetCore = calculatorRequest?.targetCore;
+
+  // A link /pay/@nickname arrives as ?payto=nickname (kept across sign-in): open the transfer with that person.
+  useEffect(() => {
+    if (!active || !user || !wallet) return;
+    const key = "oa-pending-payto";
+    let nickname = "";
+    try {
+      const url = new URL(window.location.href);
+      nickname = (url.searchParams.get("payto") ?? window.sessionStorage.getItem(key) ?? "").toLowerCase().replace(/^@+/, "");
+      if (url.searchParams.has("payto")) {
+        url.searchParams.delete("payto");
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+      window.sessionStorage.removeItem(key);
+    } catch { return; }
+    if (!/^[a-z][a-z0-9]{4,23}$/.test(nickname)) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetchWithSupabaseAuth(`/api/wallet/recipients/search?q=${encodeURIComponent(nickname)}`, { cache: "no-store" }, { authRequired: true });
+        const payload = (await response.json()) as { people?: WalletRecipient[] };
+        const person = payload.people?.find((item) => item.username === nickname);
+        if (person && !cancelled) { setPayTo(person); setTransferOpen(true); }
+      } catch { /* the transfer can still be opened by hand */ }
+    })();
+    return () => { cancelled = true; };
+  }, [active, user, wallet]);
 
   useEffect(() => {
     if (activeTab !== "core") setHistoryOpen(false);
@@ -1210,7 +1239,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           locale={locale}
           t={t}
           wallet={wallet}
-          onClose={() => setTransferOpen(false)}
+          initialRecipient={payTo}
+          onClose={() => { setTransferOpen(false); setPayTo(null); }}
           onSuccess={handleTransferSuccess}
         />
       ) : null}
@@ -3032,20 +3062,22 @@ function WalletTransferModal({
   locale,
   t,
   wallet,
+  initialRecipient,
   onClose,
   onSuccess
 }: {
   locale: AppLocale;
   t: TFunction;
   wallet: WalletRow;
+  initialRecipient?: WalletRecipient | null;
   onClose: () => void;
   onSuccess: (newWallet: Tables<"wallet_accounts">) => Promise<void>;
 }) {
   const [amount, setAmount] = useState("");
   const [contacts, setContacts] = useState<WalletTransferContact[] | null>(null);
   const [contactsError, setContactsError] = useState<string | null>(null);
-  const [recipientUserId, setRecipientUserId] = useState("");
-  const [recipientPreview, setRecipientPreview] = useState<WalletRecipient | null>(null);
+  const [recipientUserId, setRecipientUserId] = useState(initialRecipient?.user_id ?? "");
+  const [recipientPreview, setRecipientPreview] = useState<WalletRecipient | null>(initialRecipient ?? null);
   const [recipientResolving, setRecipientResolving] = useState(false);
   const [transferKey, setTransferKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -3061,7 +3093,7 @@ function WalletTransferModal({
         const rows = await loadWalletTransferContacts();
         if (!mounted) return;
         setContacts(rows);
-        if (rows[0]?.contact_user_id) {
+        if (rows[0]?.contact_user_id && !initialRecipient) {
           setRecipientUserId(rows[0].contact_user_id);
           setRecipientPreview(rows[0].profile);
         }
@@ -3078,6 +3110,8 @@ function WalletTransferModal({
     return () => {
       mounted = false;
     };
+    // The initial recipient only matters when the modal opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const parsedAmount = parseNumber(amount);

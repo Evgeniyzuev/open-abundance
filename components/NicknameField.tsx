@@ -64,7 +64,7 @@ export default function NicknameField({ onSaved }: { onSaved?: (username: string
         onSaved?.(payload.username);
       } else {
         const code = payload.code ?? "generic";
-        const key = (["cooldown", "limit", "taken", "reserved", "invalid"].includes(code) ? `nickname.error.${code}` : "nickname.error.generic") as MessageKey;
+        const key = (["cooldown", "limit", "taken", "reserved", "invalid", "lookalike"].includes(code) ? `nickname.error.${code}` : "nickname.error.generic") as MessageKey;
         setMessage({ kind: "error", key });
       }
     } catch {

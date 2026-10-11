@@ -2924,7 +2924,7 @@ function ActivityDialog({ notifications, notificationsLoading, unreadCount, pend
   );
 }
 
-const NOTIFICATION_CATEGORIES = ["deals", "disputes", "wallet", "rewards", "team", "confirmations", "reminders", "system"] as const;
+const NOTIFICATION_CATEGORIES = ["deals", "disputes", "wallet", "rewards", "team", "confirmations", "reminders", "social", "system"] as const;
 const REQUIRED_IN_APP_NOTIFICATION_CATEGORIES = new Set<NotificationCategory>(["deals", "disputes", "wallet", "rewards", "system"]);
 type NotificationCategory = typeof NOTIFICATION_CATEGORIES[number];
 type NotificationPreference = { category: NotificationCategory; in_app_enabled: boolean; push_enabled: boolean };

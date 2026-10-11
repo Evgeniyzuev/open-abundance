@@ -31,6 +31,8 @@ type NotificationDelivery = {
   event_type: string;
   category: string;
   deep_link: string;
+  title?: string | null;
+  body?: string | null;
 };
 
 type SupabaseAdminClient = ReturnType<typeof createClient<any>>;
@@ -123,7 +125,7 @@ Deno.serve(async (request) => {
       await webpush.sendNotification({
         endpoint: delivery.endpoint,
         keys: { p256dh: delivery.p256dh, auth: delivery.auth }
-      }, JSON.stringify(buildNotificationPayload(delivery)), { TTL: 3600 });
+      }, JSON.stringify(buildNotificationPayload(delivery)), { TTL: 3600, urgency: delivery.category === "p2p" ? "high" : "normal" });
       await finishNotificationDelivery(supabase, delivery.delivery_id, true, null);
       await supabase.from("push_subscriptions").update({ last_success_at: new Date().toISOString() }).eq("id", delivery.subscription_id);
       notificationSent += 1;
@@ -146,9 +148,10 @@ Deno.serve(async (request) => {
 
 function buildNotificationPayload(delivery: NotificationDelivery) {
   const isRussian = delivery.locale === "ru";
+  // A P2P deal event carries its own concrete text (amounts and the next step) in the recipient's language.
   return {
-    title: "Open Abundance",
-    body: isRussian ? "Откройте приложение, чтобы посмотреть обновление." : "Open the app to view an update.",
+    title: delivery.title?.trim() || "Open Abundance",
+    body: delivery.body?.trim() || (isRussian ? "Откройте приложение, чтобы посмотреть обновление." : "Open the app to view an update."),
     deepLink: delivery.deep_link,
     tag: `open-abundance-notification:${delivery.delivery_id}`,
     data: { category: delivery.category, eventType: delivery.event_type }

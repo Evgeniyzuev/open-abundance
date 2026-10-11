@@ -58,7 +58,9 @@ export async function POST(request: NextRequest, { params }: { params: { orderId
     if (attachmentPath) await db.storage.from("p2p-order-attachments").remove([attachmentPath]);
     return json({ error: error.message }, 500);
   }
-  await db.rpc("create_notification_event", { p_event_type: "p2p.order.message", p_category: "deals", p_entity_type: "p2p_order", p_entity_id: params.orderId, p_title: "P2P order message", p_body: "Open the order to view a new message.", p_deep_link: `/?view=wallet.p2p&order=${params.orderId}`, p_recipient_user_ids: [access.order.buyer_user_id, access.order.seller_user_id], p_idempotency_key: `p2p-message:${data.id}`, p_metadata: {} });
+  // The other side is told with a concrete push; the text of the message never leaves the deal.
+  const recipients = [access.order.buyer_user_id, access.order.seller_user_id].filter((id) => id !== auth.user.id);
+  await db.rpc("create_notification_event", { p_event_type: "p2p.order.message", p_category: "p2p", p_source_type: "p2p_order", p_source_id: params.orderId, p_title: "P2P order message", p_body: "Open the deal to read it.", p_deep_link: `/?view=wallet.p2p&order=${params.orderId}`, p_recipient_user_ids: recipients, p_idempotency_key: `p2p-message:${data.id}`, p_metadata: {} });
   return json({ message: data }, 201);
 }
 

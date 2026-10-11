@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
     const hasMore = visibleRows.length > limit || (rows?.length ?? 0) > limit;
     const page = visibleRows.slice(0, limit).map((row: any) => {
       const event = Array.isArray(row.event) ? row.event[0] : row.event;
-      const localized = notificationCopy(event?.event_type, locale);
+      const concrete = event?.metadata?.copy?.[locale];
+      const localized = concrete?.title ? { title: String(concrete.title), body: String(concrete.body ?? "") } : notificationCopy(event?.event_type, locale);
       return { id: row.id, readAt: row.read_at, createdAt: row.created_at, ...event, ...(localized ? { title: localized.title, body: localized.body } : {}) };
     });
     return json({ notifications: page, unreadCount: Number(unreadCount ?? 0), nextCursor: hasMore ? page.at(-1)?.createdAt ?? null : null });

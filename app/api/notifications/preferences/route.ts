@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-const CATEGORIES = ["deals", "disputes", "wallet", "rewards", "team", "confirmations", "reminders", "social", "system"] as const;
+const CATEGORIES = ["deals", "disputes", "wallet", "rewards", "team", "confirmations", "reminders", "social", "p2p", "system"] as const;
 type Category = typeof CATEGORIES[number];
 
 export async function GET(request: NextRequest) {
@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest) {
   if (!category || typeof body.inAppEnabled !== "boolean" || typeof body.pushEnabled !== "boolean") {
     return json({ error: "Invalid notification preference." }, 400);
   }
-  if (["deals", "disputes", "wallet", "rewards", "system"].includes(category) && !body.inAppEnabled) {
+  if (["deals", "disputes", "wallet", "rewards", "system", "p2p"].includes(category) && !body.inAppEnabled) {
     return json({ error: "This activity must remain available in the app." }, 400);
   }
   const { error: upsertError } = await (supabase as any).from("notification_preferences").upsert({

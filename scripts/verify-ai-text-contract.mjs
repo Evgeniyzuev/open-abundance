@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { plainChatText } from "../lib/ai/plainText.ts";
+import { plainChatText, repairChunkedText } from "../lib/ai/plainText.ts";
 
 // Run with: node --experimental-strip-types scripts/verify-ai-text-contract.mjs
 const read = (path) => readFileSync(path, "utf8");
@@ -18,6 +18,11 @@ assert.equal(plainChatText("---\nтекст"), "\nтекст".replace(/^\n/, "")
 assert.equal(plainChatText("> цитата"), "цитата");
 assert.equal(plainChatText("[сайт](https://example.com)"), "сайт (https://example.com)");
 assert.equal(plainChatText("1. шаг один"), "1. шаг один", "a numbered line is kept as written");
+
+// --- Old saved chats: one fragment per line is joined back ---
+const fragments = ["Я", "д", "ро", " –", " это", " внутр", "енняя", " «", "кап", "итал", "»", " системы", ".", "", "Вто", "рой", " абз", "ац", "."].join("\n");
+assert.equal(repairChunkedText(fragments), "Ядро – это внутренняя «капитал» системы.\n\nВторой абзац.");
+assert.equal(repairChunkedText("Обычный текст\nв две строки"), "Обычный текст\nв две строки", "normal text is left alone");
 
 // --- The client keeps the paragraph breaks the server sends ---
 const chat = read("components/AiChatApp.tsx");

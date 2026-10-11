@@ -45,4 +45,14 @@ const knowledge = read("lib/ai/knowledge.ts");
 assert.match(knowledge, /no asterisks, no hash signs, no bullet or dash lists/);
 assert.match(knowledge, /two to four short paragraphs separated by a blank line/);
 
+// --- The stream is plain text: no newline is added after each chunk (it turned every word into a line) ---
+const gateway = read("lib/ai/providerGateway.ts");
+assert.doesNotMatch(gateway, /encoder\.encode\(`\$\{(text|finalText)\}\n`\)/, "chunks are sent as they are, model paragraph breaks stay intact");
+
+// --- Speed: the fast provider answers chat first, a stalled one is abandoned quickly ---
+assert.match(gateway, /getAvailableProviders\(process\.env\.AI_CHAT_PRIMARY_PROVIDER/, "chat prefers the fast provider");
+assert.match(gateway, /STREAM_HEADER_TIMEOUT_MS = 6_000/);
+assert.match(gateway, /reasoning_effort: "low"/);
+assert.match(chat, /ai-typing/);
+
 console.log("ai text contract ok");

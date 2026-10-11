@@ -142,7 +142,8 @@ export async function streamAiText({
     return streamOpenRouter({ userId, modelId, systemPrompt, messages, temperature, maxOutputTokens });
   }
 
-  const providers = await getAvailableProviders();
+  // Chat is answered by the fastest provider first (Groq starts in about half a second); the other is the fallback.
+  const providers = await getAvailableProviders(process.env.AI_CHAT_PRIMARY_PROVIDER?.trim().toLowerCase() === "gemini" ? "gemini" : "groq");
   const providerAttempts: AiProviderFailureAttempt[] = [];
 
   for (const { provider, apiKey } of providers) {
@@ -193,7 +194,7 @@ function configuredProviderKeys() {
   };
 }
 
-async function getAvailableProviders(): Promise<Array<{ provider: AiProvider; apiKey: string }>> {
+async function getAvailableProviders(prefer?: AiProvider): Promise<Array<{ provider: AiProvider; apiKey: string }>> {
   const { geminiKey, groqKey } = configuredProviderKeys();
   const configured = [
     geminiKey ? { provider: "gemini" as const, apiKey: geminiKey } : null,
@@ -211,7 +212,7 @@ async function getAvailableProviders(): Promise<Array<{ provider: AiProvider; ap
   }
 
   if (!available.length) throw new AiGatewayError("providers_unavailable");
-  return available;
+  return prefer ? [...available].sort((a, b) => Number(b.provider === prefer) - Number(a.provider === prefer)) : available;
 }
 
 async function streamOpenRouter({
@@ -296,12 +297,12 @@ async function streamOpenRouter({
 
           for (const line of lines) {
             const text = readOpenRouterStreamText(line);
-            if (text) controller.enqueue(encoder.encode(`${text}\n`));
+            if (text) controller.enqueue(encoder.encode(text));
           }
         }
 
         const finalText = readOpenRouterStreamText(buffer);
-        if (finalText) controller.enqueue(encoder.encode(`${finalText}\n`));
+        if (finalText) controller.enqueue(encoder.encode(finalText));
         controller.close();
       } catch (error) {
         controller.error(error);
@@ -313,6 +314,9 @@ async function streamOpenRouter({
 }
 
 const PROVIDER_HEADER_TIMEOUT_MS = 15_000;
+// A streamed answer starts within seconds when the provider is healthy; waiting longer only delays the
+// fallback (measured: gemini-flash-latest sometimes stalls for 40 s or answers 503).
+const STREAM_HEADER_TIMEOUT_MS = 6_000;
 
 /**
  * fetch with a bounded wait for response headers so a stalled provider fails
@@ -321,7 +325,8 @@ const PROVIDER_HEADER_TIMEOUT_MS = 15_000;
  */
 async function providerFetch(provider: "gemini" | "groq", input: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PROVIDER_HEADER_TIMEOUT_MS);
+  const timeoutMs = input.includes(":streamGenerateContent") ? STREAM_HEADER_TIMEOUT_MS : PROVIDER_HEADER_TIMEOUT_MS;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } catch {
@@ -412,12 +417,12 @@ async function streamGemini(
 
           for (const line of lines) {
             const text = readGeminiStreamText(line);
-            if (text) controller.enqueue(encoder.encode(`${text}\n`));
+            if (text) controller.enqueue(encoder.encode(text));
           }
         }
 
         const finalText = readGeminiStreamText(buffer);
-        if (finalText) controller.enqueue(encoder.encode(`${finalText}\n`));
+        if (finalText) controller.enqueue(encoder.encode(finalText));
         controller.close();
       } catch (error) {
         controller.error(error);
@@ -446,6 +451,8 @@ async function streamGroq(
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       temperature,
       max_tokens: maxOutputTokens,
+      // gpt-oss reasons before it answers; low effort keeps the first word fast.
+      reasoning_effort: "low",
       stream: true,
     }),
   });
@@ -475,12 +482,12 @@ async function streamGroq(
 
           for (const line of lines) {
             const text = readGroqStreamText(line);
-            if (text) controller.enqueue(encoder.encode(`${text}\n`));
+            if (text) controller.enqueue(encoder.encode(text));
           }
         }
 
         const finalText = readGroqStreamText(buffer);
-        if (finalText) controller.enqueue(encoder.encode(`${finalText}\n`));
+        if (finalText) controller.enqueue(encoder.encode(finalText));
         controller.close();
       } catch (error) {
         controller.error(error);

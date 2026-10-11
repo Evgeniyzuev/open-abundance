@@ -932,7 +932,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
               <div className="ai-msg-content">
                 <div className={message.failed ? "ai-msg-bubble ai-msg-failed" : "ai-msg-bubble"}>
                   {message.role === "assistant" ? plainChatText(message.content) : message.content}
-                  {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing">{attempt > 1 ? t("ai.chat.attempt", { attempt, max: MAX_CHAT_ATTEMPTS }) : "..."}</span> : null}
+                  {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing" role="status" aria-label={t("ai.chat.typing")}><i /><i /><i />{attempt > 1 ? <small>{t("ai.chat.attempt", { attempt, max: MAX_CHAT_ATTEMPTS })}</small> : null}</span> : null}
                 </div>
                 {message.failed === "retry" && index === messages.length - 1 && !isLoading ? (
                   <button className="secondary-button ai-retry" type="button" onClick={() => {

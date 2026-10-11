@@ -2033,6 +2033,7 @@ export const messages = {
       "ai.chat.loading": "Восстанавливаем чат...",
       "ai.chat.attempt": "Нова отвечает, попытка {attempt} из {max}…",
       "ai.chat.retry": "Повторить",
+      "ai.chat.typing": "Нова печатает",
       "ai.chat.error": "Не удалось получить ответ. Попробуйте еще раз."
   },
   en: {
@@ -4030,6 +4031,7 @@ export const messages = {
       "ai.chat.loading": "Restoring chat...",
       "ai.chat.attempt": "Nova is answering, attempt {attempt} of {max}…",
       "ai.chat.retry": "Try again",
+      "ai.chat.typing": "Nova is typing",
       "ai.chat.error": "Failed to get response. Try again."
   }
 } satisfies Record<AppLocale, Record<string, string>>;

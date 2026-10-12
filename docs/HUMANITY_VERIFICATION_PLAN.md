@@ -202,3 +202,22 @@ Webhook-обработчик обязан принимать out-of-order callba
 - [NIST FRVT 1:N](https://pages.nist.gov/frvt/html/frvt1N.html), [NIST biometrics guidance](https://pages.nist.gov/800-63-3/sp800-63b.html).
 
 Связанные внутренние документы: [MASTER_KANBAN.md](./MASTER_KANBAN.md), [AI_COORDINATOR_SYSTEM_GROWTH_PLAN.md](./AI_COORDINATOR_SYSTEM_GROWTH_PLAN.md), [OPEN_ABUNDANCE_MASTER_PLAN.md](./OPEN_ABUNDANCE_MASTER_PLAN.md), [PROJECT_MEMORY.md](./PROJECT_MEMORY.md), [DATABASE.md](./DATABASE.md), [USERS.md](./USERS.md), [CHALLENGES_CATALOG.md](./CHALLENGES_CATALOG.md), [TODAY_DAILY_CHALLENGE_PLAN.md](./TODAY_DAILY_CHALLENGE_PLAN.md).
+
+## Статус реализации и подключение Didit (2026-10-12)
+
+Решение основателя: пилот уровня 2 запускаем на Didit (бесплатный лимит, поиск дублей по лицу внутри нашего аккаунта). Sumsub остаётся запасным провайдером.
+
+Реализован каркас (без секретов, миграция и ключи включаются отдельно):
+
+- Миграция `20261012170000_humanity_verification.sql`: расширена `humanity_verifications`, таблицы `humanity_verification_attempts` и `humanity_provider_events` (RLS, без клиентского доступа), функция `apply_humanity_result` (идемпотентна по событию провайдера, одобрение поднимает уровень до 2 и никогда не понижает уже подтверждённый уровень).
+- API: `POST /api/humanity/start` (нужно явное согласие, до 3 попыток в сутки, создаёт сессию Didit), `GET /api/humanity/status`, `POST /api/humanity/webhook/didit` (проверка `X-Signature-V2` и свежести, решение перепроверяется запросом к Didit своим ключом, уровень применяется по сессии, созданной для этого пользователя).
+- Интерфейс: карточка «Подтвердите, что вы человек» на Home (появляется только когда провайдер настроен и пользователь не подтверждён), согласие, возврат по `?humanity=done` с ожиданием результата; в политике конфиденциальности добавлен раздел о добровольном подтверждении.
+- Подтверждение уровня 2 включает лидерский бонус в Wallet (когда подтверждены и лидер, и участник) и будущую награду за подтверждённого реферала.
+
+Что нужно сделать основателю в Didit и Vercel:
+
+1. Создать приложение и workflow без документа: активная или пассивная живость плюс Face Search 1:N; для дубликата выставить действие «отклонять» (Decline); сверку документа не включать.
+2. Добавить webhook-получатель `https://open-abundance.vercel.app/api/humanity/webhook/didit` на событие `status.updated` и сохранить его секрет.
+3. Записать в Vercel (только там, не в чат и не в репозиторий): `DIDIT_API_KEY`, `DIDIT_WORKFLOW_ID`, `DIDIT_WEBHOOK_SECRET`.
+4. До открытия всем уточнить у Didit доступность по нужным странам, срок хранения шаблонов лиц и условия бесплатного лимита; юридически проверить текст согласия.
+5. Пройти проверку на тестовом аккаунте, затем повторить на втором аккаунте тем же лицом: дубль должен отклоняться.

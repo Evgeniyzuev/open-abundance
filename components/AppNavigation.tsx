@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import FeedbackButton from "@/components/FeedbackButton";
+import HumanityCard from "@/components/HumanityCard";
 import OperatorEntry from "@/components/OperatorEntry";
 import PayRequestEntry from "@/components/PayRequestEntry";
 import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
@@ -623,6 +624,7 @@ export default function AppNavigation() {
           <InstallPingAck />
           <NicknameNotice active={showHome} />
           <SelfServeCheckIn active={showHome} />
+          <HumanityCard active={showHome} />
           <WishOutcomeCheck active={showHome} />
         </div>
         <KeepAliveView active={showNotes} visited>

@@ -94,6 +94,13 @@ export const privacyContent: Record<LegalLocale, LegalDocumentContent> = {
         ]
       },
       {
+        title: "Подтверждение человечности (по желанию)",
+        paragraphs: [
+          "По желанию пользователя можно пройти короткую проверку, что он живой уникальный человек. Проверку проводит внешний провайдер: он обрабатывает видео лица и сообщает сервису только результат (подтверждено, на рассмотрении, отклонено), идентификатор проверки и время. Open Abundance не хранит видео, фотографии лица, голос, биометрические шаблоны и документы.",
+          "Проверка добровольна и требует отдельного согласия перед запуском. Если проходить её онлайн не хочется или не получается, можно обратиться в поддержку: подтверждение возможно вручную. Результат нужен для наград, которым требуется уникальный человек, и для защиты от злоупотреблений."
+        ]
+      },
+      {
         title: "6. Аналитика и локальное хранилище",
         paragraphs: [
           "Сервис использует собственные продуктовые события, технические метрики Vercel, localStorage и IndexedDB. Они нужны для входа, сохранения локального состояния, диагностики и понимания работы функций. Если в будущем появятся рекламные или необязательные трекеры, политика и механизм согласия должны быть обновлены до их включения."
@@ -158,6 +165,13 @@ export const privacyContent: Record<LegalLocale, LegalDocumentContent> = {
         paragraphs: [
           "The service may use Vercel for hosting and performance measurement, Supabase for authentication, databases, and file storage, Google or another selected sign-in provider, and AI providers. When an AI feature is used, the prompt and necessary context are sent to the selected provider to produce a response.",
           "Public profile data and posts are available to other users and visitors according to the selected visibility. External links are governed by the destination site's rules."
+        ]
+      },
+      {
+        title: "Humanity confirmation (optional)",
+        paragraphs: [
+          "Users may choose to take a short check that they are a live, unique person. An external provider performs the check: it processes a face video and tells the service only the result (confirmed, under review, declined), a check identifier and the time. Open Abundance does not store video, face photos, voice, biometric templates or documents.",
+          "The check is voluntary and needs separate consent before it starts. If you prefer not to do it online or it does not work, contact support: manual confirmation is possible. The result is used for rewards that require a unique person and for abuse protection."
         ]
       },
       {

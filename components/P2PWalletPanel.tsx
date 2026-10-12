@@ -125,6 +125,7 @@ function MarketAds(props: any) {
 
 function MyAds(props: any) {
   const { t } = props;
+  const fees = useWalletFees();
   return <div>
     <details className="p2p-form-card" open><summary>{t(props.adForm.direction === "sell" ? "p2p.ad.create" : "p2p.ad.buyCreate")}</summary>
       <div className="p2p-form-grid">
@@ -135,6 +136,7 @@ function MyAds(props: any) {
         <label className="finance-field"><span>{t("p2p.maximum")}</span><input inputMode="decimal" value={props.adForm.maxWalletAmount} onChange={(event) => props.setAdForm({ ...props.adForm, maxWalletAmount: event.target.value })} /></label>
         {props.adForm.direction === "sell" ? <><PaymentFields details={props.adDetails} setDetails={props.setAdDetails} t={t} /><label className="p2p-terms"><input type="checkbox" checked={props.adSaveDetails} onChange={(event) => props.setAdSaveDetails(event.target.checked)} /><span>{t("p2p.payment.saveOptional")}</span></label></> : null}
         <label className="p2p-terms"><input type="checkbox" checked={props.terms.ad ?? false} onChange={(event) => props.setTerms({ ...props.terms, ad: event.target.checked })} /><span>{t("p2p.coreRecoveryConsent")}</span></label>
+        {fees && fees.p2pPercent > 0 ? <small className="transfer-muted">{t("fees.p2p.adNote", { percent: fees.p2pPercent })}</small> : null}
         <button className="challenge-primary-action" type="button" disabled={props.saving || !props.tradingEnabled || (props.adForm.direction === "sell" && !props.paymentReady) || !props.terms.ad} onClick={props.onCreate}>{t("p2p.ad.publish")}</button>
       </div>
     </details>

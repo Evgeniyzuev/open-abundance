@@ -4,20 +4,30 @@ import { readFileSync } from "node:fs";
 // Run with: node scripts/verify-fees-contract.mjs
 const read = (path) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 
-// --- P2P: the project fee is kept when the escrow is released to the buyer ---
-const sql = read("supabase/migrations/20261012120000_p2p_release_fee.sql");
-assert.match(sql, /update public\.p2p_risk_configs set pilot_fee_percent = 1 where version = 'p2p-pilot-v1'/, "the fee mechanism exists (the percentage is paused, see below)");
-assert.match(read("supabase/migrations/20261012140000_cryptopay_gross_amount_and_p2p_fee_pause.sql"), /set pilot_fee_percent = 0 where version = 'p2p-pilot-v1'/, "no fee is taken from the buyer until the seller pays it");
-assert.match(sql, /release_fee := round\(target\.wallet_amount \* config\.pilot_fee_percent \/ 100, 2\)/, "the fee comes from the order's config version");
-assert.match(sql, /next_balance := buyer_wallet\.balance \+ target\.wallet_amount - release_fee/, "the normal release credits the buyer net of the fee");
-assert.match(sql, /target\.buyer_user_id, 'credit', target\.wallet_amount - release_fee/, "the ledger shows the net credit");
-assert.match(sql, /'gross_amount', target\.wallet_amount, 'project_fee', release_fee/, "the fee is recorded on the ledger row");
-assert.match(sql, /case when recipient_id = target\.buyer_user_id then round\(target\.wallet_amount \* config\.pilot_fee_percent \/ 100, 2\) else 0 end/, "a refund or compensation to the seller carries no fee");
-assert.match(sql, /p_event_type = 'p2p\.order\.confirm_received'/, "the push names the net amount");
-// The three functions that were re-created keep their original signatures and their privileges.
-assert.match(sql, /create or replace function public\.p2p_order_action\(/);
-assert.match(sql, /create or replace function public\.p2p_admin_resolve_dispute\(/);
-assert.match(sql, /create or replace function public\.create_notification_event\(/);
+// --- P2P: the seller pays the project fee, held together with the escrow ---
+const sql = read("supabase/migrations/20261012150000_p2p_seller_fee.sql");
+assert.match(sql, /update public\.p2p_risk_configs set pilot_fee_percent = 1 where version = 'p2p-pilot-v1'/, "the fee is 1%");
+assert.match(sql, /add column if not exists fee_reserved numeric/, "a sell ad keeps a fee reserve");
+assert.match(sql, /add column if not exists seller_fee numeric/, "every order records its share of the fee");
+assert.match(sql, /seller_fee_status in \('none', 'held', 'charged', 'returned'\)/);
+// Publishing a sell ad holds escrow + fee; a responding seller on a buy ad holds both when the order is created.
+assert.match(sql, /ad_fee := round\(p_wallet_amount \* config\.pilot_fee_percent \/ 100, 2\)/);
+assert.match(sql, /wallet\.balance < p_wallet_amount \+ ad_fee/, "the seller needs the fee on top of the amount");
+assert.match(sql, /seller_wallet\.balance < p_wallet_amount \+ order_fee/, "so does a seller answering a buy ad");
+assert.match(sql, /case when ad\.available_amount - p_wallet_amount = 0 then ad\.fee_reserved else least\(order_fee, ad\.fee_reserved\) end/, "the last order takes what is left, so nothing stays locked");
+// The buyer is credited the full amount: no fee is kept out of the buyer's credit any more.
+assert.doesNotMatch(sql, /next_balance := buyer_wallet\.balance \+ target\.wallet_amount - release_fee/);
+assert.doesNotMatch(sql, /release_fee/, "the buyer-side fee is gone");
+// Releasing to the buyer charges the held fee; every way back to the seller returns it.
+assert.match(sql, /seller_fee_status = case when seller_fee_status = 'held' then 'charged' else seller_fee_status end, status = 'released'/, "a confirmed payment charges the fee");
+assert.match(sql, /fee_reserved = fee_reserved \+ target\.seller_fee/, "a cancelled sell order gives the fee back to the ad");
+assert.match(sql, /next_balance := wallet\.balance \+ target\.wallet_amount \+ target\.seller_fee/, "a cancelled buy order gives amount and fee back to the seller");
+assert.match(sql, /next_balance := wallet\.balance \+ ad\.available_amount \+ ad\.fee_reserved/, "cancelling an ad returns the unused escrow and the unused fee");
+assert.match(sql, /refund_fee := case when p_outcome = 'refund_seller' and target\.seller_fee_status = 'held' then target\.seller_fee else 0 end/, "a dispute refund returns the fee");
+assert.match(sql, /'release_to_buyer', 'dismiss'\) then 'charged'/, "a dispute resolved for the buyer charges it");
+for (const fn of ["p2p_create_ad_v2", "p2p_create_order_v2", "p2p_order_action", "p2p_release_order_reserve", "p2p_cancel_ad", "p2p_admin_resolve_dispute", "create_notification_event"]) {
+  assert.ok(sql.includes(`create or replace function public.${fn}(`), fn + " is re-created");
+}
 
 // --- Fees shown to people come from the settings the money paths use ---
 const fees = read("app/api/wallet/fees/route.ts");
@@ -29,6 +39,7 @@ assert.match(fees, /cryptoPayPercent: loadCryptoPayConfig\(\)\.feePercent/, "the
 const modal = read("components/WalletCryptoMethodModal.tsx");
 for (const key of ["fees.deposit.chain", "fees.deposit.cryptoPay", "fees.withdraw.percent"]) assert.match(modal, new RegExp(key.replace(".", "\.")), key + " is shown on the method cards");
 assert.match(read("components/P2PWalletPanel.tsx"), /fees\.p2p\.note/, "the P2P deal screen names the fee");
+assert.match(read("components/P2PWalletPanel.tsx"), /fees\.p2p\.adNote/, "the ad form says the seller holds the fee");
 assert.match(read("components/WalletApp.tsx"), /fees=\{walletFees\}/, "both menus get the fees");
 
 // --- No per-person fee tracking: the decision is a flat, visible fee ---

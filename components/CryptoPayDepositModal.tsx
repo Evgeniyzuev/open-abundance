@@ -3,11 +3,12 @@
 import { Check, ExternalLink } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { MessageKey } from "@/lib/i18n";
+import { grossUpForFee } from "@/lib/cryptoPayFee";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
-type Limits = { enabled: boolean; network: "mainnet" | "testnet"; minUsd: number; maxUsd: number; dailyUsd: number };
-type Invoice = { id: string; usdAmount: number; payUrl: string | null; miniAppUrl: string | null; expiresAt: string; network: string };
+type Limits = { enabled: boolean; network: "mainnet" | "testnet"; minUsd: number; maxUsd: number; dailyUsd: number; feePercent: number };
+type Invoice = { id: string; usdAmount: number; payUsdAmount: number; feeUsd: number; payUrl: string | null; miniAppUrl: string | null; expiresAt: string; network: string };
 
 const PRESETS = [5, 10, 25, 50];
 
@@ -101,6 +102,11 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
                 <input inputMode="decimal" value={amount} onChange={(event) => { setAmount(event.target.value); setError(null); }} />
               </label>
               {limits ? <small className="transfer-muted">{t("wallet.cryptopay.limits", { min: limits.minUsd, max: limits.maxUsd })}</small> : null}
+              {limits && amountValid && limits.feePercent > 0 ? (
+                <p className="cryptopay-quote" role="status">
+                  {t("wallet.cryptopay.quote", { pay: grossUpForFee(numeric, limits.feePercent).toFixed(2), fee: (grossUpForFee(numeric, limits.feePercent) - numeric).toFixed(2), percent: limits.feePercent, credit: numeric.toFixed(2) })}
+                </p>
+              ) : null}
               {error ? <p className="topup-error">{error}</p> : null}
               <button className="challenge-primary-action" type="button" disabled={busy || !amountValid || !limits?.enabled} onClick={() => void create()}>
                 {busy ? t("app.common.loading") : t("wallet.cryptopay.create", { amount: Number.isFinite(numeric) ? numeric : 0 })}
@@ -109,7 +115,8 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
             </>
           ) : (
             <>
-              <p className="cryptopay-amount">${invoice.usdAmount.toFixed(2)}</p>
+              <p className="cryptopay-amount">${invoice.payUsdAmount.toFixed(2)}</p>
+              {invoice.feeUsd > 0 ? <p className="transfer-muted">{t("wallet.cryptopay.invoiceNote", { credit: invoice.usdAmount.toFixed(2), fee: invoice.feeUsd.toFixed(2) })}</p> : null}
               {status === "active" ? (
                 <>
                   <p className="transfer-muted">{t("wallet.cryptopay.waiting")}</p>

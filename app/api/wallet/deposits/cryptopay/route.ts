@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { confirmAndSettle, createCryptoPayInvoice, loadCryptoPayConfig } from "@/lib/cryptoPay";
 import { parseUsdAmount } from "@/lib/cryptoPayCore";
+import { grossUpForFee } from "@/lib/cryptoPayFee";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
@@ -25,12 +26,12 @@ export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
 
   if (!id) {
-    return json({ enabled: config.ready, network: config.network, minUsd: config.minUsd, maxUsd: config.maxUsd, dailyUsd: config.dailyUsd });
+    return json({ enabled: config.ready, network: config.network, minUsd: config.minUsd, maxUsd: config.maxUsd, dailyUsd: config.dailyUsd, feePercent: config.feePercent });
   }
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return json({ error: "Invalid invoice id." }, 400);
 
   const db = supabase as any;
-  const { data: row } = await db.from("payment_provider_invoices").select("id,user_id,usd_amount,provider_invoice_id,status,network,expires_at,paid_asset").eq("id", id).eq("user_id", user.id).maybeSingle();
+  const { data: row } = await db.from("payment_provider_invoices").select("id,user_id,usd_amount,pay_usd_amount,provider_invoice_id,status,network,expires_at,paid_asset").eq("id", id).eq("user_id", user.id).maybeSingle();
   if (!row) return json({ error: "Invoice not found." }, 404);
 
   let status: string = row.status;
@@ -69,16 +70,18 @@ export async function POST(request: NextRequest) {
   if (dayTotal + usdAmount > config.dailyUsd) return json({ error: "Daily top-up limit reached.", code: "daily_limit", dailyUsd: config.dailyUsd }, 429);
 
   const id = crypto.randomUUID();
+  // The person chooses what reaches their Wallet; the invoice carries the provider's share on top.
+  const payAmount = grossUpForFee(usdAmount, config.feePercent);
   try {
-    const invoice = await createCryptoPayInvoice(config, { invoiceId: id, usdAmount, expiresInSeconds: INVOICE_TTL_SECONDS, description: "Open Abundance Wallet top-up" });
+    const invoice = await createCryptoPayInvoice(config, { invoiceId: id, usdAmount: payAmount, expiresInSeconds: INVOICE_TTL_SECONDS, description: "Open Abundance Wallet top-up" });
     const payUrl = invoice.bot_invoice_url ?? invoice.pay_url ?? null;
     const expiresAt = new Date(Date.now() + INVOICE_TTL_SECONDS * 1000).toISOString();
     const { error: insertError } = await db.from("payment_provider_invoices").insert({
       id, user_id: user.id, provider: "cryptopay", network: config.network, provider_invoice_id: String(invoice.invoice_id),
-      status: "active", usd_amount: usdAmount, pay_url: payUrl, expires_at: expiresAt, idempotency_key: id
+      status: "active", usd_amount: usdAmount, pay_usd_amount: payAmount, pay_url: payUrl, expires_at: expiresAt, idempotency_key: id
     });
     if (insertError) return json({ error: "Could not save the invoice." }, 500);
-    return json({ invoice: { id, usdAmount, payUrl, miniAppUrl: invoice.mini_app_invoice_url ?? null, expiresAt, network: config.network } }, 201);
+    return json({ invoice: { id, usdAmount, payUsdAmount: payAmount, feeUsd: Math.round((payAmount - usdAmount) * 100) / 100, payUrl, miniAppUrl: invoice.mini_app_invoice_url ?? null, expiresAt, network: config.network } }, 201);
   } catch (providerError) {
     // The provider's error name (for example UNAUTHORIZED) is safe to show; the token and request never are.
     const reason = providerError instanceof Error ? providerError.message.split(": ").pop() ?? "unknown" : "unknown";

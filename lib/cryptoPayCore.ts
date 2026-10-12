@@ -61,6 +61,8 @@ export type CryptoPayConfig = {
   minUsd: number;
   maxUsd: number;
   dailyUsd: number;
+  /** The share the provider keeps; added to the invoice so the project bears no cost. */
+  feePercent: number;
 };
 
 const clean = (value: string | undefined) => (value ?? "").trim().replace(/^["']|["']$/g, "").trim();
@@ -82,7 +84,9 @@ export function readCryptoPayConfig(env: Record<string, string | undefined>): Cr
     baseUrl: network === "mainnet" ? "https://pay.crypt.bot/api" : "https://testnet-pay.crypt.bot/api",
     minUsd: number(env.CRYPTO_PAY_MIN_USD, 1),
     maxUsd: number(env.CRYPTO_PAY_MAX_USD, 50),
-    dailyUsd: number(env.CRYPTO_PAY_DAILY_USD, 100)
+    dailyUsd: number(env.CRYPTO_PAY_DAILY_USD, 100),
+    // Measured on the test network: 0.150 of 5.005 paid, 3.0%.
+    feePercent: Math.min(number(env.CRYPTO_PAY_FEE_PERCENT, 3), 20)
   };
 }
 

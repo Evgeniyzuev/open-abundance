@@ -55,10 +55,11 @@ export type SettleOutcome =
  * Asks the provider about the invoice (never trusting a webhook alone), checks that it is the invoice we
  * created and is fully paid, then settles it once in the database.
  */
-export async function confirmAndSettle(db: any, config: CryptoPayConfig, row: { id: string; user_id: string; usd_amount: number | string; provider_invoice_id: string | null; status: string }): Promise<SettleOutcome> {
+export async function confirmAndSettle(db: any, config: CryptoPayConfig, row: { id: string; user_id: string; usd_amount: number | string; pay_usd_amount?: number | string | null; provider_invoice_id: string | null; status: string }): Promise<SettleOutcome> {
   if (!row.provider_invoice_id) return { settled: false, reason: "no_provider_invoice" };
   if (row.status === "credited" || row.status === "paid_test") return { settled: true, status: row.status, usdAmount: Number(row.usd_amount), walletBalance: null };
-  const expected: ExpectedInvoice = { id: row.id, usdAmount: Number(row.usd_amount), providerInvoiceId: row.provider_invoice_id };
+  // The provider invoice is for the grossed-up amount; the Wallet is credited the amount the person chose.
+  const expected: ExpectedInvoice = { id: row.id, usdAmount: Number(row.pay_usd_amount ?? row.usd_amount), providerInvoiceId: row.provider_invoice_id };
   const remote = await getCryptoPayInvoice(config, row.provider_invoice_id);
   const match = invoiceMatches(remote, expected);
   if (!match.ok) {

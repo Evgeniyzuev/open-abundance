@@ -2850,3 +2850,4 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .cryptopay-open { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
 .cryptopay-done { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; color: var(--blue); font-weight: 700; text-align: center; }
 .wallet-fee-line { display: block; margin-top: 4px; color: var(--muted); font-size: 0.75rem; font-style: normal; }
+.cryptopay-quote { margin: 0; border-radius: 10px; padding: 8px 10px; background: var(--surface-muted); color: var(--muted); font-size: 0.82rem; line-height: 1.35; }

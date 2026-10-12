@@ -6,7 +6,8 @@ const read = (path) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 
 // --- P2P: the project fee is kept when the escrow is released to the buyer ---
 const sql = read("supabase/migrations/20261012120000_p2p_release_fee.sql");
-assert.match(sql, /update public\.p2p_risk_configs set pilot_fee_percent = 1 where version = 'p2p-pilot-v1'/, "the fee is 1%");
+assert.match(sql, /update public\.p2p_risk_configs set pilot_fee_percent = 1 where version = 'p2p-pilot-v1'/, "the fee mechanism exists (the percentage is paused, see below)");
+assert.match(read("supabase/migrations/20261012140000_cryptopay_gross_amount_and_p2p_fee_pause.sql"), /set pilot_fee_percent = 0 where version = 'p2p-pilot-v1'/, "no fee is taken from the buyer until the seller pays it");
 assert.match(sql, /release_fee := round\(target\.wallet_amount \* config\.pilot_fee_percent \/ 100, 2\)/, "the fee comes from the order's config version");
 assert.match(sql, /next_balance := buyer_wallet\.balance \+ target\.wallet_amount - release_fee/, "the normal release credits the buyer net of the fee");
 assert.match(sql, /target\.buyer_user_id, 'credit', target\.wallet_amount - release_fee/, "the ledger shows the net credit");
@@ -23,8 +24,7 @@ const fees = read("app/api/wallet/fees/route.ts");
 assert.match(fees, /loadTonWithdrawalConfig\(\)\.serviceFeePercent/, "the TON withdrawal fee is the configured one");
 assert.match(fees, /TON_USDT_SERVICE_FEE_PERCENT/, "the USDT withdrawal fee is the configured one");
 assert.match(fees, /from\("p2p_risk_configs"\)\.select\("pilot_fee_percent"\)\.eq\("is_active", true\)/, "the P2P fee is the active risk config");
-assert.match(fees, /cryptoPayPercent: 0/, "CryptoBot deposits are free for the person");
-assert.doesNotMatch(fees, /providerFee|provider_fee|3%/, "what CryptoBot costs the project is not shown");
+assert.match(fees, /cryptoPayPercent: loadCryptoPayConfig\(\)\.feePercent/, "the CryptoBot share is shown, because it is added to the invoice");
 
 const modal = read("components/WalletCryptoMethodModal.tsx");
 for (const key of ["fees.deposit.chain", "fees.deposit.cryptoPay", "fees.withdraw.percent"]) assert.match(modal, new RegExp(key.replace(".", "\.")), key + " is shown on the method cards");

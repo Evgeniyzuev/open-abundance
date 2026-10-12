@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const usdtPercent = Number(String(process.env.TON_USDT_SERVICE_FEE_PERCENT ?? "").replace(/["']/g, "").trim());
 
   return NextResponse.json({
-    deposit: { tonPercent: 0, usdtTonPercent: 0, cryptoPayPercent: 0, cryptoPayEnabled: loadCryptoPayConfig().ready },
+    deposit: { tonPercent: 0, usdtTonPercent: 0, cryptoPayPercent: loadCryptoPayConfig().feePercent, cryptoPayEnabled: loadCryptoPayConfig().ready },
     withdraw: {
       tonPercent: Number(loadTonWithdrawalConfig().serviceFeePercent),
       usdtTonPercent: Number.isFinite(usdtPercent) && usdtPercent > 0 ? usdtPercent : 1

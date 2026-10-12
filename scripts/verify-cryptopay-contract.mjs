@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { grossUpForFee } from "../lib/cryptoPayFee.ts";
 import { invoiceMatches, parseUsdAmount, readCryptoPayConfig, verifyCryptoPaySignature, webhookIsFresh } from "../lib/cryptoPayCore.ts";
 
 // Run with: node --experimental-strip-types scripts/verify-cryptopay-contract.mjs
@@ -60,6 +61,19 @@ assert.equal(parseUsdAmount(51, 1, 50), null, "above the maximum");
 assert.equal(parseUsdAmount("1.005", 1, 50), null, "not a whole cent");
 assert.equal(parseUsdAmount("abc", 1, 50), null);
 
+// --- The project never pays for a deposit: the invoice carries the provider's share ---
+assert.equal(grossUpForFee(5, 3), 5.16, "5 chosen, 3% share: invoice 5.16");
+assert.equal(grossUpForFee(10, 3), 10.31);
+assert.equal(grossUpForFee(1, 3), 1.04);
+assert.equal(grossUpForFee(100, 0), 100, "no share, no gross-up");
+for (const credit of [1, 5, 7.5, 10, 25, 49.99, 50]) {
+  const invoiced = grossUpForFee(credit, 3);
+  assert.ok(invoiced * 0.97 >= credit - 1e-9, `after 3% of ${invoiced} at least ${credit} remains`);
+  assert.ok(invoiced * 0.97 - credit < 0.011, `and not more than a cent extra for ${credit}`);
+}
+assert.equal(readCryptoPayConfig({}).feePercent, 3, "the provider share defaults to the measured 3%");
+assert.equal(readCryptoPayConfig({ CRYPTO_PAY_FEE_PERCENT: "2.5" }).feePercent, 2.5);
+
 // --- Wiring ---
 const sql = read("supabase/migrations/20261012100000_payment_provider_invoices.sql");
 assert.match(sql, /if v_invoice\.network <> 'mainnet' then/, "a test-network payment never credits a Wallet, enforced in the database");
@@ -74,6 +88,9 @@ assert.match(lib, /getCryptoPayInvoice/, "the provider is asked again before cre
 assert.match(lib, /invoiceMatches\(remote, expected\)/);
 const route = read("app/api/wallet/deposits/cryptopay/route.ts");
 assert.match(route, /MAX_OPEN_INVOICES/);
+assert.match(route, /grossUpForFee\(usdAmount, config\.feePercent\)/, "the invoice is raised by the provider share");
+assert.match(route, /pay_usd_amount: payAmount/, "the invoiced amount is stored next to the credited one");
+assert.match(lib, /row\.pay_usd_amount \?\? row\.usd_amount/, "the provider invoice is matched against the invoiced amount, the Wallet is credited the chosen one");
 assert.match(route, /config\.dailyUsd/, "a daily cap per person");
 assert.match(route, /payload.*|invoiceId: id/);
 assert.doesNotMatch(lib + route + webhook, /console\.(log|error)\([^)]*token/i, "the token is never logged");

@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
   const db = createServiceSupabaseClient() as any;
   const { data: row } = await db.from("payment_provider_invoices")
-    .select("id,user_id,usd_amount,provider_invoice_id,status")
+    .select("id,user_id,usd_amount,pay_usd_amount,provider_invoice_id,status")
     .eq("provider", "cryptopay").eq("network", config.network).eq("provider_invoice_id", providerInvoiceId).maybeSingle();
   if (!row) return respond({ ok: true, ignored: "unknown_invoice" });
 

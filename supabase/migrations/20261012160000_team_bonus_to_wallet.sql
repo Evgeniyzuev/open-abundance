@@ -1,15 +1,42 @@
 -- Leader bonus moves to Wallet (decision of the founder, 2026-10-12).
 --
--- The bonus stays 10% of the daily Core growth of a direct team member. It is now credited to the
--- leader's Wallet (withdrawable) instead of Core, with a safety valve: a daily cap per leader on the
--- Wallet part (default $5). Anything above the cap is credited to Core as before, so no bonus is lost.
--- The destination can be switched back with one UPDATE of team_bonus_settings.
--- Amounts are no longer rounded to cents; they are kept with 12 decimals like the rest of Wallet.
+-- The bonus stays 10% of the daily Core growth of a direct team member. It is credited to the
+-- leader's Wallet (withdrawable) only when BOTH the leader and the member are humanity-confirmed
+-- (humanity_level >= 2, see docs/HUMANITY_VERIFICATION_PLAN.md). Otherwise it is credited to Core
+-- as before, so no bonus is lost. Until a verification flow fills humanity_verifications, nobody is
+-- confirmed and every bonus still goes to Core. The destination can be switched back to Core for
+-- everyone with one UPDATE of team_bonus_settings. Amounts are no longer rounded to cents; they
+-- are kept with 12 decimals like the rest of Wallet.
+
+-- Humanity confirmation results. Written only by the verification flow (service role).
+create table if not exists public.humanity_verifications (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  humanity_level smallint not null default 0 check (humanity_level between 0 and 3),
+  verified_at timestamptz,
+  method text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.humanity_verifications enable row level security;
+revoke all on public.humanity_verifications from public, anon, authenticated;
+grant select, insert, update on public.humanity_verifications to service_role;
+
+create or replace function public.is_humanity_confirmed(p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select coalesce((select humanity_level >= 2 from public.humanity_verifications where user_id = p_user_id), false);
+$;
+
+revoke all on function public.is_humanity_confirmed(uuid) from public, anon, authenticated;
+grant execute on function public.is_humanity_confirmed(uuid) to service_role;
 
 create table if not exists public.team_bonus_settings (
   id boolean primary key default true check (id),
   destination text not null default 'wallet' check (destination in ('wallet', 'core')),
-  daily_wallet_cap_per_leader numeric(30, 12) not null default 5 check (daily_wallet_cap_per_leader >= 0),
   updated_at timestamptz not null default now()
 );
 
@@ -68,8 +95,6 @@ declare
   reward_amount numeric(30, 12);
   wallet_part numeric(30, 12) := 0;
   core_part numeric(30, 12);
-  cap_left numeric(30, 12);
-  paid_today numeric(30, 12);
   inserted_reward_id uuid;
   next_wallet_balance numeric(30, 12);
 begin
@@ -116,19 +141,18 @@ begin
   if reward_amount > 0 then
     select * into settings from public.team_bonus_settings where id = true;
 
-    if found and settings.destination = 'wallet' then
+    if found
+      and settings.destination = 'wallet'
+      and public.is_humanity_confirmed(membership.leader_user_id)
+      and public.is_humanity_confirmed(p_member_user_id)
+    then
       select * into leader_wallet
       from public.wallet_accounts
       where user_id = membership.leader_user_id
       for update;
 
       if found then
-        select coalesce(sum(r.wallet_amount), 0) into paid_today
-        from public.team_core_growth_rewards r
-        where r.leader_user_id = membership.leader_user_id
-          and r.bonus_date = p_bonus_date;
-        cap_left := greatest(0, settings.daily_wallet_cap_per_leader - paid_today);
-        wallet_part := least(reward_amount, cap_left);
+        wallet_part := reward_amount;
       end if;
     end if;
 

@@ -49,7 +49,7 @@ type CoreHistoryRow = {
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release";
+  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release" | "team_bonus";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -962,7 +962,9 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 <article className="payout-row" key={row.id}>
                   <div>
                     <strong>{formatDay(row.operation_date, locale)}</strong>
-                    <span>{row.kind === "challenge_reward"
+                    <span>{row.kind === "team_bonus"
+                      ? t("wallet.history.leaderBonusWallet")
+                      : row.kind === "challenge_reward"
                       ? t("wallet.history.challengeReward")
                       : row.kind === "wallet_core_topup"
                         ? t("wallet.history.walletCoreTopup")
@@ -1001,7 +1003,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                     <span>{t("wallet.wallet")}</span>
                   </div>
                   <p>
-                    {row.kind === "challenge_reward" || row.kind === "wallet_core_topup"
+                    {row.kind === "challenge_reward" || row.kind === "wallet_core_topup" || row.kind === "team_bonus"
                       ? `${t("wallet.history.source")}: ${shortId(row.sourceId ?? row.id)}`
                       : row.kind === "wallet_transfer"
                       ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.source")}: ${shortId(row.sourceId)}` : ""}`

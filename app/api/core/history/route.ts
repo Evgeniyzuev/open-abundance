@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
         .gt("amount", 0)
         .order("created_at", { ascending: false })
         .limit(limit),
-      supabase
+      (supabase as any)
         .from("team_core_growth_rewards")
-        .select("id,reward_amount,created_at,bonus_date,source_user_id,depth")
+        .select("id,core_amount,created_at,bonus_date,source_user_id,depth")
         .eq("leader_user_id", user.id)
-        .gt("reward_amount", 0)
+        .gt("core_amount", 0)
         .order("created_at", { ascending: false })
         .limit(limit)
     ]);
@@ -104,11 +104,11 @@ export async function GET(request: NextRequest) {
         source_id: row.source_id ?? row.id,
         metadata: row.metadata ?? undefined
       })),
-      ...((teamBonuses.data ?? []) as Array<{ id: string; reward_amount: number; created_at: string; bonus_date: string; source_user_id: string; depth: number }>).map((row) => ({
+      ...((teamBonuses.data ?? []) as Array<{ id: string; core_amount: number; created_at: string; bonus_date: string; source_user_id: string; depth: number }>).map((row) => ({
         id: `team:${row.id}`,
         occurred_at: row.created_at,
         kind: "team_bonus" as const,
-        amount: Number(row.reward_amount),
+        amount: Number(row.core_amount),
         source_id: row.id,
         metadata: { bonus_date: row.bonus_date, source_user_id: row.source_user_id, depth: row.depth }
       }))

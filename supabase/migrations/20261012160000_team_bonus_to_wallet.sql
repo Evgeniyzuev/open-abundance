@@ -27,9 +27,9 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   select coalesce((select humanity_level >= 2 from public.humanity_verifications where user_id = p_user_id), false);
-$;
+$$;
 
 revoke all on function public.is_humanity_confirmed(uuid) from public, anon, authenticated;
 grant execute on function public.is_humanity_confirmed(uuid) to service_role;

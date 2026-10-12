@@ -6,7 +6,7 @@ import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
-const TEXT_KEYS = ["invite.text.1", "invite.text.2", "invite.text.3"] as const;
+const TEXT_KEYS = ["invite.text.1", "invite.text.2", "invite.text.3", "invite.text.4", "invite.text.5"] as const;
 const CHANNEL_KEYS = [
   "invite.channel.1",
   "invite.channel.2",

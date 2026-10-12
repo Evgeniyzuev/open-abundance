@@ -79,7 +79,10 @@ export async function POST(request: NextRequest) {
     });
     if (insertError) return json({ error: "Could not save the invoice." }, 500);
     return json({ invoice: { id, usdAmount, payUrl, miniAppUrl: invoice.mini_app_invoice_url ?? null, expiresAt, network: config.network } }, 201);
-  } catch {
-    return json({ error: "The payment provider is unavailable. Try again in a moment." }, 502);
+  } catch (providerError) {
+    // The provider's error name (for example UNAUTHORIZED) is safe to show; the token and request never are.
+    const reason = providerError instanceof Error ? providerError.message.split(": ").pop() ?? "unknown" : "unknown";
+    console.error("Crypto Pay createInvoice failed:", reason);
+    return json({ error: "The payment provider is unavailable. Try again in a moment.", providerError: reason }, 502);
   }
 }

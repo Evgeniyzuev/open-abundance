@@ -27,6 +27,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
 import { parseScanned } from "@/lib/qrPayload";
+import { useWalletFees } from "@/lib/useWalletFees";
 import { isUuid } from "@/lib/uuid";
 
 type WalletTab = "wallet" | "core" | "market" | "p2p";
@@ -352,6 +353,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [cryptoPayOpen, setCryptoPayOpen] = useState(false);
   const [cryptoPayEnabled, setCryptoPayEnabled] = useState(false);
   const [withdrawMethodOpen, setWithdrawMethodOpen] = useState(false);
+  const walletFees = useWalletFees(depositMethodOpen || withdrawMethodOpen);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [usdtWithdrawOpen, setUsdtWithdrawOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -1196,6 +1198,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
         <WalletCryptoMethodModal
           direction="deposit"
           cryptoPayEnabled={cryptoPayEnabled}
+          fees={walletFees}
           t={t}
           onClose={() => setDepositMethodOpen(false)}
           onSelect={(method: WalletCryptoMethod) => {
@@ -1223,6 +1226,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
       {withdrawMethodOpen ? (
         <WalletCryptoMethodModal
           direction="withdraw"
+          fees={walletFees}
           t={t}
           onClose={() => setWithdrawMethodOpen(false)}
           onSelect={(method: WalletCryptoMethod) => {

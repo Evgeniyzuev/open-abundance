@@ -327,7 +327,6 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [reinvestValue, setReinvestValue] = useState("0");
   const [reinvestSaving, setReinvestSaving] = useState(false);
   const [reinvestError, setReinvestError] = useState<string | null>(null);
-  const [humanityLevel, setHumanityLevel] = useState<number | null>(null);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [calculatorMode, setCalculatorMode] = useState<CalculatorMode>("future");
 
@@ -655,25 +654,6 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     const nextOpen = !walletHistoryOpen;
     setWalletHistoryOpen(nextOpen);
   }
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getAccessToken();
-        const response = await fetch("/api/humanity/status", { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
-        if (!response.ok) return;
-        const payload = (await response.json()) as { level?: number };
-        if (!cancelled) setHumanityLevel(Number(payload.level ?? 0));
-      } catch {
-        // The lock is also enforced by the server, so a failed read only hides the hint.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   async function saveReinvestPercent() {
     if (!user || !core || !isValidPercentString(reinvestValue)) return;
@@ -1071,7 +1051,6 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               saving={reinvestSaving}
               error={reinvestError}
               locale={locale}
-              locked={humanityLevel !== null && humanityLevel < 2}
               t={t}
               onChange={updateReinvestDraft}
               onReset={resetReinvestPercent}
@@ -1476,13 +1455,11 @@ function ReinvestPanel({
   saving,
   error,
   locale,
-  locked,
   t,
   onChange,
   onReset,
   onSave
 }: {
-  locked: boolean;
   value: string;
   savedPercent: number;
   dailyIncome: ReturnType<typeof calculateDailyIncome>;
@@ -1519,7 +1496,6 @@ function ReinvestPanel({
 
       <div className="reinvest-control-row">
         <input
-          disabled={locked}
           className={valid ? "finance-number-input" : "finance-number-input invalid"}
           type="number"
           min="0"
@@ -1532,7 +1508,6 @@ function ReinvestPanel({
         />
         <span>%</span>
         <input
-          disabled={locked}
           className="reinvest-slider"
           type="range"
           min="0"
@@ -1552,7 +1527,6 @@ function ReinvestPanel({
         <span>{t("wallet.wallet")} +{formatAdaptiveMoney(dailyIncome.toWallet, locale)}</span>
       </div>
 
-      {locked ? <p className="finance-error inline">{t("wallet.reinvest.locked")}</p> : null}
       {!valid ? <p className="finance-error inline">{t("wallet.reinvest.invalidPercent")}</p> : null}
       {error ? <p className="finance-error inline">{error}</p> : null}
     </section>

@@ -243,7 +243,6 @@ export const termsContent: Record<LegalLocale, LegalDocumentContent> = {
         title: "6. CORE, расчёты и доход",
         paragraphs: [
           "CORE и отображаемые прогнозы являются показателями и расчётными иллюстрациями внутри продукта, если конкретная операция прямо не устанавливает иное. Они не гарантируют доход, рыночную стоимость, ликвидность, выкуп или будущий результат. Прошлые и расчётные показатели не являются обещанием результата.",
-          "Реинвест: пока человечность пользователя не подтверждена, весь суточный доход от Core остаётся в Core (реинвест 100%), изменить процент нельзя. После подтверждения человечности пользователь может выбирать долю дохода, которая зачисляется в Wallet.",
           "Лидерский бонус зачисляется в Wallet только если подтверждены как люди и лидер, и участник его команды; в остальных случаях бонус зачисляется в Core."
         ]
       },
@@ -326,7 +325,6 @@ export const termsContent: Record<LegalLocale, LegalDocumentContent> = {
         title: "6. CORE, estimates, and earnings",
         paragraphs: [
           "CORE and displayed projections are in-product metrics and calculated illustrations unless a specific transaction expressly says otherwise. They do not guarantee income, market value, liquidity, redemption, or future results. Historical and projected values are not promises of performance.",
-          "Reinvest: until a user's humanity is confirmed, the whole daily Core income stays in Core (100% reinvest) and the percentage cannot be changed. After humanity confirmation the user can choose the share of income credited to Wallet.",
           "The leader bonus is credited to Wallet only if both the leader and the team member are confirmed as people; otherwise it is credited to Core."
         ]
       },

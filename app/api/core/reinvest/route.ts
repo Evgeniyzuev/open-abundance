@@ -43,20 +43,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Session expired. Sign in again." }, { status: 401 });
   }
 
-  if (normalizedPercent !== 100) {
-    const { data: humanity } = await (supabase as any)
-      .from("humanity_verifications")
-      .select("humanity_level")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (Number(humanity?.humanity_level ?? 0) < 2) {
-      return NextResponse.json(
-        { error: "Reinvest can be changed only after humanity confirmation. Until then it stays at 100%.", code: "humanity_required" },
-        { status: 403 }
-      );
-    }
-  }
-
   const { data: core, error: updateError } = await supabase
     .from("core_accounts")
     .update({ reinvest_percent: normalizedPercent, updated_at: new Date().toISOString() })

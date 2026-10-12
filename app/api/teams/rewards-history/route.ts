@@ -5,6 +5,8 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
 type TeamRewardRow = {
   bonus_date: string;
   reward_amount: number;
+  wallet_amount: number;
+  core_amount: number;
   source_count: number;
   created_at: string;
 };
@@ -13,6 +15,8 @@ type RawRewardRow = {
   bonus_date: string;
   source_user_id: string;
   reward_amount: number;
+  wallet_amount: number | null;
+  core_amount: number | null;
   created_at: string;
 };
 
@@ -28,9 +32,9 @@ export async function GET(request: NextRequest) {
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
     const since = request.nextUrl.searchParams.get("since");
 
-    let query = supabase
+    let query = (supabase as any)
       .from("team_core_growth_rewards")
-      .select("bonus_date,source_user_id,reward_amount,created_at")
+      .select("bonus_date,source_user_id,reward_amount,wallet_amount,core_amount,created_at")
       .eq("leader_user_id", user.id)
       .order("bonus_date", { ascending: false })
       .limit(limit * 20);
@@ -61,12 +65,17 @@ function aggregateByDate(rows: RawRewardRow[]): TeamRewardRow[] {
     const current = days.get(row.bonus_date) ?? {
       bonus_date: row.bonus_date,
       reward_amount: 0,
+      wallet_amount: 0,
+      core_amount: 0,
       source_count: 0,
       created_at: row.created_at,
       sources: new Set<string>()
     };
 
     current.reward_amount += Number(row.reward_amount);
+    current.wallet_amount += Number(row.wallet_amount ?? 0);
+    // Rewards paid before the Wallet switch have no split and went to Core.
+    current.core_amount += row.wallet_amount === null && row.core_amount === null ? Number(row.reward_amount) : Number(row.core_amount ?? 0);
     current.sources.add(row.source_user_id);
     current.source_count = current.sources.size;
     if (row.created_at > current.created_at) current.created_at = row.created_at;
@@ -74,12 +83,12 @@ function aggregateByDate(rows: RawRewardRow[]): TeamRewardRow[] {
   }
 
   return Array.from(days.values())
-    .map(({ sources: _sources, ...day }) => ({ ...day, reward_amount: roundCents(day.reward_amount) }))
+    .map(({ sources: _sources, ...day }) => ({ ...day, reward_amount: roundMicro(day.reward_amount), wallet_amount: roundMicro(day.wallet_amount), core_amount: roundMicro(day.core_amount) }))
     .sort((left, right) => right.bonus_date.localeCompare(left.bonus_date));
 }
 
-function roundCents(value: number): number {
-  return Math.round(value * 100) / 100;
+function roundMicro(value: number): number {
+  return Math.round(value * 1_000_000) / 1_000_000;
 }
 
 function clampLimit(value: string | null): number {

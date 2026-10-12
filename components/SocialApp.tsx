@@ -141,6 +141,8 @@ type TeamContext = {
 type TeamRewardDay = {
   bonus_date: string;
   reward_amount: number;
+  wallet_amount?: number;
+  core_amount?: number;
   source_count: number;
   created_at: string;
 };
@@ -2012,6 +2014,7 @@ export default function SocialApp({
                 onOpenProfile={openPublicProfile}
                 onMessage={(userId) => { void openDirectMessage(userId); }}
               />
+              <p className="transfer-muted">{t("social.teams.bonus.note")}</p>
               <HistoryPanel
                 title={locale === "ru" ? "История лидерских бонусов" : "Team bonus history"}
                 open={teamRewardsOpen}
@@ -2031,7 +2034,7 @@ export default function SocialApp({
                       </div>
                       <div>
                         <strong>+{formatMoney(row.reward_amount, locale)}</strong>
-                        <span>{locale === "ru" ? "в Core" : "to Core"}</span>
+                        <span>{(row.wallet_amount ?? 0) > 0 ? ((row.core_amount ?? 0) > 0 ? t("social.teams.bonus.toBoth") : t("social.teams.bonus.toWallet")) : t("social.teams.bonus.toCore")}</span>
                       </div>
                     </article>
                   ))}

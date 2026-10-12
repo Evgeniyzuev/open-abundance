@@ -5,6 +5,7 @@ import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, Clock3, Compass,
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import InstallPingChallenge from "@/components/InstallPingChallenge";
+import InviteKit from "@/components/InviteKit";
 import NicheTaskChallenge from "@/components/NicheTaskChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
@@ -1299,6 +1300,8 @@ function ChallengeDetailContent({
       {needsAcquisition && (accepted || completed) && !locked ? (
         <AcquisitionChallengePanel challenge={challenge} locale={locale} readOnly={completed} onRefresh={onRefreshUserData} onComplete={(reward) => onComplete(challenge, reward)} />
       ) : null}
+
+      {challenge.verification_logic === "has_referral" && accepted && !completed && !locked ? <InviteKit /> : null}
 
       {needsPeerReviews && (accepted || completed) && !locked ? (
         <PeerReviewsPanel challenge={challenge} locale={locale} />

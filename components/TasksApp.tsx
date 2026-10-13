@@ -25,6 +25,9 @@ import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
 import { celebrate } from "@/lib/ui/feedback";
 import { takeQuickAction } from "@/lib/quickAction";
+import { activeCalendarTaskCount, buildTasksIcs } from "@/lib/calendarExport";
+import { shareOrDownloadFile } from "@/lib/shareFile";
+import { trackProductEvent } from "@/lib/productAnalytics";
 import BackupReminder from "@/components/BackupReminder";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
@@ -100,6 +103,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [routineOpen, setRoutineOpen] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
+  const [calendarError, setCalendarError] = useState(false);
   const [suggestedExpanded, setSuggestedExpanded] = useState(false);
   const [archiveExpanded, setArchiveExpanded] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
@@ -242,6 +246,19 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
     await refreshTasks();
   }
 
+  async function exportToCalendar(list: TaskItem[]) {
+    setCalendarError(false);
+    const count = activeCalendarTaskCount(list);
+    if (count === 0) return;
+    try {
+      const ics = buildTasksIcs(list, { calendarName: t("tasks.calendar.name") });
+      const shared = await shareOrDownloadFile(new File([ics], count === 1 ? "open-abundance-task.ics" : "open-abundance-tasks.ics", { type: "text/calendar" }));
+      if (shared) trackProductEvent("tasks_calendar_exported", { count });
+    } catch {
+      setCalendarError(true);
+    }
+  }
+
   async function changeReminder(task: TaskItem, remindAt: Date | null) {
     const next = await setTaskReminder(task.id, remindAt ? remindAt.toISOString() : undefined);
     if (remindAt && next) void scheduleActionReminder(task.id, remindAt.toISOString(), locale);
@@ -361,6 +378,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
         {todayTasks.length >= 2 ? <button className="text-button" type="button" onClick={() => setDecisionOpen(true)}>{t("decision.title")}</button> : null}
         <button className="text-button" type="button" onClick={() => setRoutineOpen(true)}>{t("routine.title")}</button>
         <button className="text-button" type="button" onClick={() => setRecapOpen(true)}>{t("weekRecap.title")}</button>
+        <button className="text-button" type="button" disabled={activeCalendarTaskCount(tasks) === 0} onClick={() => void exportToCalendar(tasks)}>{t("tasks.calendar.export")}</button>
       </div>
 
       {dueReminderTasks.length > 0 ? (
@@ -489,6 +507,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
         ) : null}
       </section>
 
+      {calendarError ? <p className="step-suggest-note" role="status">{t("tasks.calendar.error")}</p> : null}
       {decisionOpen ? (
         <DecisionModal
           initialOptions={todayTasks.slice(0, 4).map((task) => ({ text: task.title, taskId: task.id }))}
@@ -511,6 +530,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
           onChanged={refreshTasks}
           onChangeReminder={(remindAt) => changeReminder(selectedTask, remindAt)}
           onPostpone={() => postpone(selectedTask)}
+          onExportCalendar={() => exportToCalendar([selectedTask])}
         />
       ) : null}
       {streakDecisionTask ? (
@@ -788,9 +808,10 @@ type TaskDetailModalProps = {
   onChanged: () => Promise<void>;
   onChangeReminder: (remindAt: Date | null) => Promise<void>;
   onPostpone: () => Promise<void>;
+  onExportCalendar: () => Promise<void>;
 };
 
-function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, onDone, onChanged, onChangeReminder, onPostpone }: TaskDetailModalProps) {
+function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, onDone, onChanged, onChangeReminder, onPostpone, onExportCalendar }: TaskDetailModalProps) {
   const { t } = useUserContext();
   const image = task.thumbnailDataUrl || task.imageUrl;
   const doneToday = isCompletedOn(task.id, today, completions);
@@ -842,7 +863,12 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
           {!task.completed && !task.deleted ? (
             <TaskStepSuggester title={task.title} description={task.description} existingSteps={task.subtasks} onAccept={addSteps} />
           ) : null}
-          {!task.completed && !task.deleted ? <FocusTimer /> : null}
+          {!task.completed && !task.deleted ? (
+            <div className="task-detail-tools">
+              <FocusTimer />
+              <button className="text-button" type="button" onClick={() => void onExportCalendar()}>{t("tasks.calendar.export")}</button>
+            </div>
+          ) : null}
           {task.schedule.type === "once" && !task.completed && !task.deleted ? (
             <div className="task-reminder-quick">
               {task.remindAt ? <small>{t("tasks.remind.set", { time: new Date(task.remindAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}</small> : null}

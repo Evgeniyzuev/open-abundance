@@ -2942,3 +2942,5 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .week-recap-prompt-open { min-height: 40px; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; background: transparent; color: var(--text); text-align: left; }
 .week-recap-prompt-open svg { color: var(--blue); }
 .week-recap-prompt-open small { color: var(--blue); font-weight: 800; }
+.task-detail-tools { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.task-detail-tools .text-button { min-height: 44px; }

@@ -2926,3 +2926,19 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .post-sequence-bar button:disabled { opacity: 0.4; }
 .post-sequence-end { display: grid; gap: 8px; justify-items: start; margin: 8px 16px; padding: 12px; border-radius: 14px; background: var(--accent-soft); }
 .post-swipe-notice, .post-swipe-hint { margin: 6px 16px 0; color: var(--muted); font-size: 0.875rem; text-align: center; }
+.week-recap-body { display: grid; gap: 12px; }
+.week-recap-body p { margin: 0; }
+.week-recap-bars { height: 120px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; }
+.week-recap-bars span { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; justify-items: center; }
+.week-recap-bars i { width: 100%; max-width: 36px; align-self: end; border-radius: 8px; background: var(--accent-soft); }
+.week-recap-bars i.active { background: var(--blue); }
+.week-recap-bars small, .week-recap-note { color: var(--muted); }
+.week-recap-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.week-recap-stats div { padding: 10px; border-radius: 12px; background: var(--accent-soft); }
+.week-recap-stats dt { color: var(--muted); font-size: 0.8125rem; }
+.week-recap-stats dd { margin: 2px 0 0; font-size: 1.25rem; font-weight: 800; }
+.week-recap-body .challenge-primary-action { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.week-recap-prompt { display: grid; grid-template-columns: minmax(0, 1fr) 32px; gap: 8px; align-items: center; padding: 6px 8px 6px 12px; border-radius: 14px; background: var(--accent-soft); }
+.week-recap-prompt-open { min-height: 40px; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; background: transparent; color: var(--text); text-align: left; }
+.week-recap-prompt-open svg { color: var(--blue); }
+.week-recap-prompt-open small { color: var(--blue); font-weight: 800; }

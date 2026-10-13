@@ -32,6 +32,7 @@ import FocusTimer from "@/components/FocusTimer";
 import RoutinePlanModal from "@/components/RoutinePlanModal";
 import TaskStepSuggester from "@/components/TaskStepSuggester";
 import TaskWeekOverview from "@/components/TaskWeekOverview";
+import WeekRecapModal from "@/components/WeekRecapModal";
 import {
   countPlannedDaysThrough,
   daysBetween,
@@ -97,6 +98,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
   const [weekExpanded, setWeekExpanded] = useState(false);
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [routineOpen, setRoutineOpen] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
   const [suggestedExpanded, setSuggestedExpanded] = useState(false);
   const [archiveExpanded, setArchiveExpanded] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
@@ -351,6 +353,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
       <div className="tasks-ai-actions">
         {todayTasks.length >= 2 ? <button className="text-button" type="button" onClick={() => setDecisionOpen(true)}>{t("decision.title")}</button> : null}
         <button className="text-button" type="button" onClick={() => setRoutineOpen(true)}>{t("routine.title")}</button>
+        <button className="text-button" type="button" onClick={() => setRecapOpen(true)}>{t("weekRecap.title")}</button>
       </div>
 
       {dueReminderTasks.length > 0 ? (
@@ -487,6 +490,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
         />
       ) : null}
       {routineOpen ? <RoutinePlanModal onClose={() => setRoutineOpen(false)} /> : null}
+      {recapOpen ? <WeekRecapModal onClose={() => setRecapOpen(false)} /> : null}
       {modalOpen ? <TaskModal form={form} setForm={setForm} onClose={() => { setModalOpen(false); onCreateRequestHandled?.(); }} onSubmit={handleSubmit} /> : null}
       {selectedTask ? (
         <TaskDetailModal

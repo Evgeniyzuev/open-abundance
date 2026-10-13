@@ -6,6 +6,7 @@ import { useUserContext } from "@/components/UserProvider";
 import { collectLocalBackup, importLocalBackup, markBackupSaved } from "@/lib/localBackup";
 import { backupFileName, countBackup, MAX_BACKUP_FILE_BYTES, parseBackup, type BackupCounts, type LocalBackup } from "@/lib/localBackupFormat";
 import { scheduleActionReminder } from "@/lib/pushReminders";
+import { shareOrDownloadFile } from "@/lib/shareFile";
 
 type LocalBackupDialogProps = {
   onClose: () => void;
@@ -36,22 +37,7 @@ export default function LocalBackupDialog({ onClose }: LocalBackupDialogProps) {
     try {
       const backup = await collectLocalBackup({ includeAi, userId });
       const file = new File([JSON.stringify(backup)], backupFileName(), { type: "application/json" });
-      const touch = window.matchMedia?.("(pointer: coarse)").matches;
-      if (touch && navigator.canShare?.({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: file.name });
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") return;
-          throw error;
-        }
-      } else {
-        const url = URL.createObjectURL(file);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = file.name;
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      }
+      if (!(await shareOrDownloadFile(file))) return;
       markBackupSaved();
       setNotice({ tone: "ok", text: t("backup.saved") });
     } catch {

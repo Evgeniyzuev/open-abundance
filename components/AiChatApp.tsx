@@ -23,6 +23,7 @@ import {
   getSavedChats,
   saveMemoryItem,
   setMemoryEnabled,
+  setContextShare,
   deleteMemoryItem,
   saveChat,
   type AiLocalChat,
@@ -31,6 +32,10 @@ import {
   type LocalQuota
 } from "@/lib/ai/localChatStore";
 import { trackClientEvent } from "@/lib/clientAnalytics";
+import { AI_CONTEXT_SHARE_KEYS, buildSharedContextLines, DEFAULT_AI_CONTEXT_SHARE, type AiContextShare } from "@/lib/ai/contextShare";
+import { getLists, getNotes } from "@/lib/notesStore";
+import { todayKey } from "@/lib/taskSchedule";
+import { getTaskCompletions, getTasks } from "@/lib/tasksStore";
 import { plainChatText } from "@/lib/ai/plainText";
 import { isSeriousQuestion } from "@/lib/ai/seriousness";
 import type { MessageKey } from "@/lib/i18n";
@@ -70,7 +75,7 @@ type AiChatSettings = {
 };
 
 export default function AiChatApp({ active, contentPostId = null, contentPostNonce = 0 }: AiChatAppProps) {
-  const { core, locale, profile, t, user } = useUserContext();
+  const { core, locale, profile, t, user, wallet } = useUserContext();
   const userId = user?.id ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeChat, setActiveChat] = useState<AiLocalChat | null>(null);
@@ -99,6 +104,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const [memoryItems, setMemoryItems] = useState<AiMemoryItem[]>([]);
   const [activeWishTitles, setActiveWishTitles] = useState<string[]>([]);
   const [memoryEnabled, setMemoryEnabledState] = useState(true);
+  const [contextShare, setContextShareState] = useState<AiContextShare>(DEFAULT_AI_CONTEXT_SHARE);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memoryCandidate, setMemoryCandidate] = useState<string | null>(null);
   const [soundsOn, setSoundsOn] = useState(false);
@@ -191,6 +197,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         setQuota(nextQuota);
         setMemoryItems(nextMemory);
         setMemoryEnabledState(nextMemorySettings.enabled);
+        setContextShareState(nextMemorySettings.share ?? DEFAULT_AI_CONTEXT_SHARE);
       })
       .catch((error) => {
         if (!cancelled) console.warn("AI local chat restore failed.", error);
@@ -340,7 +347,8 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         } = await supabase.auth.getSession();
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-        const contextText = includeContext ? buildAiContext(locale, profile, core?.level ?? null, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined;
+        const sharedLines = includeContext ? await loadSharedContextLines(contextShare, core?.balance ?? null, wallet?.balance ?? null) : [];
+        const contextText = includeContext ? [buildAiContext(locale, profile, core?.level ?? null, userId, memoryEnabled ? memoryItems : [], activeWishTitles), ...sharedLines].filter(Boolean).join("\n") : undefined;
         const requestBody = JSON.stringify({
           messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
           locale,
@@ -451,7 +459,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         abortRef.current = null;
       }
     },
-    [activeChat, activeWishTitles, core?.level, isByok, isLoading, isRestoring, locale, memoryEnabled, memoryItems, messages, profile, recordAiChallengeProgress, selectedContentId, t, userId]
+    [activeChat, activeWishTitles, contextShare, core?.balance, core?.level, isByok, isLoading, isRestoring, locale, memoryEnabled, memoryItems, messages, profile, recordAiChallengeProgress, selectedContentId, t, userId, wallet?.balance]
   );
 
   const updateAiSettings = useCallback(async (routeMode: "system" | "byok", modelId = aiSettings?.modelId) => {
@@ -699,6 +707,13 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     if (!next) setMemoryCandidate(null);
   }, [memoryEnabled, userId]);
 
+  const toggleContextShare = useCallback(async (key: keyof AiContextShare) => {
+    if (!userId) return;
+    const next = { ...contextShare, [key]: !contextShare[key] };
+    setContextShareState(next);
+    await setContextShare(userId, next);
+  }, [contextShare, userId]);
+
   const clearAllMemory = useCallback(async () => {
     if (!userId || !window.confirm(t("ai.chat.memory.clearConfirm"))) return;
     await clearMemory(userId);
@@ -782,6 +797,18 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
                 <small>{t("ai.chat.contextSetting.description")}</small>
               </div>
             </div>
+            {userId ? (
+              <fieldset className="ai-chat-share">
+                <legend>{t("ai.chat.share.title")}</legend>
+                {AI_CONTEXT_SHARE_KEYS.map((key) => (
+                  <label className="ai-chat-share-option" key={key}>
+                    <input type="checkbox" checked={contextShare[key]} onChange={() => void toggleContextShare(key)} />
+                    <span><strong>{t(`ai.chat.share.${key}` as MessageKey)}</strong><small>{t(`ai.chat.share.${key}Hint` as MessageKey)}</small></span>
+                  </label>
+                ))}
+                <small>{t("ai.chat.share.note")}</small>
+              </fieldset>
+            ) : null}
             <div className="ai-chat-preference-row">
               <div>
                 <strong>{t("ai.chat.memory.title")}</strong>
@@ -1226,6 +1253,22 @@ async function loadAiWishContext(userId: string | null): Promise<string[]> {
     .map((wish) => (wish && typeof wish === "object" && typeof (wish as { title?: unknown }).title === "string" ? (wish as { title: string }).title.trim() : ""))
     .filter(Boolean)
     .slice(0, 10);
+}
+
+/** Optional context parts, read from this device only when the person asks something. */
+async function loadSharedContextLines(share: AiContextShare, coreBalance: number | null, walletBalance: number | null): Promise<string[]> {
+  if (!share.tasks && !share.notes && !share.progress && !share.finance) return [];
+  try {
+    const [tasks, completions, notes, lists] = await Promise.all([
+      share.tasks || share.progress ? getTasks() : Promise.resolve([]),
+      share.tasks || share.progress ? getTaskCompletions() : Promise.resolve([]),
+      share.notes ? getNotes() : Promise.resolve([]),
+      share.notes ? getLists() : Promise.resolve([])
+    ]);
+    return buildSharedContextLines(share, { today: todayKey(), tasks, completions, notes, lists, coreBalance, walletBalance });
+  } catch {
+    return [];
+  }
 }
 
 function buildAiContext(locale: "ru" | "en", profile: ReturnType<typeof useUserContext>["profile"], level: number | null, userId: string | null, memoryItems: AiMemoryItem[], activeWishTitles: string[]): string {

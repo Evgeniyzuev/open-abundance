@@ -1,3 +1,4 @@
+import { DEFAULT_AI_CONTEXT_SHARE, normalizeAiContextShare, type AiContextShare } from "@/lib/ai/contextShare";
 import { openOfflineDatabase } from "@/lib/offlineDatabase";
 
 export type AiLocalMessage = {
@@ -27,6 +28,8 @@ export type AiMemorySettings = {
   id: string;
   userId: string;
   enabled: boolean;
+  /** Optional parts of Nova's context (tasks, notes, progress, balances); all off until the person turns them on. */
+  share?: AiContextShare;
   updatedAt: string;
 };
 
@@ -145,11 +148,21 @@ export async function clearMemory(userId: string): Promise<void> {
 export async function getMemorySettings(userId: string): Promise<AiMemorySettings> {
   const id = `settings:${userId}`;
   const settings = await withStore<AiMemorySettings | undefined>(MEMORY_STORE, "readonly", (store) => store.get(id));
-  return settings ?? { id, userId, enabled: true, updatedAt: new Date().toISOString() };
+  return settings
+    ? { ...settings, share: normalizeAiContextShare(settings.share) }
+    : { id, userId, enabled: true, share: { ...DEFAULT_AI_CONTEXT_SHARE }, updatedAt: new Date().toISOString() };
 }
 
 export async function setMemoryEnabled(userId: string, enabled: boolean): Promise<AiMemorySettings> {
-  const settings: AiMemorySettings = { id: `settings:${userId}`, userId, enabled, updatedAt: new Date().toISOString() };
+  const current = await getMemorySettings(userId);
+  const settings: AiMemorySettings = { ...current, enabled, updatedAt: new Date().toISOString() };
+  await withStore<IDBValidKey>(MEMORY_STORE, "readwrite", (store) => store.put(settings));
+  return settings;
+}
+
+export async function setContextShare(userId: string, share: AiContextShare): Promise<AiMemorySettings> {
+  const current = await getMemorySettings(userId);
+  const settings: AiMemorySettings = { ...current, share: normalizeAiContextShare(share), updatedAt: new Date().toISOString() };
   await withStore<IDBValidKey>(MEMORY_STORE, "readwrite", (store) => store.put(settings));
   return settings;
 }

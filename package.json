@@ -25,6 +25,7 @@
     "test:qr": "node --experimental-strip-types scripts/verify-qr-payload-contract.mjs",
     "test:nova": "node --experimental-strip-types scripts/verify-nova-cards-contract.mjs",
     "test:launch": "node scripts/verify-launch-decisions-contract.mjs",
+    "test:ai-context": "node --experimental-strip-types scripts/verify-ai-context-share-contract.mjs",
     "test:value": "node --experimental-strip-types scripts/verify-value-metrics-contract.mjs",
     "test:market-offer": "node --experimental-strip-types scripts/verify-market-offer-contract.mjs",
     "test:calendar": "node --experimental-strip-types scripts/verify-calendar-export-contract.mjs",

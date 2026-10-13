@@ -298,15 +298,16 @@ function estimateChatInputTokens(systemPrompt: string, messages: AiConversationM
 }
 
 function appendPersonalContext(basePrompt: string, context: unknown, feedback: unknown): string {
-  const allowedContextPrefixes = ["language:", "display name:", "nearest wish:", "active wish:", "goal:", "interest:", "preference:", "reaction:", "feeling:"];
+  // Always-on lines plus the parts the person switched on in AI settings (lib/ai/contextShare.ts).
+  const allowedContextPrefixes = ["language:", "display name:", "level:", "nearest wish:", "active wish:", "goal:", "interest:", "preference:", "reaction:", "feeling:", "task:", "note:", "progress:", "finance:"];
   const contextText = typeof context === "string"
-    ? context.split(/\r?\n/).map((line) => line.trim()).filter((line) => allowedContextPrefixes.some((prefix) => line.toLowerCase().startsWith(prefix))).join("\n").slice(0, 4_000)
+    ? context.split(/\r?\n/).map((line) => line.trim()).filter((line) => allowedContextPrefixes.some((prefix) => line.toLowerCase().startsWith(prefix))).join("\n").slice(0, 7_000)
     : "";
   const ratings = Array.isArray(feedback)
     ? feedback.filter((item): item is { rating: number } => Boolean(item) && typeof item === "object" && typeof (item as { rating?: unknown }).rating === "number").slice(-10)
     : [];
   const ratingText = ratings.map((item) => `${Math.max(1, Math.min(5, Math.round(item.rating)))}/5`).join(", ");
-  return `${basePrompt}${contextText ? `\n\n## User-approved context\n${contextText}` : ""}${ratingText ? `\n\n## Response usefulness feedback\nPrevious assistant responses were rated: ${ratingText}. Adjust clarity and usefulness; do not infer emotions.` : ""}`;
+  return `${basePrompt}${contextText ? `\n\n## User-approved context\nThe person's own data, shared to make your help concrete (for example name the next step of a real task). Do not recite it back unasked.\n${contextText}` : ""}${ratingText ? `\n\n## Response usefulness feedback\nPrevious assistant responses were rated: ${ratingText}. Adjust clarity and usefulness; do not infer emotions.` : ""}`;
 }
 
 async function loadAiSharedContentContext(

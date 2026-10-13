@@ -2920,3 +2920,9 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .daily-set-done { width: 100%; min-height: 44px; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 14px; background: var(--accent-soft); color: var(--text); text-align: left; }
 .daily-set-done svg { color: var(--green); }
 .daily-set-done small { color: var(--blue); font-weight: 800; }
+.post-detail-modal.has-sequence { touch-action: pan-y; }
+.post-sequence-bar { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 48px 0; color: var(--muted); font-size: 0.875rem; font-weight: 800; }
+.post-sequence-bar button { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--accent-soft); color: var(--blue); }
+.post-sequence-bar button:disabled { opacity: 0.4; }
+.post-sequence-end { display: grid; gap: 8px; justify-items: start; margin: 8px 16px; padding: 12px; border-radius: 14px; background: var(--accent-soft); }
+.post-swipe-notice, .post-swipe-hint { margin: 6px 16px 0; color: var(--muted); font-size: 0.875rem; text-align: center; }

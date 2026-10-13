@@ -2,13 +2,17 @@
 
 import { personLabel } from "@/lib/personName";
 import NicknameField from "@/components/NicknameField";
-import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import FeedPostGallery, { getFeedPostCover } from "@/components/FeedPostGallery";
 import FeedPostInteractions from "@/components/FeedPostInteractions";
-import { FeedPostSignalButtons } from "@/components/FeedPostSignals";
+import { canUseFeedSignals, FeedPostSignalButtons, recordFeedSwipeSignal } from "@/components/FeedPostSignals";
+import { classifySwipe, nextInSequence } from "@/lib/swipe";
+import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
+import { celebrate } from "@/lib/ui/feedback";
+import { isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences } from "@/lib/feedPreferences";
 import LegalDisclosure from "@/components/LegalDisclosure";
 import BlogWorkspace from "@/components/BlogWorkspace";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
@@ -423,6 +427,8 @@ export default function SocialApp({
   const [selectedBlogAuthorId, setSelectedBlogAuthorId] = useState<string | null>(null);
   const [selectedSystemAccountKey, setSelectedSystemAccountKey] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
+  // Order of the feed as the gallery showed it when a post was opened; swipes move through this finite list.
+  const [feedSequence, setFeedSequence] = useState<FeedPost[]>([]);
   const feedScrollPositionRef = useRef(0);
   const feedFilterRef = useRef<FeedFilter>("all");
   const feedCacheRef = useRef<FeedCache>(createFeedCache());
@@ -1621,6 +1627,29 @@ export default function SocialApp({
   function openPostDetail(post: FeedPost) {
     setStoryWishError(null);
     setSelectedPost(post);
+    const feedPosts = feedPayload?.posts ?? [];
+    if (activeTab === "feed" && feedPosts.some((item) => item.id === post.id)) {
+      const preferences = readFeedPreferences(user?.id);
+      setFeedSequence(feedPosts
+        .filter((item) => !isFeedTopicMuted(item, preferences))
+        .sort((left, right) => Number(isFeedTopicInterested(right, preferences)) - Number(isFeedTopicInterested(left, preferences))));
+    } else {
+      setFeedSequence([]);
+    }
+  }
+
+  function moveInFeedSequence(direction: 1 | -1): boolean {
+    if (!selectedPost) return false;
+    const index = feedSequence.findIndex((item) => item.id === selectedPost.id);
+    if (index < 0) return false;
+    const preferences = readFeedPreferences(user?.id);
+    let next = nextInSequence(index, feedSequence.length, direction);
+    // Topics muted during this walk are skipped, so "not for me" takes effect immediately.
+    while (next !== null && isFeedTopicMuted(feedSequence[next], preferences)) next = nextInSequence(next, feedSequence.length, direction);
+    if (next === null) return false;
+    setStoryWishError(null);
+    setSelectedPost(feedSequence[next]);
+    return true;
   }
 
   function openSystemAccount(accountKey: string) {
@@ -2260,6 +2289,7 @@ export default function SocialApp({
           readOnly={activeTab === "blog"}
           t={t}
           onClose={() => { setStoryWishError(null); setSelectedPost(null); }}
+          sequence={feedSequence.length > 1 ? { index: feedSequence.findIndex((item) => item.id === selectedPost.id), total: feedSequence.length, onMove: moveInFeedSequence } : undefined}
           onDeletePost={deletePost}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}
@@ -3732,8 +3762,10 @@ export function PostDetailModal({
   onUpdateReview,
   onReposted,
   storyWishError = null,
-  storyWishSaving = false
+  storyWishSaving = false,
+  sequence
 }: {
+  sequence?: { index: number; total: number; onMove: (direction: 1 | -1) => boolean };
   copyingWishId: string | null;
   currentUserId: string | null;
   readOnly?: boolean;
@@ -3762,6 +3794,44 @@ export function PostDetailModal({
   const hasDetailCover = hasVisualMedia || Boolean(fallbackCover);
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
+  const sheetRef = useRef<HTMLElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [swipeNotice, setSwipeNotice] = useState<string | null>(null);
+  const [sequenceEnded, setSequenceEnded] = useState(false);
+  const swipeSignals = Boolean(sequence && sequence.index >= 0 && canUseFeedSignals(currentUserId, post));
+  const [showSwipeHint] = useState(() => typeof window !== "undefined" && !hasBeenSeen("feed-swipe-hint", "v1"));
+
+  useEffect(() => {
+    if (swipeSignals && showSwipeHint) markSeen("feed-swipe-hint", "v1");
+  }, [swipeSignals, showSwipeHint]);
+
+  useEffect(() => {
+    sheetRef.current?.scrollTo?.({ top: 0 });
+  }, [post.id]);
+
+  function moveSequence(direction: 1 | -1) {
+    if (!sequence) return;
+    const moved = sequence.onMove(direction);
+    setSequenceEnded(!moved && direction === 1);
+  }
+
+  useEffect(() => {
+    if (!swipeNotice) return;
+    const timer = window.setTimeout(() => setSwipeNotice(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [swipeNotice]);
+
+  function handleSwipe(direction: "left" | "right") {
+    if (!sequence || sequence.index < 0) return;
+    if (swipeSignals && currentUserId) {
+      recordFeedSwipeSignal(currentUserId, post, direction === "right" ? "interest" : "not_for_me");
+      setSwipeNotice(t(direction === "right" ? "social.feed.interestSaved" : "social.feed.notForMeSaved"));
+      if (direction === "right") celebrate(sheetRef.current);
+      moveSequence(1);
+      return;
+    }
+    moveSequence(direction === "left" ? 1 : -1);
+  }
   const [reviewDraft, setReviewDraft] = useState<ReviewEditPayload>({
     body: post.body ?? "",
     overallRating: post.projectReview?.overall_rating ?? 0,
@@ -3769,6 +3839,9 @@ export function PostDetailModal({
     attitude: post.projectReview?.attitude ?? "",
     mostUsefulArea: post.projectReview?.most_useful_area ?? ""
   });
+
+  const sequenceMoveRef = useRef<((direction: 1 | -1) => void) | null>(null);
+  sequenceMoveRef.current = sequence ? moveSequence : null;
 
   async function saveReview() {
     setReviewSaving(true);
@@ -3786,6 +3859,10 @@ export function PostDetailModal({
     const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (event.key === "ArrowRight") sequenceMoveRef.current?.(1);
+      if (event.key === "ArrowLeft") sequenceMoveRef.current?.(-1);
     };
 
     document.body.style.overflow = "hidden";
@@ -3799,10 +3876,45 @@ export function PostDetailModal({
 
   return (
     <div className="modal-backdrop post-detail-backdrop" role="presentation" onClick={onClose}>
-      <section className={`modal-sheet post-detail-modal${hasDetailCover ? " has-media" : ""}`} role="dialog" aria-modal="true" aria-label={t("social.post.detail")} onClick={(event) => event.stopPropagation()}>
+      <section
+        ref={sheetRef}
+        className={`modal-sheet post-detail-modal${hasDetailCover ? " has-media" : ""}${sequence ? " has-sequence" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("social.post.detail")}
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => {
+          if (!sequence || event.pointerType === "mouse") return;
+          if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable='true']")) return;
+          swipeStartRef.current = { x: event.clientX, y: event.clientY };
+        }}
+        onPointerUp={(event) => {
+          const start = swipeStartRef.current;
+          swipeStartRef.current = null;
+          if (!start) return;
+          const direction = classifySwipe(event.clientX - start.x, event.clientY - start.y);
+          if (direction) handleSwipe(direction);
+        }}
+        onPointerCancel={() => { swipeStartRef.current = null; }}
+      >
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}>
           <X size={18} />
         </button>
+        {sequence && sequence.index >= 0 ? (
+          <div className="post-sequence-bar">
+            <button type="button" aria-label={t("social.feed.previousStory")} disabled={sequence.index === 0} onClick={() => moveSequence(-1)}><ChevronLeft size={18} /></button>
+            <span>{sequence.index + 1} / {sequence.total}</span>
+            <button type="button" aria-label={t("social.feed.nextStory")} onClick={() => moveSequence(1)}><ChevronRight size={18} /></button>
+          </div>
+        ) : null}
+        {sequenceEnded ? (
+          <div className="post-sequence-end" role="status">
+            <strong>{t("social.feed.sequenceEnd")}</strong>
+            <button className="secondary-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
+          </div>
+        ) : null}
+        {swipeNotice ? <p className="post-swipe-notice" role="status">{swipeNotice}</p> : null}
+        {swipeSignals && showSwipeHint ? <p className="post-swipe-hint">{t("social.feed.swipeHint")}</p> : null}
         {hasVisualMedia ? <PostMedia media={post.media} locale={locale} showSource /> : null}
         {fallbackCover ? <div className="post-detail-cover"><img alt="" src={fallbackCover} /></div> : null}
         <div className="post-detail-content">

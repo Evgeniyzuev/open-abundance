@@ -187,6 +187,16 @@ export function FeedPostSignalButtons({
   );
 }
 
+/** Records a swipe as the same local signal and event as the buttons, tagged with the method. */
+export function recordFeedSwipeSignal(currentUserId: string, post: FeedPost, signal: "interest" | "not_for_me"): void {
+  recordFeedSignal(currentUserId, post, signal);
+  void trackClientEvent(`feed_${signal}`, { post_id: post.id, post_type: post.post_type, source_key: post.source_key, method: "swipe" });
+}
+
+export function canUseFeedSignals(userId: string | null | undefined, post: FeedPost): boolean {
+  return canUseSignals(userId, post);
+}
+
 function canUseSignals(userId: string | null | undefined, post: FeedPost): boolean {
   return Boolean(userId) && post.status === "published" && post.visibility === "public";
 }

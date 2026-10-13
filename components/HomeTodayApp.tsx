@@ -3,6 +3,7 @@
 import { ArrowRight, Bell, CheckCircle2, Compass, FileText, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
+import DailySetCard from "@/components/DailySetCard";
 import HomeTasksCard from "@/components/HomeTasksCard";
 import TaskStepSuggester from "@/components/TaskStepSuggester";
 import { saveTask } from "@/lib/tasksStore";
@@ -433,6 +434,14 @@ export default function HomeTodayApp({
           </button>
         </section>
       )}
+
+      <DailySetCard
+        active={active}
+        challenge={nextChallenge && !(primaryWish && milestone) ? { id: nextChallenge.id, title: nextChallenge.title[locale] ?? nextChallenge.title.en ?? t("challenges.challenge") } : null}
+        onOpenTask={onOpenTask}
+        onOpenChallenge={onOpenChallenge}
+        onOpenFeed={onOpenFeed}
+      />
 
       <HomeTasksCard active={active} onOpenTask={onOpenTask} onOpenTasks={onOpenTasks} />
 

@@ -23,6 +23,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
+import { celebrate } from "@/lib/ui/feedback";
 import BackupReminder from "@/components/BackupReminder";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
@@ -550,7 +551,7 @@ function TaskPanel({ task, completions, today, onMarkToday, onOpen, onRepeat }: 
           <Repeat2 size={17} />
         </button>
         {isDueOn(task, today) ? (
-          <button className={doneToday ? "task-done-button done" : "task-done-button"} type="button" disabled={doneToday} onClick={onMarkToday}>
+          <button className={doneToday ? "task-done-button done" : "task-done-button"} type="button" disabled={doneToday} onClick={(event) => { celebrate(event.currentTarget, "reward"); onMarkToday(); }}>
             {doneToday ? "\u2713" : ""}
           </button>
         ) : null}
@@ -814,7 +815,7 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
             <ul className="task-detail-subtasks">
               {task.subtasks.map((subtask, index) => (
                 <li className={checkedSubtasks.has(index) ? "done" : ""} key={`${subtask}-${index}`}>
-                  <button className="subtask-check-button" type="button" aria-label={t("tasks.completeSubtask")} onClick={() => toggleSubtask(index)}>
+                  <button className="subtask-check-button" type="button" aria-label={t("tasks.completeSubtask")} onClick={(event) => { if (!checkedSubtasks.has(index)) celebrate(event.currentTarget); void toggleSubtask(index); }}>
                     {checkedSubtasks.has(index) ? "\u2713" : ""}
                   </button>
                   <span>{index === firstOpenIndex ? <em className="task-start-here">{t("tasks.steps.startHere")} · </em> : null}{subtask}</span>
@@ -845,7 +846,7 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
           ) : null}
           <TaskMonthCalendar task={task} completions={completions} locale={locale} today={today} />
           {isDueOn(task, today) ? (
-            <button className="task-done-primary-button" type="button" disabled={doneToday} onClick={onDone}>
+            <button className="task-done-primary-button" type="button" disabled={doneToday} onClick={(event) => { celebrate(event.currentTarget, "reward"); onDone(); }}>
               {doneToday ? t("tasks.doneToday") : t("tasks.doneAction")}
             </button>
           ) : null}

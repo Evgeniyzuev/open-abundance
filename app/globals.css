@@ -2902,3 +2902,21 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .backup-reminder { display: grid; grid-template-columns: minmax(0, 1fr) auto 32px; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--accent-soft); color: var(--text); font-size: 0.875rem; }
 .backup-reminder .text-button { min-height: 40px; }
 .backup-reminder-close { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: transparent; color: var(--muted); }
+@keyframes oa-pop { 0% { transform: scale(1); } 40% { transform: scale(1.06); } 100% { transform: scale(1); } }
+.oa-pop { animation: oa-pop 260ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .oa-pop { animation: none; } }
+.daily-set-card { display: grid; gap: 8px; }
+.daily-set-card h2 { margin: 0; font-size: 1.125rem; }
+.daily-set-card p { margin: 0; }
+.daily-set-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.daily-set-progress { display: inline-flex; gap: 4px; }
+.daily-set-progress i { width: 18px; height: 4px; border-radius: 999px; background: var(--accent-soft); }
+.daily-set-progress i.done { background: var(--green); }
+.daily-set-progress i.current { background: var(--blue); }
+.daily-set-kind, .daily-set-muted { color: var(--muted); }
+.daily-set-answer { width: 100%; font-size: 1rem; resize: vertical; }
+.daily-set-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.daily-set-actions .text-button { min-height: 44px; }
+.daily-set-done { width: 100%; min-height: 44px; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 14px; background: var(--accent-soft); color: var(--text); text-align: left; }
+.daily-set-done svg { color: var(--green); }
+.daily-set-done small { color: var(--blue); font-weight: 800; }

@@ -24,6 +24,7 @@
     "test:p2p-push": "node scripts/verify-p2p-push-contract.mjs",
     "test:qr": "node --experimental-strip-types scripts/verify-qr-payload-contract.mjs",
     "test:nova": "node --experimental-strip-types scripts/verify-nova-cards-contract.mjs",
+    "test:daily-set": "node --experimental-strip-types scripts/verify-daily-set-contract.mjs",
     "test:low-load": "node --experimental-strip-types scripts/verify-low-load-contract.mjs",
     "test:backup": "node --experimental-strip-types scripts/verify-local-backup-contract.mjs",
     "test:task-steps": "node --experimental-strip-types scripts/verify-task-steps-contract.mjs",

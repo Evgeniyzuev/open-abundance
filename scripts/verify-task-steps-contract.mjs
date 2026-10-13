@@ -81,3 +81,35 @@ assert.match(triage, /hasSafetyText\(text\)/, "triage must stop on safety langua
 assert.doesNotMatch(triage, /getServiceClient|supabase|\.rpc\(/i, "the triage route must not touch the database");
 const dumpModal = readFileSync("components/BrainDumpModal.tsx", "utf8");
 assert.doesNotMatch(dumpModal, /saveNote\(\{[^}]*text\b[^}]*body: text/, "the raw dump is never saved as a note");
+
+const { cleanDecisionOptions, normalizeDecision } = await import("../lib/decision.ts");
+assert.deepEqual(cleanDecisionOptions(["  A ", "a", "B", "", "C", "D", "E"]), ["A", "B", "C", "D"], "options are unique and capped at four");
+assert.deepEqual(normalizeDecision({ choice: 1, reason: " Easier to start ", firstStep: "Open it" }, 3), { choice: 1, reason: "Easier to start", firstStep: "Open it" });
+assert.equal(normalizeDecision({ choice: 5, reason: "x" }, 3), null, "an out-of-range choice is rejected");
+assert.equal(normalizeDecision({ choice: 0, reason: "" }, 3), null, "a decision needs a reason");
+
+const { normalizeRoutinePlan } = await import("../lib/routinePlan.ts");
+const routine = normalizeRoutinePlan({
+  days: [{ offset: 2, title: "Soup" }, { offset: 0, title: "Pasta" }, { offset: 0, title: "Duplicate day" }, { offset: 9, title: "Out of range" }, { offset: 1, title: "" }],
+  shopping: ["Pasta", "pasta", "Tomatoes", ...Array.from({ length: 40 }, (_, index) => `Item ${index}`)]
+});
+assert.deepEqual(routine.days.map((day) => day.offset), [0, 2], "days are unique, in range and sorted");
+assert.ok(routine.shopping.length <= 20, "the shopping list fits one task's subtasks");
+assert.equal(routine.shopping.filter((item) => item.toLowerCase() === "pasta").length, 1);
+assert.equal(normalizeRoutinePlan({ days: [] }), null);
+const { MAX_SHOPPING_ITEMS } = await import("../lib/routinePlan.ts");
+const { MAX_TASK_SUBTASKS } = await import("../lib/taskSteps.ts");
+assert.equal(MAX_SHOPPING_ITEMS, MAX_TASK_SUBTASKS, "the shopping list must fit one task");
+
+for (const [path, capability, tag] of [
+  ["app/api/ai/decisions/choose/route.ts", "decision.choose", "<decision_data>"],
+  ["app/api/ai/routines/plan/route.ts", "routine.plan", "<routine_request>"]
+]) {
+  const source = readFileSync(path, "utf8");
+  assert.match(source, new RegExp(`capability: "${capability.replace(".", "\.")}"`));
+  assert.ok(source.includes(tag), `${path} wraps user data in ${tag}`);
+  assert.match(source, /hasSafetyText\(/, `${path} must stop on safety language before calling AI`);
+  assert.doesNotMatch(source, /getServiceClient|supabase|\.rpc\(/i, `${path} must not touch the database`);
+}
+assert.match(readFileSync("components/DecisionModal.tsx", "utf8"), /taskId/, "existing tasks are opened, not duplicated");
+assert.match(readFileSync("components/RoutinePlanModal.tsx", "utf8"), /saveTask\(/, "routine days become ordinary local tasks");

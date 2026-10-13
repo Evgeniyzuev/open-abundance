@@ -25,7 +25,9 @@ import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
+import DecisionModal from "@/components/DecisionModal";
 import FocusTimer from "@/components/FocusTimer";
+import RoutinePlanModal from "@/components/RoutinePlanModal";
 import TaskStepSuggester from "@/components/TaskStepSuggester";
 import TaskWeekOverview from "@/components/TaskWeekOverview";
 import {
@@ -91,6 +93,8 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
   const [todayExpanded, setTodayExpanded] = useState(true);
   const [otherExpanded, setOtherExpanded] = useState(false);
   const [weekExpanded, setWeekExpanded] = useState(false);
+  const [decisionOpen, setDecisionOpen] = useState(false);
+  const [routineOpen, setRoutineOpen] = useState(false);
   const [suggestedExpanded, setSuggestedExpanded] = useState(false);
   const [archiveExpanded, setArchiveExpanded] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
@@ -341,6 +345,11 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
 
       <LocalDataNotice status={localDataStatus} onRetry={() => void loadLocalData()} />
 
+      <div className="tasks-ai-actions">
+        {todayTasks.length >= 2 ? <button className="text-button" type="button" onClick={() => setDecisionOpen(true)}>{t("decision.title")}</button> : null}
+        <button className="text-button" type="button" onClick={() => setRoutineOpen(true)}>{t("routine.title")}</button>
+      </div>
+
       {dueReminderTasks.length > 0 ? (
         <section className="task-due-reminders" role="status">
           <strong>{t("tasks.dueReminder", { count: dueReminderTasks.length })}</strong>
@@ -467,6 +476,14 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
         ) : null}
       </section>
 
+      {decisionOpen ? (
+        <DecisionModal
+          initialOptions={todayTasks.slice(0, 4).map((task) => ({ text: task.title, taskId: task.id }))}
+          onClose={() => setDecisionOpen(false)}
+          onOpenTask={setSelectedTaskId}
+        />
+      ) : null}
+      {routineOpen ? <RoutinePlanModal onClose={() => setRoutineOpen(false)} /> : null}
       {modalOpen ? <TaskModal form={form} setForm={setForm} onClose={() => { setModalOpen(false); onCreateRequestHandled?.(); }} onSubmit={handleSubmit} /> : null}
       {selectedTask ? (
         <TaskDetailModal

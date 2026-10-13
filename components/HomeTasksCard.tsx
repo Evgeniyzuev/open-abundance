@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, CheckSquare } from "lucide-react";
+import DecisionModal from "@/components/DecisionModal";
 import { useUserContext } from "@/components/UserProvider";
 import { getNextStep, isCompletedOn, isDueOn, todayKey } from "@/lib/taskSchedule";
 import { getTaskCompletions, getTasks, TASKS_CHANGED_EVENT, type TaskItem } from "@/lib/tasksStore";
@@ -18,6 +19,7 @@ type HomeTasksCardProps = {
 export default function HomeTasksCard({ active, onOpenTask, onOpenTasks }: HomeTasksCardProps) {
   const { t } = useUserContext();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [decisionOpen, setDecisionOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -60,6 +62,14 @@ export default function HomeTasksCard({ active, onOpenTask, onOpenTasks }: HomeT
           );
         })}
       </ul>
+      {tasks.length >= 2 ? <button className="text-button" type="button" onClick={() => setDecisionOpen(true)}>{t("decision.title")}</button> : null}
+      {decisionOpen ? (
+        <DecisionModal
+          initialOptions={tasks.slice(0, 4).map((task) => ({ text: task.title, taskId: task.id }))}
+          onClose={() => setDecisionOpen(false)}
+          onOpenTask={onOpenTask}
+        />
+      ) : null}
       {hiddenCount > 0 ? <button className="text-button" type="button" onClick={onOpenTasks}>{t("home.tasks.more", { count: hiddenCount })}</button> : null}
     </section>
   );

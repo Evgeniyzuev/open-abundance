@@ -6,7 +6,7 @@
  * the browser application.
  */
 
-export const AI_KNOWLEDGE_VERSION = "2026-10-13.1";
+export const AI_KNOWLEDGE_VERSION = "2026-10-13.2";
 
 export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/OPEN_ABUNDANCE_LORE.md",
@@ -17,7 +17,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "reflection.process" | "task.decompose" | "notes.triage";
+export type AiCapability = "chat.general" | "reflection.process" | "task.decompose" | "notes.triage" | "decision.choose" | "routine.plan";
 
 type SystemPromptOptions = {
   locale: "ru" | "en";
@@ -129,6 +129,23 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Put at most three items in "now" and "today" together. When in doubt between "today" and "later", choose "later" so the day stays light.
 - Each item is a short action phrase that starts with a verb, except "drop" items, which may be a short neutral label. No Markdown, emoji, numbering, judgement or pressure; a long list is not a failure.
 - This is organisation help, not therapy or diagnosis. The response schema is defined by the task input; return only the requested machine-readable format.
+`,
+  "decision.choose": `
+## Capability: pick one option when the person is stuck
+- Work only with the two to four options and the optional one-line context supplied in this request. Do not use or request any other account, wish, Core, Wallet, note or task data.
+- Recommend exactly one option. Base the reason only on what the person wrote: what is easiest to start, most time-sensitive, or best fits the stated context. Mention one honest trade-off in at most two plain sentences. Do not invent facts, deadlines or consequences.
+- If the options are equally good, choose the one that is easiest to begin and say so. Never recommend doing nothing unless that is one of the options.
+- Add one tiny first step for the chosen option, doable in about two minutes with what the person has at hand.
+- This is a suggestion the person can ignore, not a verdict. No pressure, guilt, Markdown or emoji. Do not advise on medical, legal or financial decisions beyond helping to order the person's own options.
+- The response schema is defined by the task input; return only the requested machine-readable format.
+`,
+  "routine.plan": `
+## Capability: plan one week of a routine
+- Work only with the short request supplied (for example meals for the week, cleaning, exercise) and nothing else about the person. Do not use or request any other account, note, task, Core or Wallet data.
+- Return one realistic, light entry for each of the next seven days. Respect every constraint the person states (time, budget, restrictions, preferences); do not invent constraints or details. Repeat meals or tasks when that makes the week simpler, for example cook once and eat twice.
+- Add a shopping list only when the request involves buying things: short merged items without quantities unless the person gave them.
+- This is planning help, not medical, nutritional or fitness advice. Never claim a plan treats a condition. If the person mentions an allergy or restriction, follow it and suggest nothing that clearly breaks it; otherwise keep to ordinary everyday choices.
+- A skipped day is normal and the plan can be moved. No Markdown, emoji, numbering, pressure or guilt. The response schema is defined by the task input; return only the requested machine-readable format.
 `,
 };
 

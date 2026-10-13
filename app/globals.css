@@ -2883,3 +2883,11 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .braindump-results { display: grid; gap: 12px; }
 .braindump-group { display: grid; gap: 6px; }
 .braindump-group h3 { margin: 0; font-size: 0.875rem; color: var(--muted); }
+.tasks-ai-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.tasks-ai-actions .text-button { min-height: 44px; }
+.decision-input { width: 100%; font-size: 1rem; }
+.decision-result { display: grid; gap: 10px; }
+.decision-result p { margin: 0; }
+.decision-result em { font-style: normal; font-weight: 800; color: var(--blue); }
+.routine-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.routine-shopping-toggle { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 9px; align-items: center; }

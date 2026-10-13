@@ -861,6 +861,12 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
               {firstOpenIndex === -1 ? t("tasks.steps.allDone") : t("tasks.steps.progress", { done: checkedSubtasks.size, total: task.subtasks.length })}
             </small>
           ) : null}
+          {/* The one main action sits right under the steps, before any optional tools. */}
+          {isDueOn(task, today) ? (
+            <button className="task-done-primary-button" type="button" disabled={doneToday} onClick={(event) => { celebrate(event.currentTarget, "reward"); onDone(); }}>
+              {doneToday ? t("tasks.doneToday") : t("tasks.doneAction")}
+            </button>
+          ) : null}
           {!task.completed && !task.deleted ? (
             <TaskStepSuggester title={task.title} description={task.description} existingSteps={task.subtasks} onAccept={addSteps} />
           ) : null}
@@ -871,8 +877,8 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
             </div>
           ) : null}
           {task.schedule.type === "once" && !task.completed && !task.deleted ? (
-            <div className="task-reminder-quick">
-              {task.remindAt ? <small>{t("tasks.remind.set", { time: new Date(task.remindAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}</small> : null}
+            <details className="task-reminder-quick">
+              <summary>{task.remindAt ? t("tasks.remind.set", { time: new Date(task.remindAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }) : t("tasks.remind.menu")}</summary>
               <div>
                 <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("hour"))}>{t("tasks.remind.hour")}</button>
                 <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("evening"))}>{t("tasks.remind.evening")}</button>
@@ -880,14 +886,9 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
                 <button className="secondary-button" type="button" onClick={() => void onPostpone()}>{t("tasks.postpone")}</button>
                 {task.remindAt ? <button className="text-button" type="button" onClick={() => void onChangeReminder(null)}>{t("tasks.remind.clear")}</button> : null}
               </div>
-            </div>
+            </details>
           ) : null}
           <TaskMonthCalendar task={task} completions={completions} locale={locale} today={today} />
-          {isDueOn(task, today) ? (
-            <button className="task-done-primary-button" type="button" disabled={doneToday} onClick={(event) => { celebrate(event.currentTarget, "reward"); onDone(); }}>
-              {doneToday ? t("tasks.doneToday") : t("tasks.doneAction")}
-            </button>
-          ) : null}
         </div>
       </div>
     </div>

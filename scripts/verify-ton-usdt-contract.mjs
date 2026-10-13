@@ -38,5 +38,9 @@ assertIncludes(methodUi, "wallet.cryptoMethod.usdtTon", "USDT method selector");
 assertIncludes(walletUi, "setDepositMethodOpen(true)", "deposit method selector action");
 assertIncludes(walletUi, "setWithdrawMethodOpen(true)", "withdrawal method selector action");
 const walletActionCount = (walletUi.match(/wallet-action-button/g) ?? []).length;
-if (walletActionCount !== 4) throw new Error(`Wallet action grid must keep four actions, found ${walletActionCount}.`);
+// Five actions: transfer, request payment, top up, deposit, withdraw. The "request payment" button
+// (setRequestOpen) was added intentionally in e5a1618 (docs/PILOT_MONEY_FLOWS_PLAN.md section 12),
+// so the grid grew from four to five.
+assertIncludes(walletUi, "setRequestOpen(true)", "payment request action");
+if (walletActionCount !== 5) throw new Error(`Wallet action grid must keep five actions, found ${walletActionCount}.`);
 console.log("TON USDT rail contract checks passed.");

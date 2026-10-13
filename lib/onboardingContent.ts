@@ -160,11 +160,11 @@ export const onboardingContent: OnboardingContent = {
       hi: "{target} तक 20 स्तर"
     },
     body: {
-      ru: "Выполняй простые задания, развивай навыки и получай денежные награды. Чем выше уровень — тем больше возможностей и доход.",
-      en: "Complete simple tasks, build skills, and earn cash rewards. Higher levels bring more opportunities and income.",
-      zh: "完成简单任务，培养技能并获得现金奖励。等级越高，机会和收入越多。",
-      es: "Completa tareas sencillas, desarrolla habilidades y recibe recompensas en efectivo. Cuanto más alto sea el nivel, más oportunidades e ingresos tendrás.",
-      hi: "सरल कार्य पूरे करें, कौशल विकसित करें और नकद पुरस्कार पाएं। स्तर जितना ऊंचा होगा, अवसर और आय उतनी अधिक होगी।"
+      ru: "Выполняй простые задания, развивай навыки и прокачивай свой доход. Больше возможностей с каждым уровнем.",
+      en: "Complete simple tasks, build skills and grow your income. More opportunities with every level.",
+      zh: "完成简单任务，培养技能，提升你的收入。每升一级，机会更多。",
+      es: "Completa tareas sencillas, desarrolla habilidades y haz crecer tus ingresos. Más oportunidades con cada nivel.",
+      hi: "सरल कार्य पूरे करें, कौशल विकसित करें और अपनी आय बढ़ाएं। हर स्तर के साथ अधिक अवसर।"
     },
     prompt: {
       ru: "Маршрут построен",

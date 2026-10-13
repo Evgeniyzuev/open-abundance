@@ -48,7 +48,7 @@ const PENDING_EMAIL_OTP_TTL_MS = 15 * 60 * 1000;
 const EMAIL_OTP_RESEND_SECONDS = 60;
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
-  const { applyServerData, authResolved, profile, t, user } = useUserContext();
+  const { applyServerData, authResolved, holdLevelUps, profile, t, user } = useUserContext();
   const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
   const [onboardingLocale, setOnboardingLocale] = useState<OnboardingLocale | null>(null);
   const [registrationReward, setRegistrationReward] = useState<RegistrationReward | null>(null);
@@ -58,13 +58,14 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     const reward = consumePostAuthReward();
     if (reward) {
       setRegistrationReward(reward);
+      holdLevelUps(true);
       trackProductEvent("registration_reward_viewed", {
         core_amount: reward.coreAmount,
         wallet_amount: reward.walletAmount,
         version: "abundance_mission_v3"
       });
     }
-  }, []);
+  }, [holdLevelUps]);
 
   useEffect(() => {
     setOnboardingLocale(detectPreferredOnboardingLocale());
@@ -95,6 +96,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
               version: "abundance_mission_v3"
             });
             setRegistrationReward(null);
+            holdLevelUps(false);
             openFeedAfterAuth();
           }}
         />

@@ -64,6 +64,8 @@ type UserContextValue = {
   colorTheme: ColorTheme;
   accentTheme: AccentTheme;
   refreshUserData: () => Promise<void>;
+  /** Holds the level-up dialog while another receipt (e.g. the registration reward) is on screen. */
+  holdLevelUps: (hold: boolean) => void;
   applyServerData: (data: Partial<UserContextResponse>) => void;
   setLocale: (nextLocale: AppLocale) => Promise<void>;
   setDisplayCurrency: (nextCurrency: DisplayCurrency) => void;
@@ -95,7 +97,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingLevelUps, setPendingLevelUps] = useState<number[]>([]);
-  const acknowledgeLevelUpRef = useRef<(level: number) => void>(() => undefined);
+  const [levelUpsHeld, setLevelUpsHeld] = useState(false);
   const [guestLocale, setGuestLocale] = useState<AppLocale>("en");
   const [displayCurrency, setDisplayCurrencyState] = useState<DisplayCurrency>(DEFAULT_DISPLAY_CURRENCY);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRatesSnapshot | null>(null);
@@ -439,14 +441,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Every new level is celebrated, level 1 included; it waits until the registration receipt is closed.
     const levels = Array.from({ length: core.level - core.last_seen_level }, (_, index) => core.last_seen_level + index + 1);
-    // Level 1 arrives together with the registration reward, which already has its own receipt.
-    const visibleLevels = levels.filter((level) => level > 1);
-    setPendingLevelUps(visibleLevels);
-    if (visibleLevels.length === 0 && levels.length > 0) acknowledgeLevelUpRef.current(levels[levels.length - 1]);
+    setPendingLevelUps(levels);
   }, [core]);
-
-  acknowledgeLevelUpRef.current = acknowledgeLevelUp;
 
   function acknowledgeLevelUp(level: number) {
     const supabase = getBrowserSupabaseClient();
@@ -569,6 +567,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       colorTheme,
       accentTheme,
       refreshUserData,
+      holdLevelUps: setLevelUpsHeld,
       applyServerData,
       setLocale,
       setDisplayCurrency,
@@ -583,7 +582,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   return (
     <UserContext.Provider value={value}>
       {children}
-      {pendingLevelUps[0] ? (
+      {pendingLevelUps[0] && !levelUpsHeld ? (
         <LevelUpModal
           level={pendingLevelUps[0]}
           onClose={() => acknowledgeLevelUp(pendingLevelUps[0])}

@@ -70,7 +70,7 @@ type AiChatSettings = {
 };
 
 export default function AiChatApp({ active, contentPostId = null, contentPostNonce = 0 }: AiChatAppProps) {
-  const { locale, profile, t, user } = useUserContext();
+  const { core, locale, profile, t, user } = useUserContext();
   const userId = user?.id ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeChat, setActiveChat] = useState<AiLocalChat | null>(null);
@@ -96,12 +96,9 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const [pendingAction, setPendingAction] = useState<PendingChatAction | null>(null);
   const [suggestedPrompts, setSuggestedPrompts] = useState<AiPrompt[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [contextDialogOpen, setContextDialogOpen] = useState(false);
-  const [pendingInput, setPendingInput] = useState<string | null>(null);
   const [memoryItems, setMemoryItems] = useState<AiMemoryItem[]>([]);
   const [activeWishTitles, setActiveWishTitles] = useState<string[]>([]);
   const [memoryEnabled, setMemoryEnabledState] = useState(true);
-  const [contextAllowed, setContextAllowed] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memoryCandidate, setMemoryCandidate] = useState<string | null>(null);
   const [soundsOn, setSoundsOn] = useState(false);
@@ -112,9 +109,6 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const lastDeepRef = useRef(false);
   const followupAbortRef = useRef<AbortController | null>(null);
   useEffect(() => () => followupAbortRef.current?.abort(), []);
-  const contextConsentRef = useRef(false);
-  const contextDecisionRef = useRef(false);
-  const skipContextRef = useRef(false);
 
   useEffect(() => {
     setSelectedContentId(contentPostId);
@@ -145,8 +139,6 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   // rendering prompt chips in the empty state. The Questions button owns them.
   const quickActions = suggestions;
   const novaName = NOVA_NAME[locale] ?? NOVA_NAME.en;
-  const nearestWish = readPrimaryWish(userId ?? undefined);
-  const additionalWishTitles = activeWishTitles.filter((title) => title !== nearestWish?.title);
   const persistableMessages = useMemo(() => messages.filter((message) => message.content.trim() && !message.failed), [messages]);
   const isByok = aiSettings?.routeMode === "byok";
   const quotaBlocked = !isByok && Boolean(quota && (quota.dayRemaining <= 0 || quota.monthRemaining <= 0));
@@ -178,20 +170,12 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
       setMemoryItems([]);
       setActiveWishTitles([]);
       setMemoryEnabledState(true);
-      contextConsentRef.current = false;
-      contextDecisionRef.current = false;
       setIsRestoring(false);
       return () => {
         cancelled = true;
       };
     }
 
-    const consentKey = userId ? `oa-ai-context-consent:${userId}` : "";
-    const storedContextDecision = consentKey ? window.localStorage.getItem(consentKey) : null;
-    const hasContextConsent = storedContextDecision === "allowed";
-    contextConsentRef.current = hasContextConsent;
-    contextDecisionRef.current = Boolean(storedContextDecision);
-    setContextAllowed(hasContextConsent);
     setSoundsOn(getSoundsEnabled());
 
     void loadAiWishContext(userId)
@@ -294,21 +278,13 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     async (text: string, opts?: { retry?: boolean; deep?: boolean }) => {
       const trimmed = text.trim();
       if (!trimmed || isLoading || inFlightRef.current || isRestoring) return;
-      if (contextDialogOpen && !contextDecisionRef.current && !skipContextRef.current) return;
-
-      if (userId && !contextDecisionRef.current && !skipContextRef.current) {
-        setPendingInput(trimmed);
-        setContextDialogOpen(true);
-        return;
-      }
-
       inFlightRef.current = true;
       // A second look still running must not hold up the new question.
       followupAbortRef.current?.abort();
       setIsLoading(true);
       setSuggestedPrompts([]);
-      const includeContext = contextConsentRef.current && !skipContextRef.current;
-      skipContextRef.current = false;
+      // Nova always receives the short context (name, level, language, wishes, confirmed memory); see AI settings.
+      const includeContext = Boolean(userId);
 
       try {
         // A deeper answer is only offered on the system route and costs two messages of the limit.
@@ -364,7 +340,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         } = await supabase.auth.getSession();
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-        const contextText = includeContext ? buildAiContext(locale, profile, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined;
+        const contextText = includeContext ? buildAiContext(locale, profile, core?.level ?? null, userId, memoryEnabled ? memoryItems : [], activeWishTitles) : undefined;
         const requestBody = JSON.stringify({
           messages: allMsgs.map((message) => ({ role: message.role, content: message.content })),
           locale,
@@ -475,7 +451,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         abortRef.current = null;
       }
     },
-    [activeChat, activeWishTitles, contextDialogOpen, isByok, isLoading, isRestoring, locale, memoryEnabled, memoryItems, messages, profile, recordAiChallengeProgress, selectedContentId, t, userId]
+    [activeChat, activeWishTitles, core?.level, isByok, isLoading, isRestoring, locale, memoryEnabled, memoryItems, messages, profile, recordAiChallengeProgress, selectedContentId, t, userId]
   );
 
   const updateAiSettings = useCallback(async (routeMode: "system" | "byok", modelId = aiSettings?.modelId) => {
@@ -729,41 +705,6 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     setMemoryItems([]);
   }, [t, userId]);
 
-  /** The first-message choice can be changed here at any time; the value stays on this device. */
-  const toggleContext = useCallback(() => {
-    if (!userId) return;
-    const next = !contextConsentRef.current;
-    window.localStorage.setItem(`oa-ai-context-consent:${userId}`, next ? "allowed" : "denied");
-    contextConsentRef.current = next;
-    contextDecisionRef.current = true;
-    skipContextRef.current = false;
-    setContextAllowed(next);
-  }, [userId]);
-
-  const allowContext = useCallback(() => {
-    if (!userId) return;
-    window.localStorage.setItem(`oa-ai-context-consent:${userId}`, "allowed");
-    setContextAllowed(true);
-    contextConsentRef.current = true;
-    contextDecisionRef.current = true;
-    setContextDialogOpen(false);
-    const nextInput = pendingInput;
-    setPendingInput(null);
-    if (nextInput) window.setTimeout(() => void sendMessage(nextInput), 0);
-  }, [pendingInput, sendMessage, userId]);
-
-  const continueWithoutContext = useCallback(() => {
-    if (userId) window.localStorage.setItem(`oa-ai-context-consent:${userId}`, "denied");
-    setContextAllowed(false);
-    contextConsentRef.current = false;
-    contextDecisionRef.current = true;
-    setContextDialogOpen(false);
-    skipContextRef.current = true;
-    const nextInput = pendingInput;
-    setPendingInput(null);
-    if (nextInput) window.setTimeout(() => void sendMessage(nextInput), 0);
-  }, [pendingInput, sendMessage, userId]);
-
   const toggleSounds = useCallback(() => {
     const next = !soundsOn;
     setSoundsEnabled(next);
@@ -840,9 +781,6 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
                 <strong>{t("ai.chat.contextSetting.title")}</strong>
                 <small>{t("ai.chat.contextSetting.description")}</small>
               </div>
-              <button className="ai-chat-icon-btn" type="button" onClick={toggleContext} aria-pressed={contextAllowed} aria-label={t("ai.chat.contextSetting.toggle")}>
-                {contextAllowed ? "✓" : "—"}
-              </button>
             </div>
             <div className="ai-chat-preference-row">
               <div>
@@ -1115,40 +1053,6 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
         {!isByok && quota ? <small>{t("ai.chat.quotaReset")}</small> : null}
       </div>
 
-      {contextDialogOpen ? (
-        <div className="ai-chat-modal-backdrop" role="presentation">
-          <section className="ai-chat-modal" role="dialog" aria-modal="true" aria-labelledby="ai-chat-context-title">
-            <h2 id="ai-chat-context-title">{t("ai.chat.context.title")}</h2>
-            <p>{t("ai.chat.context.description")}</p>
-            <ul className="ai-chat-context-list">
-              <li>{t("ai.chat.context.profile", { value: profile?.display_name || profile?.username || t("profile.guest") })}</li>
-              <li>{t("ai.chat.context.wish", { value: readPrimaryWish(user?.id)?.title || t("ai.chat.context.none") })}</li>
-              <li>
-                {t("ai.chat.context.activeWishes", { count: additionalWishTitles.length })}
-                {additionalWishTitles.length ? (
-                  <ul className="ai-chat-context-memory-details">
-                    {additionalWishTitles.map((title) => <li key={title}>{title}</li>)}
-                  </ul>
-                ) : null}
-              </li>
-              <li>
-                {t("ai.chat.context.memory", { count: memoryEnabled ? memoryItems.filter((item) => item.confirmed).length : 0 })}
-                {memoryEnabled && memoryItems.some((item) => item.confirmed) ? (
-                  <ul className="ai-chat-context-memory-details">
-                    {memoryItems.filter((item) => item.confirmed).slice(0, 20).map((item) => <li key={item.id}>{item.content}</li>)}
-                  </ul>
-                ) : null}
-              </li>
-              <li>{t("ai.chat.context.language", { value: locale.toUpperCase() })}</li>
-            </ul>
-            <div className="ai-chat-modal-actions">
-              <button className="primary-button" type="button" onClick={allowContext}>{t("ai.chat.context.allow")}</button>
-              <button className="secondary-button" type="button" onClick={continueWithoutContext}>{t("ai.chat.context.continue")}</button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
       {pendingAction ? (
         <div className="ai-chat-modal-backdrop" role="presentation">
           <section className="ai-chat-modal" role="dialog" aria-modal="true" aria-labelledby="ai-chat-save-title">
@@ -1324,10 +1228,10 @@ async function loadAiWishContext(userId: string | null): Promise<string[]> {
     .slice(0, 10);
 }
 
-function buildAiContext(locale: "ru" | "en", profile: ReturnType<typeof useUserContext>["profile"], userId: string | null, memoryItems: AiMemoryItem[], activeWishTitles: string[]): string {
+function buildAiContext(locale: "ru" | "en", profile: ReturnType<typeof useUserContext>["profile"], level: number | null, userId: string | null, memoryItems: AiMemoryItem[], activeWishTitles: string[]): string {
   const wish = readPrimaryWish(userId ?? undefined);
   const profileName = profile?.display_name || profile?.username || "";
-  const lines = [`language: ${locale}`, profileName ? `display name: ${profileName}` : ""];
+  const lines = [`language: ${locale}`, profileName ? `display name: ${profileName}` : "", level !== null ? `level: ${level}` : ""];
   if (wish?.title) lines.push(`nearest wish: ${wish.title}`);
   for (const title of activeWishTitles.filter((item) => item && item !== wish?.title).slice(0, 10)) lines.push(`active wish: ${title}`);
   for (const item of memoryItems.filter((memory) => memory.confirmed).slice(0, 20)) lines.push(`${item.kind}: ${item.content}`);

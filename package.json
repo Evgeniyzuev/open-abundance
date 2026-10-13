@@ -24,6 +24,7 @@
     "test:p2p-push": "node scripts/verify-p2p-push-contract.mjs",
     "test:qr": "node --experimental-strip-types scripts/verify-qr-payload-contract.mjs",
     "test:nova": "node --experimental-strip-types scripts/verify-nova-cards-contract.mjs",
+    "test:launch": "node scripts/verify-launch-decisions-contract.mjs",
     "test:value": "node --experimental-strip-types scripts/verify-value-metrics-contract.mjs",
     "test:market-offer": "node --experimental-strip-types scripts/verify-market-offer-contract.mjs",
     "test:calendar": "node --experimental-strip-types scripts/verify-calendar-export-contract.mjs",

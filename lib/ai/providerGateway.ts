@@ -578,6 +578,8 @@ async function generateGeminiJson(
           temperature,
           maxOutputTokens,
           responseMimeType: "application/json",
+          // Short structured tool answers do not need reasoning tokens; this keeps them fast, as in chat.
+          ...(GEMINI_DISABLE_THINKING ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       }),
     }

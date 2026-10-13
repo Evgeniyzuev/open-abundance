@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildAiSystemPrompt } from "@/lib/ai/knowledge";
 import { AiGatewayError, generateAiJson } from "@/lib/ai/providerGateway";
+import { buildSafetyPayload, hasSafetyText } from "@/lib/ai/safety";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import {
   REFLECTION_PRACTICE_IDS,
@@ -52,8 +53,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid guided reflection selections." }, { status: 400 });
   }
 
-  if (hasImmediateSafetySignal(rawText, answers, guided)) {
-    return NextResponse.json(buildSafetyResponse(locale), { headers: NO_STORE_HEADERS });
+  const guidedText = guided ? Object.values(guided).flat().join("\n") : "";
+  if (hasSafetyText(`${rawText}\n${guidedText}\n${answers.map((answer) => answer.answer).join("\n")}`)) {
+    return NextResponse.json(buildSafetyPayload(locale), { headers: NO_STORE_HEADERS });
   }
 
   const systemPrompt = buildAiSystemPrompt({ locale, capability: "reflection.process" });
@@ -248,42 +250,7 @@ function validateModelResponse(value: unknown, answerCount: number, locale: "ru"
   return { mode: "proposal", proposal: result };
 }
 
-function buildSafetyResponse(locale: "ru" | "en"): ReflectionStepResponse {
-  if (locale === "ru") {
-    return {
-      mode: "safety",
-      title: "Сейчас важнее безопасность",
-      message: "Если есть риск, что вы причините вред себе или другому человеку, не оставайтесь с этим в одиночку. ИИ-разбор сейчас не подходит.",
-      actions: [
-        "Позвоните в местную экстренную службу или кризисную линию.",
-        "Свяжитесь с человеком, которому доверяете, и попросите побыть рядом.",
-        "Отойдите от предметов и мест, которые могут быть опасны."
-      ]
-    };
-  }
-  return {
-    mode: "safety",
-    title: "Safety comes first right now",
-    message: "If you may harm yourself or someone else, do not handle this alone. AI reflection is not the right tool right now.",
-    actions: [
-      "Call your local emergency service or crisis line.",
-      "Contact someone you trust and ask them to stay with you.",
-      "Move away from objects or places that could be dangerous."
-    ]
-  };
-}
 
-function hasImmediateSafetySignal(rawText: string, answers: RequestAnswer[], guided: ReflectionGuidedSelections | undefined): boolean {
-  const guidedText = guided ? Object.values(guided).flat().join("\n") : "";
-  const text = `${rawText}\n${guidedText}\n${answers.map((answer) => answer.answer).join("\n")}`.toLocaleLowerCase();
-  const patterns = [
-    /(?:хочу|собираюсь|могу)\s+(?:убить|покончить|причинить вред)/u,
-    /(?:покончу с собой|убью себя|суицид|не хочу жить)/u,
-    /(?:i want to|i am going to|i might)\s+(?:kill|hurt)\s+(?:myself|someone)/u,
-    /(?:suicide|end my life|don't want to live)/u
-  ];
-  return patterns.some((pattern) => pattern.test(text));
-}
 
 function normalizeGuidedSelections(value: unknown): ReflectionGuidedSelections | undefined | null {
   if (value === undefined) return undefined;

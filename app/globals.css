@@ -2878,3 +2878,8 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .task-week-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .task-week-list li.done button { color: var(--muted); text-decoration: line-through; }
 .task-week-list button { width: 100%; min-height: 44px; text-align: left; border-radius: 12px; padding: 8px 10px; background: transparent; color: var(--text); }
+.braindump-open { justify-self: start; min-height: 44px; }
+.braindump-input { width: 100%; font-size: 1rem; resize: vertical; }
+.braindump-results { display: grid; gap: 12px; }
+.braindump-group { display: grid; gap: 6px; }
+.braindump-group h3 { margin: 0; font-size: 0.875rem; color: var(--muted); }

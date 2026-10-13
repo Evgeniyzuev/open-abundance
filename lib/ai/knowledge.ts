@@ -6,7 +6,7 @@
  * the browser application.
  */
 
-export const AI_KNOWLEDGE_VERSION = "2026-10-12.1";
+export const AI_KNOWLEDGE_VERSION = "2026-10-13.1";
 
 export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/OPEN_ABUNDANCE_LORE.md",
@@ -17,7 +17,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "reflection.process" | "task.decompose";
+export type AiCapability = "chat.general" | "reflection.process" | "task.decompose" | "notes.triage";
 
 type SystemPromptOptions = {
   locale: "ru" | "en";
@@ -120,6 +120,15 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Give each step a realistic duration in whole minutes. Do not invent deadlines, prices, names, tools or facts that the task does not mention.
 - Do not repeat steps that already exist; continue from them instead. Plain text only: no Markdown, numbering, emoji or motivational language, and no pressure or guilt.
 - Never decide for the person: these are editable suggestions. The response schema is defined by the task input; return only the requested machine-readable format.
+`,
+  "notes.triage": `
+## Capability: sort a brain dump into a short plan
+- Work only with the free-form text supplied in this request. Do not use or request any other account, wish, Core, Wallet or note data, and never keep or repeat the text outside the requested format.
+- Split the text into separate items. Keep the person's own wording and meaning; do not invent tasks, deadlines, names or facts that the text does not contain, and merge duplicates.
+- Give each item one bucket: "now" (can be started within minutes), "today" (realistic later today), "later" (real but not today) or "drop" (not actionable, outside the person's control, a worry without a next action, or already done).
+- Put at most three items in "now" and "today" together. When in doubt between "today" and "later", choose "later" so the day stays light.
+- Each item is a short action phrase that starts with a verb, except "drop" items, which may be a short neutral label. No Markdown, emoji, numbering, judgement or pressure; a long list is not a failure.
+- This is organisation help, not therapy or diagnosis. The response schema is defined by the task input; return only the requested machine-readable format.
 `,
 };
 

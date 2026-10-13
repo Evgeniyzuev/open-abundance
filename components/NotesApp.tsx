@@ -66,6 +66,8 @@ const emptyListForm = {
   color: "#007aff"
 };
 
+import BrainDumpModal from "@/components/BrainDumpModal";
+
 type NotesAppProps = {
   openInboxNonce?: number;
   onScheduleReflection: (draft: ReflectionTaskDraft) => void;
@@ -84,6 +86,7 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
   const [infoNoteId, setInfoNoteId] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnectionState>("online");
   const [quickCapture, setQuickCapture] = useState("");
+  const [brainDumpOpen, setBrainDumpOpen] = useState(false);
   const [capturedNoteId, setCapturedNoteId] = useState<string | null>(null);
   const [processingNoteId, setProcessingNoteId] = useState<string | null>(null);
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
@@ -324,8 +327,16 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
           onCapture={handleQuickCapture}
           quickCapture={quickCapture}
           setQuickCapture={setQuickCapture}
+          onBrainDump={() => setBrainDumpOpen(true)}
         />
       )}
+      {brainDumpOpen ? (
+        <BrainDumpModal
+          initialText={quickCapture}
+          onClose={() => setBrainDumpOpen(false)}
+          onDone={() => { setBrainDumpOpen(false); setQuickCapture(""); }}
+        />
+      ) : null}
 
       {noteModalOpen ? (
         <NoteModal
@@ -389,9 +400,10 @@ type HomeScreenProps = {
   onCapture: (event: FormEvent<HTMLFormElement>) => void;
   quickCapture: string;
   setQuickCapture: (value: string) => void;
+  onBrainDump: () => void;
 };
 
-function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, quickCapture, setQuickCapture }: HomeScreenProps) {
+function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, quickCapture, setQuickCapture, onBrainDump }: HomeScreenProps) {
   const { t } = useUserContext();
   const captureRef = useRef<HTMLTextAreaElement>(null);
 
@@ -429,6 +441,7 @@ function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDe
         />
         <button className="reflection-capture-button" type="submit" disabled={!quickCapture.trim()}>{t("reflections.capture")}</button>
       </form>
+      <button className="text-button braindump-open" type="button" onClick={onBrainDump}>{t("braindump.open")}</button>
       {captured ? (
         <div className="reflection-capture-toast" role="status">{t("reflections.savedShort")}</div>
       ) : null}

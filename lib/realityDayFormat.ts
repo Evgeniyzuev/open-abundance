@@ -23,7 +23,7 @@ export function formatStatBlockValue(block: StatBlockLike, locale: AppLocale): s
     const levelBefore = readValueNumber(block.value, "levelBefore");
     const leveledUp = Boolean(readValue(block.value, "leveledUp"));
     if (!Number.isFinite(levelAfter)) return "Lvl 0";
-    return leveledUp && Number.isFinite(levelBefore) ? `Lvl ${levelBefore} -> ${levelAfter}` : `Lvl ${levelAfter}`;
+    return leveledUp && Number.isFinite(levelBefore) ? `Lvl ${levelBefore} → ${levelAfter}` : `Lvl ${levelAfter}`;
   }
 
   if (block.block_key === "total_core_growth" || block.block_key === "turnover") {

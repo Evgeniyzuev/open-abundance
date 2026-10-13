@@ -46,9 +46,10 @@ export default function RealityDayCard({ active }: { active: boolean }) {
   const [preview, setPreview] = useState<DayPreview | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const requestIdRef = useRef(0);
+  const userId = user?.id ?? null;
 
   const loadPreview = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     const requestId = ++requestIdRef.current;
     try {
       const response = await fetchWithSupabaseAuth(`/api/social/feed/daily-progress/draft?ts=${Date.now()}`, { cache: "no-store" }, { authRequired: true });
@@ -58,7 +59,7 @@ export default function RealityDayCard({ active }: { active: boolean }) {
     } catch {
       // The card is optional; Home stays usable without it.
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     if (active) void loadPreview();
@@ -79,7 +80,7 @@ export default function RealityDayCard({ active }: { active: boolean }) {
         <div className="reality-day-numbers">
           <span><strong>+{formatAdaptiveMoney(preview.summary.turnover.total, locale)}</strong><small>{t("social.post.turnover")}</small></span>
           <span><strong>{wins}</strong><small>{t("social.post.wins")}</small></span>
-          <span><strong>Lvl {preview.levelAfter}</strong><small>{t("social.post.level")}</small></span>
+          <span><strong>{preview.levelAfter > preview.levelBefore ? `${preview.levelBefore} → ${preview.levelAfter}` : `Lvl ${preview.levelAfter}`}</strong><small>{t("social.post.level")}</small></span>
         </div>
         <button className={published ? "secondary-button" : "challenge-primary-action"} type="button" onClick={() => setSheetOpen(true)}>
           {published ? t("reality.day.update") : t("reality.day.publish")}
@@ -203,7 +204,7 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section className="modal-sheet reality-day-sheet" role="dialog" aria-modal="true" aria-labelledby="reality-day-title" onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
-        <div className="modal-header"><h2 id="reality-day-title">{t("reality.day.title")}</h2></div>
+        <div className="modal-header"><span /><h2 id="reality-day-title">{t("reality.day.title")}</h2></div>
 
         {!draft && !error ? <p className="home-status">{t("app.common.loading")}</p> : null}
 

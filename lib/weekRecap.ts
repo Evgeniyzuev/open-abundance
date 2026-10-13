@@ -66,6 +66,15 @@ export function computeWeekRecap(input: { today: string; tasks: RecapTask[]; com
   };
 }
 
+export type OverdueCandidate = { id: string; completed: boolean; deleted?: boolean; schedule: { type: string; date?: string } };
+
+/** One-time tasks whose date has passed without being done, oldest first: the "loose ends" of the week. */
+export function findOverdueTasks<T extends OverdueCandidate>(tasks: T[], today: string): T[] {
+  return tasks
+    .filter((task) => !task.completed && !task.deleted && task.schedule.type === "once" && typeof task.schedule.date === "string" && task.schedule.date < today)
+    .sort((left, right) => String(left.schedule.date).localeCompare(String(right.schedule.date)));
+}
+
 export function hasWeekActivity(recap: WeekRecap): boolean {
   return recap.checkIns + recap.tasksFinished + recap.notesWritten > 0;
 }

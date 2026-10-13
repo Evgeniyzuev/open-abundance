@@ -7,7 +7,7 @@ import { useUserContext } from "@/components/UserProvider";
 import { getNotes } from "@/lib/notesStore";
 import { todayKey } from "@/lib/taskSchedule";
 import { getAllTasks, getTaskCompletions } from "@/lib/tasksStore";
-import { computeWeekRecap, hasWeekActivity, isRecapPromptDay, recapWeekKey } from "@/lib/weekRecap";
+import { computeWeekRecap, findOverdueTasks, hasWeekActivity, isRecapPromptDay, recapWeekKey } from "@/lib/weekRecap";
 
 const DISMISSED_KEY = "open-abundance:week-recap-dismissed";
 
@@ -27,7 +27,7 @@ export default function WeekRecapPrompt({ active }: { active: boolean }) {
       // Without storage the line may show again; it is dismissible.
     }
     void Promise.all([getAllTasks(), getTaskCompletions(), getNotes()])
-      .then(([tasks, completions, notes]) => setVisible(hasWeekActivity(computeWeekRecap({ today, tasks, completions, notes }))))
+      .then(([tasks, completions, notes]) => setVisible(hasWeekActivity(computeWeekRecap({ today, tasks, completions, notes })) || findOverdueTasks(tasks, today).length > 0))
       .catch(() => setVisible(false));
   }, [active, today, weekKey]);
 

@@ -39,6 +39,28 @@ assert.equal(isRecapPromptDay("2026-10-12"), true, "Monday");
 assert.equal(isRecapPromptDay("2026-10-13"), false, "Tuesday");
 assert.equal(recapWeekKey("2026-10-12"), "2026-10-06");
 
+// Weekly review: loose ends are past one-time tasks that are still open, oldest first.
+const { findOverdueTasks } = await import("../lib/weekRecap.ts");
+const looseEnds = findOverdueTasks([
+  { id: "late", completed: false, schedule: { type: "once", date: "2026-10-10" } },
+  { id: "older", completed: false, schedule: { type: "once", date: "2026-10-02" } },
+  { id: "today", completed: false, schedule: { type: "once", date: "2026-10-13" } },
+  { id: "done", completed: true, schedule: { type: "once", date: "2026-10-01" } },
+  { id: "deleted", completed: false, deleted: true, schedule: { type: "once", date: "2026-10-01" } },
+  { id: "daily", completed: false, schedule: { type: "daily", startDate: "2026-10-01" } }
+], today);
+assert.deepEqual(looseEnds.map((task) => task.id), ["older", "late"]);
+
+const store = readFileSync("lib/tasksStore.ts", "utf8");
+assert.match(store, /export async function rescheduleOnceTask/);
+assert.match(store, /return rescheduleOnceTask\(taskId, addDays\(task\.schedule\.date, 1\)\)/, "postpone reuses the same rescheduling");
+const review = readFileSync("components/WeekRecapModal.tsx", "utf8");
+assert.match(review, /resolveOverdue\(task, "today"/);
+assert.match(review, /resolveOverdue\(task, "tomorrow"/);
+assert.match(review, /resolveOverdue\(task, "let_go"/);
+assert.match(review, /await deleteTask\(task\.id\)/, "letting go is a soft delete that stays in the archive");
+assert.doesNotMatch(review, /purgeTask/, "the review never deletes permanently");
+
 // Only numbers leave the device, and only when the person shares.
 const modal = readFileSync("components/WeekRecapModal.tsx", "utf8");
 assert.doesNotMatch(modal, /fetch\(|supabase/i, "the recap is built from on-device data");

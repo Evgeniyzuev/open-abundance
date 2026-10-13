@@ -7,9 +7,11 @@ import type { AppLocale } from "@/lib/i18n";
 import { getNotes } from "@/lib/notesStore";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { shareOrDownloadFile } from "@/lib/shareFile";
-import { todayKey } from "@/lib/taskSchedule";
-import { getAllTasks, getTaskCompletions } from "@/lib/tasksStore";
-import { computeWeekRecap, type WeekRecap } from "@/lib/weekRecap";
+import { addDays, todayKey } from "@/lib/taskSchedule";
+import { deleteTask, getAllTasks, getTaskCompletions, rescheduleOnceTask, type TaskItem } from "@/lib/tasksStore";
+import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
+import { celebrate } from "@/lib/ui/feedback";
+import { computeWeekRecap, findOverdueTasks, type WeekRecap } from "@/lib/weekRecap";
 
 type WeekRecapModalProps = {
   onClose: () => void;
@@ -21,13 +23,40 @@ export default function WeekRecapModal({ onClose }: WeekRecapModalProps) {
   const [recap, setRecap] = useState<WeekRecap | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
+  const [overdue, setOverdue] = useState<TaskItem[]>([]);
+
+  async function load() {
+    const today = todayKey();
+    try {
+      const [tasks, completions, notes] = await Promise.all([getAllTasks(), getTaskCompletions(), getNotes()]);
+      setRecap(computeWeekRecap({ today, tasks, completions, notes }));
+      setOverdue(findOverdueTasks(tasks, today));
+    } catch {
+      setRecap(computeWeekRecap({ today, tasks: [], completions: [], notes: [] }));
+      setOverdue([]);
+    }
+  }
 
   useEffect(() => {
-    void Promise.all([getAllTasks(), getTaskCompletions(), getNotes()])
-      .then(([tasks, completions, notes]) => setRecap(computeWeekRecap({ today: todayKey(), tasks, completions, notes })))
-      .catch(() => setRecap(computeWeekRecap({ today: todayKey(), tasks: [], completions: [], notes: [] })));
+    void load();
     trackProductEvent("week_recap_opened");
+    // Loading once on open is enough; actions reload explicitly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Weekly review: every loose end gets a calm decision — today, tomorrow or let it go. */
+  async function resolveOverdue(task: TaskItem, decision: "today" | "tomorrow" | "let_go", element: Element | null) {
+    if (decision === "let_go") {
+      await deleteTask(task.id);
+      void cancelActionReminder(task.id);
+    } else {
+      const next = await rescheduleOnceTask(task.id, decision === "today" ? todayKey() : addDays(todayKey(), 1));
+      if (next?.remindAt && Date.parse(next.remindAt) > Date.now()) void scheduleActionReminder(task.id, next.remindAt, locale);
+    }
+    celebrate(element);
+    trackProductEvent("week_review_loose_end", { decision });
+    await load();
+  }
 
   async function share() {
     if (!recap) return;
@@ -75,6 +104,23 @@ export default function WeekRecapModal({ onClose }: WeekRecapModalProps) {
               <div><dt>{t("weekRecap.notesWritten")}</dt><dd>{recap.notesWritten}</dd></div>
             </dl>
             <p>{recap.activeDays === 0 ? t("weekRecap.quietWeek") : recap.bestRun >= 3 ? t("weekRecap.run", { days: recap.bestRun }) : t("weekRecap.movement")}</p>
+            {overdue.length > 0 ? (
+              <section className="week-review-loose-ends">
+                <h3>{t("weekRecap.looseEnds", { count: overdue.length })}</h3>
+                <ul>
+                  {overdue.slice(0, 10).map((task) => (
+                    <li key={task.id}>
+                      <span>{task.title}</span>
+                      <div>
+                        <button className="secondary-button" type="button" onClick={(event) => void resolveOverdue(task, "today", event.currentTarget)}>{t("weekRecap.moveToday")}</button>
+                        <button className="secondary-button" type="button" onClick={(event) => void resolveOverdue(task, "tomorrow", event.currentTarget)}>{t("weekRecap.moveTomorrow")}</button>
+                        <button className="text-button" type="button" onClick={(event) => void resolveOverdue(task, "let_go", event.currentTarget)}>{t("weekRecap.letGo")}</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
             <button className="challenge-primary-action" type="button" disabled={sharing} onClick={() => void share()}><Share2 size={17} /> {t("weekRecap.share")}</button>
             <small className="week-recap-note">{t("weekRecap.privacy")}</small>
             {shareError ? <p className="step-suggest-note" role="status">{t("weekRecap.shareError")}</p> : null}

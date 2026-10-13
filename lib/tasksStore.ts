@@ -1,7 +1,7 @@
 export type SyncStatus = "local" | "pending_sync" | "synced" | "failed";
 
 import { openOfflineDatabase } from "@/lib/offlineDatabase";
-import { addDays, toDateKey } from "@/lib/taskSchedule";
+import { addDays, daysBetween, toDateKey } from "@/lib/taskSchedule";
 import { MAX_TASK_SUBTASKS } from "@/lib/taskSteps";
 
 export type TaskSchedule =
@@ -162,10 +162,18 @@ export async function setTaskReminder(taskId: string, remindAt: string | undefin
 export async function postponeTask(taskId: string): Promise<TaskItem | undefined> {
   const task = await getTask(taskId);
   if (!task || task.schedule.type !== "once") return task;
+  return rescheduleOnceTask(taskId, addDays(task.schedule.date, 1));
+}
+
+/** Moves a one-time task to another date; its reminder keeps the same time of day. */
+export async function rescheduleOnceTask(taskId: string, date: string): Promise<TaskItem | undefined> {
+  const task = await getTask(taskId);
+  if (!task || task.schedule.type !== "once") return task;
+  const shiftDays = daysBetween(task.schedule.date, date);
   const next: TaskItem = {
     ...task,
-    schedule: { type: "once", date: addDays(task.schedule.date, 1) },
-    remindAt: task.remindAt ? new Date(new Date(task.remindAt).getTime() + 24 * 60 * 60_000).toISOString() : undefined,
+    schedule: { type: "once", date },
+    remindAt: task.remindAt ? new Date(new Date(task.remindAt).getTime() + shiftDays * 24 * 60 * 60_000).toISOString() : undefined,
     updatedAt: new Date().toISOString(),
     syncStatus: "local"
   };

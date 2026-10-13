@@ -2944,3 +2944,9 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .week-recap-prompt-open small { color: var(--blue); font-weight: 800; }
 .task-detail-tools { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .task-detail-tools .text-button { min-height: 44px; }
+.week-review-loose-ends { display: grid; gap: 8px; }
+.week-review-loose-ends h3 { margin: 0; font-size: 0.9375rem; }
+.week-review-loose-ends ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.week-review-loose-ends li { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: var(--accent-soft); }
+.week-review-loose-ends li > div { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.week-review-loose-ends .secondary-button, .week-review-loose-ends .text-button { min-height: 40px; }

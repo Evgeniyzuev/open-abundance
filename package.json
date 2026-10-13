@@ -31,6 +31,7 @@
     "test:calendar": "node --experimental-strip-types scripts/verify-calendar-export-contract.mjs",
     "test:shortcuts": "node --experimental-strip-types scripts/verify-shortcuts-contract.mjs",
     "test:week-recap": "node --experimental-strip-types scripts/verify-week-recap-contract.mjs",
+    "test:reality-day": "node --experimental-strip-types scripts/verify-reality-day-contract.mjs",
     "test:feed-swipe": "node --experimental-strip-types scripts/verify-feed-swipe-contract.mjs",
     "test:daily-set": "node --experimental-strip-types scripts/verify-daily-set-contract.mjs",
     "test:low-load": "node --experimental-strip-types scripts/verify-low-load-contract.mjs",

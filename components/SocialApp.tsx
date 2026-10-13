@@ -24,6 +24,7 @@ import SkillPassportApp from "@/components/SkillPassportApp";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
+import { formatStatBlockValue, readValue, statBlockLabelKey } from "@/lib/realityDayFormat";
 import type { FeedCategory, FeedExternalLink, FeedMedia, FeedPayload, FeedPost, FeedProjectReview, FeedReviewSummary, FeedStatBlock, FeedSystemAccount, FeedSystemStory, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -885,9 +886,9 @@ export default function SocialApp({
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({})
+        body: JSON.stringify({ ifContent: true })
       });
-      const payload = (await response.json()) as { post?: FeedPost; error?: string };
+      const payload = (await response.json()) as { post?: FeedPost | null; error?: string };
       if (response.ok && payload.post) setDailyDraft(payload.post);
     } catch (draftError) {
       dailyDraftEnsuredRef.current = false;
@@ -4623,17 +4624,6 @@ function verificationLabelKey(type: string | null): MessageKey {
   return "challenges.verification.manual";
 }
 
-function statBlockLabelKey(blockKey: string): MessageKey {
-  if (blockKey === "level") return "social.post.level";
-  if (blockKey === "total_core_growth") return "social.post.totalCoreGrowth";
-  if (blockKey === "team_strength") return "social.post.teamStrength";
-  if (blockKey === "core_growth") return "social.post.coreGrowth";
-  if (blockKey === "wallet_income") return "social.post.walletIncome";
-  if (blockKey === "daily_rate") return "social.post.dailyRate";
-  if (blockKey === "reinvest") return "social.post.reinvest";
-  return "social.post.detail";
-}
-
 function formatPostDate(post: FeedPost, locale: AppLocale): string {
   return formatDate(post.published_at ?? post.created_at, locale);
 }
@@ -4653,58 +4643,11 @@ function formatProviderLabel(provider: string): string {
   return "Website";
 }
 
-function formatStatBlockValue(block: FeedStatBlock, locale: AppLocale): string {
-  if (block.block_key === "level") {
-    const levelAfter = readValueNumber(block.value, "levelAfter");
-    const levelBefore = readValueNumber(block.value, "levelBefore");
-    const leveledUp = Boolean(readValue(block.value, "leveledUp"));
-    if (!Number.isFinite(levelAfter)) return "Lvl 0";
-    return leveledUp && Number.isFinite(levelBefore) ? `Lvl ${levelBefore} -> ${levelAfter}` : `Lvl ${levelAfter}`;
-  }
-
-  if (block.block_key === "total_core_growth") {
-    const amount = readValueNumber(block.value, "amount");
-    return `+${formatMoney(Number.isFinite(amount) ? amount : 0, locale)}`;
-  }
-
-  if (block.block_key === "team_strength") {
-    const levelSum = readValueNumber(block.value, "levelSum");
-    const memberCount = readValueNumber(block.value, "memberCount");
-    const members = Number.isFinite(memberCount) ? memberCount : 0;
-    const strength = Number.isFinite(levelSum) ? levelSum : 0;
-    return `${strength} LVL / ${members}`;
-  }
-
-  if (block.block_key === "daily_rate" || block.block_key === "reinvest") {
-    const percent = readValueNumber(block.value, "percent");
-    return Number.isFinite(percent) ? formatPercentValue(percent) : "0%";
-  }
-
-  const amount = readValueNumber(block.value, "amount");
-  return formatMoney(Number.isFinite(amount) ? amount : 0, locale);
-}
-
 function statBlockClassName(block: FeedStatBlock, baseClassName: string, active = false): string {
   const classNames = [baseClassName];
   if (active) classNames.push("active");
   if (block.block_key === "level" && Boolean(readValue(block.value, "leveledUp"))) classNames.push("level-up");
   return classNames.join(" ");
-}
-
-function readValue(value: unknown, key: string): unknown {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  return (value as Record<string, unknown>)[key];
-}
-
-function readValueNumber(value: unknown, key: string): number {
-  const raw = readValue(value, key);
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : Number.NaN;
-}
-
-function formatPercentValue(value: number): string {
-  const percent = Math.abs(value) <= 1 ? value * 100 : value;
-  return `${percent.toLocaleString("en-US", { maximumFractionDigits: 4 })}%`;
 }
 
 function readableHost(value: string): string {

@@ -130,5 +130,8 @@ async function getEditableDraft(supabase: Awaited<ReturnType<typeof getAuthentic
     .is("deleted_at", null)
     .maybeSingle();
   if (error) throw error;
-  return data && (data.post_type === "external_link" || data.post_type === "manual" && data.status === "draft") ? data : null;
+  if (!data) return null;
+  if (data.post_type === "external_link") return data;
+  // Manual posts and the day post (daily_progress / level_up) accept the author's own photo or video while still a draft.
+  return ["manual", "daily_progress", "level_up"].includes(data.post_type) && data.status === "draft" ? data : null;
 }

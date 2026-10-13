@@ -6,6 +6,7 @@ import { useUserContext } from "@/components/UserProvider";
 import DailySetCard from "@/components/DailySetCard";
 import HomeTasksCard from "@/components/HomeTasksCard";
 import WeekRecapPrompt from "@/components/WeekRecapPrompt";
+import RealityDayCard from "@/components/RealityDayCard";
 import TaskStepSuggester from "@/components/TaskStepSuggester";
 import { saveTask } from "@/lib/tasksStore";
 import { todayKey } from "@/lib/taskSchedule";
@@ -445,6 +446,8 @@ export default function HomeTodayApp({
       />
 
       <WeekRecapPrompt active={active} />
+
+      <RealityDayCard active={active} />
 
       <HomeTasksCard active={active} onOpenTask={onOpenTask} onOpenTasks={onOpenTasks} />
 

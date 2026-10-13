@@ -3718,6 +3718,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      reality_day_summary: {
+        Args: { p_date: string; p_user_id: string }
+        Returns: Json
+      }
       create_marketplace_deal: {
         Args: { p_buyer_user_id: string; p_listing_id: string }
         Returns: Json

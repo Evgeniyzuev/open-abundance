@@ -1,6 +1,8 @@
 export type SyncStatus = "local" | "pending_sync" | "synced" | "failed";
 
 import { openOfflineDatabase } from "@/lib/offlineDatabase";
+import { addDays, toDateKey } from "@/lib/taskSchedule";
+import { MAX_TASK_SUBTASKS } from "@/lib/taskSteps";
 
 export type TaskSchedule =
   | { type: "once"; date: string }
@@ -19,6 +21,8 @@ export type TaskItem = {
   title: string;
   description: string;
   subtasks: string[];
+  /** Indexes into `subtasks` that are checked off. */
+  doneSubtasks?: number[];
   schedule: TaskSchedule;
   streak?: TaskStreakSettings;
   imageUrl?: string;
@@ -54,6 +58,8 @@ export type TaskInput = Pick<TaskItem, "id" | "title" | "description" | "schedul
   remindAt?: string;
 };
 
+export const TASKS_CHANGED_EVENT = "open-abundance:tasks-changed";
+
 const TASKS_STORE = "tasks";
 const TASK_COMPLETIONS_STORE = "taskCompletions";
 
@@ -70,7 +76,10 @@ async function withStore<T>(
 
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
-    tx.oncomplete = () => db.close();
+    tx.oncomplete = () => {
+      db.close();
+      if (mode === "readwrite" && typeof window !== "undefined") window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+    };
     tx.onerror = () => {
       db.close();
       reject(tx.error);
@@ -101,6 +110,7 @@ export async function saveTask(input: TaskInput): Promise<TaskItem> {
     title: input.title,
     description: input.description,
     subtasks: input.subtasks ?? existing?.subtasks ?? [],
+    doneSubtasks: existing?.doneSubtasks,
     schedule: input.schedule,
     streak: input.streak ?? existing?.streak,
     imageUrl: input.imageUrl,
@@ -117,6 +127,62 @@ export async function saveTask(input: TaskInput): Promise<TaskItem> {
 
   await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) => store.put(task));
   return task;
+}
+
+/** Appends accepted steps to one task without rewriting its other fields. */
+export async function appendTaskSubtasks(taskId: string, steps: string[]): Promise<TaskItem | undefined> {
+  const task = await getTask(taskId);
+  if (!task) return undefined;
+  const known = new Set(task.subtasks.map((step) => step.trim().toLowerCase()));
+  const added = steps.map((step) => step.trim()).filter((step) => step && !known.has(step.toLowerCase()));
+  if (added.length === 0) return task;
+  const next: TaskItem = {
+    ...task,
+    subtasks: [...task.subtasks, ...added].slice(0, MAX_TASK_SUBTASKS),
+    updatedAt: new Date().toISOString(),
+    syncStatus: "local"
+  };
+  await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) => store.put(next));
+  return next;
+}
+
+/** Sets or clears the one-off reminder; a one-time task moves to the reminder's local date. */
+export async function setTaskReminder(taskId: string, remindAt: string | undefined): Promise<TaskItem | undefined> {
+  const task = await getTask(taskId);
+  if (!task) return undefined;
+  const schedule: TaskSchedule = remindAt && task.schedule.type === "once"
+    ? { type: "once", date: toDateKey(new Date(remindAt)) }
+    : task.schedule;
+  const next: TaskItem = { ...task, remindAt, schedule, updatedAt: new Date().toISOString(), syncStatus: "local" };
+  await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) => store.put(next));
+  return next;
+}
+
+/** Moves a one-time task (and its reminder, if any) one day later. */
+export async function postponeTask(taskId: string): Promise<TaskItem | undefined> {
+  const task = await getTask(taskId);
+  if (!task || task.schedule.type !== "once") return task;
+  const next: TaskItem = {
+    ...task,
+    schedule: { type: "once", date: addDays(task.schedule.date, 1) },
+    remindAt: task.remindAt ? new Date(new Date(task.remindAt).getTime() + 24 * 60 * 60_000).toISOString() : undefined,
+    updatedAt: new Date().toISOString(),
+    syncStatus: "local"
+  };
+  await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) => store.put(next));
+  return next;
+}
+
+/** Persists the checked state of one subtask so progress survives closing the card. */
+export async function toggleTaskSubtask(taskId: string, index: number): Promise<TaskItem | undefined> {
+  const task = await getTask(taskId);
+  if (!task || index < 0 || index >= task.subtasks.length) return task;
+  const done = new Set(task.doneSubtasks ?? []);
+  if (done.has(index)) done.delete(index);
+  else done.add(index);
+  const next: TaskItem = { ...task, doneSubtasks: [...done].sort((a, b) => a - b), updatedAt: new Date().toISOString(), syncStatus: "local" };
+  await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) => store.put(next));
+  return next;
 }
 
 export async function completeTaskDay(taskId: string, localDate: string, type: TaskCompletionType = "done"): Promise<void> {
@@ -190,6 +256,7 @@ function normalizeTask(task: TaskItem): TaskItem {
     ...task,
     description: task.description ?? "",
     subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
+    doneSubtasks: Array.isArray(task.doneSubtasks) ? task.doneSubtasks.filter((index) => Number.isInteger(index)) : undefined,
     streak: normalizeStreakSettings(task.streak),
     completed: Boolean(task.completed),
     failed: Boolean(task.failed),

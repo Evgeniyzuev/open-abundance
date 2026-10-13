@@ -3,6 +3,10 @@
 import { ArrowRight, Bell, CheckCircle2, Compass, FileText, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
+import HomeTasksCard from "@/components/HomeTasksCard";
+import TaskStepSuggester from "@/components/TaskStepSuggester";
+import { saveTask } from "@/lib/tasksStore";
+import { todayKey } from "@/lib/taskSchedule";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { getNotes, isReflectionDue, NOTES_CHANGED_EVENT } from "@/lib/notesStore";
@@ -82,6 +86,8 @@ type HomeTodayAppProps = {
   onOpenTeams: () => void;
   onOpenWishes: () => void;
   onOpenExpedition: () => void;
+  onOpenTask: (taskId: string) => void;
+  onOpenTasks: () => void;
   todayUnread: boolean;
 };
 
@@ -96,6 +102,8 @@ export default function HomeTodayApp({
   onOpenTeams,
   onOpenWishes,
   onOpenExpedition,
+  onOpenTask,
+  onOpenTasks,
   todayUnread
 }: HomeTodayAppProps) {
   const { core, locale, loading, t, user, wallet } = useUserContext();
@@ -112,6 +120,7 @@ export default function HomeTodayApp({
   const [milestone, setMilestone] = useState("");
   const [milestoneDraft, setMilestoneDraft] = useState("");
   const [agentNote, setAgentNote] = useState<string | null>(null);
+  const [startHelpOpen, setStartHelpOpen] = useState(false);
   const [failedWishImageUrl, setFailedWishImageUrl] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const nextChallenge = useMemo(() => selectJourneyChallenge(
@@ -152,6 +161,21 @@ export default function HomeTodayApp({
     window.addEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
     return () => window.removeEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
   }, [user?.id]);
+
+  async function addStartStepsAsTask(steps: string[]) {
+    if (!primaryWish) return;
+    await saveTask({
+      id: crypto.randomUUID(),
+      title: milestone || primaryWish.title,
+      description: milestone ? primaryWish.title : "",
+      subtasks: steps,
+      schedule: { type: "once", date: todayKey() },
+      syncStatus: "local"
+    });
+    setStartHelpOpen(false);
+    setAgentNote(t("home.help.taskAdded"));
+    playUiSound("action");
+  }
 
   function saveFirstMilestone() {
     if (!user || !primaryWish || milestoneDraft.trim().length < 3) return;
@@ -376,9 +400,19 @@ export default function HomeTodayApp({
             )}
           </div>
           <div className="primary-wish-agent-actions">
-            <button type="button" onClick={() => setAgentNote(t("home.path.helpReply"))}>{t("home.path.help")}</button>
+            <button type="button" onClick={() => { setAgentNote(null); setStartHelpOpen(true); }}>{t("home.path.help")}</button>
             <button type="button" onClick={() => setAgentNote(t("home.path.pauseReply"))}>{t("home.path.pause")}</button>
           </div>
+          {startHelpOpen ? (
+            <TaskStepSuggester
+              autoStart
+              title={milestone || primaryWish.title}
+              description={milestone ? primaryWish.title : ""}
+              existingSteps={[]}
+              onAccept={addStartStepsAsTask}
+              onError={() => { setStartHelpOpen(false); setAgentNote(t("home.path.helpReply")); }}
+            />
+          ) : null}
           {agentNote ? <p className="primary-wish-agent-note"><Sparkles size={15} />{agentNote}</p> : null}
           <button className="text-button primary-wish-change" type="button" onClick={onOpenWishes}>{t("home.path.allWishes")}</button>
         </section>
@@ -399,6 +433,8 @@ export default function HomeTodayApp({
           </button>
         </section>
       )}
+
+      <HomeTasksCard active={active} onOpenTask={onOpenTask} onOpenTasks={onOpenTasks} />
 
       <button className="expedition-entry-card" type="button" onClick={onOpenExpedition}>
         <span className="expedition-entry-icon"><Compass size={21} /></span>

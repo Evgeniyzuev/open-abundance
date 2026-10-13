@@ -6,7 +6,7 @@
  * the browser application.
  */
 
-export const AI_KNOWLEDGE_VERSION = "2026-10-11.1";
+export const AI_KNOWLEDGE_VERSION = "2026-10-12.1";
 
 export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/OPEN_ABUNDANCE_LORE.md",
@@ -17,7 +17,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "reflection.process";
+export type AiCapability = "chat.general" | "reflection.process" | "task.decompose";
 
 type SystemPromptOptions = {
   locale: "ru" | "en";
@@ -111,6 +111,15 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Preserve user agency: help separate facts, interpretations, feelings and controllable actions; do not decide for the user.
 - The response schema and step limits are defined by the task input. Return only the requested machine-readable format.
 - Never publish, remember or reuse the note, and never expose it in logs or unrelated output.
+`,
+  "task.decompose": `
+## Capability: split one task into concrete steps
+- Work only with the task title, description and existing steps supplied in this request. Do not use or request any other account, wish, Core or Wallet data.
+- Suggest three to seven steps in the order they would naturally be done. Each step is one short action sentence that starts with a verb and has an observable result.
+- The first step must be tiny: doable right now in about two minutes with what the person already has at hand (open a document, write one line, find one number). Its purpose is to start, not to make progress.
+- Give each step a realistic duration in whole minutes. Do not invent deadlines, prices, names, tools or facts that the task does not mention.
+- Do not repeat steps that already exist; continue from them instead. Plain text only: no Markdown, numbering, emoji or motivational language, and no pressure or guilt.
+- Never decide for the person: these are editable suggestions. The response schema is defined by the task input; return only the requested machine-readable format.
 `,
 };
 

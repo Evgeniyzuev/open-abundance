@@ -9,17 +9,38 @@ import {
   failTask,
   getAllTasks,
   getTaskCompletions,
+  appendTaskSubtasks,
+  postponeTask,
   purgeTask,
-  saveTask
+  saveTask,
+  setTaskReminder,
+  TASKS_CHANGED_EVENT,
+  toggleTaskSubtask
 } from "@/lib/tasksStore";
 import type { TaskCompletion, TaskItem, TaskSchedule, TaskStreakSettings } from "@/lib/tasksStore";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
-import { scheduleActionReminder } from "@/lib/pushReminders";
+import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
+import FocusTimer from "@/components/FocusTimer";
+import TaskStepSuggester from "@/components/TaskStepSuggester";
+import TaskWeekOverview from "@/components/TaskWeekOverview";
+import {
+  countPlannedDaysThrough,
+  daysBetween,
+  getIsoWeekday,
+  getNextStep,
+  getQuickReminderTime,
+  isCompletedOn,
+  isDueOn,
+  isPlannedOn,
+  parseDateKey,
+  toDateKey,
+  todayKey
+} from "@/lib/taskSchedule";
 import { PRACTICE_TEMPLATES, buildPracticeTask } from "@/lib/practiceTemplates";
 
 type ScheduleType = "once" | "daily" | "weekdays";
@@ -34,20 +55,6 @@ const weekdayOptions = [
   { value: 6, labelKey: "tasks.weekday.sat" },
   { value: 7, labelKey: "tasks.weekday.sun" }
 ] satisfies { value: number; labelKey: MessageKey }[];
-
-function todayKey(): string {
-  return toDateKey(new Date());
-}
-
-function toDateKey(date: Date): string {
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10);
-}
-
-function parseDateKey(day: string): Date {
-  const [year, month, date] = day.split("-").map(Number);
-  return new Date(year, month - 1, date);
-}
 
 const emptyTaskForm = {
   title: "",
@@ -71,9 +78,10 @@ const emptyTaskForm = {
 type TasksAppProps = {
   createRequest?: ReflectionTaskDraft | null;
   onCreateRequestHandled?: () => void;
+  openTaskRequest?: { id: string; nonce: number } | null;
 };
 
-export default function TasksApp({ createRequest, onCreateRequestHandled }: TasksAppProps) {
+export default function TasksApp({ createRequest, onCreateRequestHandled, openTaskRequest }: TasksAppProps) {
   const { locale, t } = useUserContext();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [completions, setCompletions] = useState<TaskCompletion[]>([]);
@@ -82,6 +90,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [todayExpanded, setTodayExpanded] = useState(true);
   const [otherExpanded, setOtherExpanded] = useState(false);
+  const [weekExpanded, setWeekExpanded] = useState(false);
   const [suggestedExpanded, setSuggestedExpanded] = useState(false);
   const [archiveExpanded, setArchiveExpanded] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
@@ -123,6 +132,19 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
       localLoadRequestRef.current += 1;
     };
   }, [loadLocalData]);
+
+  useEffect(() => {
+    const refresh = () => void refreshTasks().catch(() => undefined);
+    window.addEventListener(TASKS_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(TASKS_CHANGED_EVENT, refresh);
+  }, [refreshTasks]);
+
+  useEffect(() => {
+    if (!openTaskRequest || !tasks.some((task) => task.id === openTaskRequest.id)) return;
+    setSelectedTaskId(openTaskRequest.id);
+    // Only a new request opens a card; later task updates must not reopen it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openTaskRequest?.nonce]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 60_000);
@@ -202,6 +224,19 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
     setForm({ ...emptyTaskForm, startDate: todayKey() });
     setModalOpen(false);
     onCreateRequestHandled?.();
+    await refreshTasks();
+  }
+
+  async function changeReminder(task: TaskItem, remindAt: Date | null) {
+    const next = await setTaskReminder(task.id, remindAt ? remindAt.toISOString() : undefined);
+    if (remindAt && next) void scheduleActionReminder(task.id, remindAt.toISOString(), locale);
+    else void cancelActionReminder(task.id);
+    await refreshTasks();
+  }
+
+  async function postpone(task: TaskItem) {
+    const next = await postponeTask(task.id);
+    if (next?.remindAt) void scheduleActionReminder(task.id, next.remindAt, locale);
     await refreshTasks();
   }
 
@@ -332,6 +367,13 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
         ) : null}
       </section>
 
+      <section className="task-section">
+        <button className="task-section-toggle" type="button" onClick={() => setWeekExpanded((value) => !value)}>
+          <span>{t("tasks.week.title")}</span>
+        </button>
+        {weekExpanded ? <TaskWeekOverview tasks={tasks} completions={completions} today={today} onOpenTask={setSelectedTaskId} /> : null}
+      </section>
+
       {/* 2. Взятые — свёрнуто по умолчанию */}
       <section className="task-section">
         <button className="task-section-toggle" type="button" onClick={() => setOtherExpanded((value) => !value)}>
@@ -435,6 +477,9 @@ export default function TasksApp({ createRequest, onCreateRequestHandled }: Task
           onClose={() => setSelectedTaskId(null)}
           onDelete={() => removeTask(selectedTask)}
           onDone={() => markToday(selectedTask)}
+          onChanged={refreshTasks}
+          onChangeReminder={(remindAt) => changeReminder(selectedTask, remindAt)}
+          onPostpone={() => postpone(selectedTask)}
         />
       ) : null}
       {streakDecisionTask ? (
@@ -462,6 +507,7 @@ function TaskPanel({ task, completions, today, onMarkToday, onOpen, onRepeat }: 
   const progress = getProgress(task, completions, t);
   const doneToday = isCompletedOn(task.id, today, completions);
   const image = task.thumbnailDataUrl || task.imageUrl;
+  const nextStep = getNextStep(task);
 
   return (
     <article className="task-panel">
@@ -472,7 +518,7 @@ function TaskPanel({ task, completions, today, onMarkToday, onOpen, onRepeat }: 
             {task.title}
             {progress.label ? <em>{progress.label}</em> : null}
           </span>
-          {task.description ? <small>{task.description}</small> : task.subtasks.length > 0 ? <small>{t("tasks.subtasksCount", { count: task.subtasks.length })}</small> : null}
+          {nextStep ? <small>{t("tasks.steps.next", { step: nextStep })}</small> : task.description ? <small>{task.description}</small> : task.subtasks.length > 0 ? <small>{t("tasks.subtasksCount", { count: task.subtasks.length })}</small> : null}
           {progress.percent !== null ? (
             <span className="task-progress">
               <span style={{ width: `${progress.percent}%` }} />
@@ -587,6 +633,12 @@ function TaskModal({ form, setForm, onClose, onSubmit }: TaskModalProps) {
               ))}
             </div>
           ) : null}
+          <TaskStepSuggester
+            title={form.title}
+            description={form.description}
+            existingSteps={form.subtasks}
+            onAccept={(steps) => setForm((current) => ({ ...current, subtasks: [...current.subtasks, ...steps] }))}
+          />
         </div>
 
         <div className="task-modal-row">
@@ -702,22 +754,27 @@ type TaskDetailModalProps = {
   onClose: () => void;
   onDelete: () => void;
   onDone: () => void;
+  onChanged: () => Promise<void>;
+  onChangeReminder: (remindAt: Date | null) => Promise<void>;
+  onPostpone: () => Promise<void>;
 };
 
-function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, onDone }: TaskDetailModalProps) {
+function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, onDone, onChanged, onChangeReminder, onPostpone }: TaskDetailModalProps) {
   const { t } = useUserContext();
   const image = task.thumbnailDataUrl || task.imageUrl;
   const doneToday = isCompletedOn(task.id, today, completions);
   const progress = getProgress(task, completions, t);
-  const [checkedSubtasks, setCheckedSubtasks] = useState<Set<number>>(new Set());
+  const checkedSubtasks = new Set(task.doneSubtasks ?? []);
+  const firstOpenIndex = task.subtasks.findIndex((_, index) => !checkedSubtasks.has(index));
 
-  function toggleSubtask(index: number) {
-    setCheckedSubtasks((current) => {
-      const next = new Set(current);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
+  async function toggleSubtask(index: number) {
+    await toggleTaskSubtask(task.id, index);
+    await onChanged();
+  }
+
+  async function addSteps(steps: string[]) {
+    await appendTaskSubtasks(task.id, steps);
+    await onChanged();
   }
 
   return (
@@ -741,10 +798,31 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
                   <button className="subtask-check-button" type="button" aria-label={t("tasks.completeSubtask")} onClick={() => toggleSubtask(index)}>
                     {checkedSubtasks.has(index) ? "\u2713" : ""}
                   </button>
-                  <span>{subtask}</span>
+                  <span>{index === firstOpenIndex ? <em className="task-start-here">{t("tasks.steps.startHere")} · </em> : null}{subtask}</span>
                 </li>
               ))}
             </ul>
+          ) : null}
+          {task.subtasks.length > 0 ? (
+            <small className="task-steps-progress">
+              {firstOpenIndex === -1 ? t("tasks.steps.allDone") : t("tasks.steps.progress", { done: checkedSubtasks.size, total: task.subtasks.length })}
+            </small>
+          ) : null}
+          {!task.completed && !task.deleted ? (
+            <TaskStepSuggester title={task.title} description={task.description} existingSteps={task.subtasks} onAccept={addSteps} />
+          ) : null}
+          {!task.completed && !task.deleted ? <FocusTimer /> : null}
+          {task.schedule.type === "once" && !task.completed && !task.deleted ? (
+            <div className="task-reminder-quick">
+              {task.remindAt ? <small>{t("tasks.remind.set", { time: new Date(task.remindAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}</small> : null}
+              <div>
+                <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("hour"))}>{t("tasks.remind.hour")}</button>
+                <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("evening"))}>{t("tasks.remind.evening")}</button>
+                <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("tomorrow"))}>{t("tasks.remind.tomorrow")}</button>
+                <button className="secondary-button" type="button" onClick={() => void onPostpone()}>{t("tasks.postpone")}</button>
+                {task.remindAt ? <button className="text-button" type="button" onClick={() => void onChangeReminder(null)}>{t("tasks.remind.clear")}</button> : null}
+              </div>
+            </div>
           ) : null}
           <TaskMonthCalendar task={task} completions={completions} locale={locale} today={today} />
           {isDueOn(task, today) ? (
@@ -884,26 +962,6 @@ function extendTaskSchedule(schedule: TaskSchedule): TaskSchedule {
   return { ...schedule, infinite: false, targetDays: currentTarget + Math.max(1, currentTarget) };
 }
 
-function isDueOn(task: TaskItem, day: string): boolean {
-  if (task.completed) return false;
-  return isPlannedOn(task, day);
-}
-
-function isPlannedOn(task: TaskItem, day: string): boolean {
-  if (task.schedule.type === "once") return task.schedule.date === day;
-  if (task.schedule.startDate > day) return false;
-  if (task.schedule.type === "daily") {
-    if (task.schedule.infinite || !task.schedule.targetDays) return true;
-    if (task.streak?.softMode) return true;
-    return daysBetween(task.schedule.startDate, day) < task.schedule.targetDays;
-  }
-
-  if (!task.schedule.weekdays.includes(getIsoWeekday(day))) return false;
-  if (task.schedule.infinite || !task.schedule.targetDays) return true;
-  if (task.streak?.softMode) return true;
-  return countPlannedDaysThrough(task, day) <= task.schedule.targetDays;
-}
-
 function getMissedPlannedDays(task: TaskItem, today: string, completions: TaskCompletion[]): string[] {
   if (task.schedule.type === "once") return [];
   const missedDays: string[] = [];
@@ -927,31 +985,6 @@ function getAvailableLives(settings: TaskStreakSettings, completions: TaskComple
   const spentLives = completions.filter((completion) => completion.type === "life").length;
   const earnedLives = settings.livesEveryDays > 0 ? Math.floor(doneDays / settings.livesEveryDays) : 0;
   return Math.max(0, settings.initialLives + earnedLives - spentLives);
-}
-
-function getIsoWeekday(day: string): number {
-  const value = parseDateKey(day).getDay();
-  return value === 0 ? 7 : value;
-}
-
-function daysBetween(from: string, to: string): number {
-  const dayMs = 24 * 60 * 60 * 1000;
-  return Math.round((parseDateKey(to).getTime() - parseDateKey(from).getTime()) / dayMs);
-}
-
-function countPlannedDaysThrough(task: TaskItem, day: string): number {
-  if (task.schedule.type !== "weekdays") return 0;
-
-  let count = 0;
-  const cursor = parseDateKey(task.schedule.startDate);
-  const end = parseDateKey(day);
-
-  while (cursor <= end) {
-    if (task.schedule.weekdays.includes(getIsoWeekday(toDateKey(cursor)))) count += 1;
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  return count;
 }
 
 function getInitialCalendarMonth(task: TaskItem, completions: TaskCompletion[], today: string): string {
@@ -995,10 +1028,6 @@ function monthHasCalendarActivity(task: TaskItem, completions: TaskCompletion[],
 function formatMonthTitle(month: string, locale: AppLocale): string {
   const [year, monthIndex] = month.split("-").map(Number);
   return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { month: "long", year: "numeric" }).format(new Date(year, monthIndex - 1, 1));
-}
-
-function isCompletedOn(taskId: string, day: string, completions: TaskCompletion[]): boolean {
-  return completions.some((completion) => completion.taskId === taskId && completion.localDate === day);
 }
 
 function isLifeCompletion(taskId: string, day: string, completions: TaskCompletion[]): boolean {

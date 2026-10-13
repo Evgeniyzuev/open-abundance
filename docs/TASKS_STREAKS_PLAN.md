@@ -34,7 +34,7 @@
 - [ ] Add offline action queue and Supabase sync.
 - [ ] Add Supabase Storage or external image URL strategy for synced user images.
 - [ ] Add reminders and push notifications.
-- [ ] Persist subtask completion state if it becomes part of progress/streak logic.
+- [x] Persist subtask completion state (2026-10-12: `TaskItem.doneSubtasks`; the next unchecked step shows in the task list). AI step suggestions: [EXECUTIVE_FUNCTION_SUPPORT_PLAN.md](EXECUTIVE_FUNCTION_SUPPORT_PLAN.md).
 
 ## Цель
 

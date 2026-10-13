@@ -115,6 +115,12 @@ export async function scheduleActionReminder(taskId: string, dueAt: string, loca
   }
 }
 
+export async function cancelActionReminder(taskId: string) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const subscription = await getSubscription();
+  if (subscription) await cancelReminder(subscription, `task:${taskId}`);
+}
+
 export async function flushPendingReminders() {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   const pending = readPendingReminders();

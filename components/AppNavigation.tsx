@@ -137,6 +137,7 @@ export default function AppNavigation() {
   const [challengeFocusId, setChallengeFocusId] = useState<string | null>(null);
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
   const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
+  const [taskOpenRequest, setTaskOpenRequest] = useState<{ id: string; nonce: number } | null>(null);
   const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
   const [feedDraftFocusNonce, setFeedDraftFocusNonce] = useState(0);
   const [shareTargetDraft, setShareTargetDraft] = useState<ShareTargetDraft | null>(null);
@@ -527,6 +528,12 @@ export default function AppNavigation() {
     setActiveMainTab("goals");
   }
 
+  function openTaskFromHome(taskId: string) {
+    setTaskOpenRequest((current) => ({ id: taskId, nonce: (current?.nonce ?? 0) + 1 }));
+    setActiveGoalTab("checks");
+    setActiveMainTab("goals");
+  }
+
   function openReflectionInbox() {
     setReflectionInboxNonce((value) => value + 1);
     setActiveGoalTab("notes");
@@ -618,6 +625,8 @@ export default function AppNavigation() {
             onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
             onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
             onOpenExpedition={openExpedition}
+            onOpenTask={openTaskFromHome}
+            onOpenTasks={() => { setActiveGoalTab("checks"); setActiveMainTab("goals"); }}
             todayUnread={todayUnread}
             refreshNonce={refreshNonce}
           />
@@ -643,7 +652,7 @@ export default function AppNavigation() {
           <AiChatApp active={showIdeas} contentPostId={aiContentPostId} contentPostNonce={aiContentNonce} />
         </KeepAliveView>
         <KeepAliveView active={showChecks} visited>
-          <TasksApp createRequest={reflectionTaskDraft} onCreateRequestHandled={() => setReflectionTaskDraft(null)} />
+          <TasksApp createRequest={reflectionTaskDraft} onCreateRequestHandled={() => setReflectionTaskDraft(null)} openTaskRequest={taskOpenRequest} />
         </KeepAliveView>
         <KeepAliveView active={showMap} visited={visitedServerViews.map}>
           <GrowthMapApp

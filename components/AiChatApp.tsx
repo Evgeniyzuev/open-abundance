@@ -101,6 +101,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const [memoryItems, setMemoryItems] = useState<AiMemoryItem[]>([]);
   const [activeWishTitles, setActiveWishTitles] = useState<string[]>([]);
   const [memoryEnabled, setMemoryEnabledState] = useState(true);
+  const [contextAllowed, setContextAllowed] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memoryCandidate, setMemoryCandidate] = useState<string | null>(null);
   const [soundsOn, setSoundsOn] = useState(false);
@@ -190,6 +191,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     const hasContextConsent = storedContextDecision === "allowed";
     contextConsentRef.current = hasContextConsent;
     contextDecisionRef.current = Boolean(storedContextDecision);
+    setContextAllowed(hasContextConsent);
     setSoundsOn(getSoundsEnabled());
 
     void loadAiWishContext(userId)
@@ -727,9 +729,21 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     setMemoryItems([]);
   }, [t, userId]);
 
+  /** The first-message choice can be changed here at any time; the value stays on this device. */
+  const toggleContext = useCallback(() => {
+    if (!userId) return;
+    const next = !contextConsentRef.current;
+    window.localStorage.setItem(`oa-ai-context-consent:${userId}`, next ? "allowed" : "denied");
+    contextConsentRef.current = next;
+    contextDecisionRef.current = true;
+    skipContextRef.current = false;
+    setContextAllowed(next);
+  }, [userId]);
+
   const allowContext = useCallback(() => {
     if (!userId) return;
     window.localStorage.setItem(`oa-ai-context-consent:${userId}`, "allowed");
+    setContextAllowed(true);
     contextConsentRef.current = true;
     contextDecisionRef.current = true;
     setContextDialogOpen(false);
@@ -740,6 +754,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
 
   const continueWithoutContext = useCallback(() => {
     if (userId) window.localStorage.setItem(`oa-ai-context-consent:${userId}`, "denied");
+    setContextAllowed(false);
     contextConsentRef.current = false;
     contextDecisionRef.current = true;
     setContextDialogOpen(false);
@@ -820,6 +835,15 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
           </div>
 
           <div className="ai-chat-settings-section ai-chat-preferences">
+            <div className="ai-chat-preference-row">
+              <div>
+                <strong>{t("ai.chat.contextSetting.title")}</strong>
+                <small>{t("ai.chat.contextSetting.description")}</small>
+              </div>
+              <button className="ai-chat-icon-btn" type="button" onClick={toggleContext} aria-pressed={contextAllowed} aria-label={t("ai.chat.contextSetting.toggle")}>
+                {contextAllowed ? "✓" : "—"}
+              </button>
+            </div>
             <div className="ai-chat-preference-row">
               <div>
                 <strong>{t("ai.chat.memory.title")}</strong>

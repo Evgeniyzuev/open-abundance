@@ -13,11 +13,13 @@ import {
   saveList,
   saveNote,
   saveReflectionCapture,
-  toggleNoteCompleted
+  toggleNoteCompleted,
+  NOTES_CHANGED_EVENT
 } from "@/lib/notesStore";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import ReflectionProcessor from "@/components/ReflectionProcessor";
+import BackupReminder from "@/components/BackupReminder";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
@@ -151,6 +153,13 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
     } finally {
       window.clearTimeout(slowTimer);
     }
+  }, [refreshData]);
+
+  useEffect(() => {
+    // Notes written elsewhere (brain dump, backup restore) appear without reopening the screen.
+    const refresh = () => void refreshData().catch(() => undefined);
+    window.addEventListener(NOTES_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(NOTES_CHANGED_EVENT, refresh);
   }, [refreshData]);
 
   useEffect(() => {
@@ -298,6 +307,7 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
   return (
     <section className="reminders-app">
       <LocalDataNotice status={localDataStatus} onRetry={() => void loadLocalData()} />
+      {localDataStatus === "ready" ? <BackupReminder records={notes} /> : null}
       {detailView ? (
         <ListDetail
           activeTitle={activeTitle}

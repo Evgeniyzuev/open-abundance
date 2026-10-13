@@ -23,6 +23,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
+import BackupReminder from "@/components/BackupReminder";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import DecisionModal from "@/components/DecisionModal";
@@ -344,6 +345,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
       </header>
 
       <LocalDataNotice status={localDataStatus} onRetry={() => void loadLocalData()} />
+      {localDataStatus === "ready" ? <BackupReminder records={tasks} /> : null}
 
       <div className="tasks-ai-actions">
         {todayTasks.length >= 2 ? <button className="text-button" type="button" onClick={() => setDecisionOpen(true)}>{t("decision.title")}</button> : null}

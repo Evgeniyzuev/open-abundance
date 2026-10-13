@@ -2891,3 +2891,14 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .decision-result em { font-style: normal; font-weight: 800; color: var(--blue); }
 .routine-presets { display: flex; flex-wrap: wrap; gap: 6px; }
 .routine-shopping-toggle { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 9px; align-items: center; }
+.local-backup-body { display: grid; gap: 10px; }
+.local-backup-body p { margin: 0; }
+.local-backup-body small { color: var(--muted); }
+.local-backup-body .challenge-primary-action, .local-backup-body .secondary-button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.local-backup-check { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 9px; align-items: center; }
+.local-backup-preview { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: var(--accent-soft); }
+.local-backup-notice { color: var(--green); }
+.local-backup-notice.error { color: var(--muted); }
+.backup-reminder { display: grid; grid-template-columns: minmax(0, 1fr) auto 32px; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--accent-soft); color: var(--text); font-size: 0.875rem; }
+.backup-reminder .text-button { min-height: 40px; }
+.backup-reminder-close { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: transparent; color: var(--muted); }

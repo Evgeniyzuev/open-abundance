@@ -288,3 +288,7 @@ Changes that are still useful as defensive behavior and should not be removed ju
 - not applying guest or wrong-session challenge payloads to authenticated UI;
 - out-of-order request guards around user context and challenge reloads;
 - local-first notes/tasks remaining independent from Supabase reads.
+
+## File Backup (implemented 2026-10-13)
+
+Until server sync exists (`/api/notes/sync` is still a stub that stores nothing), the only backup is a user-owned file. Profile → Settings → My data saves `notes`, `lists`, `tasks`, `taskCompletions`, selected device settings and, optionally for signed-in users, `aiChats`/`aiMemory` to JSON, and restores it by merge only: add by `id`, update only when the file record has a strictly newer `updatedAt`, never delete, never overwrite device settings that already exist. The account id in AI records and user-scoped settings keys is stored as `{user}` and mapped to the importing account. Details: [PRODUCT_VISION_LOW_LOAD_PLAN.md §10](PRODUCT_VISION_LOW_LOAD_PLAN.md#10-статус-реализации).

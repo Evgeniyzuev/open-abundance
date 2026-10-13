@@ -10,6 +10,7 @@ import type { Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { parseTonUsdtUnits, tonUsdtUnitsToDecimal } from "@/lib/tonUsdtAmount";
 import { formatRateMoney } from "@/lib/moneyFormat";
+import { startVisiblePolling } from "@/lib/visiblePolling";
 
 type WalletRow = Tables<"wallet_accounts">;
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -84,12 +85,11 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
 
   useEffect(() => {
     if (!inProgress && !bindingPending) return;
-    const interval = window.setInterval(() => {
+    return startVisiblePolling(() => {
       void load().then((payload) => {
         if (payload.invoice && CREDITED_STATUSES.includes(payload.invoice.status)) void onRefresh();
       }).catch(() => undefined);
     }, 15_000);
-    return () => window.clearInterval(interval);
   }, [inProgress, bindingPending, load, onRefresh]);
 
   useEffect(() => {

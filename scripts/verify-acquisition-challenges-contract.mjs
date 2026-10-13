@@ -43,8 +43,11 @@ assert.match(acquisition, /existing\?\.source && existing\.source !== "direct"/)
 assert.match(authCallback, /readAcquisitionContext/);
 assert.match(authCallback, /anonymousId: guest\.guestId/);
 assert.match(authCallback, /referralCode: guest\.pendingReferral\?\.referralCode/);
-assert.match(productAnalytics, /getOrCreateLocalGuest/);
-assert.match(productAnalytics, /sendProductEvent\(guest\.guestId/);
+// Product events are batched; the queue must keep the guest id so the funnel joins with acquisition claims.
+const analyticsQueue = read("lib/analyticsQueue.ts");
+assert.match(productAnalytics, /enqueueAnalyticsEvent/);
+assert.match(analyticsQueue, /getOrCreateLocalGuest/);
+assert.match(analyticsQueue, /anonymousId = \(await getOrCreateLocalGuest\(\)\)\.guestId/);
 
 const acquisitionModule = { exports: {} };
 const acquisitionCode = ts.transpileModule(acquisition, {

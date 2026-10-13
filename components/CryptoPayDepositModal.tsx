@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MessageKey } from "@/lib/i18n";
 import { grossUpForFee } from "@/lib/cryptoPayFee";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { startVisiblePolling } from "@/lib/visiblePolling";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 type Limits = { enabled: boolean; network: "mainnet" | "testnet"; minUsd: number; maxUsd: number; dailyUsd: number; feePercent: number };
@@ -37,14 +38,14 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
   useEffect(() => {
     if (!invoice || status !== "active") return;
     let cancelled = false;
-    const timer = window.setInterval(async () => {
+    const stop = startVisiblePolling(async () => {
       try {
         const response = await fetchWithSupabaseAuth(`/api/wallet/deposits/cryptopay?id=${invoice.id}`, { cache: "no-store" }, { authRequired: true });
         const payload = (await response.json()) as { invoice?: { status: string } };
         if (!cancelled && payload.invoice) setStatus(payload.invoice.status);
       } catch { /* the next check asks again */ }
     }, 4000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    return () => { cancelled = true; stop(); };
   }, [invoice, status]);
 
   useEffect(() => {

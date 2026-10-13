@@ -1,34 +1,8 @@
-import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
-import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import { enqueueAnalyticsEvent, type AnalyticsProperties } from "@/lib/analyticsQueue";
 
-export type ClientAnalyticsProperties = Record<string, string | number | boolean | null>;
+export type ClientAnalyticsProperties = AnalyticsProperties;
 
-export async function trackClientEvent(
-  eventName: string,
-  properties: ClientAnalyticsProperties = {}
-): Promise<boolean> {
-  try {
-    const guest = await getOrCreateLocalGuest();
-    const supabase = getBrowserSupabaseClient();
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
-
-    const response = await fetch("/api/analytics/events", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
-      },
-      body: JSON.stringify({
-        anonymousId: guest.guestId,
-        eventName,
-        properties
-      })
-    });
-
-    return response.ok;
-  } catch {
-    return false;
-  }
+/** Queues an event; resolves once its batch is accepted (within about ten seconds). */
+export function trackClientEvent(eventName: string, properties: ClientAnalyticsProperties = {}): Promise<boolean> {
+  return enqueueAnalyticsEvent(eventName, properties);
 }

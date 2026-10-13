@@ -29,6 +29,7 @@ import type { Tables } from "@/lib/database.types";
 import { parseScanned } from "@/lib/qrPayload";
 import { useWalletFees } from "@/lib/useWalletFees";
 import { isUuid } from "@/lib/uuid";
+import { startVisiblePolling } from "@/lib/visiblePolling";
 
 type WalletTab = "wallet" | "core" | "market" | "p2p";
 export type WalletCalculatorRequest = {
@@ -2531,8 +2532,8 @@ function TonWithdrawalModal({
         // Keep the last status and retry on the next interval.
       }
     }
-    const interval = window.setInterval(() => { void refreshWithdrawal(); }, 15_000);
-    return () => { mounted = false; window.clearInterval(interval); };
+    const stop = startVisiblePolling(() => { void refreshWithdrawal(); }, 15_000);
+    return () => { mounted = false; stop(); };
   }, [withdrawalId, withdrawalStatus]);
 
   async function createWithdrawal() {
@@ -2764,10 +2765,10 @@ function TonDepositModal({
     }
 
     void refreshQuotes();
-    const interval = window.setInterval(() => { void refreshQuotes(); }, 30_000);
+    const stop = startVisiblePolling(() => { void refreshQuotes(); }, 30_000);
     return () => {
       mounted = false;
-      window.clearInterval(interval);
+      stop();
     };
   }, [t]);
 
@@ -2799,10 +2800,10 @@ function TonDepositModal({
       }
     }
 
-    const interval = window.setInterval(() => { void refreshInvoice(); }, 15_000);
+    const stop = startVisiblePolling(() => { void refreshInvoice(); }, 15_000);
     return () => {
       mounted = false;
-      window.clearInterval(interval);
+      stop();
     };
   }, [applyDepositPayload, invoiceId, invoiceStatus, onRefresh]);
 

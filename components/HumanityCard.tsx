@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { startVisiblePolling } from "@/lib/visiblePolling";
 
 type HumanityStatus = {
   available: boolean;
@@ -50,14 +51,14 @@ export default function HumanityCard({ active }: { active: boolean }) {
     if (!returned || !user) return;
     let stopped = false;
     const startedAt = Date.now();
-    const timer = window.setInterval(async () => {
+    const stop = startVisiblePolling(async () => {
       const next = await load();
       if (stopped) return;
-      if ((next && next.level >= 2) || Date.now() - startedAt > POLL_MAX_MS) window.clearInterval(timer);
+      if ((next && next.level >= 2) || Date.now() - startedAt > POLL_MAX_MS) stop();
     }, POLL_INTERVAL_MS);
     return () => {
       stopped = true;
-      window.clearInterval(timer);
+      stop();
     };
   }, [returned, user, load]);
 

@@ -31,6 +31,28 @@ export async function recordProductEvent(input: ProductEventInput): Promise<void
   if (error) console.warn("Product analytics event was not recorded", input.eventName, error.message);
 }
 
+/** Records several events with one insert (used by the batched client analytics route). */
+export async function recordProductEvents(inputs: ProductEventInput[]): Promise<void> {
+  const rows = inputs.filter((input) => input.userId || input.anonymousId);
+  if (rows.length === 0) return;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) return;
+  const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+
+  const { error } = await supabase.from("product_events").insert(rows.map((input) => ({
+    anonymous_id: cleanText(input.anonymousId, 128),
+    entity_id: cleanUuid(input.entityId),
+    entity_type: cleanText(input.entityType, 64),
+    event_name: input.eventName,
+    properties: input.properties ?? {},
+    source: cleanText(input.source, 32) ?? "app",
+    user_id: cleanUuid(input.userId)
+  })));
+
+  if (error) console.warn("Product analytics batch was not recorded", rows.length, error.message);
+}
+
 function cleanText(value: string | null | undefined, maxLength: number): string | null {
   if (!value) return null;
   const text = value.trim();

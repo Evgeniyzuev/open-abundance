@@ -43,7 +43,7 @@ export default function OperatorEntry() {
   if (!allowed) return null;
   return (
     <>
-      <button className="feedback-fab" type="button" aria-label={t("operator.open")} title={t("operator.open")} style={{ right: 58 }} onClick={() => setOpen(true)}>
+      <button className="feedback-fab operator-fab" type="button" aria-label={t("operator.open")} title={t("operator.open")} style={{ right: 58 }} onClick={() => setOpen(true)}>
         <ShieldCheck size={20} />
       </button>
       {open ? <OperatorConsole onClose={() => setOpen(false)} /> : null}

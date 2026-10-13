@@ -2713,7 +2713,8 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 10px);
   right: 10px;
-  z-index: 30;
+  /* Below .modal-backdrop (20) so floating buttons never cover a dialog's close button. */
+  z-index: 19;
   display: grid;
   place-items: center;
   width: 40px;
@@ -2959,3 +2960,9 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .market-offer-ideas .subtask-chip { min-height: 36px; text-align: left; }
 .market-offer-ai { display: grid; gap: 8px; }
 .market-offer-ai .secondary-button { min-height: 44px; }
+/* Floating buttons sit at the top right; keep the top tabs clear of them so no tab is hidden on phones. */
+body:has(.feedback-fab) .top-tabbar:not(.nav-collapsed) { padding-right: 56px; }
+body:has(.operator-fab) .top-tabbar:not(.nav-collapsed) { padding-right: 104px; }
+/* Dialogs with a title only: one centred column, close button inside the sheet. */
+.week-recap-modal, .local-backup-dialog { position: relative; }
+.week-recap-modal .modal-header, .local-backup-dialog .modal-header { grid-template-columns: minmax(0, 1fr); padding: 2px 40px 8px; }

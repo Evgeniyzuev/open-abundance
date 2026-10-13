@@ -11,7 +11,7 @@ import { addDays, todayKey } from "@/lib/taskSchedule";
 import { deleteTask, getAllTasks, getTaskCompletions, rescheduleOnceTask, type TaskItem } from "@/lib/tasksStore";
 import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
 import { celebrate } from "@/lib/ui/feedback";
-import { computeWeekRecap, findOverdueTasks, type WeekRecap } from "@/lib/weekRecap";
+import { computeWeekRecap, findOverdueTasks, hasWeekActivity, type WeekRecap } from "@/lib/weekRecap";
 
 type WeekRecapModalProps = {
   onClose: () => void;
@@ -121,8 +121,12 @@ export default function WeekRecapModal({ onClose }: WeekRecapModalProps) {
                 </ul>
               </section>
             ) : null}
-            <button className="challenge-primary-action" type="button" disabled={sharing} onClick={() => void share()}><Share2 size={17} /> {t("weekRecap.share")}</button>
-            <small className="week-recap-note">{t("weekRecap.privacy")}</small>
+            {hasWeekActivity(recap) ? (
+              <>
+                <button className="challenge-primary-action" type="button" disabled={sharing} onClick={() => void share()}><Share2 size={17} /> {t("weekRecap.share")}</button>
+                <small className="week-recap-note">{t("weekRecap.privacy")}</small>
+              </>
+            ) : null}
             {shareError ? <p className="step-suggest-note" role="status">{t("weekRecap.shareError")}</p> : null}
           </div>
         ) : <p>{t("app.common.loading")}</p>}

@@ -19,6 +19,9 @@ import {
 } from "@/lib/firstWishGuide";
 import { PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 import ProtectedImage from "@/components/ProtectedImage";
+import TaskStepSuggester from "@/components/TaskStepSuggester";
+import { saveTask } from "@/lib/tasksStore";
+import { todayKey } from "@/lib/taskSchedule";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -744,6 +747,21 @@ function WishDetailModal({
   const description = isPersonal ? selectedWish.wish.description : text(selectedWish.wish.description, locale);
   const imageUrl = selectedWish.wish.image_url;
   const category = selectedWish.wish.category;
+  const [stepsAdded, setStepsAdded] = useState(false);
+
+  /** Accepted steps toward the wish become one ordinary local task for today. */
+  async function addWishSteps(steps: string[]) {
+    await saveTask({
+      id: crypto.randomUUID(),
+      title: t("wishes.stepsTaskTitle", { title }),
+      description: "",
+      subtasks: steps,
+      schedule: { type: "once", date: todayKey() },
+      syncStatus: "local"
+    });
+    setStepsAdded(true);
+    playUiSound("action");
+  }
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -772,6 +790,11 @@ function WishDetailModal({
             <span>{t("wishes.level", { level: selectedWish.wish.difficulty_level })}</span>
             {isPersonal ? <span>{visibilityLabel(selectedWish.wish.visibility, t)}</span> : null}
           </div>
+          {isPersonal && selectedWish.wish.status === "active" ? (
+            stepsAdded
+              ? <p className="wish-steps-added" role="status">{t("home.help.taskAdded")}</p>
+              : <TaskStepSuggester title={title} description={description ?? ""} existingSteps={[]} onAccept={addWishSteps} />
+          ) : null}
           {isPersonal ? (
             <div className="wish-detail-actions">
               {selectedWish.wish.status === "active" ? (

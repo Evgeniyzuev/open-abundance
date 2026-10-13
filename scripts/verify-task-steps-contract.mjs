@@ -113,3 +113,7 @@ for (const [path, capability, tag] of [
 }
 assert.match(readFileSync("components/DecisionModal.tsx", "utf8"), /taskId/, "existing tasks are opened, not duplicated");
 assert.match(readFileSync("components/RoutinePlanModal.tsx", "utf8"), /saveTask\(/, "routine days become ordinary local tasks");
+
+const wishes = readFileSync("components/WishesApp.tsx", "utf8");
+assert.match(wishes, /<TaskStepSuggester title=\{title\}/, "wishes reuse the shared step suggester");
+assert.match(wishes, /wishes\.stepsTaskTitle/, "accepted wish steps become one local task");

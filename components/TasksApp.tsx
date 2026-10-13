@@ -24,6 +24,7 @@ import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
 import { celebrate } from "@/lib/ui/feedback";
+import { takeQuickAction } from "@/lib/quickAction";
 import BackupReminder from "@/components/BackupReminder";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
@@ -189,6 +190,12 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
     const taskId = new URLSearchParams(window.location.search).get("task");
     if (taskId && tasks.some((task) => task.id === taskId)) setSelectedTaskId(taskId);
   }, [tasks]);
+
+  useEffect(() => {
+    // App shortcut "New task" opens the form right away.
+    if (takeQuickAction("new-task")) openNewTaskModal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function openNewTaskModal() {
     onCreateRequestHandled?.();

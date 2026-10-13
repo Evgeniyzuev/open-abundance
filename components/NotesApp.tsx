@@ -69,6 +69,7 @@ const emptyListForm = {
 };
 
 import BrainDumpModal from "@/components/BrainDumpModal";
+import { takeQuickAction } from "@/lib/quickAction";
 
 type NotesAppProps = {
   openInboxNonce?: number;
@@ -89,6 +90,13 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
   const [connection, setConnection] = useState<ConnectionState>("online");
   const [quickCapture, setQuickCapture] = useState("");
   const [brainDumpOpen, setBrainDumpOpen] = useState(false);
+  const [focusCapture, setFocusCapture] = useState(false);
+
+  useEffect(() => {
+    // App shortcuts: "Capture a thought" focuses the field, "Sort it all out" opens the brain dump.
+    if (takeQuickAction("capture")) setFocusCapture(true);
+    if (takeQuickAction("brain-dump")) setBrainDumpOpen(true);
+  }, []);
   const [capturedNoteId, setCapturedNoteId] = useState<string | null>(null);
   const [processingNoteId, setProcessingNoteId] = useState<string | null>(null);
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
@@ -338,6 +346,7 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
           quickCapture={quickCapture}
           setQuickCapture={setQuickCapture}
           onBrainDump={() => setBrainDumpOpen(true)}
+          autoFocusCapture={focusCapture}
         />
       )}
       {brainDumpOpen ? (
@@ -411,15 +420,20 @@ type HomeScreenProps = {
   quickCapture: string;
   setQuickCapture: (value: string) => void;
   onBrainDump: () => void;
+  autoFocusCapture?: boolean;
 };
 
-function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, quickCapture, setQuickCapture, onBrainDump }: HomeScreenProps) {
+function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, quickCapture, setQuickCapture, onBrainDump, autoFocusCapture = false }: HomeScreenProps) {
   const { t } = useUserContext();
   const captureRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!quickCapture && captureRef.current) captureRef.current.style.height = "";
   }, [quickCapture]);
+
+  useEffect(() => {
+    if (autoFocusCapture) captureRef.current?.focus();
+  }, [autoFocusCapture]);
 
   return (
     <>

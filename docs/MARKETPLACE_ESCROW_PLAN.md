@@ -575,3 +575,7 @@ The `user_economy_metrics` implementation and production RPC repair are applied.
 2. прогнать SQL/API сценарии hold, completion, cancellation, expiry, refund, dispute, concurrent buyers, duplicate requests и insufficient balance;
 3. пройти buyer/seller User QA на двух реальных аккаунтах: Wallet transfer → listing → buy → accept/deliver/confirm → refund → dispute;
 4. после подтверждения основателя перенести Marketplace в `Подтверждено`; затем выполнять `MUTUAL_CREDIT_MARKET_PLAN.md` как отдельный metrics/read-model этап, не включая ranking/boost в текущий gate.
+
+## Offer helpers (2026-10-13)
+
+The sell form has two optional helpers that only prefill title, description, kind and delivery time: a static catalog of ten small level-one offers and an AI draft from the seller's own words (`/api/ai/market/listing-draft`, sign-in and tools quota). Neither suggests a price, and publishing still goes through the existing create flow and its limits. Details: [PRODUCT_VISION_LOW_LOAD_PLAN.md §10](PRODUCT_VISION_LOW_LOAD_PLAN.md#10-статус-реализации).

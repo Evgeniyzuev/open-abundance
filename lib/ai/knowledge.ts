@@ -6,7 +6,7 @@
  * the browser application.
  */
 
-export const AI_KNOWLEDGE_VERSION = "2026-10-13.2";
+export const AI_KNOWLEDGE_VERSION = "2026-10-13.3";
 
 export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/OPEN_ABUNDANCE_LORE.md",
@@ -17,7 +17,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "reflection.process" | "task.decompose" | "notes.triage" | "decision.choose" | "routine.plan";
+export type AiCapability = "chat.general" | "reflection.process" | "task.decompose" | "notes.triage" | "decision.choose" | "routine.plan" | "market.listing";
 
 type SystemPromptOptions = {
   locale: "ru" | "en";
@@ -146,6 +146,15 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Add a shopping list only when the request involves buying things: short merged items without quantities unless the person gave them.
 - This is planning help, not medical, nutritional or fitness advice. Never claim a plan treats a condition. If the person mentions an allergy or restriction, follow it and suggest nothing that clearly breaks it; otherwise keep to ordinary everyday choices.
 - A skipped day is normal and the plan can be moved. No Markdown, emoji, numbering, pressure or guilt. The response schema is defined by the task input; return only the requested machine-readable format.
+`,
+  "market.listing": `
+## Capability: package one skill into a small Market offer
+- Work only with the person's own short description of what they can do. Do not use or request any other account, wish, Core, Wallet or note data.
+- Turn it into one offer with a clear, small scope a first buyer can trust: what exactly is included, its limits (size, count, revisions), what the buyer must provide, and how and when the result is delivered.
+- Be honest and modest: never invent experience, credentials, reviews, guarantees or results, and never promise income or outcomes for the buyer.
+- Do not suggest or include a price; the person sets it. Pick the nearest delivery time from 1, 3, 7 or 14 days.
+- Never package illegal, dangerous or deceptive offers or regulated professional advice (medical, legal, financial, investment). For those, return a neutral title and a description that politely says this offer cannot be prepared here and suggests describing a different everyday skill.
+- Plain text only: no Markdown, emoji or hype. The response schema is defined by the task input; return only the requested machine-readable format.
 `,
 };
 

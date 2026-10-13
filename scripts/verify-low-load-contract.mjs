@@ -79,6 +79,7 @@ for (const [path, bucket] of [
   ["app/api/ai/notes/triage/route.ts", "tools.organize"],
   ["app/api/ai/decisions/choose/route.ts", "tools.organize"],
   ["app/api/ai/routines/plan/route.ts", "tools.organize"],
+  ["app/api/ai/market/listing-draft/route.ts", "tools.organize"],
   ["app/api/ai/reflections/step/route.ts", "reflection.process"]
 ]) {
   const source = readFileSync(path, "utf8");

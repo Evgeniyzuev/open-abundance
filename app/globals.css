@@ -2951,3 +2951,11 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .week-review-loose-ends li > div { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
 .week-review-loose-ends .secondary-button, .week-review-loose-ends .text-button { min-height: 40px; }
 .wish-steps-added { margin: 0; color: var(--green); font-weight: 700; }
+.market-offer-helper { display: grid; gap: 8px; }
+.market-offer-helper-toggles { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.market-offer-helper-toggles .text-button { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; }
+.market-offer-helper-toggles .text-button.active { color: var(--blue); font-weight: 800; }
+.market-offer-ideas { display: flex; flex-wrap: wrap; gap: 6px; }
+.market-offer-ideas .subtask-chip { min-height: 36px; text-align: left; }
+.market-offer-ai { display: grid; gap: 8px; }
+.market-offer-ai .secondary-button { min-height: 44px; }

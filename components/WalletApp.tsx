@@ -30,6 +30,7 @@ import { parseScanned } from "@/lib/qrPayload";
 import { useWalletFees } from "@/lib/useWalletFees";
 import { isUuid } from "@/lib/uuid";
 import { startVisiblePolling } from "@/lib/visiblePolling";
+import MarketOfferHelper from "@/components/MarketOfferHelper";
 
 type WalletTab = "wallet" | "core" | "market" | "p2p";
 export type WalletCalculatorRequest = {
@@ -2315,6 +2316,15 @@ function SellItemModal({
   const limitReached = openListingCount >= listingLimit;
   const valid = title.trim().length > 0 && Number.isFinite(parsedPrice) && parsedPrice > 0 && !limitReached;
 
+  function applyOfferDraft(draft: { title: string; description: string; listingKind: "digital_asset" | "service" | "physical_good"; fulfillmentDays: number }) {
+    setTitle(draft.title);
+    setDescription(draft.description);
+    setListingKind(draft.listingKind);
+    setArtifactType(draft.listingKind === "service" ? "service" : "market_item");
+    setFulfillmentDays(String(draft.fulfillmentDays));
+    setError(null);
+  }
+
   async function handleCreate() {
     if (!valid) return;
 
@@ -2350,6 +2360,7 @@ function SellItemModal({
         <div className="sell-modal-body">
           {!limitReached ? (
             <>
+              <MarketOfferHelper onApply={applyOfferDraft} />
               <label className="finance-field">
                 <span>{t("market.item")}</span>
                 <input

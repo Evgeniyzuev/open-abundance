@@ -90,3 +90,23 @@ export function isRecapPromptDay(today: string): boolean {
   const weekday = new Date(year, month - 1, day).getDay();
   return weekday === 0 || weekday === 1;
 }
+
+export const RETURN_AFTER_DAYS = 3;
+
+/** Whole local days between the last Home visit and today, or null on the first visit on this device. */
+export function daysSinceVisit(lastVisitDay: string | null, today: string): number | null {
+  if (!lastVisitDay || !/^\d{4}-\d{2}-\d{2}$/.test(lastVisitDay)) return null;
+  const [y1, m1, d1] = lastVisitDay.split("-").map(Number);
+  const [y2, m2, d2] = today.split("-").map(Number);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86_400_000);
+}
+
+/**
+ * Which quiet Home line to show: the weekly recap on Sunday/Monday, or — after a break of three
+ * days or more — a welcome back that offers to sort out loose ends. Never both, never pushy.
+ */
+export function pickRecapPrompt(input: { today: string; hasActivity: boolean; overdueCount: number; daysSinceVisit: number | null }): "weekly" | "return" | null {
+  if (input.daysSinceVisit !== null && input.daysSinceVisit >= RETURN_AFTER_DAYS && input.overdueCount > 0) return "return";
+  if (isRecapPromptDay(input.today) && (input.hasActivity || input.overdueCount > 0)) return "weekly";
+  return null;
+}

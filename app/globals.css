@@ -2966,3 +2966,6 @@ body:has(.operator-fab) .top-tabbar:not(.nav-collapsed) { padding-right: 104px; 
 /* Dialogs with a title only: one centred column, close button inside the sheet. */
 .week-recap-modal, .local-backup-dialog { position: relative; }
 .week-recap-modal .modal-header, .local-backup-dialog .modal-header { grid-template-columns: minmax(0, 1fr); padding: 2px 40px 8px; }
+/* Attention settings (lib/attention.ts): focus mode keeps the essentials on Home; less motion stops animation. */
+:root[data-focus-mode="on"] .core-journey-card, :root[data-focus-mode="on"] .nova-daily-card, :root[data-focus-mode="on"] .expedition-entry-card, :root[data-focus-mode="on"] .journey-feed-entry, :root[data-focus-mode="on"] .home-screen .home-secondary-disclosure { display: none !important; }
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }

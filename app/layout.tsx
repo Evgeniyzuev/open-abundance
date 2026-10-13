@@ -77,6 +77,8 @@ const appearanceBootstrapScript = `
     root.dataset.uiScale = uiScale;
     root.dataset.theme = colorTheme;
     root.dataset.accent = accentTheme;
+    if (localStorage.getItem("open-abundance:focus-mode") === "on") root.dataset.focusMode = "on";
+    if (localStorage.getItem("open-abundance:reduce-motion") === "on") root.dataset.motion = "reduced";
     root.style.colorScheme = resolvedTheme;
 
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {

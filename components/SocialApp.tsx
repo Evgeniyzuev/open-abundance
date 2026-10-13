@@ -18,6 +18,7 @@ import BlogWorkspace from "@/components/BlogWorkspace";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import CurrencyDisplayHelp from "@/components/CurrencyDisplayHelp";
 import LocalBackupDialog from "@/components/LocalBackupDialog";
+import { readAttentionSettings, storeAttentionSettings, type AttentionSettings } from "@/lib/attention";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import SkillPassportApp from "@/components/SkillPassportApp";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
@@ -2912,6 +2913,16 @@ function parseAvatarPosition(value: string): [number, number] {
 function AppearanceDialog({ accentTheme, colorTheme, displayCurrency, locale, t, uiScale, onAccent, onClose, onCurrency, onLocale, onScale, onTheme }: { accentTheme: AccentTheme; colorTheme: ColorTheme; displayCurrency: DisplayCurrency; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; uiScale: UiScale; onAccent: (theme: AccentTheme) => void; onClose: () => void; onCurrency: (currency: DisplayCurrency) => void; onLocale: (locale: AppLocale) => void; onScale: (scale: UiScale) => void; onTheme: (theme: ColorTheme) => void }) {
   const [soundsOn, setSoundsOn] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [attention, setAttention] = useState<AttentionSettings>({ focusMode: false, reducedMotion: false });
+
+  useEffect(() => {
+    setAttention(readAttentionSettings());
+  }, []);
+
+  const changeAttention = (next: AttentionSettings) => {
+    setAttention(next);
+    storeAttentionSettings(next);
+  };
 
   useEffect(() => {
     setSoundsOn(getSoundsEnabled());
@@ -2936,6 +2947,8 @@ function AppearanceDialog({ accentTheme, colorTheme, displayCurrency, locale, t,
           <div className="appearance-setting-row"><span>{t("profile.appearance.theme")}</span><div className="appearance-options" role="group" aria-label={t("profile.appearance.theme")}>{COLOR_THEMES.map((theme) => <button className={colorTheme === theme ? "active" : ""} type="button" aria-pressed={colorTheme === theme} key={theme} onClick={() => onTheme(theme)}>{t(`profile.appearance.theme.${theme}` as MessageKey)}</button>)}</div></div>
           <div className="appearance-setting-row"><span>{t("profile.appearance.color")}</span><div className="appearance-options appearance-color-options" role="group" aria-label={t("profile.appearance.color")}>{ACCENT_THEMES.map((theme) => <button className={accentTheme === theme ? "active" : ""} type="button" aria-pressed={accentTheme === theme} key={theme} onClick={() => onAccent(theme)}><i className={`appearance-color-swatch ${theme}`} aria-hidden="true" /><span>{t(`profile.appearance.color.${theme}` as MessageKey)}</span></button>)}</div></div>
           <div className="appearance-setting-row"><span>{t("ai.chat.sound.title")}</span><div className="appearance-sound-control"><small>{t("ai.chat.sound.description")}</small><div className="appearance-sound-actions"><button className="ai-chat-icon-btn" type="button" onClick={toggleSounds} aria-pressed={soundsOn} aria-label={t("ai.chat.sound.toggle")} title={t("ai.chat.sound.toggle")}>{soundsOn ? <Volume2 size={17} /> : <VolumeX size={17} />}</button><button className="ai-chat-icon-btn" type="button" onClick={() => playUiSound("action")} disabled={!soundsOn} aria-label={t("ai.chat.sound.previewAction")} title={t("ai.chat.sound.previewAction")}><Play size={16} /></button><button className="ai-chat-icon-btn" type="button" onClick={() => playUiSound("reward")} disabled={!soundsOn} aria-label={t("ai.chat.sound.previewReward")} title={t("ai.chat.sound.previewReward")}><Sparkles size={16} /></button></div></div></div>
+          <div className="appearance-setting-row"><span className="appearance-setting-label">{t("profile.attention.focus")}</span><div className="appearance-sound-control"><small>{t("profile.attention.focusDescription")}</small><div className="appearance-options" role="group" aria-label={t("profile.attention.focus")}>{[false, true].map((value) => <button className={attention.focusMode === value ? "active" : ""} type="button" aria-pressed={attention.focusMode === value} key={String(value)} onClick={() => changeAttention({ ...attention, focusMode: value })}>{value ? t("profile.attention.on") : t("profile.attention.off")}</button>)}</div></div></div>
+          <div className="appearance-setting-row"><span>{t("profile.attention.motion")}</span><div className="appearance-options" role="group" aria-label={t("profile.attention.motion")}>{[false, true].map((value) => <button className={attention.reducedMotion === value ? "active" : ""} type="button" aria-pressed={attention.reducedMotion === value} key={String(value)} onClick={() => changeAttention({ ...attention, reducedMotion: value })}>{value ? t("profile.attention.on") : t("profile.attention.off")}</button>)}</div></div>
           <div className="appearance-setting-row"><span>{t("backup.title")}</span><button className="secondary-button" type="button" onClick={() => setBackupOpen(true)}>{t("backup.save")} · {t("backup.restore")}</button></div>
         </div>
       </section>

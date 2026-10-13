@@ -52,6 +52,7 @@ assert.doesNotMatch(card, /fetch\(|supabase/i, "the daily set reads only local o
 assert.match(card, /dailySet\.summary\.enough/, "the set ends with an explicit summary");
 assert.doesNotMatch(card, /properties:\s*\{[^}]*answer/, "answers never go to analytics");
 const feedback = readFileSync("lib/ui/feedback.ts", "utf8");
-assert.match(feedback, /prefers-reduced-motion: reduce/);
+assert.match(feedback, /prefersLessMotion\(\)/, "feedback respects system and in-app motion settings");
+assert.match(readFileSync("lib/attention.ts", "utf8"), /prefers-reduced-motion: reduce/);
 
 console.log("Daily set contract verified.");

@@ -61,6 +61,31 @@ assert.match(review, /resolveOverdue\(task, "let_go"/);
 assert.match(review, /await deleteTask\(task\.id\)/, "letting go is a soft delete that stays in the archive");
 assert.doesNotMatch(review, /purgeTask/, "the review never deletes permanently");
 
+// Gentle return: after a break with loose ends, a welcome back on any day; otherwise the weekly line on Sun/Mon.
+const { daysSinceVisit, pickRecapPrompt } = await import("../lib/weekRecap.ts");
+assert.equal(daysSinceVisit(null, today), null);
+assert.equal(daysSinceVisit("2026-10-09", today), 4);
+assert.equal(daysSinceVisit("2026-03-28", "2026-03-30"), 2, "daylight saving does not shift the count");
+assert.equal(pickRecapPrompt({ today, hasActivity: false, overdueCount: 2, daysSinceVisit: 4 }), "return");
+assert.equal(pickRecapPrompt({ today, hasActivity: true, overdueCount: 0, daysSinceVisit: 4 }), null, "a return without loose ends leaves Home quiet (Nova already says welcome back)");
+assert.equal(pickRecapPrompt({ today, hasActivity: true, overdueCount: 2, daysSinceVisit: 1 }), null, "Tuesday without a break: nothing");
+assert.equal(pickRecapPrompt({ today: "2026-10-12", hasActivity: true, overdueCount: 0, daysSinceVisit: 1 }), "weekly");
+assert.equal(pickRecapPrompt({ today: "2026-10-12", hasActivity: false, overdueCount: 0, daysSinceVisit: null }), null);
+
+// Attention settings stay on the device and apply before first paint.
+const attention = await import("../lib/attention.ts");
+const root = { dataset: {} };
+attention.applyAttentionSettings({ focusMode: true, reducedMotion: true }, root);
+assert.deepEqual(root.dataset, { focusMode: "on", motion: "reduced" });
+attention.applyAttentionSettings({ focusMode: false, reducedMotion: false }, root);
+assert.deepEqual(root.dataset, {});
+const layout = readFileSync("app/layout.tsx", "utf8");
+assert.match(layout, /open-abundance:focus-mode/, "focus mode is applied before first paint");
+assert.match(layout, /open-abundance:reduce-motion/);
+const css = readFileSync("app/globals.css", "utf8");
+assert.match(css, /data-focus-mode="on"\] \.expedition-entry-card/);
+assert.match(css, /data-motion="reduced"\] \*/);
+
 // Only numbers leave the device, and only when the person shares.
 const modal = readFileSync("components/WeekRecapModal.tsx", "utf8");
 assert.doesNotMatch(modal, /fetch\(|supabase/i, "the recap is built from on-device data");

@@ -1,3 +1,4 @@
+import { prefersLessMotion } from "@/lib/attention";
 import { playUiSound } from "@/lib/ui/sound";
 
 /**
@@ -7,7 +8,7 @@ import { playUiSound } from "@/lib/ui/sound";
 export function celebrate(element: Element | null, sound: "action" | "reward" = "action"): void {
   playUiSound(sound);
   if (!element || typeof window === "undefined") return;
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  if (prefersLessMotion()) return;
   element.classList.remove("oa-pop");
   // Restart the animation when the same element is tapped again.
   void (element as HTMLElement).offsetWidth;

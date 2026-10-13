@@ -7,6 +7,7 @@ import type { MessageKey } from "@/lib/i18n";
 import { isRoutinePlan, MAX_ROUTINE_REQUEST, normalizeRoutinePlan, type RoutinePlan } from "@/lib/routinePlan";
 import { addDays, todayKey } from "@/lib/taskSchedule";
 import { saveTask } from "@/lib/tasksStore";
+import { trackProductEvent } from "@/lib/productAnalytics";
 import type { SafetyPayload } from "@/lib/ai/safety";
 
 type RoutinePlanModalProps = {
@@ -83,6 +84,7 @@ export default function RoutinePlanModal({ onClose }: RoutinePlanModalProps) {
     if (withShopping && plan.shopping.length > 0) {
       await saveTask({ id: crypto.randomUUID(), title: t("routine.shoppingTitle"), description: "", subtasks: plan.shopping, schedule: { type: "once", date: today }, syncStatus: "local" });
     }
+    trackProductEvent("routine_plan_created", { days: plan.days.length - skippedDays.size, shopping: withShopping ? plan.shopping.length : 0 });
     onClose();
   }
 

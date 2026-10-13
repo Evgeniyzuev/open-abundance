@@ -8,6 +8,7 @@ import type { MessageKey } from "@/lib/i18n";
 import { isDecisionResult, MAX_DECISION_CONTEXT_LENGTH, MAX_DECISION_OPTIONS, MAX_DECISION_OPTION_LENGTH, MIN_DECISION_OPTIONS, normalizeDecision, type DecisionResult } from "@/lib/decision";
 import { todayKey } from "@/lib/taskSchedule";
 import { saveTask } from "@/lib/tasksStore";
+import { trackProductEvent } from "@/lib/productAnalytics";
 import type { SafetyPayload } from "@/lib/ai/safety";
 
 export type DecisionOption = {
@@ -86,6 +87,7 @@ export default function DecisionModal({ initialOptions, onClose, onOpenTask }: D
       schedule: { type: "once", date: todayKey() },
       syncStatus: "local"
     });
+    trackProductEvent("decision_task_added", { options: filled.length });
     onClose();
   }
 

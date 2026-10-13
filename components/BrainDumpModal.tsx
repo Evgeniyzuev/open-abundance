@@ -8,6 +8,7 @@ import { BRAIN_DUMP_BUCKETS, isBrainDumpResponse, normalizeBrainDumpItems, type 
 import { saveNote } from "@/lib/notesStore";
 import { todayKey } from "@/lib/taskSchedule";
 import { saveTask } from "@/lib/tasksStore";
+import { trackProductEvent } from "@/lib/productAnalytics";
 import type { SafetyPayload } from "@/lib/ai/safety";
 
 type BrainDumpModalProps = {
@@ -96,6 +97,7 @@ export default function BrainDumpModal({ initialText, onClose, onDone }: BrainDu
         syncStatus: "local"
       });
     }
+    trackProductEvent("brain_dump_created", { tasks: focus.length, later: later.length, letGo: items.filter((item) => item.bucket === "drop").length });
     onDone();
   }
 

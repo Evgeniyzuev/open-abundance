@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database, Json } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { isGrowthOperator } from "@/lib/growthOperator";
+import { computeValueMetrics, PASSIVE_EVENTS, VALUE_EVENTS } from "@/lib/valueMetrics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -35,7 +36,7 @@ const JOURNEY_ACTION_EVENTS = [
 
 const PASSIVE_JOURNEY_EVENTS = ["feed_post_impression"] as const;
 const CHECK_IN_EVENTS = ["self_serve_checkin_answered", "self_serve_checkin_skipped"] as const;
-const REPORT_EVENTS = ["app_open", "registration_completed", ...ACTIVATION_EVENTS, ...JOURNEY_ACTION_EVENTS, ...PASSIVE_JOURNEY_EVENTS, ...CHECK_IN_EVENTS];
+const REPORT_EVENTS = [...new Set<string>(["app_open", "registration_completed", "daily_set_skipped", ...ACTIVATION_EVENTS, ...JOURNEY_ACTION_EVENTS, ...PASSIVE_JOURNEY_EVENTS, ...CHECK_IN_EVENTS, ...VALUE_EVENTS, ...PASSIVE_EVENTS])];
 
 export async function GET(request: NextRequest) {
   const db = getServiceRoleClient();
@@ -75,11 +76,7 @@ export async function GET(request: NextRequest) {
       .in("operation_type", ["crypto_deposit", "wallet_core_topup"])
       .gte("created_at", fromTimestamp)
       .lt("created_at", toExclusiveTimestamp),
-    db.from("product_events")
-      .select("user_id,event_name,occurred_at,properties")
-      .in("event_name", REPORT_EVENTS)
-      .gte("occurred_at", fromTimestamp)
-      .lt("occurred_at", toExclusiveTimestamp),
+    fetchAllEvents(db, fromTimestamp, toExclusiveTimestamp),
     db.from("challenge_completion_snapshots")
       .select("user_id,completed_at")
       .gte("completed_at", fromTimestamp)
@@ -152,6 +149,8 @@ export async function GET(request: NextRequest) {
       sources: propertyBreakdown(events, "registration_completed", "acquisition_source"),
       campaigns: propertyBreakdown(events, "registration_completed", "campaign")
     },
+    // Main product signal: share of person-days (guests included) with at least one useful action.
+    value: computeValueMetrics(events),
     activity: {
       activeUsersByDay: activity.activeUsersByDay,
       d1: activity.d1,
@@ -204,6 +203,7 @@ type RegistrationRow = {
 
 type ProductEventRow = {
   user_id: string | null;
+  anonymous_id: string | null;
   event_name: string;
   occurred_at: string;
   properties: Json;
@@ -223,6 +223,27 @@ type ReferralRow = {
   claimed_at: string;
   source: string | null;
 };
+
+const EVENTS_PAGE_SIZE = 1000;
+const EVENTS_MAX_PAGES = 50;
+
+/** PostgREST returns at most 1000 rows per request, so events are read page by page. */
+async function fetchAllEvents(db: NonNullable<ReturnType<typeof getServiceRoleClient>>, fromTimestamp: string, toExclusiveTimestamp: string) {
+  const rows: ProductEventRow[] = [];
+  for (let page = 0; page < EVENTS_MAX_PAGES; page += 1) {
+    const { data, error } = await db.from("product_events")
+      .select("user_id,anonymous_id,event_name,occurred_at,properties")
+      .in("event_name", REPORT_EVENTS)
+      .gte("occurred_at", fromTimestamp)
+      .lt("occurred_at", toExclusiveTimestamp)
+      .order("occurred_at", { ascending: true })
+      .range(page * EVENTS_PAGE_SIZE, (page + 1) * EVENTS_PAGE_SIZE - 1);
+    if (error) return { data: null, error };
+    rows.push(...((data ?? []) as ProductEventRow[]));
+    if (!data || data.length < EVENTS_PAGE_SIZE) break;
+  }
+  return { data: rows, error: null };
+}
 
 function getServiceRoleClient() {
   const url = process.env.SUPABASE_URL;

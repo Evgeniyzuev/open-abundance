@@ -6,6 +6,7 @@ import { useUserContext } from "@/components/UserProvider";
 import { AI_TOOL_FAILURE_KEYS, postAiTool, type AiToolFailure } from "@/lib/ai/toolClient";
 import type { MessageKey } from "@/lib/i18n";
 import { isTaskStepsResponse, MAX_TASK_SUBTASKS, normalizeStepSuggestions, type TaskStepSuggestion } from "@/lib/taskSteps";
+import { trackProductEvent } from "@/lib/productAnalytics";
 
 type TaskStepSuggesterProps = {
   title: string;
@@ -77,6 +78,7 @@ export default function TaskStepSuggester({ title, description, existingSteps, o
     const steps = suggestions.filter((_, index) => selected.has(index)).map((step) => step.text).slice(0, Math.max(room, 0));
     if (steps.length === 0) return;
     await onAccept(steps);
+    trackProductEvent("task_steps_accepted", { count: steps.length, offered: suggestions.length });
     setSuggestions([]);
     setSelected(new Set());
     setStatus("idle");

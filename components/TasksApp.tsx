@@ -273,6 +273,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
   }
 
   async function markToday(task: TaskItem) {
+    trackProductEvent("task_done", { schedule: task.schedule.type, steps: task.subtasks.length });
     const taskCompletions = completions.filter((completion) => completion.taskId === task.id);
     const missedDays = getMissedPlannedDays(task, today, taskCompletions);
     let rescuedCount = 0;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildAiSystemPrompt } from "@/lib/ai/knowledge";
 import { AiGatewayError, generateAiJson } from "@/lib/ai/providerGateway";
+import { guardAiTool } from "@/lib/ai/toolGuard";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import {
   MAX_SUGGESTED_STEPS,
@@ -37,6 +38,9 @@ ${JSON.stringify({ title, description, existingSteps })}
 
 Return JSON only: {"steps":[{"text":"short action sentence","minutes":2}]} with three to ${MAX_SUGGESTED_STEPS} new steps, the first doable in about two minutes. Write the steps in ${locale === "ru" ? "Russian" : "English"}.`;
 
+  const guard = await guardAiTool(request, "tools.organize");
+  if (!guard.ok) return guard.response;
+
   try {
     const result = await generateAiJson<TaskStepsResponse>({
       systemPrompt: buildAiSystemPrompt({ locale, capability: "task.decompose" }),
@@ -50,6 +54,8 @@ Return JSON only: {"steps":[{"text":"short action sentence","minutes":2}]} with 
     });
     return NextResponse.json(result.value, { headers: { ...NO_STORE_HEADERS, "X-AI-Provider": result.provider } });
   } catch (error) {
+    // Nothing useful was produced, so the tap goes back to the quota.
+    await guard.refund();
     if (error instanceof AiGatewayError && error.code === "not_configured") {
       return NextResponse.json({ error: "AI providers are not configured." }, { status: 503, headers: NO_STORE_HEADERS });
     }

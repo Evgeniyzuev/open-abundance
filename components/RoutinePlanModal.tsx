@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
+import { AI_TOOL_FAILURE_KEYS, postAiTool, type AiToolFailure } from "@/lib/ai/toolClient";
+import type { MessageKey } from "@/lib/i18n";
 import { isRoutinePlan, MAX_ROUTINE_REQUEST, normalizeRoutinePlan, type RoutinePlan } from "@/lib/routinePlan";
 import { addDays, todayKey } from "@/lib/taskSchedule";
 import { saveTask } from "@/lib/tasksStore";
@@ -23,6 +25,7 @@ export default function RoutinePlanModal({ onClose }: RoutinePlanModalProps) {
   const { locale, t } = useUserContext();
   const [request, setRequest] = useState("");
   const [status, setStatus] = useState<Status>("input");
+  const [failure, setFailure] = useState<AiToolFailure | null>(null);
   const [plan, setPlan] = useState<RoutinePlan | null>(null);
   const [skippedDays, setSkippedDays] = useState<Set<number>>(new Set());
   const [withShopping, setWithShopping] = useState(true);
@@ -35,21 +38,21 @@ export default function RoutinePlanModal({ onClose }: RoutinePlanModalProps) {
       return;
     }
     setStatus("loading");
+    setFailure(null);
     setSafety(null);
     try {
-      const response = await fetch("/api/ai/routines/plan", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request, locale })
-      });
-      const payload = await response.json().catch(() => null) as unknown;
-      if (response.ok && (payload as { mode?: string } | null)?.mode === "safety") {
+      const aiResult = await postAiTool("/api/ai/routines/plan", { request, locale });
+      if (!aiResult.ok) {
+        setFailure(aiResult.reason);
+        throw new Error(aiResult.reason);
+      }
+      const payload = aiResult.payload;
+      if ((payload as { mode?: string } | null)?.mode === "safety") {
         setSafety(payload as SafetyPayload);
         setStatus("input");
         return;
       }
-      if (!response.ok || !isRoutinePlan(payload)) throw new Error("plan_unavailable");
+      if (!isRoutinePlan(payload)) throw new Error("plan_unavailable");
       const nextPlan = normalizeRoutinePlan(payload);
       if (!nextPlan) throw new Error("plan_invalid");
       setPlan(nextPlan);
@@ -144,7 +147,7 @@ export default function RoutinePlanModal({ onClose }: RoutinePlanModalProps) {
             <button className="challenge-primary-action" type="button" disabled={request.trim().length < 3 || status === "loading"} onClick={build}>
               {status === "loading" ? t("routine.loading") : t("routine.build")}
             </button>
-            {status === "error" ? <p className="step-suggest-note" role="status">{t("routine.error")}</p> : null}
+            {status === "error" ? <p className="step-suggest-note" role="status">{failure && AI_TOOL_FAILURE_KEYS[failure] ? t(AI_TOOL_FAILURE_KEYS[failure] as MessageKey) : t("routine.error")}</p> : null}
             {status === "offline" ? <p className="step-suggest-note" role="status">{t("routine.offline")}</p> : null}
             {safety ? (
               <div className="reflection-safety" role="alert">

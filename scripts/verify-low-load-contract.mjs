@@ -67,4 +67,30 @@ assert.match(queue, /pagehide/);
 assert.match(readFileSync("lib/productAnalytics.ts", "utf8"), /enqueueAnalyticsEvent/);
 assert.match(readFileSync("lib/clientAnalytics.ts", "utf8"), /enqueueAnalyticsEvent/);
 
-console.log("Low-load contract verified: visible-only polling and batched analytics.");
+// --- AI tools: sign-in and quota through the existing chat quota tables ---
+const guard = readFileSync("lib/ai/toolGuard.ts", "utf8");
+assert.match(guard, /reserveAiChatMessage\(user\.id, \{ capability: bucket/, "tool quota reuses the chat quota tables");
+assert.match(guard, /"tools\.organize": \{ dayLimit: 30, monthLimit: 300 \}/);
+assert.match(guard, /"reflection\.process": \{ dayLimit: 40, monthLimit: 400 \}/);
+assert.match(guard, /status: 401/);
+assert.match(guard, /status: 429/);
+for (const [path, bucket] of [
+  ["app/api/ai/tasks/decompose/route.ts", "tools.organize"],
+  ["app/api/ai/notes/triage/route.ts", "tools.organize"],
+  ["app/api/ai/decisions/choose/route.ts", "tools.organize"],
+  ["app/api/ai/routines/plan/route.ts", "tools.organize"],
+  ["app/api/ai/reflections/step/route.ts", "reflection.process"]
+]) {
+  const source = readFileSync(path, "utf8");
+  const guardAt = source.indexOf(`guardAiTool(request, "${bucket}")`);
+  assert.ok(guardAt > 0, `${path} requires sign-in and quota`);
+  assert.ok(guardAt < source.indexOf("await generateAiJson"), `${path} checks quota before calling the provider`);
+  assert.match(source, /catch \(error\) \{\s*\/\/[^\n]*\n\s*await guard\.refund\(\);/, `${path} returns the tap to the quota on failure`);
+}
+for (const path of ["components/TaskStepSuggester.tsx", "components/BrainDumpModal.tsx", "components/DecisionModal.tsx", "components/RoutinePlanModal.tsx", "components/ReflectionProcessor.tsx"]) {
+  const source = readFileSync(path, "utf8");
+  assert.match(source, /postAiTool\(/, `${path} sends the session token`);
+  assert.doesNotMatch(source, /fetch\("\/api\/ai\//, `${path} has no unauthenticated AI call left`);
+}
+
+console.log("Low-load contract verified: visible-only polling, batched analytics and AI tool quota.");

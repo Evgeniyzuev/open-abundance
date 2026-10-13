@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
+import { AI_TOOL_FAILURE_KEYS, postAiTool, type AiToolFailure } from "@/lib/ai/toolClient";
+import type { MessageKey } from "@/lib/i18n";
 import { BRAIN_DUMP_BUCKETS, isBrainDumpResponse, normalizeBrainDumpItems, type BrainDumpBucket, type BrainDumpItem } from "@/lib/braindump";
 import { saveNote } from "@/lib/notesStore";
 import { todayKey } from "@/lib/taskSchedule";
@@ -31,6 +33,7 @@ export default function BrainDumpModal({ initialText, onClose, onDone }: BrainDu
   const { locale, t } = useUserContext();
   const [text, setText] = useState(initialText);
   const [status, setStatus] = useState<Status>("input");
+  const [failure, setFailure] = useState<AiToolFailure | null>(null);
   const [items, setItems] = useState<BrainDumpItem[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [safety, setSafety] = useState<SafetyPayload | null>(null);
@@ -42,20 +45,20 @@ export default function BrainDumpModal({ initialText, onClose, onDone }: BrainDu
       return;
     }
     setStatus("loading");
+    setFailure(null);
     try {
-      const response = await fetch("/api/ai/notes/triage", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, locale })
-      });
-      const payload = await response.json().catch(() => null) as unknown;
-      if (response.ok && (payload as { mode?: string } | null)?.mode === "safety") {
+      const aiResult = await postAiTool("/api/ai/notes/triage", { text, locale });
+      if (!aiResult.ok) {
+        setFailure(aiResult.reason);
+        throw new Error(aiResult.reason);
+      }
+      const payload = aiResult.payload;
+      if ((payload as { mode?: string } | null)?.mode === "safety") {
         setSafety(payload as SafetyPayload);
         setStatus("input");
         return;
       }
-      if (!response.ok || !isBrainDumpResponse(payload)) throw new Error("triage_unavailable");
+      if (!isBrainDumpResponse(payload)) throw new Error("triage_unavailable");
       const nextItems = normalizeBrainDumpItems(payload.items);
       if (nextItems.length === 0) throw new Error("triage_empty");
       setItems(nextItems);
@@ -123,7 +126,7 @@ export default function BrainDumpModal({ initialText, onClose, onDone }: BrainDu
             <button className="challenge-primary-action" type="button" disabled={text.trim().length < 3 || status === "loading"} onClick={sort}>
               {status === "loading" ? t("braindump.loading") : t("braindump.sort")}
             </button>
-            {status === "error" ? <p className="step-suggest-note" role="status">{t("braindump.error")}</p> : null}
+            {status === "error" ? <p className="step-suggest-note" role="status">{failure && AI_TOOL_FAILURE_KEYS[failure] ? t(AI_TOOL_FAILURE_KEYS[failure] as MessageKey) : t("braindump.error")}</p> : null}
             {status === "offline" ? <p className="step-suggest-note" role="status">{t("braindump.offline")}</p> : null}
             {safety ? (
               <div className="reflection-safety" role="alert">

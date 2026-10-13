@@ -66,3 +66,7 @@ The server stores subscription keys, schedule, timezone, locale, opaque local ID
 - automatic processing;
 - person matching or message sending;
 - community-derived advice before consent, anonymization and outcome verification exist.
+
+## Sign-in and quota (2026-10-13)
+
+`Process with AI` now requires a signed-in session and uses the `reflection.process` quota bucket (40 steps a day, 400 a month) through `lib/ai/toolGuard.ts`; a failed step is returned to the quota. Capture, the local inbox and everything stored on the device still work without signing in. The note text is still neither stored nor logged by the server.

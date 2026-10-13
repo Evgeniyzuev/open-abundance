@@ -411,7 +411,7 @@ export default function HomeTodayApp({
               description={milestone ? primaryWish.title : ""}
               existingSteps={[]}
               onAccept={addStartStepsAsTask}
-              onError={() => { setStartHelpOpen(false); setAgentNote(t("home.path.helpReply")); }}
+              onError={(reason) => { setStartHelpOpen(false); setAgentNote(reason === "quota" ? t("ai.tools.quota") : reason === "signin" ? t("ai.tools.signIn") : t("home.path.helpReply")); }}
             />
           ) : null}
           {agentNote ? <p className="primary-wish-agent-note"><Sparkles size={15} />{agentNote}</p> : null}

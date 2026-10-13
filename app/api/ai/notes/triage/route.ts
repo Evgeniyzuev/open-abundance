@@ -3,6 +3,7 @@ import { buildAiSystemPrompt } from "@/lib/ai/knowledge";
 import { AiGatewayError, generateAiJson } from "@/lib/ai/providerGateway";
 import { buildSafetyPayload, hasSafetyText } from "@/lib/ai/safety";
 import { MAX_BRAIN_DUMP_ITEMS, MAX_BRAIN_DUMP_TEXT, MAX_FOCUS_ITEMS, normalizeBrainDumpItems, type BrainDumpResponse } from "@/lib/braindump";
+import { guardAiTool } from "@/lib/ai/toolGuard";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 
 export const runtime = "edge";
@@ -28,6 +29,9 @@ ${text}
 
 Return JSON only: {"items":[{"text":"short action phrase","bucket":"now"|"today"|"later"|"drop"}]} with at most ${MAX_BRAIN_DUMP_ITEMS} items and at most ${MAX_FOCUS_ITEMS} in now and today together. Write the items in ${locale === "ru" ? "Russian" : "English"}.`;
 
+  const guard = await guardAiTool(request, "tools.organize");
+  if (!guard.ok) return guard.response;
+
   try {
     const result = await generateAiJson<BrainDumpResponse>({
       systemPrompt: buildAiSystemPrompt({ locale, capability: "notes.triage" }),
@@ -41,6 +45,8 @@ Return JSON only: {"items":[{"text":"short action phrase","bucket":"now"|"today"
     });
     return NextResponse.json(result.value, { headers: { ...NO_STORE_HEADERS, "X-AI-Provider": result.provider } });
   } catch (error) {
+    // Nothing useful was produced, so the tap goes back to the quota.
+    await guard.refund();
     if (error instanceof AiGatewayError && error.code === "not_configured") {
       return NextResponse.json({ error: "AI providers are not configured." }, { status: 503, headers: NO_STORE_HEADERS });
     }

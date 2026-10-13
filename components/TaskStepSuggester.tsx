@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ListChecks } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
+import { AI_TOOL_FAILURE_KEYS, postAiTool, type AiToolFailure } from "@/lib/ai/toolClient";
+import type { MessageKey } from "@/lib/i18n";
 import { isTaskStepsResponse, MAX_TASK_SUBTASKS, normalizeStepSuggestions, type TaskStepSuggestion } from "@/lib/taskSteps";
 
 type TaskStepSuggesterProps = {
@@ -12,7 +14,7 @@ type TaskStepSuggesterProps = {
   onAccept: (steps: string[]) => void | Promise<void>;
   /** Requests steps as soon as the component appears (used after an explicit "help me start" tap). */
   autoStart?: boolean;
-  onError?: () => void;
+  onError?: (reason: AiToolFailure) => void;
 };
 
 type Status = "idle" | "loading" | "ready" | "error" | "offline";
@@ -24,6 +26,7 @@ type Status = "idle" | "loading" | "ready" | "error" | "offline";
 export default function TaskStepSuggester({ title, description, existingSteps, onAccept, autoStart = false, onError }: TaskStepSuggesterProps) {
   const { locale, t } = useUserContext();
   const [status, setStatus] = useState<Status>("idle");
+  const [failure, setFailure] = useState<AiToolFailure | null>(null);
   const [suggestions, setSuggestions] = useState<TaskStepSuggestion[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const canAdd = existingSteps.length < MAX_TASK_SUBTASKS;
@@ -40,32 +43,32 @@ export default function TaskStepSuggester({ title, description, existingSteps, o
     if (!title.trim() || status === "loading") return;
     if (!navigator.onLine) {
       setStatus("offline");
-      onError?.();
+      onError?.("offline");
       return;
     }
     setStatus("loading");
+    setFailure(null);
     try {
-      const response = await fetch("/api/ai/tasks/decompose", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const aiResult = await postAiTool("/api/ai/tasks/decompose", {
           title,
           description,
           existingSteps: [...existingSteps, ...suggestions.map((step) => step.text)],
           locale
-        })
-      });
-      const payload = await response.json().catch(() => null) as unknown;
-      if (!response.ok || !isTaskStepsResponse(payload)) throw new Error("steps_unavailable");
+        });
+      if (!aiResult.ok) {
+        setFailure(aiResult.reason);
+        throw new Error(aiResult.reason);
+      }
+      const payload = aiResult.payload;
+      if (!isTaskStepsResponse(payload)) throw new Error("steps_unavailable");
       const steps = normalizeStepSuggestions(payload.steps, existingSteps);
       if (steps.length === 0) throw new Error("steps_empty");
       setSuggestions(steps);
       setSelected(new Set(steps.map((_, index) => index)));
       setStatus("ready");
-    } catch {
+    } catch (error) {
       setStatus("error");
-      onError?.();
+      onError?.(error instanceof Error && ["signin", "quota", "offline"].includes(error.message) ? error.message as AiToolFailure : "error");
     }
   }
 
@@ -116,7 +119,7 @@ export default function TaskStepSuggester({ title, description, existingSteps, o
           </div>
         </>
       )}
-      {status === "error" ? <p className="step-suggest-note" role="status">{t("tasks.steps.error")}</p> : null}
+      {status === "error" ? <p className="step-suggest-note" role="status">{failure && AI_TOOL_FAILURE_KEYS[failure] ? t(AI_TOOL_FAILURE_KEYS[failure] as MessageKey) : t("tasks.steps.error")}</p> : null}
       {status === "offline" ? <p className="step-suggest-note" role="status">{t("tasks.steps.offline")}</p> : null}
     </div>
   );

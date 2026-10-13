@@ -9,6 +9,7 @@ import {
   normalizeDecision,
   type DecisionResult
 } from "@/lib/decision";
+import { guardAiTool } from "@/lib/ai/toolGuard";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 
 export const runtime = "edge";
@@ -35,6 +36,9 @@ ${JSON.stringify({ options, context })}
 
 Return JSON only: {"choice":0,"reason":"one or two plain sentences","firstStep":"a tiny action doable in about two minutes"} where choice is the zero-based index of the single recommended option. Write reason and firstStep in ${locale === "ru" ? "Russian" : "English"}.`;
 
+  const guard = await guardAiTool(request, "tools.organize");
+  if (!guard.ok) return guard.response;
+
   try {
     const result = await generateAiJson<DecisionResult>({
       systemPrompt: buildAiSystemPrompt({ locale, capability: "decision.choose" }),
@@ -48,6 +52,8 @@ Return JSON only: {"choice":0,"reason":"one or two plain sentences","firstStep":
     });
     return NextResponse.json(result.value, { headers: { ...NO_STORE_HEADERS, "X-AI-Provider": result.provider } });
   } catch (error) {
+    // Nothing useful was produced, so the tap goes back to the quota.
+    await guard.refund();
     if (error instanceof AiGatewayError && error.code === "not_configured") {
       return NextResponse.json({ error: "AI providers are not configured." }, { status: 503, headers: NO_STORE_HEADERS });
     }

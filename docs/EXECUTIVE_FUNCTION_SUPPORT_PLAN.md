@@ -90,3 +90,7 @@
 - `pnpm exec tsc --noEmit`, `pnpm lint`.
 - Тексты через словарь `lib/i18n.ts` (RU и EN), шрифт полей ввода ≥ `1rem`.
 - Одна попытка проверки в браузере по [DEVELOPMENT_RULES.md](DEVELOPMENT_RULES.md).
+
+## Обновление 2026-10-13: вход и квота
+
+Ограничение этапа 1 «маршрут без входа и квоты» снято: все AI-инструменты этого плана и разбор заметки требуют входа и используют квоту `tools.organize` (30/день, 300/месяц) или `reflection.process` (40/400). Подробности — [PRODUCT_VISION_LOW_LOAD_PLAN.md §10](PRODUCT_VISION_LOW_LOAD_PLAN.md#10-статус-реализации).

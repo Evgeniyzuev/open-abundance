@@ -25,7 +25,7 @@ assert.deepEqual(normalizeStepSuggestions("nope"), []);
 const route = readFileSync("app/api/ai/tasks/decompose/route.ts", "utf8");
 assert.match(route, /capability: "task\.decompose"/);
 assert.match(route, /<task_data>/);
-assert.doesNotMatch(route, /getServiceClient|supabase|\.rpc\(/i, "the decompose route must not touch the database");
+assert.doesNotMatch(route, /getServiceClient|supabase|\.rpc\(/i, "the decompose route has no direct database access; quota goes through toolGuard");
 
 const store = readFileSync("lib/tasksStore.ts", "utf8");
 assert.match(store, /export async function toggleTaskSubtask/);
@@ -78,7 +78,7 @@ const triage = readFileSync("app/api/ai/notes/triage/route.ts", "utf8");
 assert.match(triage, /capability: "notes\.triage"/);
 assert.match(triage, /<private_dump>/);
 assert.match(triage, /hasSafetyText\(text\)/, "triage must stop on safety language before calling AI");
-assert.doesNotMatch(triage, /getServiceClient|supabase|\.rpc\(/i, "the triage route must not touch the database");
+assert.doesNotMatch(triage, /getServiceClient|supabase|\.rpc\(/i, "the triage route has no direct database access; quota goes through toolGuard");
 const dumpModal = readFileSync("components/BrainDumpModal.tsx", "utf8");
 assert.doesNotMatch(dumpModal, /saveNote\(\{[^}]*text\b[^}]*body: text/, "the raw dump is never saved as a note");
 
@@ -109,7 +109,7 @@ for (const [path, capability, tag] of [
   assert.match(source, new RegExp(`capability: "${capability.replace(".", "\.")}"`));
   assert.ok(source.includes(tag), `${path} wraps user data in ${tag}`);
   assert.match(source, /hasSafetyText\(/, `${path} must stop on safety language before calling AI`);
-  assert.doesNotMatch(source, /getServiceClient|supabase|\.rpc\(/i, `${path} must not touch the database`);
+  assert.doesNotMatch(source, /getServiceClient|supabase|\.rpc\(/i, `${path} has no direct database access; quota goes through toolGuard`);
 }
 assert.match(readFileSync("components/DecisionModal.tsx", "utf8"), /taskId/, "existing tasks are opened, not duplicated");
 assert.match(readFileSync("components/RoutinePlanModal.tsx", "utf8"), /saveTask\(/, "routine days become ordinary local tasks");

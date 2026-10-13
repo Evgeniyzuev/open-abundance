@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildAiSystemPrompt } from "@/lib/ai/knowledge";
 import { AiGatewayError, generateAiJson } from "@/lib/ai/providerGateway";
 import { buildSafetyPayload, hasSafetyText } from "@/lib/ai/safety";
+import { guardAiTool } from "@/lib/ai/toolGuard";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { MAX_ROUTINE_REQUEST, normalizeRoutinePlan, type RoutinePlan } from "@/lib/routinePlan";
 import { MAX_TASK_SUBTASKS } from "@/lib/taskSteps";
@@ -29,6 +30,9 @@ ${text}
 
 Return JSON only: {"days":[{"offset":0,"title":"short plan for that day"}],"shopping":["item"]} with one entry for each of the next seven days (offset 0 is today, 6 is six days from today) and at most ${MAX_TASK_SUBTASKS} shopping items, only when the request involves buying things. Write titles and items in ${locale === "ru" ? "Russian" : "English"}.`;
 
+  const guard = await guardAiTool(request, "tools.organize");
+  if (!guard.ok) return guard.response;
+
   try {
     const result = await generateAiJson<RoutinePlan>({
       systemPrompt: buildAiSystemPrompt({ locale, capability: "routine.plan" }),
@@ -42,6 +46,8 @@ Return JSON only: {"days":[{"offset":0,"title":"short plan for that day"}],"shop
     });
     return NextResponse.json(result.value, { headers: { ...NO_STORE_HEADERS, "X-AI-Provider": result.provider } });
   } catch (error) {
+    // Nothing useful was produced, so the tap goes back to the quota.
+    await guard.refund();
     if (error instanceof AiGatewayError && error.code === "not_configured") {
       return NextResponse.json({ error: "AI providers are not configured." }, { status: 503, headers: NO_STORE_HEADERS });
     }

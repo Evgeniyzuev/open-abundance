@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildAiSystemPrompt } from "@/lib/ai/knowledge";
 import { AiGatewayError, generateAiJson } from "@/lib/ai/providerGateway";
 import { buildSafetyPayload, hasSafetyText } from "@/lib/ai/safety";
+import { guardAiTool } from "@/lib/ai/toolGuard";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import {
   REFLECTION_PRACTICE_IDS,
@@ -61,6 +62,9 @@ export async function POST(request: NextRequest) {
   const systemPrompt = buildAiSystemPrompt({ locale, capability: "reflection.process" });
   const userPrompt = buildReflectionTaskPrompt(rawText, answers, guided);
 
+  const guard = await guardAiTool(request, "reflection.process");
+  if (!guard.ok) return guard.response;
+
   try {
     const result = await generateAiJson({
       systemPrompt,
@@ -72,6 +76,8 @@ export async function POST(request: NextRequest) {
       { headers: { ...NO_STORE_HEADERS, "X-AI-Provider": result.provider } }
     );
   } catch (error) {
+    // Nothing useful was produced, so the tap goes back to the quota.
+    await guard.refund();
     if (error instanceof AiGatewayError && error.code === "not_configured") {
       return NextResponse.json(
         { error: "AI providers are not configured." },

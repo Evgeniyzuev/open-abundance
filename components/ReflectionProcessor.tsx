@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ExternalLink, Sparkles } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
+import { AI_TOOL_FAILURE_KEYS, postAiTool } from "@/lib/ai/toolClient";
 import {
   closeReflection,
   setReflectionFeedback,
@@ -93,17 +94,13 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
       ? { ...guided, selections: guidedSelections ?? guided.selections }
       : undefined;
     try {
-      const response = await fetch("/api/ai/reflections/step", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: note.body, answers: currentAnswers, guided: guidedSelections, locale })
-      });
-      const rawPayload = await response.json().catch(() => null) as unknown;
-      if (!response.ok || !isReflectionStepResponse(rawPayload)) {
-        const message = isErrorPayload(rawPayload) ? rawPayload.error : t("reflections.aiError");
-        throw new Error(message);
+      const aiResult = await postAiTool("/api/ai/reflections/step", { rawText: note.body, answers: currentAnswers, guided: guidedSelections, locale });
+      if (!aiResult.ok) {
+        const refusalKey = AI_TOOL_FAILURE_KEYS[aiResult.reason];
+        throw new Error(refusalKey ? t(refusalKey) : aiResult.reason === "offline" ? t("reflections.offline") : t("reflections.aiError"));
       }
+      const rawPayload = aiResult.payload;
+      if (!isReflectionStepResponse(rawPayload)) throw new Error(t("reflections.aiError"));
       const payload: ReflectionStepResponse = rawPayload;
 
       if (payload.mode === "guided") {
@@ -470,6 +467,3 @@ function emptyGuidedSelections(): ReflectionGuidedSelections {
   return { feelings: [], causes: [], desiredChanges: [], actions: [] };
 }
 
-function isErrorPayload(value: unknown): value is { error: string } {
-  return value !== null && typeof value === "object" && "error" in value && typeof value.error === "string";
-}

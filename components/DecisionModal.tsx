@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
+import { AI_TOOL_FAILURE_KEYS, postAiTool, type AiToolFailure } from "@/lib/ai/toolClient";
+import type { MessageKey } from "@/lib/i18n";
 import { isDecisionResult, MAX_DECISION_CONTEXT_LENGTH, MAX_DECISION_OPTIONS, MAX_DECISION_OPTION_LENGTH, MIN_DECISION_OPTIONS, normalizeDecision, type DecisionResult } from "@/lib/decision";
 import { todayKey } from "@/lib/taskSchedule";
 import { saveTask } from "@/lib/tasksStore";
@@ -35,6 +37,7 @@ export default function DecisionModal({ initialOptions, onClose, onOpenTask }: D
   });
   const [context, setContext] = useState("");
   const [status, setStatus] = useState<Status>("input");
+  const [failure, setFailure] = useState<AiToolFailure | null>(null);
   const [result, setResult] = useState<DecisionResult | null>(null);
   const [safety, setSafety] = useState<SafetyPayload | null>(null);
   const filled = options.filter((option) => option.text.trim());
@@ -50,21 +53,21 @@ export default function DecisionModal({ initialOptions, onClose, onOpenTask }: D
       return;
     }
     setStatus("loading");
+    setFailure(null);
     setSafety(null);
     try {
-      const response = await fetch("/api/ai/decisions/choose", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ options: filled.map((option) => option.text), context, locale })
-      });
-      const payload = await response.json().catch(() => null) as unknown;
-      if (response.ok && (payload as { mode?: string } | null)?.mode === "safety") {
+      const aiResult = await postAiTool("/api/ai/decisions/choose", { options: filled.map((option) => option.text), context, locale });
+      if (!aiResult.ok) {
+        setFailure(aiResult.reason);
+        throw new Error(aiResult.reason);
+      }
+      const payload = aiResult.payload;
+      if ((payload as { mode?: string } | null)?.mode === "safety") {
         setSafety(payload as SafetyPayload);
         setStatus("input");
         return;
       }
-      if (!response.ok || !isDecisionResult(payload)) throw new Error("decision_unavailable");
+      if (!isDecisionResult(payload)) throw new Error("decision_unavailable");
       const decision = normalizeDecision(payload, filled.length);
       if (!decision) throw new Error("decision_invalid");
       setResult(decision);
@@ -136,7 +139,7 @@ export default function DecisionModal({ initialOptions, onClose, onOpenTask }: D
             <button className="challenge-primary-action" type="button" disabled={filled.length < MIN_DECISION_OPTIONS || status === "loading"} onClick={choose}>
               {status === "loading" ? t("decision.loading") : t("decision.choose")}
             </button>
-            {status === "error" ? <p className="step-suggest-note" role="status">{t("decision.error")}</p> : null}
+            {status === "error" ? <p className="step-suggest-note" role="status">{failure && AI_TOOL_FAILURE_KEYS[failure] ? t(AI_TOOL_FAILURE_KEYS[failure] as MessageKey) : t("decision.error")}</p> : null}
             {status === "offline" ? <p className="step-suggest-note" role="status">{t("decision.offline")}</p> : null}
             {safety ? (
               <div className="reflection-safety" role="alert">

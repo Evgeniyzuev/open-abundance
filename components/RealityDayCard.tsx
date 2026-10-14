@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, ImagePlus, Share2, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Download, ImagePlus, Share2, Sparkles, X } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
@@ -189,8 +189,21 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
     const url = `${window.location.origin}/u/${draft.author_user_id ?? ""}/blog?post=${draft.id}`;
     const text = caption.trim() || t("reality.day.title");
     try {
-      if (typeof navigator.share === "function") await navigator.share({ title: text.slice(0, 80), text, url });
-      else await navigator.clipboard.writeText(`${text}\n${url}`);
+      // Share the day card image with the link where the device supports files; otherwise the link alone.
+      let files: File[] = [];
+      try {
+        const image = await fetch(`/api/reality/card/${draft.id}?format=post&locale=${locale}`, { cache: "no-store" });
+        if (image.ok) files = [new File([await image.blob()], "open-abundance-day.png", { type: "image/png" })];
+      } catch {
+        files = [];
+      }
+      if (files.length && typeof navigator.canShare === "function" && navigator.canShare({ files })) {
+        await navigator.share({ title: text.slice(0, 80), text: `${text}\n${url}`, files });
+      } else if (typeof navigator.share === "function") {
+        await navigator.share({ title: text.slice(0, 80), text, url });
+      } else {
+        await navigator.clipboard.writeText(`${text}\n${url}`);
+      }
     } catch {
       // A cancelled share is not an error.
     }
@@ -274,6 +287,11 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
           <div className="reality-day-actions">
             <p className="reality-day-done"><Check size={16} aria-hidden="true" />{t("reality.day.published")}</p>
             <button className="challenge-primary-action" type="button" onClick={() => void share()}><Share2 size={16} aria-hidden="true" />{t("social.feed.share")}</button>
+            {draft ? (
+              <a className="secondary-button" href={`/api/reality/card/${draft.id}?format=story&locale=${locale}`} download="open-abundance-story.png">
+                <Download size={16} aria-hidden="true" />{t("reality.day.downloadStory")}
+              </a>
+            ) : null}
           </div>
         ) : (
           <div className="reality-day-actions">

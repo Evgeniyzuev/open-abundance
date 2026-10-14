@@ -46,4 +46,14 @@ assert.match(view, /prefers-reduced-motion: reduce/);
 assert.match(view, /if \(!days\?\.length\) return null;/);
 assert.match(readFileSync("components/PublicUserPage.tsx", "utf8"), /<RealityView userId=\{payload\.profile\.user_id\}/);
 
+// Day card image: only a published public day post, only its public blocks; fonts with Cyrillic are bundled.
+const card = readFileSync("app/api/reality/card/[postId]/route.tsx", "utf8");
+assert.match(card, /\.eq\("status", "published"\)\s*\.eq\("visibility", "public"\)\s*\.is\("deleted_at", null\)/);
+assert.match(card, /\.eq\("post_id", post\.id\)\.eq\("visibility", "public"\)/);
+assert.match(card, /inter-cyrillic-800-normal\.woff/);
+assert.match(card, /story: \{ width: 1080, height: 1920 \}/);
+const blogPage = readFileSync("app/u/[userId]/blog/page.tsx", "utf8");
+assert.match(blogPage, /openGraph: \{ images: \[\{ url: image, width: 1080, height: 1350 \}\] \}/);
+assert.match(blogPage, /post\.status !== "published" \|\| post\.visibility !== "public"/);
+
 console.log("reality timeline contract ok");

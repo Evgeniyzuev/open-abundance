@@ -3062,3 +3062,4 @@ body:has(.operator-fab) .top-tabbar:not(.nav-collapsed) { padding-right: 104px; 
 .reality-story-stats small { color: rgba(255,255,255,0.75); font-size: 0.6875rem; font-weight: 700; }
 .reality-story-stats strong { font-size: 1rem; }
 @media (prefers-reduced-motion: reduce) { .reality-story-progress i { transition: none; } }
+.reality-day-actions a.secondary-button { width: 100%; text-decoration: none; }

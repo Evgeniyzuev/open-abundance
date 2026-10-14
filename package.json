@@ -33,6 +33,7 @@
     "test:week-recap": "node --experimental-strip-types scripts/verify-week-recap-contract.mjs",
     "test:reality-day": "node --experimental-strip-types scripts/verify-reality-day-contract.mjs",
     "test:follows": "node scripts/verify-follows-contract.mjs",
+    "test:internal-fee": "node scripts/verify-internal-fee-contract.mjs",
     "test:reality-timeline": "node --experimental-strip-types scripts/verify-reality-timeline-contract.mjs",
     "test:feed-swipe": "node --experimental-strip-types scripts/verify-feed-swipe-contract.mjs",
     "test:daily-set": "node --experimental-strip-types scripts/verify-daily-set-contract.mjs",

@@ -51,7 +51,7 @@ type CoreHistoryRow = {
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release" | "team_bonus";
+  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release" | "team_bonus" | "internal_turnover_fee";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -964,7 +964,9 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                 <article className="payout-row" key={row.id}>
                   <div>
                     <strong>{formatDay(row.operation_date, locale)}</strong>
-                    <span>{row.kind === "team_bonus"
+                    <span>{row.kind === "internal_turnover_fee"
+                      ? t("wallet.history.internalTurnoverFee")
+                      : row.kind === "team_bonus"
                       ? t("wallet.history.leaderBonusWallet")
                       : row.kind === "challenge_reward"
                       ? t("wallet.history.challengeReward")

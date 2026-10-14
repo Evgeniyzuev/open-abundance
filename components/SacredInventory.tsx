@@ -3,11 +3,12 @@
 import { X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import SacredItemIcon from "@/components/SacredItemIcon";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { nextSacredRarity } from "@/lib/sacredItems";
 
-type OwnedItem = { id: string; title: string; description: string | null; rarity: string; metadata: { glyph?: string } | null };
+type OwnedItem = { id: string; title: string; description: string | null; rarity: string; metadata: { glyph?: string; item_key?: string } | null };
 
 async function sendJson(path: string, body: Record<string, unknown>) {
   const response = await fetchWithSupabaseAuth(path, {
@@ -95,7 +96,7 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
             type="button"
             onClick={() => tap(item)}
           >
-            <span className="results-item-image" aria-hidden="true"><i>{item.metadata?.glyph ?? item.title.slice(0, 1)}</i></span>
+            <span className="results-item-image" aria-hidden="true"><SacredItemIcon itemKey={item.metadata?.item_key} fallback={item.metadata?.glyph ?? item.title.slice(0, 1)} size={64} /></span>
             <strong>{item.title}</strong>
           </button>
         ))}
@@ -115,7 +116,7 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
           <section className="modal-sheet results-detail-modal" role="dialog" aria-modal="true" aria-label={opened.title} onClick={(event) => event.stopPropagation()}>
             <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={() => setOpened(null)}><X size={18} /></button>
             <div className="results-detail-cover" data-rarity={opened.rarity} aria-hidden="true">
-              <i className="results-detail-glyph">{opened.metadata?.glyph ?? opened.title.slice(0, 1)}</i>
+              <SacredItemIcon itemKey={opened.metadata?.item_key} fallback={opened.metadata?.glyph ?? opened.title.slice(0, 1)} size={120} />
               <span>{opened.rarity}</span>
             </div>
             <div className="results-detail-body">

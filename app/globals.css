@@ -483,7 +483,6 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .results-item-tile[data-rarity="rare"] .results-item-image, .results-detail-cover[data-rarity="rare"] { background: linear-gradient(160deg, #12344d, #0a84ff); }
 .results-item-tile[data-rarity="epic"] .results-item-image, .results-detail-cover[data-rarity="epic"] { background: linear-gradient(160deg, #3b1d6e, #af52de); }
 .results-item-tile[data-rarity="legendary"] .results-item-image, .results-detail-cover[data-rarity="legendary"] { background: linear-gradient(160deg, #7a3e00, #ffb020); }
-.results-detail-glyph { font-size: 72px; font-style: normal; line-height: 1; }
 .results-detail-body input { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--surface-soft); color: var(--text); font-size: 1rem; }
 .results-contract-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 3px; }
 .results-detail-modal { position: relative; max-height: calc(100dvh - 36px); overflow: auto; padding: 0; }

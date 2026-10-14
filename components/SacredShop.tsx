@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SacredItemIcon from "@/components/SacredItemIcon";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
@@ -41,7 +42,7 @@ export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
         {SACRED_ITEMS.filter((item) => item.price !== undefined).map((item) => (
           <article className="market-card" key={item.key}>
             <div className="market-card-image">
-              <span>{item.glyph}</span>
+              <SacredItemIcon itemKey={item.key} fallback={item.glyph} size={48} />
               <small>{item.rarity}</small>
             </div>
             <div className="market-card-body">

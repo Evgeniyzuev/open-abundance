@@ -3,12 +3,14 @@
 import { X } from "lucide-react";
 import SimScene from "@/components/SimScene";
 import { useUserContext } from "@/components/UserProvider";
+import type { FutureDay } from "@/lib/futureDay";
 import type { MessageKey } from "@/lib/i18n";
 import { SIM_CLOTHES, SIM_SLOTS, type SimOutfit, type SimSlot } from "@/lib/simWardrobe";
 
 /** Free wardrobe: pick at most one simple item per slot; the figure updates at once. */
-export default function SimWardrobeDialog({ outfit, photoUrl, onChange, onClose }: {
+export default function SimWardrobeDialog({ outfit, photoUrl, day, onChange, onClose }: {
   outfit: SimOutfit;
+  day?: FutureDay;
   photoUrl?: string | null;
   onChange: (outfit: SimOutfit) => void;
   onClose: () => void;
@@ -27,7 +29,7 @@ export default function SimWardrobeDialog({ outfit, photoUrl, onChange, onClose 
       <section className="modal-sheet sim-wardrobe" role="dialog" aria-modal="true" aria-label={t("sim.title")} onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <h2>{t("sim.title")}</h2>
-        <div className="sim-wardrobe-figure"><SimScene photoUrl={photoUrl} outfit={outfit} /></div>
+        <div className="sim-wardrobe-figure"><SimScene photoUrl={photoUrl} outfit={outfit} day={day} /></div>
         {SIM_SLOTS.map((slot) => (
           <div className="sim-wardrobe-row" key={slot}>
             <span>{t(`sim.slot.${slot}` as MessageKey)}</span>

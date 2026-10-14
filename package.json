@@ -29,6 +29,7 @@
     "test:value": "node --experimental-strip-types scripts/verify-value-metrics-contract.mjs",
     "test:market-offer": "node --experimental-strip-types scripts/verify-market-offer-contract.mjs",
     "test:shop": "node --experimental-strip-types scripts/verify-shop-contract.mjs",
+    "test:future-day": "node --experimental-strip-types scripts/verify-future-day-contract.mjs",
     "test:sim": "node --experimental-strip-types scripts/verify-sim-contract.mjs",
     "test:wish-products": "node scripts/verify-wish-products-contract.mjs",
     "test:calendar": "node --experimental-strip-types scripts/verify-calendar-export-contract.mjs",

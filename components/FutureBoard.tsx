@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import SimAvatar from "@/components/SimAvatar";
 import SimWardrobeDialog from "@/components/SimWardrobeDialog";
 import { useUserContext } from "@/components/UserProvider";
+import { computeFutureDay, IDLE_FUTURE_DAY, type FutureDay } from "@/lib/futureDay";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { isCompletedOn, isPlannedOn, todayKey } from "@/lib/taskSchedule";
+import { getTaskCompletions, getTasks, TASKS_CHANGED_EVENT } from "@/lib/tasksStore";
 import { readSimOutfit, storeSimOutfit, type SimOutfit } from "@/lib/simWardrobe";
 import { readPrimaryWish } from "@/lib/wishJourney";
 
@@ -36,6 +39,7 @@ export default function FutureBoard() {
   const [outfit, setOutfit] = useState<SimOutfit>({});
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [expanded, setExpanded] = useState(true);
+  const [day, setDay] = useState<FutureDay>(IDLE_FUTURE_DAY);
   const userId = user?.id ?? null;
 
   useEffect(() => {
@@ -45,6 +49,29 @@ export default function FutureBoard() {
     } catch {
       // The collapsed state is a convenience; the board stays open without storage.
     }
+  }, [userId]);
+
+  // Today's real tasks drive the scene; local data only, nothing is written back.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    async function loadDay() {
+      try {
+        const [tasks, completions] = await Promise.all([getTasks(), getTaskCompletions()]);
+        if (cancelled) return;
+        const today = todayKey();
+        const planned = tasks.filter((task) => !task.failed && isPlannedOn(task, today));
+        setDay(computeFutureDay(planned.map((task) => task.id), planned.filter((task) => isCompletedOn(task.id, today, completions)).map((task) => task.id)));
+      } catch {
+        // Without local tasks the scene simply stays calm.
+      }
+    }
+    void loadDay();
+    window.addEventListener(TASKS_CHANGED_EVENT, loadDay);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(TASKS_CHANGED_EVENT, loadDay);
+    };
   }, [userId]);
 
   function toggleExpanded(open: boolean) {
@@ -89,10 +116,11 @@ export default function FutureBoard() {
       <summary className="future-board-head">
         <strong>{t("board.title")}</strong>
         <small>{t("board.simulation")}</small>
+        {day.planned > 0 ? <small>{day.done}/{day.planned}</small> : null}
       </summary>
       <div className="future-board-grid">
         <button className="future-board-center" type="button" style={{ gridArea: "2 / 2" }} aria-label={t("sim.title")} onClick={() => setWardrobeOpen(true)}>
-          <SimAvatar photoUrl={profile?.avatar_url} outfit={outfit} />
+          <SimAvatar photoUrl={profile?.avatar_url} outfit={outfit} mood={day.mood} />
         </button>
         {tiles.map((tile, index) => (
           <div className="future-board-tile" key={tile.key} style={{ gridArea: `${CELLS[index][0]} / ${CELLS[index][1]}` }}>
@@ -105,7 +133,7 @@ export default function FutureBoard() {
           </div>
         ))}
       </div>
-      {wardrobeOpen ? <SimWardrobeDialog outfit={outfit} photoUrl={profile?.avatar_url} onChange={changeOutfit} onClose={() => setWardrobeOpen(false)} /> : null}
+      {wardrobeOpen ? <SimWardrobeDialog outfit={outfit} photoUrl={profile?.avatar_url} day={day} onChange={changeOutfit} onClose={() => setWardrobeOpen(false)} /> : null}
     </details>
   );
 }

@@ -39,7 +39,7 @@ export function buildCardModel(blocks: CardBlock[], locale: "ru" | "en"): CardMo
             : "day";
 
   const tiles: CardModel["tiles"] = [];
-  if (level !== null && kind !== "level_up") tiles.push({ key: "level", value: level });
+  // The level is shown next to the author's name, so it is not repeated as a tile.
   if (turnover !== null && turnover > 0 && kind !== "turnover") tiles.push({ key: "turnover", value: turnover });
   if (wins > 0 && kind !== "challenge" && kind !== "wish") tiles.push({ key: "wins", value: wins });
   else if (wins > 1) tiles.push({ key: "wins", value: wins });

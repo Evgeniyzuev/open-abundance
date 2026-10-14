@@ -265,7 +265,7 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
             {draft ? (
               <ShareKit
                 url={`${typeof window === "undefined" ? "" : window.location.origin}/u/${draft.author_user_id ?? ""}/blog?post=${draft.id}`}
-                text={caption.trim() || t("reality.day.title")}
+                text={`${caption.trim() || t("reality.day.title")}\n${t("reality.share.follow")}`}
                 imageUrl={`/api/reality/card/${draft.id}?format=post&locale=${locale}`}
                 storyUrl={`/api/reality/card/${draft.id}?format=story&locale=${locale}`}
               />

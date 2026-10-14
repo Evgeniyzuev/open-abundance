@@ -50,18 +50,31 @@ export async function GET(request: Request, { params }: { params: { postId: stri
         {data.cover ? <img src={data.cover} alt="" width={size.width} height={size.height} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : null}
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 26%, rgba(0,0,0,0.15) 42%, rgba(0,0,0,0.86) 74%, rgba(0,0,0,0.94) 100%)" }} />
 
-        <div style={{ position: "absolute", top: story ? 130 : pad, left: pad, right: pad, display: "flex", alignItems: "center", gap: 24 }}>
-          {data.avatar ? <img src={data.avatar} alt="" width={104} height={104} style={{ width: 104, height: 104, borderRadius: 52, objectFit: "cover", border: "4px solid rgba(255,255,255,0.95)" }} /> : null}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ display: "flex", fontSize: 46, fontWeight: 800 }}>{data.name}</div>
-            <div style={{ display: "flex", fontSize: 30, opacity: 0.88 }}>{`${t("reality.card.dayN", { n: data.dayNumber })} · ${formatDate(data.date, locale)}`}</div>
+        <div style={{ position: "absolute", top: story ? 130 : pad, left: pad, right: pad, display: "flex", alignItems: "center", gap: 26 }}>
+          {data.avatar ? <img src={data.avatar} alt="" width={120} height={120} style={{ width: 120, height: 120, borderRadius: 60, objectFit: "cover", border: "4px solid rgba(255,255,255,0.95)" }} /> : null}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+            <div style={{ display: "flex", fontSize: 52, fontWeight: 800, lineHeight: 1.05 }}>{data.name}</div>
+            {model.level !== null ? (
+              <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: "#1b1300", background: "#ffbd4a", borderRadius: 999, padding: "6px 20px" }}>{t("reality.card.level", { level: model.level })}</div>
+            ) : null}
           </div>
         </div>
 
         <div style={{ position: "absolute", left: pad, right: pad, bottom: story ? 210 : pad, display: "flex", flexDirection: "column", gap: 26 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", fontSize: 32, fontWeight: 800, letterSpacing: 3, textTransform: "uppercase", color: accent }}>{text.kicker}</div>
-            <div style={{ display: "flex", fontSize: text.headline.length > 26 ? 64 : 96, fontWeight: 800, lineHeight: 1.05 }}>{text.headline}</div>
+            {model.kind === "level_up" && model.levelBefore !== null && model.level !== null ? (
+              // Level change as two numbers and a drawn arrow (the font has no bold arrow glyph).
+              <div style={{ display: "flex", alignItems: "center", gap: 28, fontSize: 112, fontWeight: 800, lineHeight: 1 }}>
+                <div style={{ display: "flex", opacity: 0.6 }}>{String(model.levelBefore)}</div>
+                <svg width="96" height="60" viewBox="0 0 96 60">
+                  <path d="M6 30 H84 M60 8 L86 30 L60 52" stroke={accent} strokeWidth="11" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <div style={{ display: "flex" }}>{String(model.level)}</div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", fontSize: text.headline.length > 26 ? 64 : 96, fontWeight: 800, lineHeight: 1.05 }}>{text.headline}</div>
+            )}
           </div>
           {data.caption ? <div style={{ display: "flex", fontSize: 36, lineHeight: 1.3, opacity: 0.92 }}>{data.caption}</div> : null}
           {model.tiles.length ? (
@@ -74,10 +87,7 @@ export async function GET(request: Request, { params }: { params: { postId: stri
               ))}
             </div>
           ) : null}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,0.22)" }}>
-            <div style={{ display: "flex", fontSize: 30, fontWeight: 800 }}>{t("reality.card.follow")}</div>
-            <div style={{ display: "flex", fontSize: 28, opacity: 0.8 }}>open-abundance.vercel.app</div>
-          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 26, opacity: 0.7 }}>{`${t("reality.card.dayN", { n: data.dayNumber })} · ${formatDate(data.date, locale)}`}</div>
         </div>
       </div>
     ),
@@ -142,7 +152,7 @@ async function loadCard(postId: string): Promise<CardData | null> {
 }
 
 function cardText(model: CardModel, locale: AppLocale, t: Translate): CardText {
-  if (model.kind === "level_up") return { kicker: t("reality.card.kicker.levelUp"), headline: t("reality.card.level", { level: model.level ?? 0 }) };
+  if (model.kind === "level_up") return { kicker: t("reality.card.kicker.levelUp"), headline: `${model.levelBefore ?? ""} → ${model.level ?? 0}` };
   if (model.kind === "challenge") return { kicker: t("reality.card.kicker.challenge"), headline: clip(model.challengeTitle ?? "", 60) };
   if (model.kind === "wish") return { kicker: t("reality.card.kicker.wish"), headline: clip(model.wishTitle ?? t("reality.card.kicker.wish"), 60) };
   if (model.kind === "turnover") return { kicker: t("reality.card.kicker.turnover"), headline: `+${money(model.turnover ?? 0, locale)}` };

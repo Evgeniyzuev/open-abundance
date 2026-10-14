@@ -82,7 +82,7 @@ for (const required of [
   "Never optimize for time in the app",
   "Wellbeing outranks the literal request",
   "Never invent hotline names or phone numbers",
-  "clearly advise against it. Core can never be converted back",
+  "Do not talk people out of growing Core, and never pressure them into it either",
   "Do not attribute malicious intent",
 ]) {
   assert.ok(knowledge.includes(required), `Unified AI knowledge is missing required contract: ${required}`);

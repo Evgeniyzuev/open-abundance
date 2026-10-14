@@ -16,6 +16,7 @@ import { isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences } from "@/
 import LegalDisclosure from "@/components/LegalDisclosure";
 import BlogWorkspace from "@/components/BlogWorkspace";
 import ReputationCard from "@/components/ReputationCard";
+import FollowButton from "@/components/FollowButton";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import CurrencyDisplayHelp from "@/components/CurrencyDisplayHelp";
 import LocalBackupDialog from "@/components/LocalBackupDialog";
@@ -3939,6 +3940,7 @@ export function PostDetailModal({
         <div className="post-detail-content">
           <div className="post-detail-author-row">
             <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+            {post.author_user_id && currentUserId && post.post_type !== "reality_demo" && post.post_type !== "abundance_story" ? <FollowButton authorId={post.author_user_id} /> : null}
             {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
             {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
             {post.post_type === "abundance_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}

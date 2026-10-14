@@ -6,6 +6,28 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
+// Whether the viewer follows an author, and how many followers the author has.
+export async function GET(request: NextRequest) {
+  try {
+    const { supabase, user, error } = await getAuthenticatedUser(request);
+    if (error || !user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
+    const targetUserId = normalizeUuid(request.nextUrl.searchParams.get("userId"));
+    if (!targetUserId) return NextResponse.json({ error: "Invalid user id." }, { status: 400, headers: NO_STORE_HEADERS });
+    const [own, total] = await Promise.all([
+      supabase.from("user_follows").select("follower_user_id", { count: "exact", head: true }).eq("follower_user_id", user.id).eq("followee_user_id", targetUserId),
+      supabase.from("user_follows").select("follower_user_id", { count: "exact", head: true }).eq("followee_user_id", targetUserId)
+    ]);
+    if (own.error) throw own.error;
+    if (total.error) throw total.error;
+    return NextResponse.json({ following: Boolean(own.count), followersCount: total.count ?? 0 }, { headers: NO_STORE_HEADERS });
+  } catch (routeError) {
+    return NextResponse.json(
+      { error: routeError instanceof Error ? routeError.message : "Failed to load follow." },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+}
+
 // Follow or unfollow an author. Idempotent: repeating the same request leaves one row or none.
 export async function POST(request: NextRequest) {
   try {

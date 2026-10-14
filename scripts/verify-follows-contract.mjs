@@ -51,4 +51,10 @@ for (const key of ["social.feed.filter.following", "social.follow.follow", "soci
   assert.equal(i18n.split(`"${key}"`).length - 1, 2, `${key} exists in RU and EN`);
 }
 
+// Follow from a post: shown for other real authors only; state comes from GET /api/social/follows.
+assert.match(api, /export async function GET/);
+const social = readFileSync("components/SocialApp.tsx", "utf8");
+assert.match(social, /post\.post_type !== "reality_demo" && post\.post_type !== "abundance_story" \? <FollowButton/);
+assert.match(readFileSync("components/FollowButton.tsx", "utf8"), /viewerId === authorId/);
+
 console.log("follows contract ok");

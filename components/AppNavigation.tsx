@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import FeedbackButton from "@/components/FeedbackButton";
 import HumanityCard from "@/components/HumanityCard";
-import OperatorEntry from "@/components/OperatorEntry";
 import PayRequestEntry from "@/components/PayRequestEntry";
 import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -697,8 +695,6 @@ export default function AppNavigation() {
         </KeepAliveView>
         {!showHome && !showIdeas && !showNotes && !showWishes && !showChecks && !showMap && !showResults && !showChallenges && !showWallet && !showPeople ? <PlaceholderScreen title={currentTitle} /> : null}
       </section>
-      <FeedbackButton />
-      <OperatorEntry />
       <PayRequestEntry />
       <BottomTabBar
         activeTab={activeMainTab}

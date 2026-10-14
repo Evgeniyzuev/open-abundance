@@ -55,8 +55,9 @@ export default function FeedbackButton() {
 
   return (
     <>
-      <button className="feedback-fab" type="button" aria-label={t("feedback.open")} title={t("feedback.open")} onClick={() => setOpen(true)}>
-        <MessageSquarePlus size={20} />
+      <button className="profile-action-button" type="button" aria-label={t("feedback.open")} title={t("feedback.open")} aria-expanded={open} onClick={() => setOpen(true)}>
+        <MessageSquarePlus size={18} />
+        <span>{t("profile.actions.feedback")}</span>
       </button>
       {open ? (
         <div className="modal-backdrop" role="presentation" onClick={close}>

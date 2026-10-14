@@ -1,5 +1,7 @@
 "use client";
 
+import FeedbackButton from "@/components/FeedbackButton";
+import OperatorEntry from "@/components/OperatorEntry";
 import { personLabel } from "@/lib/personName";
 import NicknameField from "@/components/NicknameField";
 import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
@@ -2124,6 +2126,8 @@ export default function SocialApp({
               <span className="profile-action-icon-with-badge"><Bell size={18} />{pendingIncomingConfirmations + notificationUnreadCount > 0 ? <i>{pendingIncomingConfirmations + notificationUnreadCount}</i> : null}</span>
               <span>{t("profile.actions.activity")}</span>
             </button>
+            <FeedbackButton />
+            <OperatorEntry />
           </div>
           <section className="public-profile-box owner-profile-summary">
             <div className="section-heading-row"><span>{t("profile.public.title")}</span></div>

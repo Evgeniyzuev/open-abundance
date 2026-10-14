@@ -12,7 +12,8 @@ const OperatorConsole = dynamic(() => import("@/components/OperatorConsole"), { 
 /**
  * Hidden entry to the operator console. It renders nothing for ordinary users: the
  * access check returns 404 for them, so no button, text or route hints that the
- * console exists. Operators get a small shield button; `?operator=1` also opens it.
+ * console exists. Operators get a tile in the profile action row; `?operator=1` also opens it
+ * while the profile tab is shown.
  */
 export default function OperatorEntry() {
   const { user, t } = useUserContext();
@@ -43,8 +44,9 @@ export default function OperatorEntry() {
   if (!allowed) return null;
   return (
     <>
-      <button className="feedback-fab operator-fab" type="button" aria-label={t("operator.open")} title={t("operator.open")} style={{ right: 58 }} onClick={() => setOpen(true)}>
-        <ShieldCheck size={20} />
+      <button className="profile-action-button" type="button" aria-label={t("operator.open")} title={t("operator.open")} aria-expanded={open} onClick={() => setOpen(true)}>
+        <ShieldCheck size={18} />
+        <span>{t("profile.actions.operator")}</span>
       </button>
       {open ? <OperatorConsole onClose={() => setOpen(false)} /> : null}
     </>

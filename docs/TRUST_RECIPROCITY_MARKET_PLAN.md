@@ -124,6 +124,10 @@ Shadow v1 фиксирует эти параметры в versioned configuratio
 - Eligibility uses current deal/moderation/payment truth with an `as_of_date` source cutoff; Trust-lite events are diagnostic-only.
 - Trust Shadow migration apply выполнен; real-distribution analysis, manual QA and any private/public Trust surface remain separate stages.
 
+2026-10-14:
+
+- Добавлена теневая конфигурация `trust-shadow-v2` (`pair_mean`) по решению основателя: предел влияния зависит от уровня и прежней репутации оценивающего, повторные сделки пары обновляют взвешенную среднюю. Исправлена ошибка v1, из-за которой `rebuild_trust_v2_shadow` на production падал (несовпадение колонок в стартовых строках); пересчёт v1 и v2 выполнен. Подробности — [GROWTH_REALITY_PLAN.md](GROWTH_REALITY_PLAN.md#7-статус-реализации).
+
 2026-09-01:
 
 - Shadow review input is canonical `0.0–5.0` with `0.1` increments and neutral `3.0`; Marketplace review storage, RPC validation and UI input use the same contract.

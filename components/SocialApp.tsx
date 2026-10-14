@@ -15,6 +15,7 @@ import { celebrate } from "@/lib/ui/feedback";
 import { isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences } from "@/lib/feedPreferences";
 import LegalDisclosure from "@/components/LegalDisclosure";
 import BlogWorkspace from "@/components/BlogWorkspace";
+import ReputationCard from "@/components/ReputationCard";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import CurrencyDisplayHelp from "@/components/CurrencyDisplayHelp";
 import LocalBackupDialog from "@/components/LocalBackupDialog";
@@ -2132,6 +2133,7 @@ export default function SocialApp({
               </div>
             ) : null}
           </section>
+          <ReputationCard active={active} />
           <div className="referral-box referral-box-compact">
             <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
             <div className="referral-compact-actions">

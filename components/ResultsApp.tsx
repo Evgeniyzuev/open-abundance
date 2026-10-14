@@ -2,6 +2,7 @@
 
 import { BookOpen, X } from "lucide-react";
 import { useState } from "react";
+import FutureBoard from "@/components/FutureBoard";
 import SacredInventory from "@/components/SacredInventory";
 import { useUserContext } from "@/components/UserProvider";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
@@ -16,6 +17,7 @@ export default function ResultsApp() {
 
   return (
     <section className="results-screen">
+      <FutureBoard />
       <section className="results-inventory-section">
         <SacredInventory>
           <button className="results-item-tile" type="button" onClick={() => setIntroOpen(true)}>

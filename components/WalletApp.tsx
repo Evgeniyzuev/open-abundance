@@ -32,6 +32,7 @@ import { isUuid } from "@/lib/uuid";
 import { startVisiblePolling } from "@/lib/visiblePolling";
 import MarketOfferHelper from "@/components/MarketOfferHelper";
 import { ExchangeOfferDialog, ExchangeOffers, MutualBalanceCard } from "@/components/MarketExchange";
+import { SacredShop } from "@/components/SacredShop";
 
 type WalletTab = "wallet" | "core" | "market" | "p2p";
 export type WalletCalculatorRequest = {
@@ -2118,6 +2119,7 @@ function MarketplacePanel({
         </button>
       </div>
       <MutualBalanceCard refreshKey={exchangeRefreshKey + deals.length} />
+      <SacredShop onPurchased={() => onExchangeChanged?.()} />
       {error ? <p className="finance-error">{error}</p> : null}
       {loading && listings.length === 0 ? <FinanceState title={t("app.common.loading")} description={t("market.loading")} /> : null}
       {!loading && listings.length === 0 ? <FinanceState title={t("market.emptyTitle")} description={canCreate ? t("market.emptyWithItems") : t("market.limitReached")} /> : null}

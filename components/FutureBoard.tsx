@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import SimAvatar from "@/components/SimAvatar";
+import SimWalk from "@/components/SimWalk";
 import SimWardrobeDialog from "@/components/SimWardrobeDialog";
 import { useUserContext } from "@/components/UserProvider";
 import { computeFutureDay, IDLE_FUTURE_DAY, type FutureDay } from "@/lib/futureDay";
@@ -9,8 +10,8 @@ import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { isCompletedOn, isPlannedOn, todayKey } from "@/lib/taskSchedule";
 import { getTaskCompletions, getTasks, TASKS_CHANGED_EVENT } from "@/lib/tasksStore";
-import { readSimOutfit, storeSimOutfit, type SimOutfit } from "@/lib/simWardrobe";
-import { readPrimaryWish } from "@/lib/wishJourney";
+import { readSimOutfit, readSimPose, readSimShelf, storeSimOutfit, storeSimPose, storeSimShelf, type SimOutfit, type SimPose } from "@/lib/simWardrobe";
+import { calculateWishJourney, readPrimaryWish } from "@/lib/wishJourney";
 
 type Tile = { key: string; title: string; imageUrl: string | null; price: number | null; currency: string };
 
@@ -34,9 +35,12 @@ async function getJson<T>(path: string): Promise<T | null> {
  * and products they are considering around. Nothing is generated; every tile comes from the person's own data.
  */
 export default function FutureBoard() {
-  const { locale, t, user, profile } = useUserContext();
+  const { core, locale, t, user, profile, wallet } = useUserContext();
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [outfit, setOutfit] = useState<SimOutfit>({});
+  const [pose, setPose] = useState<SimPose>("auto");
+  const [shelf, setShelf] = useState<string[]>([]);
+  const [primary, setPrimary] = useState<{ title: string; ratio: number } | null>(null);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [day, setDay] = useState<FutureDay>(IDLE_FUTURE_DAY);
@@ -44,6 +48,8 @@ export default function FutureBoard() {
 
   useEffect(() => {
     setOutfit(readSimOutfit(userId));
+    setPose(readSimPose(userId));
+    setShelf(readSimShelf(userId));
     try {
       setExpanded(window.localStorage.getItem("open-abundance-board-collapsed") !== "1");
     } catch {
@@ -83,6 +89,28 @@ export default function FutureBoard() {
     }
   }
 
+  // Walk to the dream: the saved share of the nearest wish target, counted from the Wallet like the Home screen does.
+  useEffect(() => {
+    const wish = readPrimaryWish(userId);
+    const target = wish?.target_amount ?? null;
+    if (!wish || !target) {
+      setPrimary(null);
+      return;
+    }
+    const journey = calculateWishJourney({ coreBalance: core?.balance ?? 0, reinvestPercent: core?.reinvest_percent ?? 100, targetAmount: target, walletBalance: wallet?.balance ?? 0 });
+    setPrimary({ title: wish.title, ratio: journey.targetAmount ? journey.savedAmount / journey.targetAmount : 0 });
+  }, [userId, core?.balance, core?.reinvest_percent, wallet?.balance, tiles]);
+
+  function changePose(next: SimPose) {
+    setPose(next);
+    if (userId) storeSimPose(userId, next);
+  }
+
+  function changeShelf(next: string[]) {
+    setShelf(next);
+    if (userId) storeSimShelf(userId, next);
+  }
+
   function changeOutfit(next: SimOutfit) {
     setOutfit(next);
     if (userId) storeSimOutfit(userId, next);
@@ -120,7 +148,7 @@ export default function FutureBoard() {
       </summary>
       <div className="future-board-grid">
         <button className="future-board-center" type="button" style={{ gridArea: "2 / 2" }} aria-label={t("sim.title")} onClick={() => setWardrobeOpen(true)}>
-          <SimAvatar photoUrl={profile?.avatar_url} outfit={outfit} mood={day.mood} />
+          <SimAvatar photoUrl={profile?.avatar_url} outfit={outfit} mood={day.mood} pose={pose} />
         </button>
         {tiles.map((tile, index) => (
           <div className="future-board-tile" key={tile.key} style={{ gridArea: `${CELLS[index][0]} / ${CELLS[index][1]}` }}>
@@ -133,7 +161,8 @@ export default function FutureBoard() {
           </div>
         ))}
       </div>
-      {wardrobeOpen ? <SimWardrobeDialog outfit={outfit} photoUrl={profile?.avatar_url} day={day} onChange={changeOutfit} onClose={() => setWardrobeOpen(false)} /> : null}
+      {primary ? <SimWalk ratio={primary.ratio} label={primary.title} title={t("sim.walk")} /> : null}
+      {wardrobeOpen ? <SimWardrobeDialog outfit={outfit} shelf={shelf} pose={pose} photoUrl={profile?.avatar_url} day={day} walk={primary ? { ratio: primary.ratio, label: primary.title } : null} onOutfit={changeOutfit} onShelf={changeShelf} onPose={changePose} onClose={() => setWardrobeOpen(false)} /> : null}
     </details>
   );
 }

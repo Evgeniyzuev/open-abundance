@@ -38,14 +38,14 @@ const PATHS: Record<string, string[]> = {
   amulet_eye: ["M6 32 C16 16 48 16 58 32 C48 48 16 48 6 32 Z"]
 };
 
-export default function SacredItemIcon({ itemKey, fallback, size = 56 }: { itemKey?: string | null; fallback?: string; size?: number }) {
+export default function SacredItemIcon({ itemKey, fallback, size = 56, x, y }: { itemKey?: string | null; fallback?: string; size?: number; x?: number; y?: number }) {
   const key = itemKey ?? "";
   const zodiac = key.startsWith("zodiac_") ? ZODIAC[key.slice(7)] : undefined;
   const paths = PATHS[key];
   if (!zodiac && !paths) return fallback ? <i style={{ fontStyle: "normal", fontSize: size * 0.8, lineHeight: 1 }}>{fallback}</i> : null;
 
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg x={x} y={y} width={size} height={size} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {zodiac ? (
         <>
           {zodiac.map((line, index) => (

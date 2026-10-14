@@ -64,3 +64,63 @@ export function storeSimOutfit(userId: string, outfit: SimOutfit): void {
     // The outfit is a convenience; it is simply not remembered when storage is unavailable.
   }
 }
+
+// Poses: the figure strikes one by hand (for photos) or follows the day ("auto": cheers when all tasks are done).
+export const SIM_POSES = ["auto", "stand", "wave", "cheer"] as const;
+export type SimPose = (typeof SIM_POSES)[number];
+
+export const SIM_ARMS: Record<Exclude<SimPose, "auto">, string> = {
+  stand: "M34 48 L24 84 M66 48 L76 84",
+  wave: "M34 48 L24 84 M66 48 L80 30",
+  cheer: "M34 48 L24 26 M66 48 L76 26"
+};
+
+export function effectivePose(pose: SimPose, mood: string): Exclude<SimPose, "auto"> {
+  if (pose !== "auto") return pose;
+  return mood === "celebrate" ? "cheer" : "stand";
+}
+
+export function readSimPose(userId: string | null | undefined): SimPose {
+  if (!userId || typeof window === "undefined") return "auto";
+  try {
+    const value = window.localStorage.getItem(`open-abundance-sim-pose:${userId}`);
+    return SIM_POSES.includes(value as SimPose) ? (value as SimPose) : "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+export function storeSimPose(userId: string, pose: SimPose): void {
+  try {
+    window.localStorage.setItem(`open-abundance-sim-pose:${userId}`, pose);
+  } catch {
+    // Not remembered when storage is unavailable.
+  }
+}
+
+// Shelf: up to five owned sacred items shown under the scene. Stored as the catalog keys of the items.
+export const SIM_SHELF_MAX = 5;
+
+export function sanitizeShelf(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((key): key is string => typeof key === "string" && key.length > 0 && key.length < 60).slice(0, SIM_SHELF_MAX)
+    : [];
+}
+
+export function readSimShelf(userId: string | null | undefined): string[] {
+  if (!userId || typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(`open-abundance-sim-shelf:${userId}`);
+    return raw ? sanitizeShelf(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function storeSimShelf(userId: string, shelf: string[]): void {
+  try {
+    window.localStorage.setItem(`open-abundance-sim-shelf:${userId}`, JSON.stringify(sanitizeShelf(shelf)));
+  } catch {
+    // Not remembered when storage is unavailable.
+  }
+}

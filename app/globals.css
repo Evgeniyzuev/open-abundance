@@ -495,7 +495,10 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .future-board-center { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 16px; padding: 6px; background: var(--accent-soft); color: var(--blue); }
 .sim-wardrobe { position: relative; display: grid; gap: 10px; max-height: calc(100dvh - 36px); overflow: auto; padding: 16px; }
 .sim-wardrobe h2 { margin: 0; font-size: 1.25rem; }
-.sim-wardrobe-figure { width: 100%; max-width: 340px; aspect-ratio: 2 / 1; justify-self: center; color: var(--blue); }
+.sim-wardrobe-figure { width: 100%; max-width: 340px; justify-self: center; border-radius: 14px; padding: 6px; background: var(--accent-soft); color: var(--blue); }
+.sim-walk { display: grid; gap: 2px; color: var(--blue); }
+.sim-walk small { color: var(--muted); font-size: 0.75rem; font-weight: 800; }
+.sim-wardrobe-row button { display: inline-flex; align-items: center; gap: 6px; }
 .sim-wardrobe-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; }
 .sim-wardrobe-row > span { color: var(--muted); font-size: 0.8125rem; font-weight: 850; }
 .sim-wardrobe-row [role="group"] { display: flex; flex-wrap: wrap; gap: 6px; }

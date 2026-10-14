@@ -18,6 +18,9 @@ export type LinkPreview = {
   authorName: string | null;
   thumbnailUrl: string | null;
   canonicalUrl: string | null;
+  /** Product price from open metadata (og/product price tags), when the page publishes one. */
+  priceAmount?: number | null;
+  priceCurrency?: string | null;
   status: "ready" | "link_only" | "failed";
 };
 
@@ -125,6 +128,8 @@ export async function loadLinkPreview(source: LinkSource): Promise<LinkPreview> 
       authorName,
       thumbnailUrl: safeThumbnail ? thumbnail : null,
       canonicalUrl: metadata.canonicalUrl,
+      priceAmount: metadata.priceAmount,
+      priceCurrency: metadata.priceCurrency,
       status: metadata.title || metadata.description || safeThumbnail ? "ready" : "link_only"
     };
   } catch {
@@ -165,8 +170,17 @@ function parseHtmlMetadata(html: string) {
     description: limitedText(metas.get("og:description") ?? metas.get("description") ?? metas.get("twitter:description"), 500),
     thumbnailUrl: metas.get("og:image:secure_url") ?? metas.get("og:image") ?? metas.get("twitter:image") ?? null,
     authorName: limitedText(metas.get("article:author") ?? metas.get("author"), 120),
-    canonicalUrl: canonical ? normalizeSafeExternalPage(readAttribute(canonical, "href")) : null
+    canonicalUrl: canonical ? normalizeSafeExternalPage(readAttribute(canonical, "href")) : null,
+    ...readPrice(metas)
   };
+}
+
+function readPrice(metas: Map<string, string>): { priceAmount: number | null; priceCurrency: string | null } {
+  const rawAmount = metas.get("product:price:amount") ?? metas.get("og:price:amount");
+  const amount = rawAmount ? Number(rawAmount.replace(/\s/g, "").replace(",", ".")) : NaN;
+  const rawCurrency = metas.get("product:price:currency") ?? metas.get("og:price:currency");
+  const currency = rawCurrency && /^[A-Za-z]{3}$/.test(rawCurrency.trim()) ? rawCurrency.trim().toUpperCase() : null;
+  return { priceAmount: Number.isFinite(amount) && amount >= 0 && amount < 1e12 ? amount : null, priceCurrency: currency };
 }
 
 function readAttribute(tag: string, name: string): string | null {

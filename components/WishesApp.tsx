@@ -6,6 +6,7 @@ import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
 import HelpProfileCard from "@/components/HelpProfileCard";
+import WishProducts from "@/components/WishProducts";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import type { AppLocale } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
@@ -378,6 +379,7 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
             </WishSection>
           ) : null}
 
+          {activeTab === "mine" ? <WishProducts /> : null}
           {activeTab === "mine" ? <HelpProfileCard /> : null}
 
           {activeTab === "completed" ? (

@@ -3063,3 +3063,23 @@ body:has(.operator-fab) .top-tabbar:not(.nav-collapsed) { padding-right: 104px; 
 .reality-story-stats strong { font-size: 1rem; }
 @media (prefers-reduced-motion: reduce) { .reality-story-progress i { transition: none; } }
 .reality-day-actions a.secondary-button { width: 100%; text-decoration: none; }
+
+/* Market exchange offers */
+.market-exchanges { display: grid; gap: 8px; }
+.market-exchange-row { display: grid; gap: 8px; border-radius: 14px; padding: 12px; background: var(--surface); box-shadow: var(--shadow); }
+.market-exchange-row > p { margin: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 700; }
+.market-exchange-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.market-exchange-pair span, .market-exchange-target { display: grid; gap: 2px; min-width: 0; margin: 0; }
+.market-exchange-pair small, .market-exchange-target small { color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+.market-exchange-pair strong, .market-exchange-target strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.market-exchange-pair em, .market-exchange-target em, .market-exchange-choices em { color: var(--blue); font-style: normal; font-weight: 800; }
+.market-exchange-pair svg { color: var(--muted); }
+.market-exchange-message { margin: 0; font-size: 0.875rem; }
+.market-exchange-choices { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.market-exchange-choices legend { margin-bottom: 6px; color: var(--muted); font-size: 0.8125rem; font-weight: 800; }
+.market-exchange-choices label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 44px; border-radius: 12px; padding: 0 12px; background: var(--surface-soft); }
+.modal-sheet .market-exchange-choices input { width: 20px; height: 20px; padding: 0; }
+.market-exchange-choices span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal-sheet.market-exchange-sheet textarea { min-height: 64px; font-size: 1rem; }
+.market-exchange-sheet { position: relative; }
+.market-exchange-sheet > .challenge-primary-action { width: 100%; gap: 7px; }

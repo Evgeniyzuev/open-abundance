@@ -31,6 +31,7 @@ import { useWalletFees } from "@/lib/useWalletFees";
 import { isUuid } from "@/lib/uuid";
 import { startVisiblePolling } from "@/lib/visiblePolling";
 import MarketOfferHelper from "@/components/MarketOfferHelper";
+import { ExchangeOfferDialog, ExchangeOffers } from "@/components/MarketExchange";
 
 type WalletTab = "wallet" | "core" | "market" | "p2p";
 export type WalletCalculatorRequest = {
@@ -362,6 +363,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [payTo, setPayTo] = useState<WalletRecipient | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const [marketListings, setMarketListings] = useState<MarketplaceListing[] | null>(null);
+  const [exchangeTargetId, setExchangeTargetId] = useState<string | null>(null);
+  const [exchangeRefreshKey, setExchangeRefreshKey] = useState(0);
   const [marketListingLimit, setMarketListingLimit] = useState(1);
   const [marketOpenListingCount, setMarketOpenListingCount] = useState(0);
   const [marketLoading, setMarketLoading] = useState(false);
@@ -372,6 +375,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const [marketSavingId, setMarketSavingId] = useState<string | null>(null);
   const [marketDeals, setMarketDeals] = useState<MarketplaceDeal[]>([]);
   const [marketDealSavingId, setMarketDealSavingId] = useState<string | null>(null);
+  const myActiveListings = (marketListings ?? []).filter((listing) => listing.seller_user_id === user?.id && (listing.status ?? "active") === "active");
+  const exchangeTarget = exchangeTargetId ? (marketListings ?? []).find((listing) => listing.id === exchangeTargetId) ?? null : null;
   const calculatorRequestNonce = calculatorRequest?.nonce;
   const calculatorRequestDailyAdditions = calculatorRequest?.dailyAdditions;
   const calculatorRequestTargetCore = calculatorRequest?.targetCore;
@@ -809,6 +814,18 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     }
   }
 
+  async function reloadMarketAfterExchange() {
+    try {
+      const [payload, deals] = await Promise.all([loadMarketplaceData(), loadMarketplaceDeals()]);
+      setMarketListings(payload.listings ?? []);
+      setMarketOpenListingCount(payload.openListingCount);
+      setMarketDeals(deals);
+      await onRefresh();
+    } catch (reloadError) {
+      setMarketError(reloadError instanceof Error ? reloadError.message : "Failed to reload the market.");
+    }
+  }
+
   async function handleBuyListing(listingId: string) {
     setMarketDealSavingId(listingId);
     setMarketError(null);
@@ -1160,10 +1177,22 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           dealSavingId={marketDealSavingId}
           onCancel={(listingId) => { void handleCancelListing(listingId); }}
           onBuy={(listingId) => { void handleBuyListing(listingId); }}
+          onExchange={myActiveListings.length ? (listingId) => setExchangeTargetId(listingId) : undefined}
+          exchangeRefreshKey={exchangeRefreshKey}
+          onExchangeChanged={() => { void reloadMarketAfterExchange(); }}
           onView={(listingId) => { void handleViewListing(listingId); }}
           onDealAction={(dealId, action) => { void handleDealAction(dealId, action); }}
           onReview={(dealId) => { void handleReviewDeal(dealId); }}
           onSell={() => setSellModalOpen(true)}
+        />
+      ) : null}
+
+      {user && exchangeTarget ? (
+        <ExchangeOfferDialog
+          target={exchangeTarget}
+          myListings={myActiveListings}
+          onClose={() => setExchangeTargetId(null)}
+          onCreated={() => setExchangeRefreshKey((value) => value + 1)}
         />
       ) : null}
 
@@ -2045,6 +2074,9 @@ function MarketplacePanel({
   dealSavingId,
   onCancel,
   onBuy,
+  onExchange,
+  exchangeRefreshKey = 0,
+  onExchangeChanged,
   onView,
   onDealAction,
   onReview,
@@ -2063,6 +2095,9 @@ function MarketplacePanel({
   dealSavingId: string | null;
   onCancel: (listingId: string) => void;
   onBuy: (listingId: string) => void;
+  onExchange?: (listingId: string) => void;
+  exchangeRefreshKey?: number;
+  onExchangeChanged?: () => void;
   onView: (listingId: string) => void;
   onDealAction: (dealId: string, action: "accept" | "cancel" | "deliver" | "confirm" | "dispute") => void;
   onReview: (dealId: string) => void;
@@ -2130,6 +2165,9 @@ function MarketplacePanel({
                       <button className="text-button" type="button" disabled={dealSavingId === listing.id} onClick={() => onBuy(listing.id)}>
                         {dealSavingId === listing.id ? t("app.common.loading") : t("market.buy")}
                       </button>
+                      {onExchange ? (
+                        <button className="text-button" type="button" onClick={() => onExchange(listing.id)}>{t("market.exchange.short")}</button>
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -2138,6 +2176,7 @@ function MarketplacePanel({
           })}
         </div>
       ) : null}
+      <ExchangeOffers refreshKey={exchangeRefreshKey} onChanged={() => onExchangeChanged?.()} />
       {deals.length > 0 ? (
         <div className="market-deals">
           <strong>{t("market.myDeals")}</strong>

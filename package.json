@@ -37,6 +37,7 @@
     "test:market-exchange": "node scripts/verify-market-exchange-contract.mjs",
     "test:trust-v2-pair-mean": "node scripts/verify-trust-v2-pair-mean-contract.mjs",
     "test:reality-timeline": "node --experimental-strip-types scripts/verify-reality-timeline-contract.mjs",
+    "test:reality-card": "node --experimental-strip-types scripts/verify-reality-card-contract.mjs",
     "test:feed-swipe": "node --experimental-strip-types scripts/verify-feed-swipe-contract.mjs",
     "test:daily-set": "node --experimental-strip-types scripts/verify-daily-set-contract.mjs",
     "test:low-load": "node --experimental-strip-types scripts/verify-low-load-contract.mjs",

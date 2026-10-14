@@ -10,6 +10,7 @@ import { formatStatBlockValue, statBlockLabelKey } from "@/lib/realityDayFormat"
 import type { MessageKey } from "@/lib/i18n";
 import { playUiSound } from "@/lib/ui/sound";
 import ShareKit from "@/components/ShareKit";
+import RealityVideoButton from "@/components/RealityVideoButton";
 
 type DayPreview = {
   date: string;
@@ -270,6 +271,7 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
                 storyUrl={`/api/reality/card/${draft.id}?format=story&locale=${locale}`}
               />
             ) : null}
+            {draft?.author_user_id ? <RealityVideoButton userId={draft.author_user_id} /> : null}
           </div>
         ) : (
           <div className="reality-day-actions">

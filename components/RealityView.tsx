@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
+import RealityVideoButton from "@/components/RealityVideoButton";
 import { realityCalendar, realitySeries, summarizeReality, type RealityDay, type RealityMetric } from "@/lib/realityTimeline";
 
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -14,7 +15,7 @@ const METRICS: Array<[RealityMetric, MessageKey]> = [["turnover", "social.post.t
 const STORY_MS = 5000;
 
 /** An author's reality: headline numbers, stories by day, a chart and a calendar. Hidden when there are no days. */
-export default function RealityView({ userId, locale, t }: { userId: string; locale: AppLocale; t: Translate }) {
+export default function RealityView({ userId, locale, t, isOwner = false }: { userId: string; locale: AppLocale; t: Translate; isOwner?: boolean }) {
   const [days, setDays] = useState<RealityDay[] | null>(null);
   const [tab, setTab] = useState<Tab>("chart");
   const [storyIndex, setStoryIndex] = useState<number | null>(null);
@@ -64,6 +65,8 @@ export default function RealityView({ userId, locale, t }: { userId: string; loc
       {tab === "calendar" ? (
         <RealityCalendar days={days} today={today} locale={locale} t={t} onOpen={(day) => setStoryIndex(days.findIndex((item) => item.postId === day.postId))} />
       ) : null}
+
+      {isOwner ? <RealityVideoButton userId={userId} /> : null}
 
       {storyIndex !== null && storyIndex >= 0 ? (
         <StoryPlayer days={days} startIndex={storyIndex} locale={locale} t={t} onClose={() => setStoryIndex(null)} />

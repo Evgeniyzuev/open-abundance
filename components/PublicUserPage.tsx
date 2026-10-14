@@ -210,7 +210,7 @@ function PublicProfileView({
   return (
     <section className="public-user-content">
       {payload.profile.bio ? <p className="public-user-bio">{payload.profile.bio}</p> : null}
-      <RealityView userId={payload.profile.user_id} locale={locale} t={t} />
+      <RealityView userId={payload.profile.user_id} locale={locale} t={t} isOwner={payload.relation.isSelf} />
       {payload.links.length ? (
         <div className="profile-links">
           {payload.links.map((link) => (

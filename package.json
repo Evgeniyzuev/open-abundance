@@ -28,6 +28,8 @@
     "test:ai-context": "node --experimental-strip-types scripts/verify-ai-context-share-contract.mjs",
     "test:value": "node --experimental-strip-types scripts/verify-value-metrics-contract.mjs",
     "test:market-offer": "node --experimental-strip-types scripts/verify-market-offer-contract.mjs",
+    "test:shop": "node --experimental-strip-types scripts/verify-shop-contract.mjs",
+    "test:wish-products": "node scripts/verify-wish-products-contract.mjs",
     "test:calendar": "node --experimental-strip-types scripts/verify-calendar-export-contract.mjs",
     "test:shortcuts": "node --experimental-strip-types scripts/verify-shortcuts-contract.mjs",
     "test:week-recap": "node --experimental-strip-types scripts/verify-week-recap-contract.mjs",

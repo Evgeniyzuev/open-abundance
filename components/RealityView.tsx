@@ -42,7 +42,7 @@ export default function RealityView({ userId, locale, t }: { userId: string; loc
   return (
     <section className="reality-view" aria-label={t("reality.title")}>
       <div className="reality-view-head">
-        <button className="reality-story-ring" type="button" onClick={() => setStoryIndex(days.length - 1)} aria-label={t("reality.watch")}>
+        <button className="reality-story-ring" type="button" onClick={() => setStoryIndex(Math.max(0, days.length - 7))} aria-label={t("reality.watch")}>
           <Play size={18} aria-hidden="true" />
         </button>
         <div className="reality-kpis">
@@ -74,8 +74,11 @@ export default function RealityView({ userId, locale, t }: { userId: string; loc
 
 function RealityChart({ days, today, locale, t }: { days: RealityDay[]; today: string; locale: AppLocale; t: Translate }) {
   const available = METRICS.filter(([metric]) => days.some((day) => day[metric] !== null));
-  const [metric, setMetric] = useState<RealityMetric>(available[0]?.[0] ?? "level");
   const [period, setPeriod] = useState(30);
+  // Start on the metric with the most points in the default period, so the first view is a line, not a dot.
+  const [metric, setMetric] = useState<RealityMetric>(() => available
+    .map(([key]) => [key, realitySeries(days, key, 30, today).length] as const)
+    .sort((left, right) => right[1] - left[1])[0]?.[0] ?? "level");
   const [hover, setHover] = useState<number | null>(null);
   const points = useMemo(() => realitySeries(days, metric, period, today), [days, metric, period, today]);
   const width = 600;

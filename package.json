@@ -34,6 +34,7 @@
     "test:reality-day": "node --experimental-strip-types scripts/verify-reality-day-contract.mjs",
     "test:follows": "node scripts/verify-follows-contract.mjs",
     "test:internal-fee": "node scripts/verify-internal-fee-contract.mjs",
+    "eval:ai-constitution": "node --experimental-strip-types scripts/ai-constitution-evals.mjs",
     "test:market-exchange": "node scripts/verify-market-exchange-contract.mjs",
     "test:trust-v2-pair-mean": "node scripts/verify-trust-v2-pair-mean-contract.mjs",
     "test:reality-timeline": "node --experimental-strip-types scripts/verify-reality-timeline-contract.mjs",

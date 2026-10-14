@@ -76,6 +76,14 @@ for (const required of [
   "10% of the positive Core growth",
   "Quality-gate",
   "explain -> suggest -> prepare for confirmation -> execute",
+  // Constitution (docs/AI_CONSTITUTION.md): priority order, anti-goals and the two rules the evals caught.
+  "docs/AI_CONSTITUTION.md",
+  "the higher one always wins: 1) the person's safety and autonomy",
+  "Never optimize for time in the app",
+  "Wellbeing outranks the literal request",
+  "Never invent hotline names or phone numbers",
+  "clearly advise against it. Core can never be converted back",
+  "Do not attribute malicious intent",
 ]) {
   assert.ok(knowledge.includes(required), `Unified AI knowledge is missing required contract: ${required}`);
 }

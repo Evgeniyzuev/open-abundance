@@ -1,10 +1,12 @@
 "use client";
 
-import { UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
+import SimAvatar from "@/components/SimAvatar";
+import SimWardrobeDialog from "@/components/SimWardrobeDialog";
 import { useUserContext } from "@/components/UserProvider";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { readSimOutfit, storeSimOutfit, type SimOutfit } from "@/lib/simWardrobe";
 import { readPrimaryWish } from "@/lib/wishJourney";
 
 type Tile = { key: string; title: string; imageUrl: string | null; price: number | null; currency: string };
@@ -31,7 +33,16 @@ async function getJson<T>(path: string): Promise<T | null> {
 export default function FutureBoard() {
   const { locale, t, user, profile } = useUserContext();
   const [tiles, setTiles] = useState<Tile[]>([]);
+  const [outfit, setOutfit] = useState<SimOutfit>({});
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const userId = user?.id ?? null;
+
+  useEffect(() => { setOutfit(readSimOutfit(userId)); }, [userId]);
+
+  function changeOutfit(next: SimOutfit) {
+    setOutfit(next);
+    if (userId) storeSimOutfit(userId, next);
+  }
 
   useEffect(() => {
     if (!userId) return;
@@ -63,12 +74,9 @@ export default function FutureBoard() {
         <small>{t("board.simulation")}</small>
       </div>
       <div className="future-board-grid">
-        <div className="future-board-center" style={{ gridArea: "2 / 2" }}>
-          {profile?.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.avatar_url} alt="" />
-          ) : <UserRound size={36} aria-hidden="true" />}
-        </div>
+        <button className="future-board-center" type="button" style={{ gridArea: "2 / 2" }} aria-label={t("sim.title")} onClick={() => setWardrobeOpen(true)}>
+          <SimAvatar photoUrl={profile?.avatar_url} outfit={outfit} />
+        </button>
         {tiles.map((tile, index) => (
           <div className="future-board-tile" key={tile.key} style={{ gridArea: `${CELLS[index][0]} / ${CELLS[index][1]}` }}>
             {tile.imageUrl ? (
@@ -80,6 +88,7 @@ export default function FutureBoard() {
           </div>
         ))}
       </div>
+      {wardrobeOpen ? <SimWardrobeDialog outfit={outfit} photoUrl={profile?.avatar_url} onChange={changeOutfit} onClose={() => setWardrobeOpen(false)} /> : null}
     </section>
   );
 }

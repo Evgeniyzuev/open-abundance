@@ -489,8 +489,15 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .future-board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .future-board-head small { border-radius: 999px; padding: 3px 8px; background: var(--surface-soft); color: var(--muted); font-size: 0.6875rem; font-weight: 850; text-transform: uppercase; }
 .future-board-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
-.future-board-center { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--accent-soft); color: var(--blue); }
-.future-board-center img { width: 100%; height: 100%; object-fit: cover; }
+.future-board-center { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 16px; padding: 6px; background: var(--accent-soft); color: var(--blue); }
+.sim-wardrobe { position: relative; display: grid; gap: 10px; max-height: calc(100dvh - 36px); overflow: auto; padding: 16px; }
+.sim-wardrobe h2 { margin: 0; font-size: 1.25rem; }
+.sim-wardrobe-figure { width: 120px; height: 180px; justify-self: center; color: var(--blue); }
+.sim-wardrobe-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; }
+.sim-wardrobe-row > span { color: var(--muted); font-size: 0.8125rem; font-weight: 850; }
+.sim-wardrobe-row [role="group"] { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-wardrobe-row button { min-height: 36px; border-radius: 999px; padding: 0 12px; background: var(--surface-soft); color: var(--text); font-size: 0.8125rem; font-weight: 800; }
+.sim-wardrobe-row button.active { background: var(--accent-soft); color: var(--blue); }
 .future-board-tile { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 7px; background: var(--surface-soft); color: white; }
 .future-board-tile img, .future-board-tile > span { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .future-board-tile > span { display: grid; place-items: center; background: linear-gradient(160deg, #12344d, #0a84ff); font-size: 2rem; font-weight: 900; }

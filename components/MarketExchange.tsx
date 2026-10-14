@@ -164,3 +164,44 @@ export function ExchangeOfferDialog({ target, myListings, onClose, onCreated }: 
     </div>
   );
 }
+
+type MutualPeriod = { purchases: number; sales: number; balance: number; purchaseCount: number; saleCount: number };
+
+/** Owner-only: Marketplace purchases minus sales. Hidden until the first completed deal. */
+export function MutualBalanceCard({ refreshKey }: { refreshKey: number }) {
+  const { locale, t } = useUserContext();
+  const [data, setData] = useState<{ windowDays: number; window: MutualPeriod; lifetime: MutualPeriod } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetchWithSupabaseAuth(`/api/marketplace/mutual-balance?ts=${Date.now()}`, { cache: "no-store" }, { authRequired: true });
+        const payload = await response.json() as { mutualBalance?: { windowDays: number; window: MutualPeriod; lifetime: MutualPeriod }; error?: string };
+        if (!cancelled && response.ok && payload.mutualBalance) setData(payload.mutualBalance);
+      } catch {
+        // Optional card.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [refreshKey]);
+
+  if (!data || data.lifetime.purchaseCount + data.lifetime.saleCount === 0) return null;
+  const money = (value: number) => formatAdaptiveMoney(Math.abs(Number(value)), locale);
+  const signed = (value: number) => `${Number(value) > 0 ? "+" : Number(value) < 0 ? "−" : ""}${money(value)}`;
+
+  return (
+    <details className="mutual-balance-card">
+      <summary>
+        <span><small>{t("market.mutual.title")}</small><strong>{signed(data.window.balance)}</strong></span>
+        <em>{t("market.mutual.window", { days: data.windowDays })}</em>
+      </summary>
+      <p>{t("market.mutual.explainer")}</p>
+      <dl>
+        <div><dt>{t("market.mutual.purchases")}</dt><dd>{money(data.window.purchases)} · {data.window.purchaseCount}</dd></div>
+        <div><dt>{t("market.mutual.sales")}</dt><dd>{money(data.window.sales)} · {data.window.saleCount}</dd></div>
+        <div><dt>{t("market.mutual.lifetime")}</dt><dd>{signed(data.lifetime.balance)}</dd></div>
+      </dl>
+    </details>
+  );
+}

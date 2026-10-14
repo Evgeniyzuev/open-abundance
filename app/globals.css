@@ -3083,3 +3083,23 @@ body:has(.operator-fab) .top-tabbar:not(.nav-collapsed) { padding-right: 104px; 
 .modal-sheet.market-exchange-sheet textarea { min-height: 64px; font-size: 1rem; }
 .market-exchange-sheet { position: relative; }
 .market-exchange-sheet > .challenge-primary-action { width: 100%; gap: 7px; }
+
+/* Mutual balance (owner only) */
+.mutual-balance-card { border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); }
+.mutual-balance-card > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 52px; padding: 8px 14px; cursor: pointer; list-style: none; }
+.mutual-balance-card > summary::-webkit-details-marker { display: none; }
+.mutual-balance-card > summary span { display: grid; gap: 2px; }
+.mutual-balance-card small, .mutual-balance-card em, .mutual-balance-card dt { color: var(--muted); font-size: 0.75rem; font-weight: 700; font-style: normal; }
+.mutual-balance-card strong { font-size: 1.125rem; }
+.mutual-balance-card p { margin: 0; padding: 0 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.4; }
+.mutual-balance-card dl { display: grid; gap: 6px; margin: 0; padding: 10px 14px 14px; }
+.mutual-balance-card dl div { display: flex; justify-content: space-between; gap: 10px; font-size: 0.875rem; }
+.mutual-balance-card dd { margin: 0; font-weight: 800; }
+
+/* Share kit: system share, network composers, copy and download */
+.share-kit { display: grid; gap: 10px; }
+.share-kit > .challenge-primary-action { width: 100%; gap: 7px; }
+.share-kit-networks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.share-kit-networks a { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border-radius: 12px; background: var(--surface-soft); color: var(--text); font-size: 0.8125rem; font-weight: 800; text-decoration: none; }
+.share-kit-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; }
+.share-kit-row .secondary-button { width: 100%; text-decoration: none; }

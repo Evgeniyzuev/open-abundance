@@ -31,7 +31,7 @@ import { useWalletFees } from "@/lib/useWalletFees";
 import { isUuid } from "@/lib/uuid";
 import { startVisiblePolling } from "@/lib/visiblePolling";
 import MarketOfferHelper from "@/components/MarketOfferHelper";
-import { ExchangeOfferDialog, ExchangeOffers } from "@/components/MarketExchange";
+import { ExchangeOfferDialog, ExchangeOffers, MutualBalanceCard } from "@/components/MarketExchange";
 
 type WalletTab = "wallet" | "core" | "market" | "p2p";
 export type WalletCalculatorRequest = {
@@ -2117,6 +2117,7 @@ function MarketplacePanel({
           {t("market.sell")}
         </button>
       </div>
+      <MutualBalanceCard refreshKey={exchangeRefreshKey + deals.length} />
       {error ? <p className="finance-error">{error}</p> : null}
       {loading && listings.length === 0 ? <FinanceState title={t("app.common.loading")} description={t("market.loading")} /> : null}
       {!loading && listings.length === 0 ? <FinanceState title={t("market.emptyTitle")} description={canCreate ? t("market.emptyWithItems") : t("market.limitReached")} /> : null}

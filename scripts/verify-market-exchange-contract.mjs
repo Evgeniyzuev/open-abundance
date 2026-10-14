@@ -28,4 +28,16 @@ const wallet = readFileSync("components/WalletApp.tsx", "utf8");
 assert.match(wallet, /onExchange=\{myActiveListings\.length \?/, "exchange shows only when you have something to offer");
 assert.match(readFileSync("app/api/notifications/route.ts", "utf8"), /market\.counter_offer\./);
 
+// Mutual balance: every completed Marketplace deal (escrow released), purchases minus sales; transfers do not count.
+const mutual = readFileSync("supabase/migrations/20261014180000_mutual_balance.sql", "utf8");
+assert.ok(mutual.includes("d.status = 'completed'") && mutual.includes("e.status = 'released'"));
+assert.ok(mutual.includes("'balance', coalesce(sum(purchase - sale) filter (where in_window), 0)"));
+assert.ok(!mutual.includes("wallet_ledger"), "transfers are not deals");
+assert.ok(mutual.includes("revoke all on function public.mutual_balance(uuid, integer) from public, anon, authenticated;"));
+
+// Free share kit: each network's own composer with the link.
+const targets = readFileSync("lib/shareTargets.ts", "utf8");
+for (const host of ["t.me/share/url", "wa.me/?text=", "twitter.com/intent/tweet", "facebook.com/sharer", "linkedin.com/sharing", "vk.com/share.php"]) assert.ok(targets.includes(host), host);
+assert.match(readFileSync("components/RealityDayCard.tsx", "utf8"), /<ShareKit/);
+
 console.log("market exchange contract ok");

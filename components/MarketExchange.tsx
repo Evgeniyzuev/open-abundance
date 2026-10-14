@@ -188,19 +188,17 @@ export function MutualBalanceCard({ refreshKey }: { refreshKey: number }) {
 
   if (!data || data.lifetime.purchaseCount + data.lifetime.saleCount === 0) return null;
   const money = (value: number) => formatAdaptiveMoney(Math.abs(Number(value)), locale);
-  const signed = (value: number) => `${Number(value) > 0 ? "+" : Number(value) < 0 ? "−" : ""}${money(value)}`;
+  const balance = Number(data.lifetime.balance);
 
   return (
     <details className="mutual-balance-card">
       <summary>
-        <span><small>{t("market.mutual.title")}</small><strong>{signed(data.window.balance)}</strong></span>
-        <em>{t("market.mutual.window", { days: data.windowDays })}</em>
+        <span><small>{t("market.mutual.title")}</small><strong>{balance > 0 ? "+" : balance < 0 ? "−" : ""}{money(balance)}</strong></span>
       </summary>
       <p>{t("market.mutual.explainer")}</p>
       <dl>
-        <div><dt>{t("market.mutual.purchases")}</dt><dd>{money(data.window.purchases)} · {data.window.purchaseCount}</dd></div>
-        <div><dt>{t("market.mutual.sales")}</dt><dd>{money(data.window.sales)} · {data.window.saleCount}</dd></div>
-        <div><dt>{t("market.mutual.lifetime")}</dt><dd>{signed(data.lifetime.balance)}</dd></div>
+        <div><dt>{t("market.mutual.purchases")}</dt><dd>{money(data.lifetime.purchases)} · {data.lifetime.purchaseCount}</dd></div>
+        <div><dt>{t("market.mutual.sales")}</dt><dd>{money(data.lifetime.sales)} · {data.lifetime.saleCount}</dd></div>
       </dl>
     </details>
   );

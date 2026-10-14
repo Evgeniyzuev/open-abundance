@@ -165,4 +165,16 @@ assert.doesNotMatch(outcomeEvent, /title/, "the wish text must not be sent in an
 
 assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impressions must be deduplicated across loads");
 
+// Learning loop (docs/AI_CONSTITUTION.md section 7): strategy per proposal, measured outcome, report.
+{
+  const loop = readFileSync("supabase/migrations/20261014210000_coordinator_learning_loop.sql", "utf8");
+  assert.ok(loop.includes("add column if not exists strategy_key"), "strategy recorded");
+  assert.ok(loop.includes("where status in ('approved', 'done')"), "only approved or done are measured");
+  assert.ok(loop.includes("e.properties ->> 'answer' = 'helped'"), "uses the one-tap helped answer");
+  assert.ok(loop.includes("w.completed_at >= rec.starts"), "only results after the decision count");
+  assert.ok(loop.includes("'open-abundance-coordinator-outcomes-daily'"), "measured daily");
+  assert.ok(readFileSync("app/api/internal/coordinator/digest/route.ts", "utf8").includes("strategy_key: `rules:${proposal.dedupeKey.split(\":\")[0]}`"));
+  assert.ok(readFileSync("app/api/internal/coordinator/report/route.ts", "utf8").includes("isGrowthOperator(user.id)"), "operator only");
+}
+
 console.log("coordinator contract ok");

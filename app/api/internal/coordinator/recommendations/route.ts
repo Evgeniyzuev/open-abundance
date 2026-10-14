@@ -15,7 +15,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
  * Operator-only approval queue for coordinator recommendations.
  *
  *   GET    ?status=proposed   list (target ids shortened; default status proposed)
- *   POST   create an operator or AI authored recommendation
+ *   POST   create an operator or AI authored recommendation ({ strategyKey } names the strategy)
  *   PATCH  { id, status, note?, outcome? } record the decision and, later, the outcome
  *
  * Approving only records the decision. Acting on it (a message, an introduction) stays a human
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   const status = request.nextUrl.searchParams.get("status") ?? "proposed";
   let query = auth.db
     .from("coordinator_recommendations")
-    .select("id,kind,title,rationale,expected_effect,risk,target_user_ids,source,status,decision_note,outcome,created_at,decided_at")
+    .select("id,kind,title,rationale,expected_effect,risk,target_user_ids,source,strategy_key,status,decision_note,outcome,outcome_metrics,outcome_measured_at,created_at,decided_at")
     .order("created_at", { ascending: false })
     .limit(50);
   if (status !== "all") query = query.eq("status", status);
@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
 
   const targets = Array.isArray(body?.targetUserIds) ? body.targetUserIds.filter((id): id is string => typeof id === "string" && UUID.test(id)).slice(0, 50) : [];
   const source = body?.source === "ai" ? "ai" : "operator";
+  // Which strategy produced it (for example "ai:nova-2026-10-14"); compared by outcome in the learning report.
+  const strategyKey = typeof body?.strategyKey === "string" && /^[a-z0-9][a-z0-9:._-]{0,79}$/.test(body.strategyKey) ? body.strategyKey : `${source}:manual`;
   const text = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "");
 
   const { data, error } = await auth.db
@@ -70,7 +72,8 @@ export async function POST(request: NextRequest) {
       expected_effect: text(body?.expectedEffect, 500),
       risk: text(body?.risk, 500),
       target_user_ids: targets,
-      source
+      source,
+      strategy_key: strategyKey
     })
     .select("id")
     .single();

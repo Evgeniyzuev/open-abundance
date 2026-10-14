@@ -57,7 +57,9 @@ export async function GET(request: NextRequest) {
           risk: proposal.risk,
           target_user_ids: proposal.targetUserIds,
           payload: proposal.payload,
-          source: "rules"
+          source: "rules",
+          // The rule that produced the proposal, so the learning report can compare rules by outcome.
+          strategy_key: `rules:${proposal.dedupeKey.split(":")[0]}`
         })),
         { onConflict: "dedupe_key", ignoreDuplicates: true }
       )

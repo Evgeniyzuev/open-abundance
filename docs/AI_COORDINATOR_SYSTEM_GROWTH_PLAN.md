@@ -711,3 +711,7 @@ AI начинает помогать оператору управлять ка�
 - [`TRUST_RECIPROCITY_MARKET_PLAN.md`](./TRUST_RECIPROCITY_MARKET_PLAN.md)
 - [`CHALLENGES_CATALOG.md`](./CHALLENGES_CATALOG.md)
 - [`MASTER_KANBAN.md`](./MASTER_KANBAN.md)
+
+## Петля обучения координатора (2026-10-14)
+
+Цель координатора и функция пользы — [AI_CONSTITUTION.md, раздел 7](AI_CONSTITUTION.md#7-цель-ии-координатора). Очередь `coordinator_recommendations` дополнена стратегией (`strategy_key`: правило дайджеста `rules:<правило>` или `ai:<версия>`), измеренным исходом (`outcome_metrics`: исполненные желания, челленджи, ответы «помогло» и «нет», рост Core по целевым людям за 30 дней после решения) и ежедневным измерением в 03:40 UTC. Оператор видит отчёт по стратегиям: `GET /api/internal/coordinator/report` (`?measure=1` — переизмерить). Без контрольной группы это корреляция — основа для следующей гипотезы, а не доказательство.

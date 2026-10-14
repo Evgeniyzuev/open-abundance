@@ -1,7 +1,7 @@
 "use client";
 
 import { personLabel } from "@/lib/personName";
-import { BookOpen, ExternalLink, UserRound } from "lucide-react";
+import { BookOpen, Check, ExternalLink, UserPlus, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -30,10 +30,12 @@ type PublicProfilePayload = {
   publicWishes: Array<{ id: string; title: string; description: string; image_url: string | null; difficulty_level: number; copied_count: number }>;
   economyMetrics?: Array<Record<string, string | number>>;
   relation: { isSelf: boolean; isContact: boolean; isTeam: boolean; isFollower: boolean };
+  followersCount?: number;
+  viewerSignedIn?: boolean;
   visibleBlocks: Record<string, boolean>;
   error?: string;
 };
-export default function PublicUserPage({ userId, initialView }: { userId: string; initialView: PublicUserView }) {
+export default function PublicUserPage({ userId, initialView, initialPostId = null }: { userId: string; initialView: PublicUserView; initialPostId?: string | null }) {
   const { user, loading, locale, t } = useUserContext();
   const router = useRouter();
   const [profilePayload, setProfilePayload] = useState<PublicProfilePayload | null>(null);
@@ -41,17 +43,19 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
   const [view, setView] = useState<PublicUserView>(initialView);
   const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [followSaving, setFollowSaving] = useState(false);
+  const viewerId = user?.id ?? null;
 
   const loadProfile = useCallback(async () => {
-    if (!user) return;
     setPageLoading(true);
     setPageError(null);
     try {
-      const token = await getAccessToken();
+      // Signed-out visitors (shared links) get the public part of the profile.
+      const token = await getOptionalAccessToken();
       const response = await fetch(`/api/social/profile/${userId}?ts=${Date.now()}`, {
         cache: "no-store",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Cache-Control": "no-cache"
         }
       });
@@ -63,12 +67,41 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
     } finally {
       setPageLoading(false);
     }
-  }, [user, userId]);
+    // The viewer reaches the API through the token; reload when the signed-in person changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerId, userId]);
 
   useEffect(() => {
-    if (!user || view !== "profile") return;
+    if (loading || view !== "profile") return;
     void loadProfile();
-  }, [loadProfile, user, view]);
+  }, [loadProfile, loading, view]);
+
+  async function toggleFollow() {
+    if (!profilePayload || followSaving) return;
+    setFollowSaving(true);
+    setPageError(null);
+    try {
+      const token = await getOptionalAccessToken();
+      if (!token) throw new Error("Supabase session is missing.");
+      const response = await fetch("/api/social/follows", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId, follow: !profilePayload.relation.isFollower })
+      });
+      const payload = await response.json() as { following?: boolean; followersCount?: number; error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to update follow.");
+      setProfilePayload((current) => current ? {
+        ...current,
+        relation: { ...current.relation, isFollower: Boolean(payload.following) },
+        followersCount: payload.followersCount ?? current.followersCount
+      } : current);
+    } catch (followError) {
+      setPageError(followError instanceof Error ? followError.message : "Failed to update follow.");
+    } finally {
+      setFollowSaving(false);
+    }
+  }
 
   useEffect(() => {
     setView(initialView);
@@ -80,16 +113,7 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
   return (
     <main className="app-shell public-user-shell">
       <section className="public-user-page">
-        {!user && !loading ? (
-          <section className="profile-panel">
-            <div className="profile-avatar placeholder">
-              <UserRound size={34} />
-            </div>
-            <strong>{t("profile.public.title")}</strong>
-            <p>{t("profile.registrationRequired")}</p>
-          </section>
-        ) : null}
-        {user ? (
+        {!loading ? (
           <>
             <header className="public-user-header">
               {view === "profile" ? <>
@@ -105,9 +129,28 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
                 </UserNameWithLevel>
               </strong>
               <div className="profile-facts">
-                {profilePayload?.relation.isTeam ? <span>{t("profile.visibility.team")}</span> : null}
-                {profilePayload?.relation.isContact ? <span>{t("profile.visibility.contacts")}</span> : null}
+                {profilePayload ? <span>{t("social.follow.followers", { count: profilePayload.followersCount ?? 0 })}</span> : null}
+                {profilePayload?.relation.isTeam && !profilePayload.relation.isSelf ? <span>{t("profile.visibility.team")}</span> : null}
+                {profilePayload?.relation.isContact && !profilePayload.relation.isSelf ? <span>{t("profile.visibility.contacts")}</span> : null}
               </div>
+              {profilePayload && !profilePayload.relation.isSelf ? (
+                profilePayload.viewerSignedIn ? (
+                  <button
+                    className={profilePayload.relation.isFollower ? "secondary-button public-follow-button" : "challenge-primary-action public-follow-button"}
+                    type="button"
+                    aria-pressed={profilePayload.relation.isFollower}
+                    disabled={followSaving}
+                    onClick={() => void toggleFollow()}
+                  >
+                    {profilePayload.relation.isFollower ? <Check size={16} aria-hidden="true" /> : <UserPlus size={16} aria-hidden="true" />}
+                    {profilePayload.relation.isFollower ? t("social.follow.following") : t("social.follow.follow")}
+                  </button>
+                ) : (
+                  <a className="challenge-primary-action public-follow-button" href="/?auth=signin">
+                    <UserPlus size={16} aria-hidden="true" />{t("social.follow.signInToFollow")}
+                  </a>
+                )
+              ) : null}
               </> : null}
               <nav className="public-user-tabs" aria-label={t("profile.public.title")}>
                 <Link className={view === "profile" ? "active" : ""} href={`/u/${userId}`}>
@@ -126,12 +169,12 @@ export default function PublicUserPage({ userId, initialView }: { userId: string
               <PublicProfileView locale={locale} payload={profilePayload} t={t} />
             ) : null}
             {view === "blog" ? (
-              <PublicBlog key={userId} authorId={userId} locale={locale} t={t} onOpenPost={setSelectedPost} />
+              <PublicBlog key={userId} authorId={userId} initialPostId={initialPostId} locale={locale} t={t} onOpenPost={setSelectedPost} />
             ) : null}
             {selectedPost ? (
               <PostDetailModal
                 copyingWishId={null}
-                currentUserId={user.id}
+                currentUserId={user?.id ?? null}
                 locale={locale}
                 post={selectedPost}
                 readOnly
@@ -229,14 +272,10 @@ function PublicProfileView({
   );
 }
 
-async function getAccessToken(): Promise<string> {
-  const {
-    data: { session },
-    error
-  } = await getBrowserSupabaseClient().auth.getSession();
-  if (error) throw error;
-  if (!session?.access_token) throw new Error("Supabase session is missing.");
-  return session.access_token;
+async function getOptionalAccessToken(): Promise<string | null> {
+  const { data, error } = await getBrowserSupabaseClient().auth.getSession();
+  if (error) return null;
+  return data.session?.access_token ?? null;
 }
 
 function formatProfileName(profile: { display_name: string | null; username: string | null }, fallback: string): string {

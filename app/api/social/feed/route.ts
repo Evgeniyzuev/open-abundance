@@ -50,16 +50,15 @@ type NormalizedExternalLink = {
 
 export async function GET(request: NextRequest) {
   try {
+    // A signed-out visitor may read only an author's public blog; everything else needs a session.
     const { supabase, user, error } = await getAuthenticatedUser(request);
-    if (error || !user) {
-      return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
-    }
+    const viewerId = user?.id ?? "";
 
     const requestedScope = request.nextUrl.searchParams.get("scope");
     const scope = requestedScope === "blog" ? "blog" : requestedScope === "system" ? "system" : "feed";
     const locale = normalizeLocale(request.nextUrl.searchParams.get("locale"));
     const requestedAuthorId = normalizeUuid(request.nextUrl.searchParams.get("authorUserId"));
-    const authorUserId = scope === "blog" ? requestedAuthorId ?? user.id : null;
+    const authorUserId = scope === "blog" ? requestedAuthorId ?? viewerId : null;
     const systemAccountKey = scope === "system" ? normalizeSystemAccountKey(request.nextUrl.searchParams.get("systemAccountKey")) : null;
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
     const category = normalizeFeedCategory(request.nextUrl.searchParams.get("category"));
@@ -67,7 +66,10 @@ export async function GET(request: NextRequest) {
     const systemDraftsOnly = scope === "blog" && request.nextUrl.searchParams.get("drafts") === "system";
     const cabinet = scope === "blog" && request.nextUrl.searchParams.get("view") === "cabinet";
     const publicBlog = scope === "blog" && !cabinet && !systemDraftsOnly;
-    if ((cabinet || systemDraftsOnly) && authorUserId !== user.id) {
+    if (!user && !(publicBlog && requestedAuthorId)) {
+      return NextResponse.json({ error: error ?? "Missing Supabase access token." }, { status: 401, headers: NO_STORE_HEADERS });
+    }
+    if ((cabinet || systemDraftsOnly) && authorUserId !== viewerId) {
       return NextResponse.json({ error: "Only the owner can access the cabinet." }, { status: 403, headers: NO_STORE_HEADERS });
     }
     const blogCursor = scope === "blog" ? decodeBlogCursor(request.nextUrl.searchParams.get("cursor")) : null;
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
     const savedSearch = (request.nextUrl.searchParams.get("search") ?? "").trim().slice(0, 100).replace(/[%_]/g, "");
     let savedFilteredPostIds: string[] | null = null;
     if (cabinet && cabinetSavedOnly && (savedProvider || savedSearch)) {
-      let sourceQuery = supabase.from("feed_post_external_links").select("post_id").eq("owner_user_id", user.id).eq("relation", "source");
+      let sourceQuery = supabase.from("feed_post_external_links").select("post_id").eq("owner_user_id", viewerId).eq("relation", "source");
       if (savedProvider) sourceQuery = sourceQuery.eq("provider", savedProvider);
       const { data: sourceMatches, error: sourceMatchError } = await sourceQuery.limit(1000);
       if (sourceMatchError) throw sourceMatchError;
@@ -88,13 +90,13 @@ export async function GET(request: NextRequest) {
       let matchingIds = sourceIds;
       if (savedSearch) {
         const pattern = `%${savedSearch}%`;
-        let sourceSearchQuery = supabase.from("feed_post_external_links").select("post_id").eq("owner_user_id", user.id).eq("relation", "source");
+        let sourceSearchQuery = supabase.from("feed_post_external_links").select("post_id").eq("owner_user_id", viewerId).eq("relation", "source");
         if (savedProvider) sourceSearchQuery = sourceSearchQuery.eq("provider", savedProvider);
         const { data: sourceSearchMatches, error: sourceSearchError } = await sourceSearchQuery
           .or(`title.ilike.${pattern},description.ilike.${pattern},external_url.ilike.${pattern},author_name.ilike.${pattern}`).limit(1000);
         if (sourceSearchError) throw sourceSearchError;
         const { data: ownTextMatches, error: ownTextError } = await supabase.from("feed_posts")
-          .select("id").eq("author_user_id", user.id).eq("post_type", "external_link").is("deleted_at", null)
+          .select("id").eq("author_user_id", viewerId).eq("post_type", "external_link").is("deleted_at", null)
           .or(`title.ilike.${pattern},body.ilike.${pattern}`).limit(1000);
         if (ownTextError) throw ownTextError;
         const ownTextIds = (ownTextMatches ?? []).map((row) => row.id);
@@ -150,6 +152,10 @@ export async function GET(request: NextRequest) {
       if (category === "opportunities") query = query.in("source_key", storyWishSourceKeys());
       if (category === "system") query = query.in("post_type", ["daily_progress", "level_up", "wish_completed", "challenge"]);
       if (category === "reviews") query = query.eq("post_type", "project_review");
+      if (category === "following") {
+        const followeeIds = await loadFolloweeIds(supabase, viewerId);
+        query = query.in("author_user_id", followeeIds.length ? followeeIds : ["00000000-0000-0000-0000-000000000000"]);
+      }
       if (cursor) query = query.lt("created_at", cursor);
     } else if (scope === "system") {
       const systemPostIds = systemStoryMetadata.map((item) => item.post_id);
@@ -158,13 +164,13 @@ export async function GET(request: NextRequest) {
         .eq("post_type", "abundance_story")
         .eq("status", "published")
         .eq("visibility", "public");
-    } else if (systemDraftsOnly && authorUserId === user.id) {
+    } else if (systemDraftsOnly && authorUserId === viewerId) {
       query = query
         .eq("author_user_id", authorUserId)
         .eq("status", "draft")
         .in("post_type", ["daily_progress", "level_up", "wish_completed", "challenge"]);
     } else if (cabinet) {
-      query = query.eq("author_user_id", user.id);
+      query = query.eq("author_user_id", viewerId);
       query = cabinetSavedOnly ? query.eq("post_type", "external_link") : query.eq("status", cabinetStatus === "published" ? "published" : "draft");
       if (cabinetSavedOnly && savedFilteredPostIds) query = query.in("id", savedFilteredPostIds.length ? savedFilteredPostIds : ["00000000-0000-0000-0000-000000000000"]);
     } else if (authorUserId) {
@@ -201,7 +207,7 @@ export async function GET(request: NextRequest) {
       loadProfiles(supabase, Array.from(new Set([...postRows.map((post) => post.author_user_id), authorUserId].filter(isString)))),
       loadStatBlocks(supabase, statBlockPostIds, cabinet || systemDraftsOnly),
       loadExternalLinks(supabase, externalLinkPostIds),
-      loadWishPosts(supabase, wishPostIds, publicBlog ? null : user.id, cabinet),
+      loadWishPosts(supabase, wishPostIds, publicBlog ? null : viewerId, cabinet),
       cabinet ? Promise.resolve(new Map<string, FeedTranslationRow>()) : loadTranslations(supabase, postIds, locale),
       loadMedia(supabase, postIds),
       loadSystemAccounts(supabase, systemAccountKeys),
@@ -248,7 +254,7 @@ export async function GET(request: NextRequest) {
             body: translation?.body ?? post.body,
             authorName: translation?.author_name ?? post.author_label,
             author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
-            statBlocks: cabinet ? statBlocks.filter((block) => block.post_id === post.id) : filterStatBlocksForViewer(post, statBlocks, publicBlog ? "" : user.id),
+            statBlocks: cabinet ? statBlocks.filter((block) => block.post_id === post.id) : filterStatBlocksForViewer(post, statBlocks, publicBlog ? "" : viewerId),
             externalLinks: externalLinks.filter((link) => link.post_id === post.id).map((item) => post.post_type === "external_link" && item.thumbnail_url
               ? { ...item, thumbnail_url: `/api/social/content/${post.id}/thumbnail` }
               : item),
@@ -739,7 +745,20 @@ function normalizeCursor(value: unknown): string | null {
 }
 
 function normalizeFeedCategory(value: unknown): FeedCategory {
-  return value === "stories" || value === "opportunities" || value === "system" || value === "reviews" ? value : "all";
+  return value === "following" || value === "stories" || value === "opportunities" || value === "system" || value === "reviews" ? value : "all";
+}
+
+// Authors the viewer follows; bounded so one request never builds an unbounded IN list.
+async function loadFolloweeIds(supabase: SupabaseClient<Database>, viewerId: string): Promise<string[]> {
+  if (!viewerId) return [];
+  const { data, error } = await supabase
+    .from("user_follows")
+    .select("followee_user_id")
+    .eq("follower_user_id", viewerId)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.followee_user_id);
 }
 
 function isString(value: string | null): value is string {

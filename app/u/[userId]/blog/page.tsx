@@ -14,7 +14,7 @@ export default async function UserBlogRoute({ params, searchParams }: { params: 
     <>
       <ServiceWorkerRegister />
       <UserProvider>
-        <PublicUserPage userId={params.userId} initialView="blog" />
+        <PublicUserPage userId={params.userId} initialView="blog" initialPostId={isSharedContentId(searchParams?.post) ? searchParams?.post ?? null : null} />
       </UserProvider>
     </>
   );

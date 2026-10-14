@@ -1,6 +1,6 @@
 import type { Json } from "@/lib/database.types";
 
-export type FeedCategory = "all" | "stories" | "opportunities" | "system" | "reviews";
+export type FeedCategory = "all" | "following" | "stories" | "opportunities" | "system" | "reviews";
 
 export type FeedAuthor = {
   user_id: string;

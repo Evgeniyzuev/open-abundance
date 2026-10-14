@@ -32,12 +32,11 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
       return NextResponse.json({ error: "Invalid user id." }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
-    const { supabase, user, error } = await getAuthenticatedUser(request);
-    if (error || !user) {
-      return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
-    }
+    // Signed-out visitors (for example from a shared link) see only what is public.
+    const { supabase, user } = await getAuthenticatedUser(request);
+    const viewerId = user?.id ?? null;
 
-    const [profileResult, settingsResult, relation, linksResult, economyVisibilityResult] = await Promise.all([
+    const [profileResult, settingsResult, relation, linksResult, economyVisibilityResult, followersResult] = await Promise.all([
       supabase
         .from("user_profiles")
         .select("user_id,username,display_name,avatar_url,avatar_position,level,bio,created_at")
@@ -48,7 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
         .select("settings")
         .eq("user_id", targetUserId)
         .maybeSingle(),
-      loadRelation(supabase, targetUserId, user.id),
+      loadRelation(supabase, targetUserId, viewerId),
       supabase
         .from("user_profile_links")
         .select("*")
@@ -59,13 +58,18 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
         .from("user_economy_metric_visibility")
         .select("metric_key, period_type")
         .eq("user_id", targetUserId)
-        .eq("is_public", true)
+        .eq("is_public", true),
+      supabase
+        .from("user_follows")
+        .select("follower_user_id", { count: "exact", head: true })
+        .eq("followee_user_id", targetUserId)
     ]);
 
     if (profileResult.error) return NextResponse.json({ error: profileResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
     if (settingsResult.error) return NextResponse.json({ error: settingsResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
     if (linksResult.error) return NextResponse.json({ error: linksResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
     if (economyVisibilityResult.error) return NextResponse.json({ error: economyVisibilityResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
+    if (followersResult.error) return NextResponse.json({ error: followersResult.error.message }, { status: 500, headers: NO_STORE_HEADERS });
     if (!profileResult.data) return NextResponse.json({ error: "Profile not found." }, { status: 404, headers: NO_STORE_HEADERS });
 
     const visibilitySettings = normalizeProfileVisibilitySettings(settingsResult.data?.settings);
@@ -75,7 +79,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
       bio: canViewVisibility(visibilitySettings.bio, relation) ? profileResult.data.bio : null
     };
     const links = (linksResult.data ?? []).filter((link) => canViewVisibility(normalizeProfileVisibility(link.visibility), relation));
-    const publicWishes = canViewWishes ? await loadPublicWishes(supabase, targetUserId, user.id) : [];
+    const publicWishes = canViewWishes ? await loadPublicWishes(supabase, targetUserId, viewerId) : [];
     const economyMetrics = await loadPublicEconomyMetrics(supabase, targetUserId, economyVisibilityResult.data ?? []);
 
     return NextResponse.json(
@@ -85,6 +89,8 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
         publicWishes,
         economyMetrics,
         relation,
+        followersCount: followersResult.count ?? 0,
+        viewerSignedIn: Boolean(viewerId),
         visibleBlocks: {
           bio: canViewVisibility(visibilitySettings.bio, relation),
           income: canViewVisibility(visibilitySettings.income, relation),
@@ -150,9 +156,10 @@ async function loadPublicEconomyMetrics(
     });
 }
 
-async function loadRelation(supabase: SupabaseClient<Database>, targetUserId: string, viewerUserId: string) {
+async function loadRelation(supabase: SupabaseClient<Database>, targetUserId: string, viewerUserId: string | null) {
+  if (!viewerUserId) return { isSelf: false, isContact: false, isTeam: false, isFollower: false };
   const isSelf = targetUserId === viewerUserId;
-  const [contactResult, teamResult] = await Promise.all([
+  const [contactResult, teamResult, followResult] = await Promise.all([
     isSelf
       ? { count: 1, error: null }
       : supabase
@@ -169,21 +176,29 @@ async function loadRelation(supabase: SupabaseClient<Database>, targetUserId: st
           .eq("is_active", true)
           .or(
             `and(member_user_id.eq.${targetUserId},leader_user_id.eq.${viewerUserId}),and(member_user_id.eq.${viewerUserId},leader_user_id.eq.${targetUserId})`
-          )
+          ),
+    isSelf
+      ? { count: 0, error: null }
+      : supabase
+          .from("user_follows")
+          .select("follower_user_id", { count: "exact", head: true })
+          .eq("follower_user_id", viewerUserId)
+          .eq("followee_user_id", targetUserId)
   ]);
 
   if (contactResult.error) throw contactResult.error;
   if (teamResult.error) throw teamResult.error;
+  if (followResult.error) throw followResult.error;
 
   return {
     isSelf,
     isContact: isSelf || Boolean(contactResult.count),
     isTeam: isSelf || Boolean(teamResult.count),
-    isFollower: false
+    isFollower: isSelf || Boolean(followResult.count)
   };
 }
 
-async function loadPublicWishes(supabase: SupabaseClient<Database>, targetUserId: string, viewerUserId: string): Promise<PublicWish[]> {
+async function loadPublicWishes(supabase: SupabaseClient<Database>, targetUserId: string, viewerUserId: string | null): Promise<PublicWish[]> {
   const { data, error } = await supabase
     .from("wishes")
     .select("*")
@@ -201,6 +216,7 @@ async function loadPublicWishes(supabase: SupabaseClient<Database>, targetUserId
   if (targetUserId === viewerUserId) {
     return wishes.map((wish) => ({ ...wish, viewer_has_copy: true }));
   }
+  if (!viewerUserId) return wishes.map((wish) => ({ ...wish, viewer_has_copy: false }));
 
   const sourceWishIds = wishes.map((wish) => wish.id);
   const originalWishIds = Array.from(new Set(wishes.map((wish) => wish.original_wish_id ?? wish.id)));

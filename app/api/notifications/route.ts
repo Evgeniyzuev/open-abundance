@@ -60,6 +60,7 @@ function notificationCopy(eventType: string | undefined, locale: "ru" | "en") {
       : eventType === "rewards.team_core_growth" ? "teamReward"
         : eventType === "rewards.challenge_completed" ? "challenge"
           : eventType === "social.mention" ? "mention"
+          : eventType === "social.reality_day" ? "realityDay"
           : eventType?.startsWith("confirmations.") ? "confirmation"
             : eventType?.startsWith("team.task.") ? "teamTask"
               : eventType?.startsWith("p2p.order.") && (eventType.includes("dispute") || eventType.includes("resolution")) ? "p2pDispute"

@@ -241,15 +241,15 @@ type FeedCache = Record<FeedFilter, FeedCacheEntry | null>;
 const FEED_CACHE_TTL_MS = 60_000;
 
 function createFeedCache(): FeedCache {
-  return { all: null, stories: null, opportunities: null, system: null, reviews: null };
+  return { all: null, following: null, stories: null, opportunities: null, system: null, reviews: null };
 }
 
 function createFeedCursors(): Record<FeedFilter, string | null> {
-  return { all: null, stories: null, opportunities: null, system: null, reviews: null };
+  return { all: null, following: null, stories: null, opportunities: null, system: null, reviews: null };
 }
 
 function createFeedRequestIds(): Record<FeedFilter, number> {
-  return { all: 0, stories: 0, opportunities: 0, system: 0, reviews: 0 };
+  return { all: 0, following: 0, stories: 0, opportunities: 0, system: 0, reviews: 0 };
 }
 type ReviewEditPayload = {
   body: string;
@@ -3396,6 +3396,9 @@ function FeedView({
       <div className="feed-filter-row" role="group" aria-label={t("social.feed.title")}>
         <button aria-pressed={filter === "all"} className={filter === "all" ? "active" : ""} type="button" onClick={() => onFilterChange("all")}>
           {t("social.feed.filter.all")}
+        </button>
+        <button aria-pressed={filter === "following"} className={filter === "following" ? "active" : ""} type="button" onClick={() => onFilterChange("following")}>
+          {t("social.feed.filter.following")}
         </button>
         <button aria-pressed={filter === "stories"} className={filter === "stories" ? "active" : ""} type="button" onClick={() => onFilterChange("stories")}>
           {t("social.feed.filter.stories")}

@@ -3008,3 +3008,4 @@ body:has(.operator-fab) .top-tabbar:not(.nav-collapsed) { padding-right: 104px; 
 .reality-day-media .secondary-button { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reality-day-actions { display: grid; gap: 8px; }
 .reality-day-actions .challenge-primary-action { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.public-follow-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 160px; text-decoration: none; }

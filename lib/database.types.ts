@@ -2446,6 +2446,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_follows: {
+        Row: {
+          created_at: string
+          followee_user_id: string
+          follower_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          followee_user_id: string
+          follower_user_id: string
+        }
+        Update: {
+          created_at?: string
+          followee_user_id?: string
+          follower_user_id?: string
+        }
+        Relationships: []
+      }
       user_core_growth_plans: {
         Row: {
           calculated_days_to_goal: number | null

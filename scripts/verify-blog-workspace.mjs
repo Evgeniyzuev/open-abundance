@@ -103,7 +103,8 @@ assert.deepEqual((await get({ view: "public" })).body, ownPublic.body, "Owner pr
 assert.equal((await get({ view: "cabinet" })).status, 403);
 assert.equal((await get({ drafts: "system" })).status, 403);
 viewer = null;
-assert.equal((await get({ view: "public" })).status, 401);
+assert.deepEqual((await get({ view: "public" })).body, ownPublic.body, "A signed-out visitor sees the same public payload");
+assert.equal((await get({ view: "cabinet" })).status, 401, "The cabinet still needs a session");
 viewer = owner;
 fixtures.feed_posts = [];
 assert.equal((await get({ view: "public" })).body.author.display_name, "Author", "An empty blog still has its author header");

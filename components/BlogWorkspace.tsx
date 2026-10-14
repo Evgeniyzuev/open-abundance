@@ -11,13 +11,14 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost } from "@/lib/socialFeed";
 import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
+async function request<T>(url: string, init?: RequestInit, options: { optionalAuth?: boolean } = {}): Promise<T> {
   const { data, error } = await getBrowserSupabaseClient().auth.getSession();
-  if (error) throw error;
-  if (!data.session) throw new Error("Please sign in again.");
+  if (error && !options.optionalAuth) throw error;
+  const token = data.session?.access_token ?? null;
+  if (!token && !options.optionalAuth) throw new Error("Please sign in again.");
   const response = await fetch(url, {
     ...init, cache: "no-store", signal: AbortSignal.timeout(30000),
-    headers: { Authorization: `Bearer ${data.session.access_token}`, ...init?.headers }
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init?.headers }
   });
   const payload = await response.json() as T & { error?: string };
   if (!response.ok || payload.error) throw new Error(payload.error ?? `Request failed (${response.status})`);
@@ -41,7 +42,8 @@ function useBlogCollection(authorId: string, view: "public" | "cabinet", status:
       if (search.trim()) params.set("search", search.trim());
       if (provider) params.set("provider", provider);
       if (cursor) params.set("cursor", cursor);
-      const result = await request<FeedPayload>(`/api/social/feed?${params}`);
+      // The public blog is readable without a session (shared links); the cabinet is not.
+      const result = await request<FeedPayload>(`/api/social/feed?${params}`, undefined, { optionalAuth: view === "public" });
       setCache((current) => ({ ...current, [key]: { ...result, posts: mergeBlogPosts(cursor ? current[key]?.posts ?? [] : [], result.posts) } }));
     } catch (error) {
       setErrors((value) => ({ ...value, [key]: error instanceof Error ? error.message : String(error) }));
@@ -66,11 +68,19 @@ function useBlogCollection(authorId: string, view: "public" | "cabinet", status:
 
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
 
-export function PublicBlog({ authorId, locale, active = true, revision = "", t, onOpenPost }: {
-  authorId: string; locale: AppLocale; active?: boolean; revision?: string; t: Translate; onOpenPost: (post: FeedPost) => void;
+export function PublicBlog({ authorId, locale, active = true, revision = "", initialPostId = null, t, onOpenPost }: {
+  authorId: string; locale: AppLocale; active?: boolean; revision?: string; initialPostId?: string | null; t: Translate; onOpenPost: (post: FeedPost) => void;
 }) {
   const { payload, loading, error, load } = useBlogCollection(authorId, "public", "published", locale, active, revision);
   const author = payload?.author;
+  const openedInitialRef = useRef(false);
+  // A shared link (?post=) opens that post once the first page arrives.
+  useEffect(() => {
+    if (!initialPostId || openedInitialRef.current || !payload) return;
+    openedInitialRef.current = true;
+    const target = payload.posts.find((post) => post.id === initialPostId);
+    if (target) onOpenPost(target);
+  }, [initialPostId, onOpenPost, payload]);
   return <section className="blog-public" aria-label={t("social.blog.authorPosts")}>
     {payload ? <header className="blog-author-header">
       <div className="profile-avatar">{author?.avatar_url ? <img src={author.avatar_url} alt="" style={{ objectPosition: author.avatar_position ?? "50% 50%" }} /> : <span>{(author?.display_name ?? author?.username ?? "OA").slice(0, 2)}</span>}</div>

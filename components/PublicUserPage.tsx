@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { PublicBlog } from "@/components/BlogWorkspace";
 import { PostDetailModal } from "@/components/SocialApp";
+import RealityView from "@/components/RealityView";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -209,6 +210,7 @@ function PublicProfileView({
   return (
     <section className="public-user-content">
       {payload.profile.bio ? <p className="public-user-bio">{payload.profile.bio}</p> : null}
+      <RealityView userId={payload.profile.user_id} locale={locale} t={t} />
       {payload.links.length ? (
         <div className="profile-links">
           {payload.links.map((link) => (

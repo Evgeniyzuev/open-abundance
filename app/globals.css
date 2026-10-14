@@ -477,6 +477,15 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .results-item-image { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 10px; background: linear-gradient(160deg, #12344d, #0a84ff 58%, #34c759); color: white; }
 .results-item-image i { width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,0.18); font-size: 1.125rem; font-style: normal; font-weight: 950; }
 .results-item-tile strong { position: absolute; left: 9px; right: 8px; bottom: 8px; z-index: 1; overflow: hidden; color: white; font-size: 1rem; font-weight: 800; line-height: 1.12; text-shadow: 0 1px 8px rgba(0,0,0,0.55); }
+.results-item-tile.selected { outline: 3px solid var(--blue); outline-offset: -3px; }
+.results-item-tile[data-rarity="common"] .results-item-image, .results-detail-cover[data-rarity="common"] { background: linear-gradient(160deg, #3a4654, #6b7a8c); }
+.results-item-tile[data-rarity="uncommon"] .results-item-image, .results-detail-cover[data-rarity="uncommon"] { background: linear-gradient(160deg, #14532d, #34c759); }
+.results-item-tile[data-rarity="rare"] .results-item-image, .results-detail-cover[data-rarity="rare"] { background: linear-gradient(160deg, #12344d, #0a84ff); }
+.results-item-tile[data-rarity="epic"] .results-item-image, .results-detail-cover[data-rarity="epic"] { background: linear-gradient(160deg, #3b1d6e, #af52de); }
+.results-item-tile[data-rarity="legendary"] .results-item-image, .results-detail-cover[data-rarity="legendary"] { background: linear-gradient(160deg, #7a3e00, #ffb020); }
+.results-detail-glyph { font-size: 72px; font-style: normal; line-height: 1; }
+.results-detail-body input { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--surface-soft); color: var(--text); font-size: 1rem; }
+.results-contract-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 3px; }
 .results-detail-modal { position: relative; max-height: calc(100dvh - 36px); overflow: auto; padding: 0; }
 .results-detail-cover { min-height: 230px; display: grid; place-items: center; align-content: center; gap: 12px; background: linear-gradient(160deg, #12344d, #0a84ff 58%, #34c759); color: white; }
 .results-detail-cover span { border-radius: 999px; padding: 7px 12px; background: rgba(255,255,255,0.18); font-size: 0.8125rem; font-weight: 900; text-transform: uppercase; }

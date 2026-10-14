@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const [{ data: artifacts, error: artifactsError }, { data: listed }] = await Promise.all([
       supabase
         .from("user_artifacts")
-        .select("id,title,rarity,created_at")
+        .select("id,title,description,rarity,metadata,created_at")
         .eq("user_id", user.id)
         .eq("artifact_type", "sacred_item")
         .eq("transferable", true)

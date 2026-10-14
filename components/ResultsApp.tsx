@@ -2,6 +2,7 @@
 
 import { BookOpen, X } from "lucide-react";
 import { useState } from "react";
+import SacredInventory from "@/components/SacredInventory";
 import { useUserContext } from "@/components/UserProvider";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 
@@ -16,7 +17,7 @@ export default function ResultsApp() {
   return (
     <section className="results-screen">
       <section className="results-inventory-section">
-        <div className="results-grid">
+        <SacredInventory>
           <button className="results-item-tile" type="button" onClick={() => setIntroOpen(true)}>
             <span className="results-item-image" aria-hidden="true">
               <BookOpen size={34} />
@@ -24,7 +25,7 @@ export default function ResultsApp() {
             </span>
             <strong>{t("results.intro.cardTitle")}</strong>
           </button>
-        </div>
+        </SacredInventory>
       </section>
 
       {introOpen ? (

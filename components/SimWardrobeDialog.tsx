@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import SimAvatar from "@/components/SimAvatar";
+import SimScene from "@/components/SimScene";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
 import { SIM_CLOTHES, SIM_SLOTS, type SimOutfit, type SimSlot } from "@/lib/simWardrobe";
@@ -27,7 +27,7 @@ export default function SimWardrobeDialog({ outfit, photoUrl, onChange, onClose 
       <section className="modal-sheet sim-wardrobe" role="dialog" aria-modal="true" aria-label={t("sim.title")} onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <h2>{t("sim.title")}</h2>
-        <div className="sim-wardrobe-figure"><SimAvatar photoUrl={photoUrl} outfit={outfit} /></div>
+        <div className="sim-wardrobe-figure"><SimScene photoUrl={photoUrl} outfit={outfit} /></div>
         {SIM_SLOTS.map((slot) => (
           <div className="sim-wardrobe-row" key={slot}>
             <span>{t(`sim.slot.${slot}` as MessageKey)}</span>

@@ -486,13 +486,16 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .results-item-image i { width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,0.18); font-size: 1.125rem; font-style: normal; font-weight: 950; }
 .results-item-tile strong { position: absolute; left: 9px; right: 8px; bottom: 8px; z-index: 1; overflow: hidden; color: white; font-size: 1rem; font-weight: 800; line-height: 1.12; text-shadow: 0 1px 8px rgba(0,0,0,0.55); }
 .future-board { display: grid; gap: 6px; padding: 0 3px; }
-.future-board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.future-board-head { display: flex; align-items: baseline; gap: 8px; cursor: pointer; list-style: none; }
+.future-board-head::-webkit-details-marker { display: none; }
+.future-board-head::after { content: "BE"; margin-left: auto; color: var(--muted); }
+.future-board:not([open]) > .future-board-head::after { transform: rotate(-90deg); }
 .future-board-head small { border-radius: 999px; padding: 3px 8px; background: var(--surface-soft); color: var(--muted); font-size: 0.6875rem; font-weight: 850; text-transform: uppercase; }
 .future-board-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
 .future-board-center { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 16px; padding: 6px; background: var(--accent-soft); color: var(--blue); }
 .sim-wardrobe { position: relative; display: grid; gap: 10px; max-height: calc(100dvh - 36px); overflow: auto; padding: 16px; }
 .sim-wardrobe h2 { margin: 0; font-size: 1.25rem; }
-.sim-wardrobe-figure { width: 120px; height: 180px; justify-self: center; color: var(--blue); }
+.sim-wardrobe-figure { width: 100%; max-width: 340px; aspect-ratio: 2 / 1; justify-self: center; color: var(--blue); }
 .sim-wardrobe-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; }
 .sim-wardrobe-row > span { color: var(--muted); font-size: 0.8125rem; font-weight: 850; }
 .sim-wardrobe-row [role="group"] { display: flex; flex-wrap: wrap; gap: 6px; }

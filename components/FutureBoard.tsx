@@ -35,9 +35,26 @@ export default function FutureBoard() {
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [outfit, setOutfit] = useState<SimOutfit>({});
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const userId = user?.id ?? null;
 
-  useEffect(() => { setOutfit(readSimOutfit(userId)); }, [userId]);
+  useEffect(() => {
+    setOutfit(readSimOutfit(userId));
+    try {
+      setExpanded(window.localStorage.getItem("open-abundance-board-collapsed") !== "1");
+    } catch {
+      // The collapsed state is a convenience; the board stays open without storage.
+    }
+  }, [userId]);
+
+  function toggleExpanded(open: boolean) {
+    setExpanded(open);
+    try {
+      window.localStorage.setItem("open-abundance-board-collapsed", open ? "0" : "1");
+    } catch {
+      // Not remembered when storage is unavailable.
+    }
+  }
 
   function changeOutfit(next: SimOutfit) {
     setOutfit(next);
@@ -68,11 +85,11 @@ export default function FutureBoard() {
   if (!userId || tiles.length === 0) return null;
 
   return (
-    <section className="future-board" aria-label={t("board.title")}>
-      <div className="future-board-head">
+    <details className="future-board" open={expanded} onToggle={(event) => toggleExpanded(event.currentTarget.open)}>
+      <summary className="future-board-head">
         <strong>{t("board.title")}</strong>
         <small>{t("board.simulation")}</small>
-      </div>
+      </summary>
       <div className="future-board-grid">
         <button className="future-board-center" type="button" style={{ gridArea: "2 / 2" }} aria-label={t("sim.title")} onClick={() => setWardrobeOpen(true)}>
           <SimAvatar photoUrl={profile?.avatar_url} outfit={outfit} />
@@ -89,6 +106,6 @@ export default function FutureBoard() {
         ))}
       </div>
       {wardrobeOpen ? <SimWardrobeDialog outfit={outfit} photoUrl={profile?.avatar_url} onChange={changeOutfit} onClose={() => setWardrobeOpen(false)} /> : null}
-    </section>
+    </details>
   );
 }

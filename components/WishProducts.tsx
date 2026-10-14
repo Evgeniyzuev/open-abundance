@@ -30,6 +30,8 @@ export default function WishProducts() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pricingId, setPricingId] = useState<string | null>(null);
+  const [priceDraft, setPriceDraft] = useState("");
   const userId = user?.id ?? null;
 
   const load = useCallback(async () => {
@@ -86,8 +88,29 @@ export default function WishProducts() {
           <div>
             <strong>{product.title}</strong>
             {product.price_amount !== null ? <small>{product.price_currency === "USD" ? formatAdaptiveMoney(Number(product.price_amount), locale) : `${Number(product.price_amount)} ${product.price_currency}`}</small> : null}
+            {pricingId === product.id ? (
+              <form
+                className="wish-products-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const amount = Number(priceDraft.replace(",", "."));
+                  if (!Number.isFinite(amount) || amount < 0) return;
+                  void act(async () => {
+                    await call(`/api/wishes/products/${product.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priceAmount: amount, priceCurrency: "USD" }) });
+                    setPricingId(null);
+                    setPriceDraft("");
+                  });
+                }}
+              >
+                <input inputMode="decimal" value={priceDraft} placeholder={t("market.price")} aria-label={t("market.price")} onChange={(event) => setPriceDraft(event.target.value)} />
+                <button className="secondary-button" type="submit" disabled={busy || !priceDraft.trim()}>{t("app.common.save")}</button>
+              </form>
+            ) : null}
             <div className="wish-product-actions">
               <a className="text-button" href={product.source_url} target="_blank" rel="noreferrer noopener" aria-label={product.title}><ExternalLink size={15} /></a>
+              {pricingId !== product.id ? (
+                <button className="text-button" type="button" disabled={busy} onClick={() => { setPricingId(product.id); setPriceDraft(product.price_amount === null ? "" : String(Number(product.price_amount))); }}>{t("market.price")}</button>
+              ) : null}
               {product.status === "considering" ? (
                 <button className="text-button" type="button" disabled={busy} onClick={() => { void act(() => call(`/api/wishes/products/${product.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "bought" }) })); }}>{t("wishes.products.bought")}</button>
               ) : null}

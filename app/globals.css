@@ -1545,6 +1545,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 @media (prefers-reduced-motion: reduce) { .ui-skeleton, .feed-post-hero-skeleton::after { animation: none; } }
 .ui-chip-row { display: grid; gap: 7px; min-width: 0; }
 .ui-chip-row-more { animation: none; }
+.feed-filter-row button { flex: 0 0 auto; white-space: nowrap; }
 .feed-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; min-width: 0; }
 .feed-layout-toggle { width: var(--control-md, 40px); height: var(--control-md, 40px); display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: var(--radius-pill, 999px); background: var(--surface); color: var(--muted); cursor: pointer; }
 .feed-layout-toggle:focus-visible, .feed-story-ring:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }

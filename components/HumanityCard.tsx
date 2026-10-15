@@ -10,14 +10,17 @@ type HumanityStatus = {
   level: number;
   status: "unverified" | "pending" | "verified" | "review_required" | "rejected" | "expired";
   lastAttemptStatus: string | null;
+  lastAttemptAt: string | null;
 };
 
 const POLL_INTERVAL_MS = 10_000;
 const POLL_MAX_MS = 180_000;
+// An attempt older than this counts as unfinished and the user may start a new one.
+const ATTEMPT_FRESH_MS = 10 * 60_000;
 
 /**
  * Optional card on Home: confirm that you are a person (short face check by an external provider,
- * no passport). It appears only when the provider is configured and the user is not yet confirmed.
+ * the provider may ask for a document). It appears only when the provider is configured and the user is not yet confirmed.
  * Confirmation unlocks rewards that require a unique person, for example the leader bonus in Wallet.
  */
 export default function HumanityCard({ active }: { active: boolean }) {
@@ -27,6 +30,8 @@ export default function HumanityCard({ active }: { active: boolean }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [returned, setReturned] = useState(false);
+  const [pollExpired, setPollExpired] = useState(false);
+  const [restart, setRestart] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -54,7 +59,11 @@ export default function HumanityCard({ active }: { active: boolean }) {
     const stop = startVisiblePolling(async () => {
       const next = await load();
       if (stopped) return;
-      if ((next && next.level >= 2) || Date.now() - startedAt > POLL_MAX_MS) stop();
+      if (next && next.level >= 2) stop();
+      if (Date.now() - startedAt > POLL_MAX_MS) {
+        setPollExpired(true);
+        stop();
+      }
     }, POLL_INTERVAL_MS);
     return () => {
       stopped = true;
@@ -88,7 +97,11 @@ export default function HumanityCard({ active }: { active: boolean }) {
   if (!active || !user || !state || !state.available) return null;
   if (state.level >= 2) return null;
 
-  const waiting = returned || state.status === "pending";
+  const attemptAge = state.lastAttemptAt ? Date.now() - Date.parse(state.lastAttemptAt) : Infinity;
+  const attemptFresh = attemptAge < ATTEMPT_FRESH_MS;
+  const stillProcessing = (returned && !pollExpired) || (state.status === "pending" && attemptFresh);
+  const waiting = stillProcessing && !restart;
+  const stale = !stillProcessing && state.status === "pending";
   const inReview = state.status === "review_required";
   const rejected = state.status === "rejected" && !waiting;
 
@@ -96,7 +109,13 @@ export default function HumanityCard({ active }: { active: boolean }) {
     <section className="humanity-card" aria-label={t("humanity.title")} style={{ margin: "12px 0", padding: 14, borderRadius: 16, background: "rgba(0, 113, 227, 0.08)" }}>
       <strong>{t("humanity.title")}</strong>
       <p className="transfer-muted" style={{ margin: "6px 0" }}>{t("humanity.intro")}</p>
-      {waiting ? <p>{t("humanity.waiting")}</p> : null}
+      {waiting ? (
+        <>
+          <p>{t("humanity.waiting")}</p>
+          <button className="text-button" type="button" onClick={() => setRestart(true)}>{t("humanity.restart")}</button>
+        </>
+      ) : null}
+      {stale ? <p className="transfer-muted">{t("humanity.notFinished")}</p> : null}
       {inReview ? <p>{t("humanity.inReview")}</p> : null}
       {rejected ? <p className="topup-error">{t("humanity.rejected")}</p> : null}
       {!waiting && !inReview ? (

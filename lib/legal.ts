@@ -96,7 +96,7 @@ export const privacyContent: Record<LegalLocale, LegalDocumentContent> = {
       {
         title: "Подтверждение человечности (по желанию)",
         paragraphs: [
-          "По желанию пользователя можно пройти короткую проверку, что он живой уникальный человек. Проверку проводит внешний провайдер: он обрабатывает видео лица и сообщает сервису только результат (подтверждено, на рассмотрении, отклонено), идентификатор проверки и время. Open Abundance не хранит видео, фотографии лица, голос, биометрические шаблоны и документы.",
+          "По желанию пользователя можно пройти короткую проверку, что он живой уникальный человек. Проверку проводит внешний провайдер: он обрабатывает видео лица и, при необходимости, документ и сообщает сервису только результат (подтверждено, на рассмотрении, отклонено), идентификатор проверки и время. Open Abundance не хранит видео, фотографии лица, голос, биометрические шаблоны и документы.",
           "Проверка добровольна и требует отдельного согласия перед запуском. Если проходить её онлайн не хочется или не получается, можно обратиться в поддержку: подтверждение возможно вручную. Результат нужен для наград, которым требуется уникальный человек, и для защиты от злоупотреблений."
         ]
       },
@@ -170,7 +170,7 @@ export const privacyContent: Record<LegalLocale, LegalDocumentContent> = {
       {
         title: "Humanity confirmation (optional)",
         paragraphs: [
-          "Users may choose to take a short check that they are a live, unique person. An external provider performs the check: it processes a face video and tells the service only the result (confirmed, under review, declined), a check identifier and the time. Open Abundance does not store video, face photos, voice, biometric templates or documents.",
+          "Users may choose to take a short check that they are a live, unique person. An external provider performs the check: it processes a face video and, where needed, a document, and tells the service only the result (confirmed, under review, declined), a check identifier and the time. Open Abundance does not store video, face photos, voice, biometric templates or documents.",
           "The check is voluntary and needs separate consent before it starts. If you prefer not to do it online or it does not work, contact support: manual confirmation is possible. The result is used for rewards that require a unique person and for abuse protection."
         ]
       },

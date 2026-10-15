@@ -30,6 +30,14 @@ export async function POST(request: NextRequest) {
     .gte("created_at", since);
   if ((count ?? 0) >= HUMANITY_DAILY_ATTEMPTS) return json({ error: "Too many attempts today.", code: "rate_limited" }, 429);
 
+  // A new attempt supersedes unfinished ones, so an abandoned check never blocks the user.
+  await db.from("humanity_verification_attempts").update({ status: "expired", updated_at: new Date().toISOString() }).eq("user_id", user.id).in("status", ["created", "pending"]);
+  await db.from("humanity_verifications").update({ verification_status: "unverified", updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("verification_status", "pending");
+
+  // A new attempt supersedes unfinished ones, so an abandoned check never blocks the user.
+  await db.from("humanity_verification_attempts").update({ status: "expired", updated_at: new Date().toISOString() }).eq("user_id", user.id).in("status", ["created", "pending"]);
+  await db.from("humanity_verifications").update({ verification_status: "unverified", updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("verification_status", "pending");
+
   try {
     const session = await createDiditSession(config, {
       userId: user.id,

@@ -10,7 +10,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const HUMANITY_CONSENT_VERSION = "2026-10-12.1";
 export const HUMANITY_SCENARIO_VERSION = "didit-liveness-faceduplicate-v1";
-export const HUMANITY_DAILY_ATTEMPTS = 3;
+export const HUMANITY_DAILY_ATTEMPTS = 5;
 
 const DIDIT_BASE_URL = "https://verification.didit.me";
 const WEBHOOK_TOLERANCE_SECONDS = 300;

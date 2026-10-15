@@ -6,6 +6,7 @@ import Sheet from "@/components/ui/Sheet";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import InstallPingChallenge from "@/components/InstallPingChallenge";
+import HumanityCard from "@/components/HumanityCard";
 import InviteKit from "@/components/InviteKit";
 import NicheTaskChallenge from "@/components/NicheTaskChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
@@ -1304,6 +1305,8 @@ function ChallengeDetailContent({
 
       {challenge.verification_logic === "has_referral" && accepted && !completed && !locked ? <InviteKit /> : null}
 
+      {challenge.verification_logic === "humanity_confirmed" && accepted && !completed && !locked ? <HumanityCard active /> : null}
+
       {needsPeerReviews && (accepted || completed) && !locked ? (
         <PeerReviewsPanel challenge={challenge} locale={locale} />
       ) : null}
@@ -1648,6 +1651,8 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
       return Bot;
     case "niche_task_chosen":
       return Compass;
+    case "humanity_confirmed":
+      return ShieldCheck;
     case "first_marketplace_listing":
       return Store;
     case "install_ping_answered":

@@ -323,6 +323,13 @@ async function verifyChallenge(
     return { ok: false, reason: "Open the app within 3 minutes of a notification to complete this challenge." };
   }
 
+  if (challenge.verification_logic === "humanity_confirmed") {
+    const { data, error } = await db.from("humanity_verifications").select("humanity_level").eq("user_id", userId).maybeSingle();
+    if (error) return { ok: false, reason: "Could not check your confirmation. Try again." };
+    if (Number(data?.humanity_level ?? 0) >= 2) return { ok: true };
+    return { ok: false, reason: "Complete the humanity check first." };
+  }
+
   if (challenge.verification_logic === "first_marketplace_listing") {
     const { count, error } = await db
       .from("marketplace_listings")

@@ -221,7 +221,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setWallet(null);
   }, []);
 
-  const refreshUserData = useCallback(async () => {
+  const refreshUserDataRun = useCallback(async () => {
     const requestId = refreshRequestIdRef.current + 1;
     const serverDataVersionAtStart = serverDataVersionRef.current;
     refreshRequestIdRef.current = requestId;
@@ -301,6 +301,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [clearServerData]);
+
+  const refreshInFlightRef = useRef<{ promise: Promise<void>; startedAt: number } | null>(null);
+  // Callers that fire in the same instant (bootstrap, auth events) share one request; later calls always fetch fresh data.
+  const refreshUserData = useCallback((): Promise<void> => {
+    const current = refreshInFlightRef.current;
+    if (current && Date.now() - current.startedAt < 300) return current.promise;
+    const promise: Promise<void> = refreshUserDataRun().finally(() => {
+      if (refreshInFlightRef.current?.promise === promise) refreshInFlightRef.current = null;
+    });
+    refreshInFlightRef.current = { promise, startedAt: Date.now() };
+    return promise;
+  }, [refreshUserDataRun]);
 
   const applyServerData = useCallback((data: Partial<UserContextResponse>) => {
     serverDataVersionRef.current += 1;

@@ -637,6 +637,14 @@ export default function SocialApp({
     }
   }, [locale, selectedSystemAccountKey, user]);
 
+  // First visit warm-up: when mounted hidden by the idle prefetch, load the first feed page once.
+  const feedPrefetchedRef = useRef(false);
+  useEffect(() => {
+    if (active || !user || feedPrefetchedRef.current || activeTab !== "feed" || !navigator.onLine) return;
+    feedPrefetchedRef.current = true;
+    void loadFeed(false).catch(() => undefined);
+  }, [active, activeTab, loadFeed, user]);
+
   useEffect(() => {
     if (!active) return;
     if (!user) {

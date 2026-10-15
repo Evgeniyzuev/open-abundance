@@ -160,6 +160,21 @@ export default function AppNavigation() {
     people: false
   });
   const [visitedHomeViews, setVisitedHomeViews] = useState({ ideas: false });
+
+  // Warm up the feed tab while the app is idle: mounting it (hidden) loads its code and first page, so opening it is instant.
+  useEffect(() => {
+    if (!authResolved || !user || visitedServerViews.people) return;
+    let idleId: number | null = null;
+    const timer = window.setTimeout(() => {
+      const warm = () => setVisitedServerViews((current) => (current.people ? current : { ...current, people: true }));
+      if ("requestIdleCallback" in window) idleId = window.requestIdleCallback(warm, { timeout: 6000 });
+      else warm();
+    }, 2500);
+    return () => {
+      window.clearTimeout(timer);
+      if (idleId !== null) window.cancelIdleCallback(idleId);
+    };
+  }, [authResolved, user, visitedServerViews.people]);
   const refreshInFlightRef = useRef(false);
   const refreshQueuedRef = useRef(false);
   const refreshQueueResolversRef = useRef<Array<() => void>>([]);

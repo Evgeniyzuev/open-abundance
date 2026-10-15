@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { PublicBlog } from "@/components/BlogWorkspace";
-import { PostDetailModal } from "@/components/SocialApp";
+import { PostDetailModal } from "@/components/social/FeedParts";
 import RealityView from "@/components/RealityView";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { useUserContext } from "@/components/UserProvider";

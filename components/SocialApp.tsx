@@ -3526,7 +3526,7 @@ function PostList(props: {
   if (loading && !posts.length) {
     return <div className="feed-post-gallery feed-post-gallery-loading" aria-busy="true" aria-label={t("app.common.loading")}>
       <Skeleton className="feed-post-hero-skeleton" />
-      {Array.from({ length: 6 }, (_, index) => <Skeleton aspectRatio="4 / 5" className="feed-post-tile-skeleton" key={index} />)}
+      {Array.from({ length: 9 }, (_, index) => <Skeleton aspectRatio="4 / 5" className="feed-post-tile-skeleton" key={index} />)}
     </div>;
   }
   if (failed && !posts.length && onRetry) {

@@ -1575,6 +1575,7 @@ const en = {
   "social.teams.bonus.toCore": "to Core",
   "social.teams.bonus.toBoth": "to Wallet and Core",
     "humanity.restart": "Start over",
+  "humanity.alreadyDone": "The check is already done. Press Check completion to get your reward.",
     "humanity.notFinished": "The previous check was not finished. You can start over.",
     "operator.open": "Operator console",
   "operator.title": "Operator console",

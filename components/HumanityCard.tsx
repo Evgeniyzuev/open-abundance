@@ -23,7 +23,7 @@ const ATTEMPT_FRESH_MS = 10 * 60_000;
  * the provider may ask for a document). It appears only when the provider is configured and the user is not yet confirmed.
  * Confirmation unlocks rewards that require a unique person, for example the leader bonus in Wallet.
  */
-export default function HumanityCard({ active }: { active: boolean }) {
+export default function HumanityCard({ active, showWhenVerified = false }: { active: boolean; showWhenVerified?: boolean }) {
   const { t, locale, user } = useUserContext();
   const [state, setState] = useState<HumanityStatus | null>(null);
   const [consent, setConsent] = useState(false);
@@ -95,7 +95,15 @@ export default function HumanityCard({ active }: { active: boolean }) {
   }
 
   if (!active || !user || !state || !state.available) return null;
-  if (state.level >= 2) return null;
+  if (state.level >= 2) {
+    // Inside the identity challenge the user is told the check is already done.
+    return showWhenVerified ? (
+      <section className="humanity-card" aria-label={t("humanity.title")} style={{ margin: "12px 0", padding: 14, borderRadius: 16, background: "rgba(26, 155, 87, 0.12)" }}>
+        <strong>{t("humanity.title")}</strong>
+        <p style={{ margin: "6px 0 0" }}>{t("humanity.alreadyDone")}</p>
+      </section>
+    ) : null;
+  }
 
   const attemptAge = state.lastAttemptAt ? Date.now() - Date.parse(state.lastAttemptAt) : Infinity;
   const attemptFresh = attemptAge < ATTEMPT_FRESH_MS;

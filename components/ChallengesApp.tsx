@@ -1305,7 +1305,7 @@ function ChallengeDetailContent({
 
       {challenge.verification_logic === "has_referral" && accepted && !completed && !locked ? <InviteKit /> : null}
 
-      {challenge.verification_logic === "humanity_confirmed" && accepted && !completed && !locked ? <HumanityCard active /> : null}
+      {challenge.verification_logic === "humanity_confirmed" && accepted && !completed && !locked ? <HumanityCard active showWhenVerified /> : null}
 
       {needsPeerReviews && (accepted || completed) && !locked ? (
         <PeerReviewsPanel challenge={challenge} locale={locale} />

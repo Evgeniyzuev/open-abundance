@@ -1575,6 +1575,7 @@ const ru: Record<string, string> = {
   "social.teams.bonus.toCore": "в Core",
   "social.teams.bonus.toBoth": "в Wallet и Core",
     "humanity.restart": "Начать заново",
+  "humanity.alreadyDone": "Проверка уже пройдена. Нажмите «Проверить выполнение», чтобы получить награду.",
     "humanity.notFinished": "Прошлая проверка не была завершена. Можно начать заново.",
     "operator.open": "Консоль оператора",
   "operator.title": "Консоль оператора",

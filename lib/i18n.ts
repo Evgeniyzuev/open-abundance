@@ -49,8 +49,8 @@ export function areMessagesLoaded(locale: AppLocale): boolean {
 /** Loads one language's dictionary (a separate chunk), so a visitor downloads only the language in use. */
 export async function loadMessages(locale: AppLocale): Promise<void> {
   if (dictionaries[locale]) return;
-  const module = locale === "ru" ? await import("@/lib/messages/ru") : await import("@/lib/messages/en");
-  dictionaries[locale] = module.default;
+  const loaded = locale === "ru" ? await import("@/lib/messages/ru") : await import("@/lib/messages/en");
+  dictionaries[locale] = loaded.default;
 }
 
 export type MessageKey = keyof EnglishMessages;

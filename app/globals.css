@@ -3203,3 +3203,10 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .teams-profile-panel > *, .team-growth-heading > * { min-width: 0; }
 .compact-profile-button, .team-room-chip { min-height: 40px; }
 .legal-disclosure a, .profile-links a { display: inline-flex; align-items: center; min-height: 40px; }
+
+/* Modals and form controls on phones. */
+.modal-backdrop { padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+:where(.swatches .swatch, .media-url-help-trigger) { position: relative; }
+:where(.swatches .swatch)::after { content: ""; position: absolute; inset: -4px; }
+:where(.media-url-help-trigger)::after { content: ""; position: absolute; inset: -12px; }
+.modal-sheet input[type="checkbox"], .modal-sheet input[type="radio"] { width: 20px; height: 20px; flex: 0 0 auto; padding: 0; }

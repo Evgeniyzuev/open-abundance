@@ -4,6 +4,7 @@ import { ArrowRight, Bell, CheckCircle2, Compass, FileText, Heart, RefreshCw, Sp
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import DailySetCard from "@/components/DailySetCard";
+import MorningCheckInCard from "@/components/MorningCheckIn";
 import HomeTasksCard from "@/components/HomeTasksCard";
 import WeekRecapPrompt from "@/components/WeekRecapPrompt";
 import RealityDayCard from "@/components/RealityDayCard";
@@ -436,6 +437,8 @@ export default function HomeTodayApp({
           </button>
         </section>
       )}
+
+      <MorningCheckInCard active={active} />
 
       <DailySetCard
         active={active}

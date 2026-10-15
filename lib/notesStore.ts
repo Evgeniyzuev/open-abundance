@@ -35,6 +35,9 @@ export type Note = {
   serverVersion?: string;
   kind?: "regular" | "reflection";
   processing?: ReflectionProcessing;
+  /** Morning check-in entry and the life contexts the person tagged it with. */
+  morning?: boolean;
+  contexts?: string[];
 };
 
 export const NOTES_CHANGED_EVENT = "open-abundance:notes-changed";
@@ -48,6 +51,8 @@ type NoteInput = Pick<Note, "id" | "title" | "body" | "syncStatus"> & {
   completed?: boolean;
   kind?: "regular" | "reflection";
   processing?: ReflectionProcessing;
+  morning?: boolean;
+  contexts?: string[];
 };
 
 type ListInput = Pick<ReminderList, "id" | "title" | "icon" | "color" | "syncStatus">;
@@ -146,7 +151,9 @@ export async function saveNote(input: NoteInput): Promise<Note> {
     updatedAt: now,
     syncStatus: input.syncStatus,
     kind: input.kind ?? existing?.kind ?? "regular",
-    processing: input.processing ?? existing?.processing
+    processing: input.processing ?? existing?.processing,
+    morning: input.morning ?? existing?.morning,
+    contexts: input.contexts ?? existing?.contexts
   };
 
   await withStore<IDBValidKey>(NOTES_STORE, "readwrite", (store) => store.put(note));

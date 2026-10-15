@@ -372,3 +372,11 @@
 .follow-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; margin-left: auto; border-radius: 999px; padding: 0 12px; background: var(--accent-fill); color: #fff; font-size: 0.8125rem; font-weight: 800; }
 .follow-chip.following { background: var(--accent-soft); color: var(--blue); }
 
+.morning-sheet { display: grid; gap: 12px; }
+.morning-field { display: grid; gap: 4px; font-weight: 700; }
+.morning-field textarea { font: inherit; font-size: 1rem; font-weight: 400; padding: 10px; border: 1px solid var(--line); border-radius: 12px; resize: vertical; background: var(--surface); color: var(--text); }
+.morning-contexts { display: grid; gap: 6px; font-weight: 700; }
+.morning-contexts div { display: flex; flex-wrap: wrap; gap: 6px; }
+.morning-contexts button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 0.875rem; }
+.morning-contexts button.active { background: var(--accent-soft); border-color: var(--blue); color: var(--blue); }
+.morning-private { color: var(--muted); }

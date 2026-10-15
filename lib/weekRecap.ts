@@ -3,7 +3,7 @@
 
 export type RecapTask = { id: string; completed: boolean; deleted?: boolean; updatedAt: string };
 export type RecapCompletion = { taskId: string; localDate: string; type: "done" | "life" };
-export type RecapNote = { createdAt: string; deleted?: boolean };
+export type RecapNote = { createdAt: string; deleted?: boolean; morning?: boolean; contexts?: string[] };
 
 export type WeekRecap = {
   /** Seven local day keys, oldest first, ending today. */
@@ -14,6 +14,10 @@ export type WeekRecap = {
   checkIns: number;
   tasksFinished: number;
   notesWritten: number;
+  /** Morning check-ins written in the week. */
+  mornings: number;
+  /** Distinct life contexts the person tagged in the week (a count only, never the labels). */
+  contexts: number;
   /** Longest run of consecutive active days inside the week. */
   bestRun: number;
 };
@@ -55,6 +59,13 @@ export function computeWeekRecap(input: { today: string; tasks: RecapTask[]; com
     return day !== null && inWeek.has(day);
   }).length;
 
+  const weekNotes = input.notes.filter((note) => {
+    const day = note.deleted ? null : localDayOf(note.createdAt);
+    return day !== null && inWeek.has(day);
+  });
+  const mornings = weekNotes.filter((note) => note.morning === true).length;
+  const contexts = new Set(weekNotes.flatMap((note) => (Array.isArray(note.contexts) ? note.contexts : []))).size;
+
   return {
     days,
     perDay,
@@ -62,6 +73,8 @@ export function computeWeekRecap(input: { today: string; tasks: RecapTask[]; com
     checkIns: perDay.reduce((sum, count) => sum + count, 0),
     tasksFinished,
     notesWritten,
+    mornings,
+    contexts,
     bestRun
   };
 }

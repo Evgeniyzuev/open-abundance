@@ -8,6 +8,7 @@ import type { AppLocale } from "@/lib/i18n";
 import { getNotes } from "@/lib/notesStore";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { shareOrDownloadFile } from "@/lib/shareFile";
+import { MANY_CONTEXTS } from "@/lib/morningCheckIn";
 import { addDays, todayKey } from "@/lib/taskSchedule";
 import { deleteTask, getAllTasks, getTaskCompletions, rescheduleOnceTask, type TaskItem } from "@/lib/tasksStore";
 import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
@@ -100,8 +101,11 @@ export default function WeekRecapModal({ onClose }: WeekRecapModalProps) {
               <div><dt>{t("weekRecap.checkIns")}</dt><dd>{recap.checkIns}</dd></div>
               <div><dt>{t("weekRecap.tasksFinished")}</dt><dd>{recap.tasksFinished}</dd></div>
               <div><dt>{t("weekRecap.notesWritten")}</dt><dd>{recap.notesWritten}</dd></div>
+              {recap.mornings > 0 ? <div><dt>{t("weekRecap.mornings")}</dt><dd>{recap.mornings}</dd></div> : null}
+              {recap.contexts > 0 ? <div><dt>{t("weekRecap.contexts")}</dt><dd>{recap.contexts}</dd></div> : null}
             </dl>
             <p>{recap.activeDays === 0 ? t("weekRecap.quietWeek") : recap.bestRun >= 3 ? t("weekRecap.run", { days: recap.bestRun }) : t("weekRecap.movement")}</p>
+            {recap.contexts >= MANY_CONTEXTS ? <p>{t("weekRecap.manyContexts")}</p> : null}
             {overdue.length > 0 ? (
               <section className="week-review-loose-ends">
                 <h3>{t("weekRecap.looseEnds", { count: overdue.length })}</h3>

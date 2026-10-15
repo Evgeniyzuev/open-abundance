@@ -70,6 +70,7 @@ const emptyListForm = {
 };
 
 import BrainDumpModal from "@/components/BrainDumpModal";
+import { MorningCheckInSheet } from "@/components/MorningCheckIn";
 import { takeQuickAction } from "@/lib/quickAction";
 
 type NotesAppProps = {
@@ -91,6 +92,7 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
   const [connection, setConnection] = useState<ConnectionState>("online");
   const [quickCapture, setQuickCapture] = useState("");
   const [brainDumpOpen, setBrainDumpOpen] = useState(false);
+  const [morningOpen, setMorningOpen] = useState(false);
   const [focusCapture, setFocusCapture] = useState(false);
 
   useEffect(() => {
@@ -347,9 +349,11 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
           quickCapture={quickCapture}
           setQuickCapture={setQuickCapture}
           onBrainDump={() => setBrainDumpOpen(true)}
+          onMorning={() => setMorningOpen(true)}
           autoFocusCapture={focusCapture}
         />
       )}
+      {morningOpen ? <MorningCheckInSheet onClose={() => setMorningOpen(false)} /> : null}
       {brainDumpOpen ? (
         <BrainDumpModal
           initialText={quickCapture}
@@ -421,10 +425,11 @@ type HomeScreenProps = {
   quickCapture: string;
   setQuickCapture: (value: string) => void;
   onBrainDump: () => void;
+  onMorning: () => void;
   autoFocusCapture?: boolean;
 };
 
-function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, quickCapture, setQuickCapture, onBrainDump, autoFocusCapture = false }: HomeScreenProps) {
+function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, quickCapture, setQuickCapture, onBrainDump, onMorning, autoFocusCapture = false }: HomeScreenProps) {
   const { t } = useUserContext();
   const captureRef = useRef<HTMLTextAreaElement>(null);
 
@@ -467,6 +472,7 @@ function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDe
         <button className="reflection-capture-button" type="submit" disabled={!quickCapture.trim()}>{t("reflections.capture")}</button>
       </form>
       <button className="text-button braindump-open" type="button" onClick={onBrainDump}>{t("braindump.open")}</button>
+      <button className="text-button braindump-open" type="button" onClick={onMorning}>{t("morning.open")}</button>
       {captured ? (
         <div className="reflection-capture-toast" role="status">{t("reflections.savedShort")}</div>
       ) : null}
@@ -552,6 +558,7 @@ function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCre
                   {isReflectionQueue && note.kind === "reflection" ? <strong className="reflection-row-action">{t(note.processing?.status === "inbox" ? "reflections.processNow" : "reflections.openProcessing")}</strong> : null}
                   {note.reminders.length > 0 ? <em>{note.reminders.map((reminder) => formatReminder(reminder, locale)).join(" · ")}</em> : null}
                   {list ? <i>{list.icon} {list.title}</i> : null}
+                  {note.contexts?.length ? <i>{note.contexts.map((context) => t(`context.${context}` as MessageKey)).join(" · ")}</i> : null}
                 </button>
                 <button className="info-button" type="button" aria-label={t("app.common.info")} onClick={() => onInfo(note.id)}>i</button>
               </article>

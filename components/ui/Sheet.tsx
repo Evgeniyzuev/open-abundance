@@ -3,6 +3,9 @@
 import { X } from "lucide-react";
 import { createElement, useEffect, useRef, type FormEventHandler, type ReactNode } from "react";
 
+// Open sheets, topmost last: Escape closes only the topmost one.
+const openSheets: symbol[] = [];
+
 /**
  * Shared modal: bottom sheet on phones, centred card on wide screens.
  * Handles Escape, backdrop tap, swipe-down on the grabber, focus move/return and scroll lock.
@@ -45,12 +48,15 @@ export default function Sheet({
     // Keep focus on a field the content already focused (autoFocus); otherwise focus the dialog itself.
     if (sheetRef.current && !sheetRef.current.contains(document.activeElement)) sheetRef.current.focus();
 
+    const token = Symbol("sheet");
+    openSheets.push(token);
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && dismissible) onCloseRef.current();
+      if (event.key === "Escape" && dismissible && openSheets[openSheets.length - 1] === token) onCloseRef.current();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      openSheets.splice(openSheets.indexOf(token), 1);
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };

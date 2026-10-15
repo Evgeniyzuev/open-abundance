@@ -2558,8 +2558,8 @@ function AppearanceDialog({ accentTheme, colorTheme, displayCurrency, locale, t,
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet profile-action-modal" role="dialog" aria-modal="true" aria-labelledby="appearance-title" onClick={(event) => event.stopPropagation()}>
+    <>
+      <Sheet bare className="profile-action-modal" titleId="appearance-title" onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <div className="modal-header"><span>{t("profile.actions.settings")}</span><h2 id="appearance-title">{t("profile.appearance.title")}</h2></div>
         <div className="profile-appearance appearance-dialog-body">
@@ -2573,9 +2573,9 @@ function AppearanceDialog({ accentTheme, colorTheme, displayCurrency, locale, t,
           <div className="appearance-setting-row"><span>{t("profile.attention.motion")}</span><div className="appearance-options" role="group" aria-label={t("profile.attention.motion")}>{[false, true].map((value) => <button className={attention.reducedMotion === value ? "active" : ""} type="button" aria-pressed={attention.reducedMotion === value} key={String(value)} onClick={() => changeAttention({ ...attention, reducedMotion: value })}>{value ? t("profile.attention.on") : t("profile.attention.off")}</button>)}</div></div>
           <div className="appearance-setting-row"><span>{t("backup.title")}</span><button className="secondary-button" type="button" onClick={() => setBackupOpen(true)}>{t("backup.save")} · {t("backup.restore")}</button></div>
         </div>
-      </section>
+      </Sheet>
       {backupOpen ? <LocalBackupDialog onClose={() => setBackupOpen(false)} /> : null}
-    </div>
+    </>
   );
 }
 

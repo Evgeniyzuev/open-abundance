@@ -48,7 +48,7 @@ export function useFeed({ enabled = true, locale, userId }: { enabled?: boolean;
   const generationRef = useRef(0);
   filterRef.current = filter;
 
-  const load = useCallback(async (append = false, force = false) => {
+  const load = useCallback(async (append = false, force = false, pageSize?: number) => {
     if (!userId) return;
 
     const requestedFilter = filter;
@@ -84,7 +84,7 @@ export function useFeed({ enabled = true, locale, userId }: { enabled?: boolean;
       }
       try {
         const token = await getAccessToken();
-        const params = new URLSearchParams({ scope: "feed", locale, limit: "21", ts: String(Date.now()) });
+        const params = new URLSearchParams({ scope: "feed", locale, limit: String(pageSize ?? 21), ts: String(Date.now()) });
         if (requestedFilter !== "all") params.set("category", requestedFilter);
         const cursor = cursorRef.current[requestedFilter];
         if (append && cursor) params.set("cursor", cursor);

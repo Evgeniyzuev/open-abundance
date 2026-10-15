@@ -1424,7 +1424,7 @@ export default function SocialApp({
           onDraftBodyChangeForPost={updateSystemDraftBody}
           onExternalLinkUrlChange={setExternalLinkUrl}
           onFilterChange={feed.changeFilter}
-          onLoadMore={() => { void loadFeed(true); }}
+          onLoadMore={(pageSize) => { void loadFeed(true, false, pageSize); }}
           onLinkComposerToggle={() => setLinkComposerOpen((current) => !current)}
           onOpenAuthor={openPublicProfile}
           onOpenBlog={openAuthorBlog}

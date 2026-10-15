@@ -25,6 +25,7 @@ import type { FeedMedia, FeedPayload, FeedPost, FeedReviewSummary, FeedStatBlock
 import { APP_TESTING_ATTITUDES, APP_TESTING_USEFUL_AREAS } from "@/lib/appTestingFeedback";
 
 const MIN_FIRST_SCREEN_POSTS = 9;
+const FILL_PAGE_SIZE = 60;
 
 export function FeedView({
   addingStoryWishKey,
@@ -92,7 +93,7 @@ export function FeedView({
   onDraftBodyChangeForPost: (postId: string, body: string) => void;
   onExternalLinkUrlChange: (url: string) => void;
   onFilterChange: (filter: FeedFilter) => void;
-  onLoadMore: () => void;
+  onLoadMore: (pageSize?: number) => void;
   onLinkComposerToggle: () => void;
   onOpenAuthor: (userId: string) => void;
   onOpenBlog: (userId: string) => void;
@@ -150,7 +151,8 @@ export function FeedView({
     if (fillAttemptsRef.current.filter !== filter) fillAttemptsRef.current = { filter, count: 0 };
     if (fillAttemptsRef.current.count >= 3) return;
     fillAttemptsRef.current.count += 1;
-    onLoadMoreRef.current();
+    // A big page: the server hides some posts per viewer, so a normal page can add very few visible ones.
+    onLoadMoreRef.current(FILL_PAGE_SIZE);
   }, [filter, hasMore, loading, loadingMore, posts.length]);
 
   return (
@@ -212,7 +214,7 @@ export function FeedView({
         onPublish={onPublish}
       />
       {feedPayload?.nextCursor ? (
-        <button className="secondary-button feed-load-more" ref={loadMoreRef} type="button" disabled={loadingMore} onClick={onLoadMore}>
+        <button className="secondary-button feed-load-more" ref={loadMoreRef} type="button" disabled={loadingMore} onClick={() => onLoadMore()}>
           {loadingMore ? t("app.common.loading") : t("social.review.loadMore")}
         </button>
       ) : null}

@@ -40,7 +40,7 @@ const hiddenStart = startVisiblePolling(() => { calls += 1; }, 1000);
 assert.equal(timers.size, 0, "a poll started in a hidden tab waits for visibility");
 hiddenStart();
 
-for (const path of ["components/CryptoPayDepositModal.tsx", "components/HumanityCard.tsx", "components/TonUsdtWalletModals.tsx", "components/WalletApp.tsx"]) {
+for (const path of ["components/CryptoPayDepositModal.tsx", "components/HumanityCard.tsx", "components/TonUsdtWalletModals.tsx", "components/wallet/WalletModals.tsx"]) {
   const source = readFileSync(path, "utf8");
   assert.match(source, /startVisiblePolling\(/, `${path} polls only while visible`);
 }

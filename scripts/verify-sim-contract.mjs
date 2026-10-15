@@ -14,7 +14,7 @@ for (const item of SIM_CLOTHES) {
 }
 
 // Every label exists in both languages.
-const i18n = readFileSync("lib/i18n.ts", "utf8");
+const i18n = readFileSync("lib/messages/ru.ts", "utf8") + readFileSync("lib/messages/en.ts", "utf8");
 const keys = [
   "sim.title", "sim.pose.title", "sim.shelf", "sim.photo", "sim.walk",
   ...SIM_SLOTS.map((slot) => `sim.slot.${slot}`),

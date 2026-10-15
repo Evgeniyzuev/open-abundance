@@ -1,10 +1,11 @@
 import fs from "node:fs";
-
+
+import { readWalletSource } from "./lib/splitSources.mjs";
 const migration = fs.readFileSync("supabase/migrations/20260802140000_ton_usdt_jetton_rail.sql", "utf8");
 const lib = fs.readFileSync("lib/tonUsdt.ts", "utf8");
 const scanner = fs.readFileSync("app/api/internal/ton/usdt/deposits/scan/route.ts", "utf8");
 const ui = fs.readFileSync("components/TonUsdtWalletModals.tsx", "utf8");
-const walletUi = fs.readFileSync("components/WalletApp.tsx", "utf8");
+const walletUi = readWalletSource();
 const methodUi = fs.readFileSync("components/WalletCryptoMethodModal.tsx", "utf8");
 
 function assertIncludes(source, value, label) {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { readWalletSource } from "./lib/splitSources.mjs";
 // Exchange offers: both purchases are created in one transaction or none; only the right side can act.
 const sql = readFileSync("supabase/migrations/20261014140000_marketplace_counter_offers.sql", "utf8");
 assert.match(sql, /check \(proposer_user_id <> target_user_id\)/);
@@ -24,7 +25,7 @@ assert.match(api, /p_proposer_user_id: user\.id/);
 assert.match(api, /p_actor_user_id: user\.id/);
 assert.match(api, /\/\^Exchange failed:\/\.test\(result\.error\.message\) \? 400 : 500/);
 
-const wallet = readFileSync("components/WalletApp.tsx", "utf8");
+const wallet = readWalletSource();
 assert.match(wallet, /onExchange=\{myActiveListings\.length \?/, "exchange shows only when you have something to offer");
 assert.match(readFileSync("app/api/notifications/route.ts", "utf8"), /market\.counter_offer\./);
 

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { MARKET_TEMPLATE_COUNT, MARKET_TEMPLATES, normalizeListingDraft } from "../lib/marketListingDraft.ts";
-
+
+import { readWalletSource } from "./lib/splitSources.mjs";
 assert.equal(normalizeListingDraft({ title: "", description: "x" }), null, "a draft needs a title");
 assert.equal(normalizeListingDraft({ title: "x", description: "" }), null, "and a description");
 const draft = normalizeListingDraft({ title: "  Proofread   2 pages ", description: "Line\n\n\n\nLine", listingKind: "weird", fulfillmentDays: 5 });
@@ -14,7 +15,7 @@ assert.equal(normalizeListingDraft({ title: "x", description: "y", fulfillmentDa
 assert.ok(!("price" in draft), "a draft never carries a price");
 
 assert.equal(MARKET_TEMPLATES.length, MARKET_TEMPLATE_COUNT);
-const i18n = readFileSync("lib/i18n.ts", "utf8");
+const i18n = readFileSync("lib/messages/ru.ts", "utf8") + readFileSync("lib/messages/en.ts", "utf8");
 for (const template of MARKET_TEMPLATES) {
   assert.equal(i18n.split(`"marketTemplate.${template.n}.title":`).length - 1, 2, `template ${template.n} title in RU and EN`);
   assert.equal(i18n.split(`"marketTemplate.${template.n}.description":`).length - 1, 2, `template ${template.n} description in RU and EN`);
@@ -32,7 +33,7 @@ assert.match(knowledge, /regulated professional advice/);
 
 const helper = readFileSync("components/MarketOfferHelper.tsx", "utf8");
 assert.doesNotMatch(helper, /setPrice|priceAmount|onCreate/, "the helper only fills the form; price and publishing stay with the person");
-const wallet = readFileSync("components/WalletApp.tsx", "utf8");
+const wallet = readWalletSource();
 const applyBlock = wallet.slice(wallet.indexOf("function applyOfferDraft"), wallet.indexOf("function applyOfferDraft") + 500);
 assert.doesNotMatch(applyBlock, /setPrice/, "a prefilled offer never sets a price");
 

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { readSocialSource } from "./lib/splitSources.mjs";
 import {
   isRealityBlockKey,
   parseRealityDaySummary,
@@ -53,7 +54,7 @@ const route = readFileSync("app/api/social/feed/daily-progress/draft/route.ts", 
 assert.match(route, /body\.ifContent === true && !realityDayHasContent\(context\)/);
 const getHandler = route.slice(route.indexOf("export async function GET"), route.indexOf("export async function POST"));
 assert.doesNotMatch(getHandler, /upsert|insert\(|update\(|delete\(/, "GET is read-only");
-const social = readFileSync("components/SocialApp.tsx", "utf8");
+const social = readSocialSource();
 assert.match(social, /JSON\.stringify\(\{ ifContent: true \}\)/);
 
 // Home card publishes through the existing post route and keeps hidden blocks private.

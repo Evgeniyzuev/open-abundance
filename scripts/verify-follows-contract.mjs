@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-
+
+import { readSocialSource } from "./lib/splitSources.mjs";
 // Schema: one row per pair, no self-follow, reads limited to the two sides, writes only through the server.
 const sql = readFileSync("supabase/migrations/20261014100000_user_follows.sql", "utf8");
 assert.match(sql, /primary key \(follower_user_id, followee_user_id\)/);
@@ -46,14 +47,14 @@ const page = readFileSync("components/PublicUserPage.tsx", "utf8");
 assert.doesNotMatch(page, /profile\.registrationRequired/);
 assert.match(page, /href="\/\?auth=signin"/);
 
-const i18n = readFileSync("lib/i18n.ts", "utf8");
+const i18n = readFileSync("lib/messages/ru.ts", "utf8") + readFileSync("lib/messages/en.ts", "utf8");
 for (const key of ["social.feed.filter.following", "social.follow.follow", "social.follow.following", "social.follow.followers", "social.follow.signInToFollow", "notifications.event.realityDay.title"]) {
   assert.equal(i18n.split(`"${key}"`).length - 1, 2, `${key} exists in RU and EN`);
 }
 
 // Follow from a post: shown for other real authors only; state comes from GET /api/social/follows.
 assert.match(api, /export async function GET/);
-const social = readFileSync("components/SocialApp.tsx", "utf8");
+const social = readSocialSource();
 assert.match(social, /post\.post_type !== "reality_demo" && post\.post_type !== "abundance_story" \? <FollowButton/);
 assert.match(readFileSync("components/FollowButton.tsx", "utf8"), /viewerId === authorId/);
 

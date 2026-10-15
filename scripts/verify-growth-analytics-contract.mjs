@@ -16,7 +16,8 @@ for (const relativePath of [
   "components/WalletApp.tsx",
   "docs/MASTER_KANBAN.md",
   "docs/SELF_SERVE_PRODUCT_EXPERIMENT.md",
-  "lib/i18n.ts",
+  "lib/messages/ru.ts",
+  "lib/messages/en.ts",
   "lib/productAnalytics.ts"
 ]) {
   utf8Decoder.decode(readFileSync(join(root, relativePath)));

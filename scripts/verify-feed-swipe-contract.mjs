@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { classifySwipe, nextInSequence, SWIPE_MIN_DISTANCE } from "../lib/swipe.ts";
 
+import { readSocialSource } from "./lib/splitSources.mjs";
 // Only clear horizontal swipes count; scrolling never triggers a signal.
 assert.equal(classifySwipe(SWIPE_MIN_DISTANCE + 10, 5), "right");
 assert.equal(classifySwipe(-(SWIPE_MIN_DISTANCE + 10), 5), "left");
@@ -14,7 +15,7 @@ assert.equal(nextInSequence(0, 3, 1), 1);
 assert.equal(nextInSequence(2, 3, 1), null, "the last story ends the selection");
 assert.equal(nextInSequence(0, 3, -1), null);
 
-const social = readFileSync("components/SocialApp.tsx", "utf8");
+const social = readSocialSource();
 assert.match(social, /classifySwipe\(event\.clientX - start\.x, event\.clientY - start\.y\)/);
 assert.match(social, /event\.pointerType === "mouse"/, "mouse drags (text selection) are not swipes");
 assert.match(social, /recordFeedSwipeSignal\(currentUserId, post, direction === "right" \? "interest" : "not_for_me"\)/, "swipes use the same local signals as the buttons");

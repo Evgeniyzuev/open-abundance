@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { isTonAddress, parseScanned } from "../lib/qrPayload.ts";
 
+import { readWalletSource } from "./lib/splitSources.mjs";
 // Run with: node --experimental-strip-types scripts/verify-qr-payload-contract.mjs
 const read = (path) => readFileSync(path, "utf8");
 
@@ -36,7 +37,7 @@ assert.equal(parseScanned("https://example.com/other").kind, "unknown");
 assert.equal(parseScanned("x".repeat(3000)).kind, "unknown");
 
 // --- Wiring ---
-const wallet = read("components/WalletApp.tsx");
+const wallet = readWalletSource();
 assert.match(wallet, /oa-economy-open\.v1/, "the folded state is remembered");
 assert.match(wallet, /aria-expanded=\{open\}/);
 assert.match(wallet, /scanned\.kind === "ton"/, "the TON withdrawal field takes a scanned address");

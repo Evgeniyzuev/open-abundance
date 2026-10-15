@@ -116,7 +116,7 @@ assert.match(aiChat, /setInput\(text\)/, "A selected prompt must fill the editab
 assert.doesNotMatch(aiChat, /sendMessage\(prompt\.text\)/, "Prompt selection must not send automatically");
 assert.match(aiChat, /ref=\{inputRef\}/, "Nova must focus the editable input after a prompt is selected");
 
-const translations = read("lib/i18n.ts");
+const translations = read("lib/messages/ru.ts") + read("lib/messages/en.ts");
 for (const key of [
   "challenges.rewardUnknown",
   "challenges.prerequisiteRequired",

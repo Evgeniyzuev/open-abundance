@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { readWalletSource } from "./lib/splitSources.mjs";
 // Run with: node scripts/verify-fees-contract.mjs
 const read = (path) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 
@@ -40,7 +41,7 @@ const modal = read("components/WalletCryptoMethodModal.tsx");
 for (const key of ["fees.deposit.chain", "fees.deposit.cryptoPay", "fees.withdraw.percent"]) assert.match(modal, new RegExp(key.replace(".", "\.")), key + " is shown on the method cards");
 assert.match(read("components/P2PWalletPanel.tsx"), /fees\.p2p\.note/, "the P2P deal screen names the fee");
 assert.match(read("components/P2PWalletPanel.tsx"), /fees\.p2p\.adNote/, "the ad form says the seller holds the fee");
-assert.match(read("components/WalletApp.tsx"), /fees=\{walletFees\}/, "both menus get the fees");
+assert.match(readWalletSource(), /fees=\{walletFees\}/, "both menus get the fees");
 
 // --- No per-person fee tracking: the decision is a flat, visible fee ---
 assert.doesNotMatch(read("supabase/migrations/20261012100000_payment_provider_invoices.sql"), /fee_basis|fee_outstanding|absorbed/i, "no per-person fee accounting");

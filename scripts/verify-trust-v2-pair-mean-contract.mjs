@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { readSocialSource } from "./lib/splitSources.mjs";
 // Trust shadow v2 (docs/GROWTH_REALITY_PLAN.md 3.4): the limit depends on the rater's level and own Trust only;
 // repeated deals update the pair's weighted mean. Verified on Postgres (PGlite) with stubbed v1 base rows.
 const sql = readFileSync("supabase/migrations/20261014160000_trust_v2_shadow_pair_mean.sql", "utf8");
@@ -25,6 +26,6 @@ assert.ok(daily.includes("'20 3 * * *'"));
 const reputation = readFileSync("app/api/trust/reputation/route.ts", "utf8");
 assert.ok(reputation.includes('.eq("user_id", user.id)') && reputation.includes('.eq("target_user_id", user.id)'), "only the owner's own numbers");
 assert.ok(!reputation.includes("rater_user_id,raw_delta,") && reputation.includes("new Set(rows.map((row) => row.rater_user_id)).size"), "raters are only counted");
-assert.match(readFileSync("components/SocialApp.tsx", "utf8"), /<ReputationCard active=\{active\} \/>/);
+assert.match(readSocialSource(), /<ReputationCard active=\{active\} \/>/);
 
 console.log("trust v2 pair mean contract ok");

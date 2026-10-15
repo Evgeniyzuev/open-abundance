@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { readWalletSource } from "./lib/splitSources.mjs";
 // Contract of the internal turnover fee (docs/GROWTH_REALITY_PLAN.md 3.3). The SQL behaviour itself was
 // exercised against Postgres (PGlite): under/over the limit, partial excess, untaxed operations, the rolling
 // window, notifications and switching the config off.
@@ -30,6 +31,6 @@ assert.match(sql, /revoke all on table public\.internal_turnover_fee_configs fro
 
 const history = readFileSync("app/api/wallet/history/route.ts", "utf8");
 assert.match(history, /"team_bonus", "internal_turnover_fee"\]\)/);
-assert.match(readFileSync("components/WalletApp.tsx", "utf8"), /t\("wallet\.history\.internalTurnoverFee"\)/);
+assert.match(readWalletSource(), /t\("wallet\.history\.internalTurnoverFee"\)/);
 
 console.log("internal fee contract ok");

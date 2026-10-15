@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-
+
+import { readWalletSource } from "./lib/splitSources.mjs";
 const root = process.cwd();
 const migrationPath = join(root, "supabase", "migrations", "20260831190041_trust_v2_shadow_v1.sql");
 const migration = readFileSync(migrationPath, "utf8");
@@ -94,7 +95,7 @@ for (const routePath of [
   assert.match(route, /MARKETPLACE_RATING_ERROR/);
 }
 
-const walletApp = readFileSync(join(root, "components/WalletApp.tsx"), "utf8");
+const walletApp = readWalletSource();
 assert.match(walletApp, /normalizeMarketplaceRating\(window\.prompt/);
 
 const config = {

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { readWalletSource } from "./lib/splitSources.mjs";
 const route = readFileSync("app/api/wallet/transfer/route.ts", "utf8");
-const wallet = readFileSync("components/WalletApp.tsx", "utf8");
+const wallet = readWalletSource();
 
 // A transfer receipt may show the sender's own balance only; the recipient's balance is private.
 const recipientType = route.match(/recipient: \{[^}]*\};/)?.[0] ?? "";

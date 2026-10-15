@@ -6,7 +6,7 @@ import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseC
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import type { Tables } from "@/lib/database.types";
 import { capturePendingReferral, getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaimed } from "@/lib/guestIdentity";
-import { detectPreferredLocale, normalizeLocale, storeLocalePreference, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
+import { detectPreferredLocale, loadMessages, normalizeLocale, storeLocalePreference, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
 import { getOnboardingRegistrationLocale } from "@/lib/onboardingContent";
 import { captureAcquisitionContext, readAcquisitionContext } from "@/lib/acquisition";
 import {
@@ -98,7 +98,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [pendingLevelUps, setPendingLevelUps] = useState<number[]>([]);
   const [levelUpsHeld, setLevelUpsHeld] = useState(false);
-  const [guestLocale, setGuestLocale] = useState<AppLocale>("en");
+  // Detected up front (not after mount) so a Russian visitor downloads only the Russian dictionary. The first render is a spinner either way.
+  const [guestLocale, setGuestLocale] = useState<AppLocale>(() => (typeof window === "undefined" ? "en" : detectPreferredLocale()));
   const [displayCurrency, setDisplayCurrencyState] = useState<DisplayCurrency>(DEFAULT_DISPLAY_CURRENCY);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRatesSnapshot | null>(null);
   const [exchangeRatesError, setExchangeRatesError] = useState<string | null>(null);
@@ -556,9 +557,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setAccentThemeState(nextTheme);
   }, []);
 
+  // The dictionary of each language is a separate chunk. The UI keeps the previous language until the new one has arrived.
+  const [dictionaryLocale, setDictionaryLocale] = useState<AppLocale | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadMessages(locale)
+      .then(() => { if (!cancelled) setDictionaryLocale(locale); })
+      .catch((dictionaryError) => console.warn("Language dictionary failed to load", dictionaryError));
+    return () => { cancelled = true; };
+  }, [locale]);
+
   const t = useCallback(
-    (key: MessageKey, values?: Record<string, string | number>) => translate(locale, key, values),
-    [locale]
+    (key: MessageKey, values?: Record<string, string | number>) => translate(dictionaryLocale ?? locale, key, values),
+    [dictionaryLocale, locale]
   );
 
   const displayRate = exchangeRateFor(exchangeRates, displayCurrency);
@@ -605,7 +616,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   return (
     <UserContext.Provider value={value}>
-      {children}
+      {dictionaryLocale ? children : <main aria-busy="true" className="startup-recovery-screen"><span className="startup-recovery-spinner" aria-hidden="true" /></main>}
       {pendingLevelUps[0] && !levelUpsHeld ? (
         <LevelUpModal
           level={pendingLevelUps[0]}

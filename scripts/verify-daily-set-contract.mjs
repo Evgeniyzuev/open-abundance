@@ -42,7 +42,7 @@ assert.equal(isDailySetFinished(state, state.cards), true, "the set has an end")
 assert.deepEqual(restoreDailySetState(JSON.parse(JSON.stringify(state)), day), state, "progress survives a reload");
 
 // Texts exist in both languages.
-const i18n = readFileSync("lib/i18n.ts", "utf8");
+const i18n = readFileSync("lib/messages/ru.ts", "utf8") + readFileSync("lib/messages/en.ts", "utf8");
 for (let index = 1; index <= ADVENTURE_COUNT; index += 1) assert.equal(i18n.split(`"adventure.${index}":`).length - 1, 2, `adventure.${index} in RU and EN`);
 for (let index = 1; index <= QUESTION_COUNT; index += 1) assert.equal(i18n.split(`"question.${index}":`).length - 1, 2, `question.${index} in RU and EN`);
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { readSocialSource } from "./lib/splitSources.mjs";
 // Run with: node scripts/verify-p2p-push-contract.mjs
 const read = (path) => readFileSync(path, "utf8");
 
@@ -32,6 +33,6 @@ assert.match(messages, /filter\(\(id\) => id !== auth\.user\.id\)/, "the sender 
 
 assert.match(read("app/api/notifications/route.ts"), /metadata\?\.copy\?\.\[locale\]/, "the in-app list shows the concrete text");
 assert.match(read("app/api/notifications/preferences/route.ts"), /"p2p", "system"\] as const/);
-assert.match(read("components/SocialApp.tsx"), /"social", "p2p", "system"\] as const/, "the settings list has the category");
+assert.match(readSocialSource(), /"social", "p2p", "system"\] as const/, "the settings list has the category");
 
 console.log("p2p push contract ok");

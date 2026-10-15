@@ -14,7 +14,10 @@ import { canUseFeedSignals, FeedPostSignalButtons, recordFeedSwipeSignal } from 
 import { classifySwipe, nextInSequence } from "@/lib/swipe";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import { celebrate } from "@/lib/ui/feedback";
+import ChipRow from "@/components/ui/ChipRow";
+import Skeleton from "@/components/ui/Skeleton";
 import { isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences } from "@/lib/feedPreferences";
+import { clearFeedSnapshots, readFeedSnapshot, writeFeedSnapshot } from "@/lib/feedSnapshot";
 import LegalDisclosure from "@/components/LegalDisclosure";
 import BlogWorkspace from "@/components/BlogWorkspace";
 import ReputationCard from "@/components/ReputationCard";
@@ -424,6 +427,8 @@ export default function SocialApp({
   const [feedLoadingMore, setFeedLoadingMore] = useState(false);
   const [systemPayload, setSystemPayload] = useState<FeedPayload | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
+  const [feedFailed, setFeedFailed] = useState(false);
+  const hadFeedUserRef = useRef(false);
   const [systemLoading, setSystemLoading] = useState(false);
   const [feedSaving, setFeedSaving] = useState(false);
   const [dailyDraft, setDailyDraft] = useState<FeedPost | null>(null);
@@ -537,6 +542,12 @@ export default function SocialApp({
     systemDraftsLoadingRef.current = false;
     systemDraftsLocaleRef.current = null;
     dailyDraftEnsuredRef.current = false;
+    setFeedFailed(false);
+    if (user?.id) hadFeedUserRef.current = true;
+    else if (hadFeedUserRef.current) {
+      hadFeedUserRef.current = false;
+      clearFeedSnapshots();
+    }
   }, [user?.id]);
 
   const loadReferralLink = useCallback(async () => {
@@ -916,6 +927,10 @@ export default function SocialApp({
         if (feedFilterRef.current === requestedFilter) setFeedLoading(false);
         return;
       }
+      if (!hasUsableCache && feedFilterRef.current === requestedFilter) {
+        const snapshot = readFeedSnapshot(user.id, locale, requestedFilter);
+        if (snapshot) setFeedPayload((current) => current ?? snapshot);
+      }
     }
 
     const requestKey = `${user.id}:${locale}:${requestedFilter}:${append ? "append" : "replace"}`;
@@ -927,7 +942,10 @@ export default function SocialApp({
       const requestId = feedRequestIdsRef.current[requestedFilter] + 1;
       feedRequestIdsRef.current[requestedFilter] = requestId;
       if (append) setFeedLoadingMore(true);
-      else setFeedLoading(true);
+      else {
+        setFeedLoading(true);
+        setFeedFailed(false);
+      }
       try {
         const token = await getAccessToken();
         const params = new URLSearchParams({ scope: "feed", locale, limit: "21", ts: String(Date.now()) });
@@ -952,6 +970,10 @@ export default function SocialApp({
         feedCursorRef.current[requestedFilter] = payload.nextCursor ?? null;
         feedCacheRef.current[requestedFilter] = { payload: nextPayload, fetchedAt: Date.now(), locale };
         if (feedFilterRef.current === requestedFilter) setFeedPayload(nextPayload);
+        if (!append) writeFeedSnapshot(user.id, locale, requestedFilter, nextPayload);
+      } catch (loadError) {
+        if (!append && feedLoadGenerationRef.current === requestGeneration && feedFilterRef.current === requestedFilter) setFeedFailed(true);
+        throw loadError;
       } finally {
         if (feedLoadGenerationRef.current === requestGeneration && feedRequestIdsRef.current[requestedFilter] === requestId) {
           if (append) setFeedLoadingMore(false);
@@ -1783,8 +1805,10 @@ export default function SocialApp({
           linkComposerOpen={linkComposerOpen}
           feedPayload={feedPayload}
           filter={feedFilter}
+          failed={feedFailed}
           loading={feedLoading}
           loadingMore={feedLoadingMore}
+          onRetry={() => { void loadFeed(false, true).catch(() => undefined); }}
           saving={feedSaving}
           locale={locale}
           t={t}
@@ -3335,11 +3359,13 @@ function FeedView({
   linkComposerOpen,
   feedPayload,
   filter,
+  failed,
   loading,
   loadingMore,
   saving,
   locale,
   t,
+  onRetry,
   onCreateDraft,
   onCreateExternalLink,
   onAddStoryWish,
@@ -3370,11 +3396,13 @@ function FeedView({
   linkComposerOpen: boolean;
   feedPayload: FeedPayload | null;
   filter: FeedFilter;
+  failed: boolean;
   loading: boolean;
   loadingMore: boolean;
   saving: boolean;
   locale: AppLocale;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onRetry: () => void;
   onCreateDraft: () => void;
   onCreateExternalLink: () => void;
   onAddStoryWish: (post: FeedPost) => void;
@@ -3400,26 +3428,22 @@ function FeedView({
 
   return (
     <section className="feed-layout">
-      <div className="feed-filter-row" role="group" aria-label={t("social.feed.title")}>
-        <button aria-pressed={filter === "all"} className={filter === "all" ? "active" : ""} type="button" onClick={() => onFilterChange("all")}>
-          {t("social.feed.filter.all")}
-        </button>
-        <button aria-pressed={filter === "following"} className={filter === "following" ? "active" : ""} type="button" onClick={() => onFilterChange("following")}>
-          {t("social.feed.filter.following")}
-        </button>
-        <button aria-pressed={filter === "stories"} className={filter === "stories" ? "active" : ""} type="button" onClick={() => onFilterChange("stories")}>
-          {t("social.feed.filter.stories")}
-        </button>
-        <button aria-pressed={filter === "opportunities"} className={filter === "opportunities" ? "active" : ""} type="button" onClick={() => onFilterChange("opportunities")}>
-          {t("social.feed.filter.opportunities")}
-        </button>
-        <button aria-pressed={filter === "system"} className={filter === "system" ? "active" : ""} type="button" onClick={() => onFilterChange("system")}>
-          {t("social.feed.filter.system")}
-        </button>
-        <button aria-pressed={filter === "reviews"} className={filter === "reviews" ? "active" : ""} type="button" onClick={() => onFilterChange("reviews")}>
-          {t("social.feed.filter.reviews")}
-        </button>
-      </div>
+      <ChipRow<FeedFilter>
+        ariaLabel={t("social.feed.title")}
+        moreLabel={t("social.feed.filter.more")}
+        primary={[
+          { value: "all", label: t("social.feed.filter.all") },
+          { value: "following", label: t("social.feed.filter.following") },
+          { value: "stories", label: t("social.feed.filter.stories") }
+        ]}
+        more={[
+          { value: "opportunities", label: t("social.feed.filter.opportunities") },
+          { value: "system", label: t("social.feed.filter.system") },
+          { value: "reviews", label: t("social.feed.filter.reviews") }
+        ]}
+        value={filter}
+        onChange={onFilterChange}
+      />
       {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
@@ -3429,9 +3453,11 @@ function FeedView({
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
         emptyText={t("social.feed.empty")}
-        loading={loading}
+        failed={failed}
+        loading={loading || (!feedPayload && !failed)}
         locale={locale}
         posts={posts}
+        onRetry={onRetry}
         emptyState={filter === "all" ? (
           <div className="feed-empty-action">
             <p>{t("social.feed.empty")}</p>
@@ -3584,6 +3610,7 @@ function PostList(props: {
   currentUserId: string;
   emptyText: string;
   emptyState?: ReactNode;
+  failed?: boolean;
   loading: boolean;
   locale: AppLocale;
   posts: FeedPost[];
@@ -3600,11 +3627,19 @@ function PostList(props: {
   onOpenSystemAccount: (accountKey: string) => void;
   onDeletePost: (post: FeedPost) => void;
   onPublish: (post: FeedPost) => void;
+  onRetry?: () => void;
 }) {
-  const { addingStoryWishKey, emptyState, emptyText, loading, onAddStoryWish, onOpenPost, posts, showTileAuthor = true, t } = props;
+  const { addingStoryWishKey, emptyState, emptyText, failed, loading, onAddStoryWish, onOpenPost, onRetry, posts, showTileAuthor = true, t } = props;
   if (loading && !posts.length) {
-    return <div className="feed-post-gallery feed-post-gallery-loading" aria-label={t("app.common.loading")}>
-      {Array.from({ length: 9 }, (_, index) => <span className="feed-post-tile-skeleton" key={index} />)}
+    return <div className="feed-post-gallery feed-post-gallery-loading" aria-busy="true" aria-label={t("app.common.loading")}>
+      <Skeleton className="feed-post-hero-skeleton" />
+      {Array.from({ length: 6 }, (_, index) => <Skeleton aspectRatio="4 / 5" className="feed-post-tile-skeleton" key={index} />)}
+    </div>;
+  }
+  if (failed && !posts.length && onRetry) {
+    return <div className="feed-empty-action">
+      <p>{t("social.feed.loadFailed")}</p>
+      <button className="secondary-button" type="button" onClick={onRetry}>{t("app.common.retry")}</button>
     </div>;
   }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;

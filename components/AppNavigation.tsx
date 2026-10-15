@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import HumanityCard from "@/components/HumanityCard";
 import PayRequestEntry from "@/components/PayRequestEntry";
 import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
@@ -729,8 +730,7 @@ export default function AppNavigation() {
         onTabChange={openMainDestination}
       />
       {authResolved && shareTargetDraft && (!shareTargetDraft.url || !user) ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="modal-sheet small" role="dialog" aria-modal="true" aria-labelledby="share-target-title">
+        <Sheet bare dismissible={false} className="small" titleId="share-target-title">
             <h2 id="share-target-title">{t("shareTarget.title")}</h2>
             {!shareTargetDraft.url && shareTargetDraft.candidates.length > 1 ? <>
               <p>{t("shareTarget.chooseLink")}</p>
@@ -748,8 +748,7 @@ export default function AppNavigation() {
               <p className="share-target-url">{shareTargetDraft.url}</p>
               <button className="primary-button" type="button" onClick={() => window.location.assign("/?auth=signin")}>{t("shareTarget.signIn")}</button>
             </>}
-          </section>
-        </div>
+        </Sheet>
       ) : null}
     </>
   );

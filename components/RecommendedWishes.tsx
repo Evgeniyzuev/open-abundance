@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import type { Json, Tables } from "@/lib/database.types";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale } from "@/lib/i18n";
@@ -116,8 +117,7 @@ function WishDetailModal({ wish, onClose }: WishDetailModalProps) {
   const { locale, t } = useUserContext();
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet wish-modal">
+    <Sheet bare dismissible={false} className="wish-modal" ariaLabel={text(wish.title, locale)}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
           <h2>{text(wish.title, locale)}</h2>
@@ -132,8 +132,7 @@ function WishDetailModal({ wish, onClose }: WishDetailModalProps) {
             <span>{t("wishes.level", { level: wish.difficulty_level })}</span>
           </div>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

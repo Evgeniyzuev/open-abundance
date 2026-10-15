@@ -2,6 +2,7 @@
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import Sheet from "@/components/ui/Sheet";
 import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import type { Tables } from "@/lib/database.types";
@@ -667,15 +668,13 @@ function LevelUpModal({
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
 }) {
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet small level-up-modal">
+    <Sheet bare dismissible={false} className="small level-up-modal" ariaLabel={t("levelUp.title")}>
         <span className="level-up-badge">Lvl {level}</span>
         <h2>{t("levelUp.title")}</h2>
         <p>{t("levelUp.description", { level })}</p>
         <button className="challenge-primary-action" type="button" onClick={onClose}>
           {t("app.common.excellent")}
         </button>
-      </div>
-    </div>
+    </Sheet>
   );
 }

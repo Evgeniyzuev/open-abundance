@@ -2,6 +2,7 @@
 
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
@@ -98,8 +99,7 @@ export default function PaymentRequestModal({ locale, onClose }: Props) {
     status === "open" && Date.parse(expiresAt) <= Date.now() ? "pay.status.expired" : (`pay.status.${status}` as MessageKey);
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-labelledby="pay-request-title" onClick={(event) => event.stopPropagation()} style={{ maxHeight: "90vh", overflowY: "auto" }}>
+    <Sheet bare className="small" titleId="pay-request-title" onClose={onClose} style={{ maxHeight: "90vh", overflowY: "auto" }}>
         <h2 id="pay-request-title">{t("pay.request.title")}</h2>
 
         {created ? (
@@ -159,7 +159,6 @@ export default function PaymentRequestModal({ locale, onClose }: Props) {
             </ul>
           </section>
         ) : null}
-      </section>
-    </div>
+    </Sheet>
   );
 }

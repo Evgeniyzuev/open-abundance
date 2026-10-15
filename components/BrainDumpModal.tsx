@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { AI_TOOL_FAILURE_KEYS, postAiTool, type AiToolFailure } from "@/lib/ai/toolClient";
 import type { MessageKey } from "@/lib/i18n";
@@ -104,8 +105,7 @@ export default function BrainDumpModal({ initialText, onClose, onDone }: BrainDu
   const showResults = status === "ready" || status === "saving";
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet braindump-modal">
+    <Sheet bare dismissible={false} className="braindump-modal" ariaLabel={t("braindump.open")}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("braindump.open")}</h2>
@@ -143,8 +143,7 @@ export default function BrainDumpModal({ initialText, onClose, onDone }: BrainDu
             {BRAIN_DUMP_BUCKETS.map((bucket) => <BucketGroup key={bucket} bucket={bucket} items={items} selected={selected} onToggle={toggle} />)}
           </div>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

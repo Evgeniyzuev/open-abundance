@@ -2,6 +2,7 @@
 
 import { RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import type { TreasuryCoverageReport } from "@/lib/treasuryCoverage";
@@ -99,8 +100,7 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
   const ratio = (value: number | null | undefined) => (value === null || value === undefined ? "—" : value.toFixed(2));
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="operator-title" onClick={(event) => event.stopPropagation()} style={{ maxHeight: "90vh", overflowY: "auto" }}>
+    <Sheet bare titleId="operator-title" onClose={onClose} style={{ maxHeight: "90vh", overflowY: "auto" }}>
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <h2 id="operator-title">{t("operator.title")}</h2>
           <span style={{ display: "flex", gap: 6 }}>
@@ -186,7 +186,6 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
             </ul>
           )}
         </section>
-      </section>
-    </div>
+    </Sheet>
   );
 }

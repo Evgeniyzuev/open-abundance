@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { AI_TOOL_FAILURE_KEYS, postAiTool, type AiToolFailure } from "@/lib/ai/toolClient";
 import type { MessageKey } from "@/lib/i18n";
@@ -92,8 +93,7 @@ export default function RoutinePlanModal({ onClose }: RoutinePlanModalProps) {
   const createCount = plan ? plan.days.filter((day) => !skippedDays.has(day.offset)).length + (withShopping && plan.shopping.length > 0 ? 1 : 0) : 0;
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet routine-modal">
+    <Sheet bare dismissible={false} className="routine-modal" ariaLabel={t("routine.title")}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("routine.title")}</h2>
@@ -160,7 +160,6 @@ export default function RoutinePlanModal({ onClose }: RoutinePlanModalProps) {
             ) : null}
           </>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }

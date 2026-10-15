@@ -685,14 +685,7 @@ function WishCompletionModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={() => savingAction === null && onClose()}>
-      <section
-        aria-label={t("wishes.completionPrompt.title")}
-        aria-modal="true"
-        className="modal-sheet small wish-completion-modal"
-        role="dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <Sheet bare className="small wish-completion-modal" ariaLabel={t("wishes.completionPrompt.title")} onClose={() => { if (savingAction === null) onClose(); }}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} disabled={savingAction !== null} onClick={onClose}>
           <X size={18} />
         </button>
@@ -710,8 +703,7 @@ function WishCompletionModal({
             {savingAction === "only" ? t("wishes.saving") : t("wishes.completeOnly")}
           </button>
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 

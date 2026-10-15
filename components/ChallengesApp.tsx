@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Smartphone, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
+import Sheet from "@/components/ui/Sheet";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import InstallPingChallenge from "@/components/InstallPingChallenge";
@@ -1397,8 +1398,7 @@ function ProjectDetailModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet challenge-modal project-modal">
+    <Sheet bare dismissible={false} className="challenge-modal project-modal" ariaLabel={t("projects.project")}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
           <h2>{t("projects.project")}</h2>
@@ -1490,8 +1490,7 @@ function ProjectDetailModal({
           {authStatus === "error" ? <p className="challenge-error">{t("challenges.authError")}</p> : null}
           {applyMessage ? <p className={applyStatus === "error" ? "challenge-error" : "challenge-note"}>{applyMessage}</p> : null}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -1499,8 +1498,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
   const rewardSummary = formatRewardAmounts(reward.coreAmount, reward.walletAmount, locale);
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="challenge-receipt-title">
+    <Sheet bare dismissible={false} className="small challenge-complete-modal" titleId="challenge-receipt-title">
         <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
         <p>{reward.claimed ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : t("challenges.rewardAlreadyClaimed")}</p>
@@ -1538,8 +1536,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
           <button className="challenge-secondary-action" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
           {reward.coreAmount > 0 ? <button className="text-button" type="button" onClick={() => { onClose(); onOpenCore(); }}>{t("journey.viewGrowth")}</button> : null}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

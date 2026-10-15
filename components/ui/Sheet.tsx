@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { createElement, useEffect, useRef, type FormEventHandler, type ReactNode } from "react";
+import { createElement, useEffect, useRef, type CSSProperties, type FormEventHandler, type ReactNode } from "react";
 
 // Open sheets, topmost last: Escape closes only the topmost one.
 const openSheets: symbol[] = [];
@@ -19,6 +19,7 @@ export default function Sheet({
   className = "",
   closeLabel = "",
   dismissible = true,
+  style,
   title,
   titleId,
   onClose,
@@ -31,12 +32,15 @@ export default function Sheet({
   className?: string;
   closeLabel?: string;
   dismissible?: boolean;
+  style?: CSSProperties;
   title?: ReactNode;
   titleId?: string;
-  onClose: () => void;
+  /** Optional only for sheets that must be answered (`dismissible={false}`). */
+  onClose?: () => void;
   onSubmit?: FormEventHandler<HTMLFormElement>;
 }) {
   const sheetRef = useRef<HTMLElement & HTMLFormElement>(null);
+  const canDismiss = dismissible && Boolean(onClose);
   const onCloseRef = useRef(onClose);
   const dragStartY = useRef<number | null>(null);
   onCloseRef.current = onClose;
@@ -51,7 +55,7 @@ export default function Sheet({
     const token = Symbol("sheet");
     openSheets.push(token);
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && dismissible && openSheets[openSheets.length - 1] === token) onCloseRef.current();
+      if (event.key === "Escape" && canDismiss && openSheets[openSheets.length - 1] === token) onCloseRef.current?.();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => {
@@ -60,12 +64,12 @@ export default function Sheet({
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };
-  }, [dismissible]);
+  }, [canDismiss]);
 
-  const showChrome = !bare && dismissible;
+  const showChrome = !bare && canDismiss;
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={dismissible ? onClose : undefined}>
+    <div className="modal-backdrop" role="presentation" onClick={canDismiss ? onClose : undefined}>
       {createElement(
         as,
         {
@@ -73,6 +77,7 @@ export default function Sheet({
           "aria-labelledby": titleId,
           "aria-modal": "true",
           className: `modal-sheet ${className}`.trim(),
+          style,
           onClick: (event: { stopPropagation: () => void }) => event.stopPropagation(),
           onSubmit,
           ref: sheetRef,
@@ -86,7 +91,7 @@ export default function Sheet({
             key="grabber"
             onPointerDown={(event) => { dragStartY.current = event.clientY; }}
             onPointerUp={(event) => {
-              if (dragStartY.current !== null && event.clientY - dragStartY.current > 60) onClose();
+              if (dragStartY.current !== null && event.clientY - dragStartY.current > 60) onClose?.();
               dragStartY.current = null;
             }}
           />

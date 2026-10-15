@@ -1,5 +1,6 @@
 "use client";
 
+import Sheet from "@/components/ui/Sheet";
 import QrScanButton from "@/components/QrScanner";
 import { parseScanned } from "@/lib/qrPayload";
 import { Check, Copy } from "lucide-react";
@@ -114,8 +115,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
     ? t(`wallet.usdt.deposit.bindNote.${data.bindingResult}` as MessageKey)
     : null;
 
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}>
-    <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.usdt.deposit.title")} onClick={(event) => event.stopPropagation()}>
+  return <Sheet bare className="small" ariaLabel={t("wallet.usdt.deposit.title")} onClose={onClose}>
       <div className="modal-header"><button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button><h2>{t("wallet.usdt.deposit.title")}</h2><span /></div>
       {!data && !error ? <p className="transfer-muted">{t("app.common.loading")}</p> : null}
       {error ? <p className="topup-error">{error}</p> : null}
@@ -162,8 +162,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
       </div> : null}
 
       {data && !showBoundView && !invoice && creating ? <p className="transfer-muted">{t("app.common.loading")}</p> : null}
-    </section>
-  </div>;
+  </Sheet>;
 }
 
 function CopyField({ label, value, copied, copyLabel, emphasized, onCopy }: { label: string; value: string; copied: boolean; copyLabel: string; emphasized?: boolean; onCopy: () => void }) {
@@ -235,7 +234,7 @@ export function TonUsdtWithdrawalModal({ locale, t, wallet, onClose, onSuccess }
     } catch (createError) { setError(createError instanceof Error ? createError.message : t("wallet.usdt.withdraw.error.create")); } finally { setSaving(false); }
   }
 
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}><section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.usdt.withdraw.title")} onClick={(event) => event.stopPropagation()}>
+  return <Sheet bare className="small" ariaLabel={t("wallet.usdt.withdraw.title")} onClose={onClose}>
     <div className="modal-header"><button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button><h2>{t("wallet.usdt.withdraw.title")}</h2><span /></div>
     {loading ? <p className="transfer-muted">{t("app.common.loading")}</p> : null}
     {!loading && !withdrawal && quote ? <div className="ton-withdraw-body">
@@ -253,7 +252,7 @@ export function TonUsdtWithdrawalModal({ locale, t, wallet, onClose, onSuccess }
     </div> : null}
     {!loading && !quote && !withdrawal && error ? <p className="topup-error">{error}</p> : null}
     {withdrawal ? <div className="ton-withdraw-body"><div className="ton-deposit-status"><span>{t("wallet.usdt.withdraw.status")}</span><strong>{usdtWithdrawalStatus(withdrawal.status, t)}</strong></div><ValueRow label={t("wallet.usdt.withdraw.amount")} value={`${withdrawal.amount_usdt ?? "—"} USDT`} /><ValueRow label={t("wallet.usdt.withdraw.address")} value={withdrawal.destination_address} />{withdrawal.message_hash ? <p className="transfer-muted">{withdrawal.message_hash}</p> : null}{withdrawal.error_message ? <p className="topup-error">{withdrawal.error_message}</p> : null}<button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.done")}</button></div> : null}
-  </section></div>;
+  </Sheet>;
 }
 
 function usdtWithdrawalAvailabilityError(reason: string | undefined, diagnostics: { mnemonicWordCount?: number } | undefined, t: TFunction): string {

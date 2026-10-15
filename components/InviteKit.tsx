@@ -2,6 +2,7 @@
 
 import { Check, Copy, Share2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -105,8 +106,7 @@ export default function InviteKit() {
         {t("invite.open")}
       </button>
       {open ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setOpen(false)}>
-          <section className="modal-sheet small" role="dialog" aria-modal="true" aria-labelledby="invite-kit-title" onClick={(event) => event.stopPropagation()} style={{ maxHeight: "90vh", overflowY: "auto" }}>
+        <Sheet bare className="small" titleId="invite-kit-title" onClose={() => setOpen(false)} style={{ maxHeight: "90vh", overflowY: "auto" }}>
             <h2 id="invite-kit-title">{t("invite.title")}</h2>
             <p className="transfer-muted">{t("invite.intro")}</p>
 
@@ -145,8 +145,7 @@ export default function InviteKit() {
 
             <p className="transfer-muted" style={{ marginTop: 12 }}>{t("invite.rules")}</p>
             <button className="text-button" type="button" onClick={() => setOpen(false)}>{t("app.common.close")}</button>
-          </section>
-        </div>
+        </Sheet>
       ) : null}
     </>
   );

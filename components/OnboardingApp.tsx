@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Mail, Sparkles } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import LegalDisclosure from "@/components/LegalDisclosure";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import {
@@ -590,8 +591,7 @@ function FirstRewardModal({
 }) {
   const { money } = useUserContext();
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet small challenge-complete-modal" role="dialog" aria-modal="true" aria-labelledby="first-reward-title">
+    <Sheet bare dismissible={false} className="small challenge-complete-modal" titleId="first-reward-title">
         <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
         <h2 id="first-reward-title">{t("onboarding.reward.title")}</h2>
         <p>{t("onboarding.reward.description")}</p>
@@ -618,8 +618,7 @@ function FirstRewardModal({
           ) : null}
         </div>
         <button className="challenge-primary-action" type="button" onClick={onClose}>{t("onboarding.reward.openFeed")}</button>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

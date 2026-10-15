@@ -2,6 +2,7 @@
 
 import { Calculator, ChevronLeft, ChevronRight, History, PlusCircle, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import type { MessageKey } from "@/lib/i18n";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -53,8 +54,7 @@ export default function CoreSheet({ open, initialView, t, levelText, balanceText
   const last = page === STORY_PAGES.length - 1;
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet core-sheet" role="dialog" aria-modal="true" aria-labelledby="core-sheet-title" onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="core-sheet" titleId="core-sheet-title" onClose={onClose}>
         <header className="core-sheet-head">
           <div>
             <span>{levelText}</span>
@@ -103,7 +103,6 @@ export default function CoreSheet({ open, initialView, t, levelText, balanceText
             </div>
           </>
         )}
-      </section>
-    </div>
+    </Sheet>
   );
 }

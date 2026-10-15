@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { AI_TOOL_FAILURE_KEYS, postAiTool, type AiToolFailure } from "@/lib/ai/toolClient";
 import type { MessageKey } from "@/lib/i18n";
@@ -94,8 +95,7 @@ export default function DecisionModal({ initialOptions, onClose, onOpenTask }: D
   const chosen = result ? filled[result.choice] : undefined;
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet decision-modal">
+    <Sheet bare dismissible={false} className="decision-modal" ariaLabel={t("decision.title")}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
           <h2>{t("decision.title")}</h2>
@@ -152,7 +152,6 @@ export default function DecisionModal({ initialOptions, onClose, onOpenTask }: D
             ) : null}
           </>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }

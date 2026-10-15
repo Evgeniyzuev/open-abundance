@@ -1,5 +1,6 @@
 "use client";
 
+import Sheet from "@/components/ui/Sheet";
 import { personLabel } from "@/lib/personName";
 import { useCallback, useEffect, useState } from "react";
 import { UserLevelBadge } from "@/components/UserLevelBadge";
@@ -119,8 +120,7 @@ export default function PayRequestEntry() {
     : null;
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={close}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-labelledby="pay-confirm-title" onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" titleId="pay-confirm-title" onClose={close}>
         <h2 id="pay-confirm-title">{t("pay.confirm.title")}</h2>
         {!view && !error ? <p className="transfer-muted">{t("app.common.loading")}</p> : null}
         {view ? (
@@ -144,7 +144,6 @@ export default function PayRequestEntry() {
             </button>
           ) : null}
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }

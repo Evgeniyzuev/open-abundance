@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download, Upload, X } from "lucide-react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { collectLocalBackup, importLocalBackup, markBackupSaved } from "@/lib/localBackup";
 import { backupFileName, countBackup, MAX_BACKUP_FILE_BYTES, parseBackup, type BackupCounts, type LocalBackup } from "@/lib/localBackupFormat";
@@ -85,8 +86,7 @@ export default function LocalBackupDialog({ onClose }: LocalBackupDialogProps) {
   const pendingCounts = pending ? countBackup(pending.stores) : null;
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet local-backup-dialog" role="dialog" aria-modal="true" aria-labelledby="local-backup-title" onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="local-backup-dialog" titleId="local-backup-title" onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <div className="modal-header"><h2 id="local-backup-title">{t("backup.title")}</h2></div>
         <div className="local-backup-body">
@@ -112,7 +112,6 @@ export default function LocalBackupDialog({ onClose }: LocalBackupDialogProps) {
           ) : null}
           {notice ? <p className={notice.tone === "error" ? "local-backup-notice error" : "local-backup-notice"} role="status">{notice.text}</p> : null}
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }

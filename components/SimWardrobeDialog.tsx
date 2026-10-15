@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import SacredItemIcon from "@/components/SacredItemIcon";
 import SimScene from "@/components/SimScene";
 import SimWalk from "@/components/SimWalk";
@@ -78,8 +79,7 @@ export default function SimWardrobeDialog({ outfit, shelf, pose, photoUrl, day, 
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet sim-wardrobe" role="dialog" aria-modal="true" aria-label={t("sim.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="sim-wardrobe" ariaLabel={t("sim.title")} onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <h2>{t("sim.title")}</h2>
         <div className="sim-wardrobe-figure" ref={figureRef}><SimScene photoUrl={photoUrl} outfit={outfit} day={day} pose={pose} shelf={shelf} /></div>
@@ -124,7 +124,6 @@ export default function SimWardrobeDialog({ outfit, shelf, pose, photoUrl, day, 
             </div>
           </div>
         ))}
-      </section>
-    </div>
+    </Sheet>
   );
 }

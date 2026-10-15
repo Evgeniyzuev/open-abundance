@@ -1835,8 +1835,7 @@ export default function SocialApp({
 
       {publicProfileLoading ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
       {referralQrOpen && referralLink ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setReferralQrOpen(false)}>
-          <section className="modal-sheet small referral-qr-modal" role="dialog" aria-modal="true" aria-label={t("profile.referral.qrTitle")} onClick={(event) => event.stopPropagation()}>
+        <Sheet bare className="small referral-qr-modal" ariaLabel={t("profile.referral.qrTitle")} onClose={() => setReferralQrOpen(false)}>
             <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={() => setReferralQrOpen(false)}>
               <X size={18} />
             </button>
@@ -1845,12 +1844,10 @@ export default function SocialApp({
               <QRCodeSVG value={referralLink.url} size={220} level="M" marginSize={2} />
             </div>
             <p>{referralLink.url}</p>
-          </section>
-        </div>
+        </Sheet>
       ) : null}
       {publicProfile ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setPublicProfile(null)}>
-          <section className="modal-sheet public-profile-modal" role="dialog" aria-modal="true" aria-label={t("profile.public.title")} onClick={(event) => event.stopPropagation()}>
+        <Sheet bare className="public-profile-modal" ariaLabel={t("profile.public.title")} onClose={() => setPublicProfile(null)}>
             <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={() => setPublicProfile(null)}>
               <X size={18} />
             </button>
@@ -1908,8 +1905,7 @@ export default function SocialApp({
                 onCopy={copyPublicWishToMine}
               />
             ) : null}
-          </section>
-        </div>
+        </Sheet>
       ) : null}
       {selectedPost ? (
         <PostDetailModal

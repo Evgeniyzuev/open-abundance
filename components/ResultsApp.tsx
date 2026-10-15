@@ -2,6 +2,7 @@
 
 import { BookOpen, X } from "lucide-react";
 import { useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import FutureBoard from "@/components/FutureBoard";
 import SacredInventory from "@/components/SacredInventory";
 import { useUserContext } from "@/components/UserProvider";
@@ -31,8 +32,7 @@ export default function ResultsApp() {
       </section>
 
       {introOpen ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setIntroOpen(false)}>
-          <section className="modal-sheet results-detail-modal" role="dialog" aria-modal="true" aria-label={t("results.title", { target: targetLabel })} onClick={(event) => event.stopPropagation()}>
+        <Sheet bare className="results-detail-modal" ariaLabel={t("results.title", { target: targetLabel })} onClose={() => setIntroOpen(false)}>
             <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={() => setIntroOpen(false)}>
               <X size={18} />
             </button>
@@ -54,8 +54,7 @@ export default function ResultsApp() {
                 </span>
               </div>
             </div>
-          </section>
-        </div>
+        </Sheet>
       ) : null}
     </section>
   );

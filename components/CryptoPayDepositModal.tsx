@@ -2,6 +2,7 @@
 
 import { Check, ExternalLink } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import type { MessageKey } from "@/lib/i18n";
 import { grossUpForFee } from "@/lib/cryptoPayFee";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -81,8 +82,7 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
   const done = status === "credited" || status === "paid_test";
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.cryptopay.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={t("wallet.cryptopay.title")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{done ? t("app.common.done") : t("app.common.cancel")}</button>
           <h2>{t("wallet.cryptopay.title")}</h2>
@@ -134,7 +134,6 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
             </>
           )}
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }

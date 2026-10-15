@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import Sheet from "@/components/ui/Sheet";
 import SacredItemIcon from "@/components/SacredItemIcon";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -112,8 +113,7 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
         </div>
       ) : null}
       {opened ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setOpened(null)}>
-          <section className="modal-sheet results-detail-modal" role="dialog" aria-modal="true" aria-label={opened.title} onClick={(event) => event.stopPropagation()}>
+        <Sheet bare className="results-detail-modal" ariaLabel={opened.title} onClose={() => setOpened(null)}>
             <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={() => setOpened(null)}><X size={18} /></button>
             <div className="results-detail-cover" data-rarity={opened.rarity} aria-hidden="true">
               <SacredItemIcon itemKey={opened.metadata?.item_key} fallback={opened.metadata?.glyph ?? opened.title.slice(0, 1)} size={120} />
@@ -127,8 +127,7 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
                 {busy ? t("app.common.loading") : t("market.sell")}
               </button>
             </div>
-          </section>
-        </div>
+        </Sheet>
       ) : null}
     </>
   );

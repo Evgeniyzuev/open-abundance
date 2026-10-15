@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeftRight, X } from "lucide-react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
@@ -133,8 +134,7 @@ export function ExchangeOfferDialog({ target, myListings, onClose, onCreated }: 
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet market-exchange-sheet" role="dialog" aria-modal="true" aria-labelledby="exchange-title" onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="market-exchange-sheet" titleId="exchange-title" onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <div className="modal-header"><span /><h2 id="exchange-title">{t("market.exchange.offer")}</h2></div>
         <p className="market-exchange-target">
@@ -160,8 +160,7 @@ export function ExchangeOfferDialog({ target, myListings, onClose, onCreated }: 
         <button className="challenge-primary-action" type="button" disabled={!offeredId || saving} onClick={() => void submit()}>
           <ArrowLeftRight size={16} aria-hidden="true" />{t("market.exchange.send")}
         </button>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 

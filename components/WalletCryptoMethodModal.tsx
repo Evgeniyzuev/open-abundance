@@ -1,5 +1,6 @@
 "use client";
 
+import Sheet from "@/components/ui/Sheet";
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletFees } from "@/lib/useWalletFees";
 
@@ -24,8 +25,7 @@ export function WalletCryptoMethodModal({ direction, cryptoPayEnabled, fees, t, 
     : t("wallet.cryptoMethod.withdrawPrompt");
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={title} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={title} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{title}</h2>
@@ -51,7 +51,6 @@ export function WalletCryptoMethodModal({ direction, cryptoPayEnabled, fees, t, 
             </button>
           ) : null}
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }

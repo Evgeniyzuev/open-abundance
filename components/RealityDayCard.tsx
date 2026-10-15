@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ImagePlus, Sparkles, X } from "lucide-react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
@@ -191,8 +192,7 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
   const { summary } = preview;
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet reality-day-sheet" role="dialog" aria-modal="true" aria-labelledby="reality-day-title" onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="reality-day-sheet" titleId="reality-day-title" onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <div className="modal-header"><span /><h2 id="reality-day-title">{t("reality.day.title")}</h2></div>
 
@@ -280,8 +280,7 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
             </button>
           </div>
         )}
-      </section>
-    </div>
+    </Sheet>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { ScanLine } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 
 type Detector = { detect: (source: CanvasImageSource) => Promise<Array<{ rawValue: string }>> };
@@ -96,8 +97,7 @@ function QrScannerModal({ onResult, onClose }: { onResult: (text: string) => voi
   }, [onResult, t]);
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small qr-scanner" role="dialog" aria-modal="true" aria-label={t("scan.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small qr-scanner" ariaLabel={t("scan.title")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("scan.title")}</h2>
@@ -115,8 +115,7 @@ function QrScannerModal({ onResult, onClose }: { onResult: (text: string) => voi
             <input type="file" accept="image/*" hidden onChange={(event) => { void fromFile(event.target.files?.[0]); event.target.value = ""; }} />
           </label>
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 

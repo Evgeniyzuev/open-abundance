@@ -2,6 +2,7 @@
 
 import { MessageSquarePlus } from "lucide-react";
 import { useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -60,8 +61,7 @@ export default function FeedbackButton() {
         <span>{t("profile.actions.feedback")}</span>
       </button>
       {open ? (
-        <div className="modal-backdrop" role="presentation" onClick={close}>
-          <section className="modal-sheet small" role="dialog" aria-modal="true" aria-labelledby="feedback-title" onClick={(event) => event.stopPropagation()}>
+        <Sheet bare className="small" titleId="feedback-title" onClose={close}>
             <h2 id="feedback-title">{t("feedback.title")}</h2>
             {status === "sent" ? (
               <>
@@ -99,8 +99,7 @@ export default function FeedbackButton() {
                 <button className="secondary-button" type="button" onClick={close}>{t("app.common.close")}</button>
               </>
             )}
-          </section>
-        </div>
+        </Sheet>
       ) : null}
     </>
   );

@@ -243,7 +243,8 @@ export const termsContent: Record<LegalLocale, LegalDocumentContent> = {
         title: "6. CORE, расчёты и доход",
         paragraphs: [
           "CORE и отображаемые прогнозы являются показателями и расчётными иллюстрациями внутри продукта, если конкретная операция прямо не устанавливает иное. Они не гарантируют доход, рыночную стоимость, ликвидность, выкуп или будущий результат. Прошлые и расчётные показатели не являются обещанием результата.",
-          "Лидерский бонус зачисляется в Wallet только если подтверждены как люди и лидер, и участник его команды; в остальных случаях бонус зачисляется в Core."
+          "Лидерский бонус зачисляется в Wallet только если подтверждены как люди и лидер, и участник его команды; в остальных случаях бонус зачисляется в Core.",
+          "Реферальные награды начисляются автоматически один раз за каждого приглашённого: за регистрацию по вашей ссылке (в Core) и за подтверждение приглашённым человечности (в Wallet, если вы тоже подтверждены, иначе в Core). Размеры наград указаны в профиле и могут меняться."
         ]
       },
       {
@@ -325,7 +326,8 @@ export const termsContent: Record<LegalLocale, LegalDocumentContent> = {
         title: "6. CORE, estimates, and earnings",
         paragraphs: [
           "CORE and displayed projections are in-product metrics and calculated illustrations unless a specific transaction expressly says otherwise. They do not guarantee income, market value, liquidity, redemption, or future results. Historical and projected values are not promises of performance.",
-          "The leader bonus is credited to Wallet only if both the leader and the team member are confirmed as people; otherwise it is credited to Core."
+          "The leader bonus is credited to Wallet only if both the leader and the team member are confirmed as people; otherwise it is credited to Core.",
+          "Referral rewards are paid automatically once for each invited person: for a sign-up through your link (to Core) and for the invited person's humanity confirmation (to Wallet if you are confirmed too, otherwise to Core). Reward amounts are shown in your profile and may change."
         ]
       },
       {

@@ -1,6 +1,7 @@
 "use client";
 
 import FeedbackButton from "@/components/FeedbackButton";
+import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import OperatorEntry from "@/components/OperatorEntry";
 import NicknameField from "@/components/NicknameField";
 import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, Copy, Edit3, ExternalLink, Link, MessageCircle, Newspaper, Play, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
@@ -1778,6 +1779,7 @@ export default function SocialApp({
             </div>
             {referralLocked ? <small className="referral-locked-hint">{t("social.teams.inviteLocked")}</small> : null}
           </div>
+          <ReferralProgramSummary />
           <LegalDisclosure
             contact={t("legal.contact")}
             locale={locale}

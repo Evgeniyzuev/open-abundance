@@ -8,6 +8,7 @@ import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import InstallPingChallenge from "@/components/InstallPingChallenge";
 import HumanityCard from "@/components/HumanityCard";
 import InviteKit from "@/components/InviteKit";
+import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import NicheTaskChallenge from "@/components/NicheTaskChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
@@ -1305,6 +1306,13 @@ function ChallengeDetailContent({
 
       {challenge.verification_logic === "has_referral" && accepted && !completed && !locked ? <InviteKit /> : null}
 
+      {challenge.verification_logic === "referral_program" && accepted && !locked ? (
+        <>
+          <ReferralProgramSummary />
+          <InviteKit />
+        </>
+      ) : null}
+
       {challenge.verification_logic === "humanity_confirmed" && accepted && !completed && !locked ? <HumanityCard active showWhenVerified /> : null}
 
       {needsPeerReviews && (accepted || completed) && !locked ? (
@@ -1324,7 +1332,7 @@ function ChallengeDetailContent({
         />
       ) : null}
 
-      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews ? (
+      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && challenge.verification_logic !== "referral_program" ? (
         <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
           {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
         </button>
@@ -1653,6 +1661,8 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
       return Compass;
     case "humanity_confirmed":
       return ShieldCheck;
+    case "referral_program":
+      return Users;
     case "first_marketplace_listing":
       return Store;
     case "install_ping_answered":

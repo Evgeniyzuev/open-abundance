@@ -24,6 +24,8 @@ import { formatStatBlockValue, statBlockLabelKey } from "@/lib/realityDayFormat"
 import type { FeedMedia, FeedPayload, FeedPost, FeedReviewSummary, FeedStatBlock, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { APP_TESTING_ATTITUDES, APP_TESTING_USEFUL_AREAS } from "@/lib/appTestingFeedback";
 
+const MIN_FIRST_SCREEN_POSTS = 9;
+
 export function FeedView({
   addingStoryWishKey,
   copyingWishId,
@@ -139,6 +141,17 @@ export function FeedView({
     observer.observe(node);
     return () => observer.disconnect();
   }, [hasMore, loadingMore, posts.length]);
+
+  // Make sure the first screen can show three full rows: while fewer than 9 posts are loaded and more exist, fetch the next page
+  // (a few attempts per filter, so a failing request cannot loop).
+  const fillAttemptsRef = useRef({ filter, count: 0 });
+  useEffect(() => {
+    if (!hasMore || loading || loadingMore || posts.length >= MIN_FIRST_SCREEN_POSTS) return;
+    if (fillAttemptsRef.current.filter !== filter) fillAttemptsRef.current = { filter, count: 0 };
+    if (fillAttemptsRef.current.count >= 3) return;
+    fillAttemptsRef.current.count += 1;
+    onLoadMoreRef.current();
+  }, [filter, hasMore, loading, loadingMore, posts.length]);
 
   return (
     <section className="feed-layout">

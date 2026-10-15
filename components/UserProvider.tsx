@@ -109,6 +109,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [accentTheme, setAccentThemeState] = useState<AccentTheme>(DEFAULT_ACCENT_THEME);
   const [appearanceHydrated, setAppearanceHydrated] = useState(false);
   const refreshRequestIdRef = useRef(0);
+  const lastRefreshDoneAtRef = useRef(0);
   const serverDataVersionRef = useRef(0);
   const currentUserIdRef = useRef<string | null>(null);
   const currentLocaleRef = useRef<AppLocale>("en");
@@ -282,6 +283,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setProfile(payload.profile);
       setCore(payload.core);
       setWallet(payload.wallet);
+      lastRefreshDoneAtRef.current = Date.now();
     } catch (refreshError) {
       if (isLatestRefresh(requestId, refreshRequestIdRef)) {
         const timedOut = refreshError instanceof DOMException && (refreshError.name === "AbortError" || refreshError.name === "TimeoutError");
@@ -408,7 +410,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       if (event === "SIGNED_IN") {
         claimCurrentUserIfNeeded()
-          .then(() => refreshUserData())
+          .then(() => {
+            // Supabase emits SIGNED_IN on every page load and tab focus; skip it when user data was successfully loaded a moment ago.
+            if (Date.now() - lastRefreshDoneAtRef.current < 3000) return;
+            return refreshUserData();
+          })
           .catch((claimError) => {
             console.warn("Registration claim failed", claimError);
             setError(claimError instanceof Error ? claimError.message : "Registration claim failed.");

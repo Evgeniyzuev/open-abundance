@@ -1580,7 +1580,7 @@ const en = {
   "humanity.alreadyDone": "The check is already done. Press Check completion to get your reward.",
     "humanity.notFinished": "The previous check was not finished. You can start over.",
     "referral.program.title": "Referral rewards",
-  "referral.program.registration": "{amount} to Core: when a new participant signs up with your link.",
+  "referral.program.levelTwo": "{amount} to Core: when a participant you invited reaches level 2.",
   "referral.program.humanity": "{amount} to Wallet: when the invited person confirms they are a person (if you are confirmed too, otherwise the reward goes to Core).",
   "referral.program.note": "Rewards are paid automatically, once for each invited person. You can invite without limits.",
   "referral.program.statTotal": "Invited",

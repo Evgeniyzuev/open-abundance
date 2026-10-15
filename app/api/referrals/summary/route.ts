@@ -8,7 +8,7 @@ export const fetchCache = "force-no-store";
 
 type RewardRow = {
   id: string;
-  kind: "registration" | "humanity_confirmed";
+  kind: "level_2" | "humanity_confirmed";
   amount: number | string;
   destination: "wallet" | "core";
   created_at: string;
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   const [edges, rewards, settings] = await Promise.all([
     db.from("referral_edges").select("referral_user_id").eq("referrer_user_id", user.id),
     db.from("referral_rewards").select("id,kind,amount,destination,created_at,seen_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(200),
-    db.from("referral_reward_settings").select("enabled,registration_core_amount,humanity_amount").eq("id", true).maybeSingle()
+    db.from("referral_reward_settings").select("enabled,level_two_core_amount,humanity_amount").eq("id", true).maybeSingle()
   ]);
   for (const result of [edges, rewards, settings]) if (result.error) return json({ error: result.error.message }, 500);
 
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
   return json({
     enabled: settings.data?.enabled ?? false,
     amounts: {
-      registrationCore: Number(settings.data?.registration_core_amount ?? 0),
+      levelTwoCore: Number(settings.data?.level_two_core_amount ?? 0),
       humanity: Number(settings.data?.humanity_amount ?? 0)
     },
     referrals: { total: referralIds.length, human: humanCount },

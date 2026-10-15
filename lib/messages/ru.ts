@@ -1580,7 +1580,7 @@ const ru: Record<string, string> = {
   "humanity.alreadyDone": "Проверка уже пройдена. Нажмите «Проверить выполнение», чтобы получить награду.",
     "humanity.notFinished": "Прошлая проверка не была завершена. Можно начать заново.",
     "referral.program.title": "Реферальные награды",
-  "referral.program.registration": "{amount} в Core: когда новый участник регистрируется по вашей ссылке.",
+  "referral.program.levelTwo": "{amount} в Core: когда приглашённый вами участник достигает 2-го уровня.",
   "referral.program.humanity": "{amount} в Wallet: когда приглашённый подтверждает, что он человек (если вы тоже подтверждены, иначе награда придёт в Core).",
   "referral.program.note": "Награды начисляются автоматически, один раз за каждого приглашённого. Приглашать можно без ограничений.",
   "referral.program.statTotal": "Приглашено",

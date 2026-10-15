@@ -7,10 +7,10 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 export type ReferralSummary = {
   enabled: boolean;
-  amounts: { registrationCore: number; humanity: number };
+  amounts: { levelTwoCore: number; humanity: number };
   referrals: { total: number; human: number };
   rewards: { wallet: number; core: number };
-  unseen: Array<{ id: string; kind: "registration" | "humanity_confirmed"; amount: number; destination: "wallet" | "core"; createdAt: string }>;
+  unseen: Array<{ id: string; kind: "level_2" | "humanity_confirmed"; amount: number; destination: "wallet" | "core"; createdAt: string }>;
 };
 
 /** Describes how referral rewards work and shows the user's own counts and paid amounts. */
@@ -43,7 +43,7 @@ export default function ReferralProgramSummary() {
     <section className="referral-program" aria-label={t("referral.program.title")} style={{ margin: "12px 0", padding: 14, borderRadius: 16, background: "rgba(0, 113, 227, 0.06)" }}>
       <strong>{t("referral.program.title")}</strong>
       <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
-        <li>{t("referral.program.registration", { amount: money(summary.amounts.registrationCore) })}</li>
+        <li>{t("referral.program.levelTwo", { amount: money(summary.amounts.levelTwoCore) })}</li>
         <li>{t("referral.program.humanity", { amount: money(summary.amounts.humanity) })}</li>
       </ul>
       <p className="transfer-muted">{t("referral.program.note")}</p>

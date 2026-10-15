@@ -1,6 +1,7 @@
 -- Referral rewards, paid automatically and recorded once per invited user:
---   1) registration: when an invited user registers through a referral link, the referrer gets a
---      Core reward (default $1). It goes to Core because the invited account is not confirmed yet.
+--   1) level_2: when an invited user reaches Core level 2, the referrer gets a Core reward
+--      (default $1). It goes to Core because the invited account may not be confirmed. Paying only
+--      at level 2 makes mass sign-ups worthless: the invited account must actually grow.
 --   2) humanity_confirmed: when the invited user passes the humanity check, the referrer gets a
 --      reward (default $1) in Wallet if the referrer is humanity-confirmed too, otherwise in Core.
 -- Both are idempotent (one per invited user and kind), configurable in referral_reward_settings and
@@ -9,7 +10,7 @@
 create table if not exists public.referral_reward_settings (
   id boolean primary key default true check (id),
   enabled boolean not null default true,
-  registration_core_amount numeric(30, 12) not null default 1 check (registration_core_amount >= 0),
+  level_two_core_amount numeric(30, 12) not null default 1 check (level_two_core_amount >= 0),
   humanity_amount numeric(30, 12) not null default 1 check (humanity_amount >= 0),
   updated_at timestamptz not null default now()
 );
@@ -24,7 +25,7 @@ create table if not exists public.referral_rewards (
   id uuid primary key default gen_random_uuid(),
   referrer_user_id uuid not null references auth.users(id) on delete cascade,
   referral_user_id uuid not null references auth.users(id) on delete cascade,
-  kind text not null check (kind in ('registration', 'humanity_confirmed')),
+  kind text not null check (kind in ('level_2', 'humanity_confirmed')),
   amount numeric(30, 12) not null check (amount > 0),
   destination text not null check (destination in ('wallet', 'core')),
   created_at timestamptz not null default now(),
@@ -116,7 +117,7 @@ begin
     'rewards.referral', 'rewards', 'referral_reward', reward_id::text,
     'Награда за приглашённого',
     case p_kind
-      when 'registration' then 'Новый участник зарегистрировался по вашей ссылке: +$' || trim(trailing '.' from trim(trailing '0' from p_amount::numeric(30, 6)::text)) || ' в Core.'
+      when 'level_2' then 'Приглашённый участник достиг 2-го уровня: +$' || trim(trailing '.' from trim(trailing '0' from p_amount::numeric(30, 6)::text)) || ' в Core.'
       else 'Приглашённый участник подтвердил, что он человек: +$' || trim(trailing '.' from trim(trailing '0' from p_amount::numeric(30, 6)::text)) || case destination when 'wallet' then ' в Wallet.' else ' в Core.' end
     end,
     '/?view=people.profile', array[p_referrer_user_id],
@@ -128,7 +129,7 @@ $$;
 revoke all on function public.pay_referral_reward(uuid, uuid, text, numeric, boolean) from public, anon, authenticated;
 grant execute on function public.pay_referral_reward(uuid, uuid, text, numeric, boolean) to service_role;
 
-create or replace function public.referral_edge_registration_reward()
+create or replace function public.referral_level_two_reward()
 returns trigger
 language plpgsql
 security definer
@@ -136,21 +137,48 @@ set search_path = public
 as $$
 declare
   settings public.referral_reward_settings%rowtype;
+  referrer uuid;
+  member uuid;
 begin
+  -- Fires on an edge insert (the invited user may already be at level 2) and on a level change.
+  if tg_table_name = 'referral_edges' then
+    member := new.referral_user_id;
+    referrer := new.referrer_user_id;
+    if coalesce((select level from public.user_profiles where user_id = member), 0) < 2 then
+      return new;
+    end if;
+  else
+    member := new.user_id;
+    select edge.referrer_user_id into referrer from public.referral_edges edge where edge.referral_user_id = member;
+    if referrer is null then
+      return new;
+    end if;
+  end if;
+
   select * into settings from public.referral_reward_settings where id = true;
   if found and settings.enabled then
-    perform public.pay_referral_reward(new.referrer_user_id, new.referral_user_id, 'registration', settings.registration_core_amount, false);
+    perform public.pay_referral_reward(referrer, member, 'level_2', settings.level_two_core_amount, false);
   end if;
   return new;
 end;
 $$;
 
-revoke all on function public.referral_edge_registration_reward() from public, anon, authenticated;
+revoke all on function public.referral_level_two_reward() from public, anon, authenticated;
 
 drop trigger if exists referral_edge_registration_reward on public.referral_edges;
-create trigger referral_edge_registration_reward
+drop function if exists public.referral_edge_registration_reward();
+
+drop trigger if exists referral_edge_level_two_reward on public.referral_edges;
+create trigger referral_edge_level_two_reward
 after insert on public.referral_edges
-for each row execute function public.referral_edge_registration_reward();
+for each row execute function public.referral_level_two_reward();
+
+drop trigger if exists referral_profile_level_two_reward on public.user_profiles;
+create trigger referral_profile_level_two_reward
+after update of level on public.user_profiles
+for each row
+when (new.level >= 2 and old.level < 2)
+execute function public.referral_level_two_reward();
 
 create or replace function public.referral_humanity_reward()
 returns trigger
@@ -197,8 +225,8 @@ insert into public.challenges (
 ) values (
   '6f3a1c52-8d47-4b0e-9a15-2c7e5b9d1a04',
   '{"ru":"Реферальная программа","en":"Referral program"}'::jsonb,
-  '{"ru":"Приглашайте людей и получайте награды автоматически: за каждого нового участника и за подтверждение им человечности.","en":"Invite people and receive rewards automatically: for every new participant and for their humanity confirmation."}'::jsonb,
-  '{"ru":"1. Откройте «Тексты и список для приглашений» и отправьте сообщение.\n2. Когда человек зарегистрируется по вашей ссылке, вы получите награду за нового участника.\n3. Когда он подтвердит, что он человек, вы получите вторую награду.\n4. Награды начисляются сами; статистика и суммы видны здесь и в профиле.","en":"1. Open \"Messages and checklist for invitations\" and send a message.\n2. When someone signs up with your link, you get a reward for a new participant.\n3. When they confirm they are a person, you get a second reward.\n4. Rewards are paid automatically; statistics and amounts are shown here and in your profile."}'::jsonb,
+  '{"ru":"Приглашайте людей и получайте награды автоматически: за каждого приглашённого, который дорос до 2-го уровня, и за подтверждение им человечности.","en":"Invite people and receive rewards automatically: for every invited person who reaches level 2 and for their humanity confirmation."}'::jsonb,
+  '{"ru":"1. Откройте «Тексты и список для приглашений» и отправьте сообщение.\n2. Когда приглашённый вами человек дорастёт до 2-го уровня, вы получите первую награду.\n3. Когда он подтвердит, что он человек, вы получите вторую награду.\n4. Награды начисляются сами; статистика и суммы видны здесь и в профиле.","en":"1. Open \"Messages and checklist for invitations\" and send a message.\n2. When a person you invited reaches level 2, you get the first reward.\n3. When they confirm they are a person, you get a second reward.\n4. Rewards are paid automatically; statistics and amounts are shown here and in your profile."}'::jsonb,
   '{"ru":"Постоянный челлендж: награды начисляются автоматически, проверять выполнение не нужно.","en":"Ongoing challenge: rewards are paid automatically, no check is needed."}'::jsonb,
   'social', 1, 365, 'auto', 'referral_program',
   33, 'people.profile', 0, 0, true, true

@@ -1575,6 +1575,8 @@ const ru: Record<string, string> = {
   "social.teams.bonus.toCore": "в Core",
   "social.teams.bonus.toBoth": "в Wallet и Core",
     "humanity.restart": "Начать заново",
+  "humanity.inReviewRetry": "Проверка на рассмотрении. Мы сообщим, когда она завершится. Если не завершится, начать заново можно через {hours} ч.",
+  "humanity.reviewExpired": "Рассмотрение не завершилось. Можно начать новую проверку: прежняя будет отменена.",
   "humanity.alreadyDone": "Проверка уже пройдена. Нажмите «Проверить выполнение», чтобы получить награду.",
     "humanity.notFinished": "Прошлая проверка не была завершена. Можно начать заново.",
     "operator.open": "Консоль оператора",

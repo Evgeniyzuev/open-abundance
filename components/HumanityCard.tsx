@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
+import { HUMANITY_REVIEW_RETRY_HOURS } from "@/lib/humanityConstants";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { startVisiblePolling } from "@/lib/visiblePolling";
 
@@ -83,7 +84,7 @@ export default function HumanityCard({ active, showWhenVerified = false }: { act
       }, { authRequired: true });
       const payload = (await response.json()) as { url?: string; code?: string };
       if (!response.ok || !payload.url) {
-        setError(payload.code === "rate_limited" ? t("humanity.rateLimited") : t("humanity.startFailed"));
+        setError(payload.code === "rate_limited" ? t("humanity.rateLimited") : payload.code === "in_review" ? t("humanity.inReview") : t("humanity.startFailed"));
         return;
       }
       window.location.assign(payload.url);
@@ -110,7 +111,11 @@ export default function HumanityCard({ active, showWhenVerified = false }: { act
   const stillProcessing = (returned && !pollExpired) || (state.status === "pending" && attemptFresh);
   const waiting = stillProcessing && !restart;
   const stale = !stillProcessing && state.status === "pending";
-  const inReview = state.status === "review_required";
+  const reviewRetryMs = HUMANITY_REVIEW_RETRY_HOURS * 60 * 60 * 1000;
+  const underReview = state.status === "review_required";
+  const inReview = underReview && attemptAge < reviewRetryMs;
+  const reviewExpired = underReview && !inReview;
+  const reviewHoursLeft = Math.max(1, Math.ceil((reviewRetryMs - attemptAge) / (60 * 60 * 1000)));
   const rejected = state.status === "rejected" && !waiting;
 
   return (
@@ -124,7 +129,8 @@ export default function HumanityCard({ active, showWhenVerified = false }: { act
         </>
       ) : null}
       {stale ? <p className="transfer-muted">{t("humanity.notFinished")}</p> : null}
-      {inReview ? <p>{t("humanity.inReview")}</p> : null}
+      {inReview ? <p>{t("humanity.inReviewRetry", { hours: reviewHoursLeft })}</p> : null}
+      {reviewExpired ? <p className="transfer-muted">{t("humanity.reviewExpired")}</p> : null}
       {rejected ? <p className="topup-error">{t("humanity.rejected")}</p> : null}
       {!waiting && !inReview ? (
         <>

@@ -16,6 +16,7 @@ import {
   toggleNoteCompleted,
   NOTES_CHANGED_EVENT
 } from "@/lib/notesStore";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import ReflectionProcessor from "@/components/ReflectionProcessor";
@@ -579,8 +580,7 @@ function NoteModal({ mode, form, locale, lists, onAddReminder, onClose, onRemove
   const { t } = useUserContext();
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <form className="modal-sheet" onSubmit={onSubmit}>
+    <Sheet as="form" bare dismissible={false} ariaLabel={t("notes.note")} onSubmit={onSubmit} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{mode === "edit" ? t("notes.note") : t("notes.newNote")}</h2>
@@ -606,8 +606,7 @@ function NoteModal({ mode, form, locale, lists, onAddReminder, onClose, onRemove
             ))}
           </div>
         ) : null}
-      </form>
-    </div>
+    </Sheet>
   );
 }
 
@@ -622,8 +621,7 @@ function ListModal({ form, onClose, onSubmit, setForm }: ListModalProps) {
   const { t } = useUserContext();
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <form className="modal-sheet small" onSubmit={onSubmit}>
+    <Sheet as="form" bare dismissible={false} ariaLabel={t("notes.newList")} onSubmit={onSubmit} onClose={onClose} className="small">
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("notes.newList")}</h2>
@@ -639,8 +637,7 @@ function ListModal({ form, onClose, onSubmit, setForm }: ListModalProps) {
             <button className={form.color === color ? "swatch active" : "swatch"} key={color} style={{ backgroundColor: color }} type="button" onClick={() => setForm((current) => ({ ...current, color }))} />
           ))}
         </div>
-      </form>
-    </div>
+    </Sheet>
   );
 }
 
@@ -657,8 +654,7 @@ function InfoModal({ list, locale, note, onClose, onDelete, onEdit }: InfoModalP
   const { t } = useUserContext();
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet small">
+    <Sheet bare ariaLabel={t("app.common.info")} onClose={onClose} className="small">
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
           <h2>{t("app.common.info")}</h2>
@@ -675,8 +671,7 @@ function InfoModal({ list, locale, note, onClose, onDelete, onEdit }: InfoModalP
           <button className="secondary-button" type="button" onClick={onEdit}>{t("app.common.edit")}</button>
           <button className="danger-button" type="button" onClick={onDelete}>{t("app.common.delete")}</button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

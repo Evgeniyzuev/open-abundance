@@ -18,6 +18,7 @@ import {
   toggleTaskSubtask
 } from "@/lib/tasksStore";
 import type { TaskCompletion, TaskItem, TaskSchedule, TaskStreakSettings } from "@/lib/tasksStore";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
@@ -653,8 +654,7 @@ function TaskModal({ form, setForm, onClose, onSubmit }: TaskModalProps) {
   }
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <form className="modal-sheet task-modal" onSubmit={onSubmit}>
+    <Sheet as="form" bare dismissible={false} ariaLabel={t("tasks.newTask")} onSubmit={onSubmit} onClose={onClose} className="task-modal">
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("tasks.newTask")}</h2>
@@ -793,8 +793,7 @@ function TaskModal({ form, setForm, onClose, onSubmit }: TaskModalProps) {
             </div>
           </>
         ) : null}
-      </form>
-    </div>
+    </Sheet>
   );
 }
 
@@ -831,8 +830,7 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
   }
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet task-detail-modal">
+    <Sheet bare ariaLabel={t("tasks.task")} onClose={onClose} className="task-detail-modal">
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
           <h2>{t("tasks.task")}</h2>
@@ -890,8 +888,7 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
           ) : null}
           <TaskMonthCalendar task={task} completions={completions} locale={locale} today={today} />
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -905,8 +902,7 @@ function StreakCompleteModal({ task, onExtend, onFinish }: StreakCompleteModalPr
   const { t } = useUserContext();
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-sheet small streak-complete-modal">
+    <Sheet bare dismissible={false} ariaLabel={t("tasks.streakComplete")} onClose={onExtend} className="small streak-complete-modal">
         <div className="streak-complete-icon">{"\u2713"}</div>
         <h2>{t("tasks.streakComplete")}</h2>
         <p>{task.title}</p>
@@ -914,8 +910,7 @@ function StreakCompleteModal({ task, onExtend, onFinish }: StreakCompleteModalPr
           <button className="secondary-button" type="button" onClick={onExtend}>{t("tasks.extend")}</button>
           <button className="task-done-primary-button" type="button" onClick={onFinish}>{t("tasks.finish")}</button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

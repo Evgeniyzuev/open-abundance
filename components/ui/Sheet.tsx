@@ -1,30 +1,39 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { createElement, useEffect, useRef, type FormEventHandler, type ReactNode } from "react";
 
 /**
  * Shared modal: bottom sheet on phones, centred card on wide screens.
  * Handles Escape, backdrop tap, swipe-down on the grabber, focus move/return and scroll lock.
+ * `bare` leaves the header to the children (Cancel/Done style forms); `as="form"` renders the sheet as a form.
  */
 export default function Sheet({
+  ariaLabel,
+  as = "section",
+  bare = false,
   children,
   className = "",
-  closeLabel,
+  closeLabel = "",
   dismissible = true,
   title,
   titleId,
-  onClose
+  onClose,
+  onSubmit
 }: {
+  ariaLabel?: string;
+  as?: "section" | "form";
+  bare?: boolean;
   children: ReactNode;
   className?: string;
-  closeLabel: string;
+  closeLabel?: string;
   dismissible?: boolean;
   title?: ReactNode;
-  titleId: string;
+  titleId?: string;
   onClose: () => void;
+  onSubmit?: FormEventHandler<HTMLFormElement>;
 }) {
-  const sheetRef = useRef<HTMLElement>(null);
+  const sheetRef = useRef<HTMLElement & HTMLFormElement>(null);
   const onCloseRef = useRef(onClose);
   const dragStartY = useRef<number | null>(null);
   onCloseRef.current = onClose;
@@ -33,7 +42,8 @@ export default function Sheet({
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    sheetRef.current?.focus();
+    // Keep focus on a field the content already focused (autoFocus); otherwise focus the dialog itself.
+    if (sheetRef.current && !sheetRef.current.contains(document.activeElement)) sheetRef.current.focus();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && dismissible) onCloseRef.current();
@@ -46,32 +56,39 @@ export default function Sheet({
     };
   }, [dismissible]);
 
+  const showChrome = !bare && dismissible;
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={dismissible ? onClose : undefined}>
-      <section
-        aria-labelledby={title ? titleId : undefined}
-        aria-modal="true"
-        className={`modal-sheet ${className}`.trim()}
-        ref={sheetRef}
-        role="dialog"
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-      >
-        {dismissible ? (
+      {createElement(
+        as,
+        {
+          "aria-label": title ? undefined : ariaLabel,
+          "aria-labelledby": title ? titleId : undefined,
+          "aria-modal": "true",
+          className: `modal-sheet ${className}`.trim(),
+          onClick: (event: { stopPropagation: () => void }) => event.stopPropagation(),
+          onSubmit,
+          ref: sheetRef,
+          role: "dialog",
+          tabIndex: -1
+        },
+        showChrome ? (
           <div
             aria-hidden="true"
             className="sheet-grabber"
+            key="grabber"
             onPointerDown={(event) => { dragStartY.current = event.clientY; }}
             onPointerUp={(event) => {
               if (dragStartY.current !== null && event.clientY - dragStartY.current > 60) onClose();
               dragStartY.current = null;
             }}
           />
-        ) : null}
-        {dismissible ? <button className="modal-close" type="button" aria-label={closeLabel} onClick={onClose}><X size={18} /></button> : null}
-        {title ? <div className="modal-header"><h2 id={titleId}>{title}</h2></div> : null}
-        {children}
-      </section>
+        ) : null,
+        showChrome ? <button className="modal-close" key="close" type="button" aria-label={closeLabel} onClick={onClose}><X size={18} /></button> : null,
+        !bare && title ? <div className="modal-header" key="header"><h2 id={titleId}>{title}</h2></div> : null,
+        children
+      )}
     </div>
   );
 }

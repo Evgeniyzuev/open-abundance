@@ -1,15 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import HumanityCard from "@/components/HumanityCard";
 import PayRequestEntry from "@/components/PayRequestEntry";
 import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import AiChatApp from "@/components/AiChatApp";
-import ChallengesApp, { type ChallengeTab } from "@/components/ChallengesApp";
+import type { ChallengeTab } from "@/components/ChallengesApp";
 import CoreJourneyCard from "@/components/CoreJourneyCard";
 import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
-import GrowthMapApp from "@/components/GrowthMapApp";
 import InstallPingAck from "@/components/InstallPingAck";
 import NicknameNotice from "@/components/NicknameNotice";
 import NovaDailyCard from "@/components/NovaDailyCard";
@@ -17,13 +16,10 @@ import SelfServeCheckIn from "@/components/SelfServeCheckIn";
 import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
-import SocialApp from "@/components/SocialApp";
-import ResultsApp from "@/components/ResultsApp";
+import Skeleton from "@/components/ui/Skeleton";
 import TasksApp from "@/components/TasksApp";
 import NotesApp from "@/components/NotesApp";
 import { useUserContext } from "@/components/UserProvider";
-import WalletApp from "@/components/WalletApp";
-import WishesApp from "@/components/WishesApp";
 import CoreSeedIcon from "@/components/icons/CoreSeedIcon";
 import { captureShareTargetDraftFromLocation, readShareTargetDraft, saveShareTargetDraft, selectShareTargetDraft, SHARE_TARGET_DRAFT_STORAGE_KEY, type ShareTargetDraft } from "@/components/ShareTargetBootstrap";
 import { markChallengesViewed, markTodayViewed, readDailyUnreadState } from "@/lib/dailyUnread";
@@ -31,6 +27,18 @@ import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
 import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { readPrimaryWish } from "@/lib/wishJourney";
+
+// Heavy tabs load on first visit; KeepAliveView keeps them mounted afterwards.
+function TabLoading() {
+  return <div className="tab-loading" aria-busy="true"><Skeleton className="tab-loading-block" /></div>;
+}
+const AiChatApp = dynamic(() => import("@/components/AiChatApp"), { ssr: false, loading: TabLoading });
+const ChallengesApp = dynamic(() => import("@/components/ChallengesApp"), { ssr: false, loading: TabLoading });
+const GrowthMapApp = dynamic(() => import("@/components/GrowthMapApp"), { ssr: false, loading: TabLoading });
+const ResultsApp = dynamic(() => import("@/components/ResultsApp"), { ssr: false, loading: TabLoading });
+const SocialApp = dynamic(() => import("@/components/SocialApp"), { ssr: false, loading: TabLoading });
+const WalletApp = dynamic(() => import("@/components/WalletApp"), { ssr: false, loading: TabLoading });
+const WishesApp = dynamic(() => import("@/components/WishesApp"), { ssr: false, loading: TabLoading });
 
 type MainTabId = "home" | "goals" | "challenges" | "wallet" | "people";
 type HomeTabId = "home" | "ideas";

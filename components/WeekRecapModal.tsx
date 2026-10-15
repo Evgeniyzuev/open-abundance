@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Share2, X } from "lucide-react";
+import { Share2 } from "lucide-react";
+import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale } from "@/lib/i18n";
 import { getNotes } from "@/lib/notesStore";
@@ -83,10 +84,7 @@ export default function WeekRecapModal({ onClose }: WeekRecapModalProps) {
   const max = recap ? Math.max(1, ...recap.perDay) : 1;
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet week-recap-modal" role="dialog" aria-modal="true" aria-labelledby="week-recap-title" onClick={(event) => event.stopPropagation()}>
-        <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
-        <div className="modal-header"><h2 id="week-recap-title">{t("weekRecap.title")}</h2></div>
+    <Sheet className="week-recap-modal" closeLabel={t("app.common.close")} title={t("weekRecap.title")} titleId="week-recap-title" onClose={onClose}>
         {recap ? (
           <div className="week-recap-body">
             <div className="week-recap-bars" role="img" aria-label={t("weekRecap.barsLabel", { days: recap.activeDays })}>
@@ -130,8 +128,7 @@ export default function WeekRecapModal({ onClose }: WeekRecapModalProps) {
             {shareError ? <p className="step-suggest-note" role="status">{t("weekRecap.shareError")}</p> : null}
           </div>
         ) : <p>{t("app.common.loading")}</p>}
-      </section>
-    </div>
+    </Sheet>
   );
 }
 

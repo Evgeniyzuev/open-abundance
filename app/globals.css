@@ -1545,6 +1545,9 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 @media (prefers-reduced-motion: reduce) { .ui-skeleton, .feed-post-hero-skeleton::after { animation: none; } }
 .ui-chip-row { display: grid; gap: 7px; min-width: 0; }
 .ui-chip-row-more { animation: none; }
+.sheet-grabber { justify-self: center; width: 36px; height: 4px; margin-top: -4px; border-radius: var(--radius-pill, 999px); background: var(--line); touch-action: none; cursor: grab; }
+.modal-sheet:focus { outline: none; }
+@media (min-width: 720px) { .sheet-grabber { display: none; } }
 @keyframes feed-tile-loading { to { background-position-x: -130%; } }
 .feed-empty { margin: 0; border-radius: 12px; padding: 18px 14px; background: var(--surface-glass); color: var(--muted); font-size: 0.875rem; text-align: center; }
 .feed-empty-action { display: grid; justify-items: center; gap: 8px; margin: 0; border-radius: 14px; padding: 22px 16px; background: var(--surface-glass); color: var(--muted); text-align: center; }

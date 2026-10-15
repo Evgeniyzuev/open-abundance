@@ -3425,6 +3425,25 @@ function FeedView({
   onToggleDraftBlock: (blockKey: string) => void;
 }) {
   const posts = feedPayload?.posts ?? [];
+  const hasMore = Boolean(feedPayload?.nextCursor);
+  const loadMoreRef = useRef<HTMLButtonElement>(null);
+  const onLoadMoreRef = useRef(onLoadMore);
+  const autoLoadedAtRef = useRef(-1);
+  onLoadMoreRef.current = onLoadMore;
+
+  // Load the next page when the "load more" button scrolls near the viewport; the button stays as a fallback.
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !hasMore || loadingMore || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      // One automatic attempt per page size, so a failing request cannot loop.
+      if (!entry.isIntersecting || autoLoadedAtRef.current === posts.length) return;
+      autoLoadedAtRef.current = posts.length;
+      onLoadMoreRef.current();
+    }, { rootMargin: "400px 0px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, posts.length]);
 
   return (
     <section className="feed-layout">
@@ -3476,7 +3495,7 @@ function FeedView({
         onPublish={onPublish}
       />
       {feedPayload?.nextCursor ? (
-        <button className="secondary-button feed-load-more" type="button" disabled={loadingMore} onClick={onLoadMore}>
+        <button className="secondary-button feed-load-more" ref={loadMoreRef} type="button" disabled={loadingMore} onClick={onLoadMore}>
           {loadingMore ? t("app.common.loading") : t("social.review.loadMore")}
         </button>
       ) : null}

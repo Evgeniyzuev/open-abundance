@@ -3350,6 +3350,7 @@ function FeedView({
         currentUserId={currentUserId}
         emptyText={t("social.feed.empty")}
         failed={failed}
+        hasMore={hasMore}
         layout={layout}
         loading={loading || (!feedPayload && !failed)}
         locale={locale}
@@ -3508,6 +3509,7 @@ function PostList(props: {
   emptyText: string;
   emptyState?: ReactNode;
   failed?: boolean;
+  hasMore?: boolean;
   layout?: "grid" | "reels";
   loading: boolean;
   locale: AppLocale;
@@ -3527,7 +3529,7 @@ function PostList(props: {
   onPublish: (post: FeedPost) => void;
   onRetry?: () => void;
 }) {
-  const { addingStoryWishKey, emptyState, emptyText, failed, layout, loading, onAddStoryWish, onOpenPost, onRetry, posts, showTileAuthor = true, t } = props;
+  const { addingStoryWishKey, emptyState, emptyText, failed, hasMore, layout, loading, onAddStoryWish, onOpenPost, onRetry, posts, showTileAuthor = true, t } = props;
   if (loading && !posts.length) {
     return <div className="feed-post-gallery feed-post-gallery-loading" aria-busy="true" aria-label={t("app.common.loading")}>
       <Skeleton className="feed-post-hero-skeleton" />
@@ -3542,7 +3544,7 @@ function PostList(props: {
   }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} layout={layout} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} hasMore={hasMore} layout={layout} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({

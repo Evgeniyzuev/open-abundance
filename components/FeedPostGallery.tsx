@@ -12,6 +12,7 @@ import type { FeedPost } from "@/lib/socialFeed";
 import { recommendedWishIdForStory } from "@/lib/wishJourney";
 
 const trackedImpressions = new Set<string>();
+const GRID_COLUMNS = 3;
 
 type FeedPostGalleryProps = {
   fallbackTitle: string;
@@ -26,18 +27,24 @@ type FeedPostGalleryProps = {
   evidenceLabels?: { demo: string; verified: string };
   showAuthor?: boolean;
   layout?: "grid" | "reels";
+  hasMore?: boolean;
 };
 
-export default function FeedPostGallery({ addingStoryWishKey, currentUserId = null, emptyText, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, layout = "grid", t, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
+export default function FeedPostGallery({ addingStoryWishKey, currentUserId = null, emptyText, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, layout = "grid", hasMore = false, t, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
   const [preferences, setPreferences] = useState<FeedPreferenceState>(emptyFeedPreferenceState);
 
   useEffect(() => {
     setPreferences(readFeedPreferences(currentUserId));
   }, [currentUserId]);
 
-  const visiblePosts = posts
+  const allVisiblePosts = posts
     .filter((post) => !isFeedTopicMuted(post, preferences))
     .sort((left, right) => Number(isFeedTopicInterested(right, preferences)) - Number(isFeedTopicInterested(left, preferences)));
+  // The grid has 3 columns: while more pages exist hide the incomplete last row (the next page completes it),
+  // and on the last page pad it with quiet filler cells so the grid stays a rectangle.
+  const remainder = layout === "grid" ? allVisiblePosts.length % GRID_COLUMNS : 0;
+  const visiblePosts = hasMore && remainder && allVisiblePosts.length > remainder ? allVisiblePosts.slice(0, allVisiblePosts.length - remainder) : allVisiblePosts;
+  const fillerCount = !hasMore && remainder ? GRID_COLUMNS - remainder : 0;
 
   if (!visiblePosts.length) return <p className="feed-empty">{emptyText ?? fallbackTitle}</p>;
 
@@ -46,6 +53,7 @@ export default function FeedPostGallery({ addingStoryWishKey, currentUserId = nu
       {visiblePosts.map((post, index) => (
         <FeedPostTile adding={Boolean(addingStoryWishKey && addingStoryWishKey === post.source_key)} currentUserId={currentUserId} evidenceLabels={evidenceLabels} fallbackTitle={fallbackTitle} key={post.id} post={post} priority={index < 3} showAuthor={showAuthor} t={t} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} onSignalChanged={() => setPreferences(readFeedPreferences(currentUserId))} />
       ))}
+      {Array.from({ length: fillerCount }, (_, index) => <span aria-hidden="true" className="feed-post-tile-filler" key={`filler-${index}`} />)}
     </div>
   );
 }

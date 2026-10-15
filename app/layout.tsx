@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import ChunkErrorReload from "@/components/ChunkErrorReload";
+import ViewportVars from "@/components/ViewportVars";
 import "./globals.css";
 
 const siteUrl = new URL("https://open-abundance.vercel.app");
@@ -107,6 +108,7 @@ export default function RootLayout({
       <body>
         {children}
         <ChunkErrorReload />
+        <ViewportVars />
         <SpeedInsights />
       </body>
     </html>

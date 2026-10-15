@@ -3210,3 +3210,16 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 :where(.swatches .swatch)::after { content: ""; position: absolute; inset: -4px; }
 :where(.media-url-help-trigger)::after { content: ""; position: absolute; inset: -12px; }
 .modal-sheet input[type="checkbox"], .modal-sheet input[type="radio"] { width: 20px; height: 20px; flex: 0 0 auto; padding: 0; }
+
+/* Phone modals: never wider than the screen (iOS date inputs ignore width:100%), no sideways panning, bigger window, and always above the on-screen keyboard (--vv-* come from ViewportVars). */
+.modal-backdrop { top: var(--vv-top, 0px); bottom: auto; height: var(--vv-height, 100%); overflow-x: hidden; touch-action: pan-y; }
+.modal-sheet { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; overscroll-behavior: contain; }
+.modal-sheet > *, .modal-sheet label { min-width: 0; max-width: 100%; }
+.modal-sheet input[type="date"], .modal-sheet input[type="time"], .modal-sheet input[type="datetime-local"] { min-width: 0; max-width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; min-height: 46px; }
+.task-modal { overflow-x: hidden; overflow-y: auto; }
+@media (max-width: 600px) {
+  .modal-backdrop { padding: 8px 8px max(8px, env(safe-area-inset-bottom)); }
+  .modal-sheet, .modal-sheet.small { width: 100%; max-width: none; }
+  .modal-sheet:not(.post-detail-modal) { max-height: calc(var(--vv-height, 100dvh) - 16px); overflow-y: auto; }
+  .task-modal { max-height: calc(var(--vv-height, 100dvh) - 16px); }
+}

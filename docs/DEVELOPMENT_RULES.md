@@ -290,3 +290,14 @@ When adding or changing UI text:
 - keep new message keys stable and ASCII-only.
 
 If a reusable translated element would become awkward or misleading, create a small shared variant instead of copy-pasting text across screens.
+
+## Before Pushing To main
+
+Vercel builds every push to `main`, and `next build` runs ESLint: a lint error fails the deploy (the previous version stays live, but the change does not ship). Before `git push`:
+
+- run `pnpm exec tsc --noEmit`, `pnpm exec next lint --file <changed files>` and `pnpm build`, and read their output, not only the exit of the last command in a chain;
+- run the contract scripts that read the files you touched (`grep -l "<file name>" scripts/*.mjs`, then `pnpm test:<name>`); scripts that read `components/SocialApp.tsx` or `components/WalletApp.tsx` go through `scripts/lib/splitSources.mjs`, because both screens are split into `components/social/*` and `components/wallet/*`, and the dictionaries live in `lib/messages/*.ts`;
+- never create a temporary `git worktree` whose `node_modules` points at the real one: removing the worktree can empty packages in the real `node_modules` (restore with `pnpm install --offline --frozen-lockfile --force`);
+- do not name a variable `module` (Next lint rule `no-assign-module-variable`).
+
+Production region: `vercel.json` pins functions to `fra1`, next to the Supabase database in `eu-central-2`. Keep them in the same region; a function far from the database multiplies every query's latency.

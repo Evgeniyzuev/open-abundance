@@ -147,7 +147,9 @@ const { createElement } = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 const Gallery = load("components/FeedPostGallery.tsx").default;
 const galleryPost = { ...first.body.posts[0], post_type: "reality_demo", system_verified: true };
-const galleryProps = { fallbackTitle: "Story", onOpen: () => {}, onAddStoryWish: () => {}, wishActionLabel: "Want this", evidenceLabels: { demo: "Demo evidence", verified: "Verified evidence" } };
+// The wish action lives in the per-tile signal menu, which is rendered for a signed-in viewer with a translator.
+const galleryLabels = { "social.feed.wantThis": "Want this", "app.common.loading": "Loading" };
+const galleryProps = { fallbackTitle: "Story", onOpen: () => {}, onAddStoryWish: () => {}, wishActionLabel: "Want this", currentUserId: "viewer-1", t: (key) => galleryLabels[key] ?? key, evidenceLabels: { demo: "Demo evidence", verified: "Verified evidence" } };
 const renderGallery = (post, extra = {}) => renderToStaticMarkup(createElement(Gallery, { ...galleryProps, posts: [post], ...extra }));
 const demoHtml = renderGallery(galleryPost, { addingStoryWishKey: galleryPost.source_key });
 assert.match(demoHtml, /Demo evidence/);

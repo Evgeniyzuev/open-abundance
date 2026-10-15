@@ -406,7 +406,7 @@ export default function SocialApp({
   const [directSending, setDirectSending] = useState(false);
   const [systemPayload, setSystemPayload] = useState<FeedPayload | null>(null);
   const hadFeedUserRef = useRef(false);
-  const feed = useFeed({ locale, userId: user?.id ?? null });
+  const feed = useFeed({ enabled: active && activeTab === "feed", locale, userId: user?.id ?? null });
   const { invalidate: invalidateFeedCache, load: loadFeed, reset: resetFeed, updateCached: updateCachedFeedPayloads } = feed;
   const [systemLoading, setSystemLoading] = useState(false);
   const [feedSaving, setFeedSaving] = useState(false);
@@ -1668,6 +1668,8 @@ export default function SocialApp({
           feedPayload={feed.payload}
           filter={feed.filter}
           failed={feed.failed}
+          hasNew={feed.hasNew}
+          onRefreshNew={() => { void feed.load(false, true).catch(() => undefined); window.scrollTo({ top: 0, behavior: "smooth" }); }}
           loading={feed.loading}
           loadingMore={feed.loadingMore}
           onRetry={() => { void loadFeed(false, true).catch(() => undefined); }}
@@ -3208,11 +3210,13 @@ function FeedView({
   feedPayload,
   filter,
   failed,
+  hasNew,
   loading,
   loadingMore,
   saving,
   locale,
   t,
+  onRefreshNew,
   onRetry,
   onCreateDraft,
   onCreateExternalLink,
@@ -3245,11 +3249,13 @@ function FeedView({
   feedPayload: FeedPayload | null;
   filter: FeedFilter;
   failed: boolean;
+  hasNew: boolean;
   loading: boolean;
   loadingMore: boolean;
   saving: boolean;
   locale: AppLocale;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  onRefreshNew: () => void;
   onRetry: () => void;
   onCreateDraft: () => void;
   onCreateExternalLink: () => void;
@@ -3332,6 +3338,7 @@ function FeedView({
           {layout === "grid" ? <GalleryVertical size={18} /> : <LayoutGrid size={18} />}
         </button>
       </div>
+      {hasNew ? <button className="feed-new-banner" type="button" onClick={onRefreshNew}>{t("social.feed.newStories")}</button> : null}
       <FeedStoryRings currentUserId={currentUserId} label={t("social.feed.rings")} posts={posts} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
       {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (

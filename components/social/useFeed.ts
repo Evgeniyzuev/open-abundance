@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { readFeedSnapshot, writeFeedSnapshot } from "@/lib/feedSnapshot";
 import type { AppLocale } from "@/lib/i18n";
 import type { FeedCategory, FeedPayload } from "@/lib/socialFeed";
@@ -13,6 +13,7 @@ type FeedCache = Record<FeedFilter, FeedCacheEntry | null>;
 
 const FEED_CACHE_TTL_MS = 60_000;
 const DEFAULT_FILTER: FeedFilter = "stories";
+const PEEK_INTERVAL_MS = 120_000;
 
 function perFilter<T>(value: T): Record<FeedFilter, T> {
   return { all: value, following: value, stories: value, opportunities: value, system: value, reviews: value };
@@ -29,12 +30,15 @@ async function getAccessToken(): Promise<string> {
  * Feed data layer: per-filter memory cache with a short TTL, a local snapshot for instant first paint,
  * cursor pagination, and guards against stale or duplicate in-flight requests.
  */
-export function useFeed({ locale, userId }: { locale: AppLocale; userId: string | null }) {
+export function useFeed({ enabled = true, locale, userId }: { enabled?: boolean; locale: AppLocale; userId: string | null }) {
   const [payload, setPayload] = useState<FeedPayload | null>(null);
   const [filter, setFilter] = useState<FeedFilter>(DEFAULT_FILTER);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [hasNew, setHasNew] = useState(false);
+  const payloadRef = useRef<FeedPayload | null>(null);
+  payloadRef.current = payload;
 
   const filterRef = useRef<FeedFilter>(DEFAULT_FILTER);
   const cacheRef = useRef<FeedCache>(perFilter<FeedCacheEntry | null>(null));
@@ -98,7 +102,10 @@ export function useFeed({ locale, userId }: { locale: AppLocale; userId: string 
         cursorRef.current[requestedFilter] = next.nextCursor ?? null;
         cacheRef.current[requestedFilter] = { payload: nextPayload, fetchedAt: Date.now(), locale };
         if (filterRef.current === requestedFilter) setPayload(nextPayload);
-        if (!append) writeFeedSnapshot(userId, locale, requestedFilter, nextPayload);
+        if (!append) {
+          writeFeedSnapshot(userId, locale, requestedFilter, nextPayload);
+          if (filterRef.current === requestedFilter) setHasNew(false);
+        }
       } catch (loadError) {
         if (!append && generationRef.current === generation && filterRef.current === requestedFilter) setFailed(true);
         throw loadError;
@@ -123,6 +130,7 @@ export function useFeed({ locale, userId }: { locale: AppLocale; userId: string 
     filterRef.current = next;
     const cachedEntry = cacheRef.current[next];
     setPayload(cachedEntry?.locale === locale ? cachedEntry.payload : null);
+    setHasNew(false);
     setFilter(next);
   }, [locale]);
 
@@ -148,6 +156,39 @@ export function useFeed({ locale, userId }: { locale: AppLocale; userId: string 
     setPayload(currentEntry?.locale === locale ? currentEntry.payload : null);
   }, [locale]);
 
+  /** Cheap one-row request: tells whether something newer than the top of the shown feed exists. */
+  const peek = useCallback(async () => {
+    if (!userId || !payloadRef.current?.posts.length) return;
+    const requestedFilter = filterRef.current;
+    try {
+      const token = await getAccessToken();
+      const params = new URLSearchParams({ scope: "feed", locale, limit: "1", ts: String(Date.now()) });
+      if (requestedFilter !== "all") params.set("category", requestedFilter);
+      const response = await fetch(`/api/social/feed?${params.toString()}`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" }
+      });
+      const next = (await response.json()) as FeedPayload;
+      if (!response.ok || next.error || filterRef.current !== requestedFilter) return;
+      const topId = next.posts[0]?.id;
+      if (topId && topId !== payloadRef.current?.posts[0]?.id) setHasNew(true);
+    } catch {
+      // A failed peek just means no banner this time.
+    }
+  }, [locale, userId]);
+
+  // Look for newer posts when the app returns to the foreground and every couple of minutes while visible.
+  useEffect(() => {
+    if (!enabled || !userId) return;
+    const check = () => { if (document.visibilityState === "visible") void peek(); };
+    const timer = window.setInterval(check, PEEK_INTERVAL_MS);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [enabled, peek, userId]);
+
   /** Drops all state and cancels in-flight results (account switch). */
   const reset = useCallback(() => {
     setPayload(null);
@@ -155,6 +196,7 @@ export function useFeed({ locale, userId }: { locale: AppLocale; userId: string 
     setLoading(false);
     setLoadingMore(false);
     setFailed(false);
+    setHasNew(false);
     cacheRef.current = perFilter<FeedCacheEntry | null>(null);
     cursorRef.current = perFilter<string | null>(null);
     requestIdsRef.current = perFilter(0);
@@ -162,5 +204,5 @@ export function useFeed({ locale, userId }: { locale: AppLocale; userId: string 
     generationRef.current += 1;
   }, []);
 
-  return { changeFilter, failed, filter, invalidate, load, loading, loadingMore, payload, reset, updateCached };
+  return { changeFilter, failed, filter, hasNew, invalidate, load, loading, loadingMore, payload, reset, updateCached };
 }

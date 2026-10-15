@@ -1546,6 +1546,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .ui-chip-row { display: grid; gap: 7px; min-width: 0; }
 .ui-chip-row-more { animation: none; }
 .feed-filter-row button { flex: 0 0 auto; white-space: nowrap; }
+.feed-new-banner { position: sticky; top: 8px; z-index: 5; justify-self: center; min-height: var(--control-sm, 32px); padding: 0 16px; border-radius: var(--radius-pill, 999px); background: var(--accent-fill); color: var(--fixed-white); font-size: 0.8125rem; font-weight: 800; box-shadow: var(--shadow-soft); cursor: pointer; }
 .feed-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; min-width: 0; }
 .feed-layout-toggle { width: var(--control-md, 40px); height: var(--control-md, 40px); display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: var(--radius-pill, 999px); background: var(--surface); color: var(--muted); cursor: pointer; }
 .feed-layout-toggle:focus-visible, .feed-story-ring:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }

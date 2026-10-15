@@ -4,7 +4,7 @@ import FeedbackButton from "@/components/FeedbackButton";
 import OperatorEntry from "@/components/OperatorEntry";
 import { personLabel } from "@/lib/personName";
 import NicknameField from "@/components/NicknameField";
-import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, Heart, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bell, BookOpen, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Edit3, ExternalLink, Eye, EyeOff, GalleryVertical, Heart, LayoutGrid, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -14,6 +14,7 @@ import { canUseFeedSignals, FeedPostSignalButtons, recordFeedSwipeSignal } from 
 import { classifySwipe, nextInSequence } from "@/lib/swipe";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import { celebrate } from "@/lib/ui/feedback";
+import FeedStoryRings from "@/components/social/FeedStoryRings";
 import ChipRow from "@/components/ui/ChipRow";
 import Skeleton from "@/components/ui/Skeleton";
 import { isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences } from "@/lib/feedPreferences";
@@ -3280,6 +3281,22 @@ function FeedView({
 }) {
   const posts = feedPayload?.posts ?? [];
   const hasMore = Boolean(feedPayload?.nextCursor);
+  const [layout, setLayout] = useState<"grid" | "reels">("grid");
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("openAbundanceFeedLayout") === "reels") setLayout("reels");
+    } catch {
+      // Layout choice is a convenience only.
+    }
+  }, []);
+  function chooseLayout(next: "grid" | "reels") {
+    setLayout(next);
+    try {
+      window.localStorage.setItem("openAbundanceFeedLayout", next);
+    } catch {
+      // Layout choice is a convenience only.
+    }
+  }
   const loadMoreRef = useRef<HTMLButtonElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
   const autoLoadedAtRef = useRef(-1);
@@ -3301,22 +3318,28 @@ function FeedView({
 
   return (
     <section className="feed-layout">
-      <ChipRow<FeedFilter>
-        ariaLabel={t("social.feed.title")}
-        moreLabel={t("social.feed.filter.more")}
-        primary={[
-          { value: "all", label: t("social.feed.filter.all") },
-          { value: "following", label: t("social.feed.filter.following") },
-          { value: "stories", label: t("social.feed.filter.stories") }
-        ]}
-        more={[
-          { value: "opportunities", label: t("social.feed.filter.opportunities") },
-          { value: "system", label: t("social.feed.filter.system") },
-          { value: "reviews", label: t("social.feed.filter.reviews") }
-        ]}
-        value={filter}
-        onChange={onFilterChange}
-      />
+      <div className="feed-toolbar">
+        <ChipRow<FeedFilter>
+          ariaLabel={t("social.feed.title")}
+          moreLabel={t("social.feed.filter.more")}
+          primary={[
+            { value: "all", label: t("social.feed.filter.all") },
+            { value: "following", label: t("social.feed.filter.following") },
+            { value: "stories", label: t("social.feed.filter.stories") }
+          ]}
+          more={[
+            { value: "opportunities", label: t("social.feed.filter.opportunities") },
+            { value: "system", label: t("social.feed.filter.system") },
+            { value: "reviews", label: t("social.feed.filter.reviews") }
+          ]}
+          value={filter}
+          onChange={onFilterChange}
+        />
+        <button aria-label={t(layout === "grid" ? "social.feed.layout.reels" : "social.feed.layout.grid")} className="feed-layout-toggle" type="button" onClick={() => chooseLayout(layout === "grid" ? "reels" : "grid")}>
+          {layout === "grid" ? <GalleryVertical size={18} /> : <LayoutGrid size={18} />}
+        </button>
+      </div>
+      <FeedStoryRings currentUserId={currentUserId} label={t("social.feed.rings")} posts={posts} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
       {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
@@ -3327,6 +3350,7 @@ function FeedView({
         currentUserId={currentUserId}
         emptyText={t("social.feed.empty")}
         failed={failed}
+        layout={layout}
         loading={loading || (!feedPayload && !failed)}
         locale={locale}
         posts={posts}
@@ -3484,6 +3508,7 @@ function PostList(props: {
   emptyText: string;
   emptyState?: ReactNode;
   failed?: boolean;
+  layout?: "grid" | "reels";
   loading: boolean;
   locale: AppLocale;
   posts: FeedPost[];
@@ -3502,7 +3527,7 @@ function PostList(props: {
   onPublish: (post: FeedPost) => void;
   onRetry?: () => void;
 }) {
-  const { addingStoryWishKey, emptyState, emptyText, failed, loading, onAddStoryWish, onOpenPost, onRetry, posts, showTileAuthor = true, t } = props;
+  const { addingStoryWishKey, emptyState, emptyText, failed, layout, loading, onAddStoryWish, onOpenPost, onRetry, posts, showTileAuthor = true, t } = props;
   if (loading && !posts.length) {
     return <div className="feed-post-gallery feed-post-gallery-loading" aria-busy="true" aria-label={t("app.common.loading")}>
       <Skeleton className="feed-post-hero-skeleton" />
@@ -3517,7 +3542,7 @@ function PostList(props: {
   }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} layout={layout} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({

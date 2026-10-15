@@ -25,9 +25,10 @@ type FeedPostGalleryProps = {
   wishActionLabel?: string;
   evidenceLabels?: { demo: string; verified: string };
   showAuthor?: boolean;
+  layout?: "grid" | "reels";
 };
 
-export default function FeedPostGallery({ addingStoryWishKey, currentUserId = null, emptyText, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, t, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
+export default function FeedPostGallery({ addingStoryWishKey, currentUserId = null, emptyText, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, layout = "grid", t, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
   const [preferences, setPreferences] = useState<FeedPreferenceState>(emptyFeedPreferenceState);
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export default function FeedPostGallery({ addingStoryWishKey, currentUserId = nu
   if (!visiblePosts.length) return <p className="feed-empty">{emptyText ?? fallbackTitle}</p>;
 
   return (
-    <div className="feed-post-gallery">
+    <div className={`feed-post-gallery ${layout === "reels" ? "reels" : ""}`.trim()}>
       {visiblePosts.map((post, index) => (
         <FeedPostTile adding={Boolean(addingStoryWishKey && addingStoryWishKey === post.source_key)} currentUserId={currentUserId} evidenceLabels={evidenceLabels} fallbackTitle={fallbackTitle} key={post.id} post={post} priority={index < 3} showAuthor={showAuthor} t={t} wishActionLabel={wishActionLabel} onAddStoryWish={onAddStoryWish} onOpen={onOpen} onSignalChanged={() => setPreferences(readFeedPreferences(currentUserId))} />
       ))}

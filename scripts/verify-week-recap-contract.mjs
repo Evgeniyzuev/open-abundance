@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { computeWeekRecap, hasWeekActivity, isRecapPromptDay, lastSevenDays, recapWeekKey } from "../lib/weekRecap.ts";
 
+import { readGlobalCss } from "./lib/splitSources.mjs";
 const today = "2026-10-13";
 assert.deepEqual(lastSevenDays(today), ["2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11", "2026-10-12", "2026-10-13"]);
 assert.deepEqual(lastSevenDays("2026-03-02").slice(0, 2), ["2026-02-24", "2026-02-25"], "crosses month boundaries");
@@ -82,7 +83,7 @@ assert.deepEqual(root.dataset, {});
 const layout = readFileSync("app/layout.tsx", "utf8");
 assert.match(layout, /open-abundance:focus-mode/, "focus mode is applied before first paint");
 assert.match(layout, /open-abundance:reduce-motion/);
-const css = readFileSync("app/globals.css", "utf8");
+const css = readGlobalCss();
 assert.match(css, /data-focus-mode="on"\] \.expedition-entry-card/);
 assert.match(css, /data-motion="reduced"\] \*/);
 

@@ -1,0 +1,33 @@
+/* Phone-specific overrides: touch targets, teams hero overflow, modals above the keyboard. Keep last. Imported in order by app/globals.css; order is part of the cascade. */
+/* Touch targets: small controls keep their look but get an invisible 44px-ish hit area. :where() keeps specificity at zero so layout rules elsewhere still win. */
+:where(.text-button, .primary-add-button, .finance-small-icon-button, .nova-daily-close, .feed-post-signal-menu > summary) { position: relative; }
+:where(.text-button, .primary-add-button, .finance-small-icon-button, .nova-daily-close, .feed-post-signal-menu > summary)::after { content: ""; position: absolute; inset: -8px -6px; }
+.challenge-section-toggle { min-height: 44px; }
+.feed-post-signal-menu-items button { min-height: 40px; }
+.feed-post-signal-button-row button { min-height: 40px; }
+
+/* Teams: the growth hero was sizing to its content (486px in a 363px column) and got clipped on phones. */
+.teams-profile-panel { grid-template-columns: minmax(0, 1fr); }
+.teams-profile-panel > *, .team-growth-heading > * { min-width: 0; }
+.compact-profile-button, .team-room-chip { min-height: 40px; }
+.legal-disclosure a, .profile-links a { display: inline-flex; align-items: center; min-height: 40px; }
+
+/* Modals and form controls on phones. */
+.modal-backdrop { padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+:where(.swatches .swatch, .media-url-help-trigger) { position: relative; }
+:where(.swatches .swatch)::after { content: ""; position: absolute; inset: -4px; }
+:where(.media-url-help-trigger)::after { content: ""; position: absolute; inset: -12px; }
+.modal-sheet input[type="checkbox"], .modal-sheet input[type="radio"] { width: 20px; height: 20px; flex: 0 0 auto; padding: 0; }
+
+/* Phone modals: never wider than the screen (iOS date inputs ignore width:100%), no sideways panning, bigger window, and always above the on-screen keyboard (--vv-* come from ViewportVars). */
+.modal-backdrop { top: var(--vv-top, 0px); bottom: auto; height: var(--vv-height, 100%); overflow-x: hidden; touch-action: pan-y; }
+.modal-sheet { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; overscroll-behavior: contain; }
+.modal-sheet > *, .modal-sheet label { min-width: 0; max-width: 100%; }
+.modal-sheet input[type="date"], .modal-sheet input[type="time"], .modal-sheet input[type="datetime-local"] { min-width: 0; max-width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; min-height: 46px; }
+.task-modal { overflow-x: hidden; overflow-y: auto; }
+@media (max-width: 600px) {
+  .modal-backdrop { padding: 8px 8px max(8px, env(safe-area-inset-bottom)); }
+  .modal-sheet, .modal-sheet.small { width: 100%; max-width: none; }
+  .modal-sheet:not(.post-detail-modal) { max-height: calc(var(--vv-height, 100dvh) - 16px); overflow-y: auto; }
+  .task-modal { max-height: calc(var(--vv-height, 100dvh) - 16px); }
+}

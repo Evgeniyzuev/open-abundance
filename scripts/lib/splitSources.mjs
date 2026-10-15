@@ -10,3 +10,10 @@ export function readSocialSource() {
 export function readWalletSource() {
   return ["components/WalletApp.tsx", "components/wallet/WalletPanels.tsx", "components/wallet/WalletModals.tsx", "components/wallet/walletHelpers.ts", "components/wallet/walletTypes.ts"].map(read).join("\n");
 }
+
+// Global CSS lives in app/styles/*.css (imported in cascade order by app/globals.css).
+export function readGlobalCss() {
+  const entry = read("app/globals.css");
+  const files = [...entry.matchAll(/@import "\.\/([^"]+)";/g)].map((match) => `app/${match[1]}`);
+  return [entry, ...files.map(read)].join("\n");
+}

@@ -17,7 +17,8 @@ import { celebrate } from "@/lib/ui/feedback";
 import ChipRow from "@/components/ui/ChipRow";
 import Skeleton from "@/components/ui/Skeleton";
 import { isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences } from "@/lib/feedPreferences";
-import { clearFeedSnapshots, readFeedSnapshot, writeFeedSnapshot } from "@/lib/feedSnapshot";
+import { clearFeedSnapshots } from "@/lib/feedSnapshot";
+import { useFeed, type FeedFilter } from "@/components/social/useFeed";
 import LegalDisclosure from "@/components/LegalDisclosure";
 import BlogWorkspace from "@/components/BlogWorkspace";
 import ReputationCard from "@/components/ReputationCard";
@@ -237,27 +238,6 @@ type PublicProfilePayload = {
   visibleBlocks: Record<string, boolean>;
   error?: string;
 };
-type FeedFilter = FeedCategory;
-type FeedCacheEntry = {
-  payload: FeedPayload;
-  fetchedAt: number;
-  locale: AppLocale;
-};
-type FeedCache = Record<FeedFilter, FeedCacheEntry | null>;
-
-const FEED_CACHE_TTL_MS = 60_000;
-
-function createFeedCache(): FeedCache {
-  return { all: null, following: null, stories: null, opportunities: null, system: null, reviews: null };
-}
-
-function createFeedCursors(): Record<FeedFilter, string | null> {
-  return { all: null, following: null, stories: null, opportunities: null, system: null, reviews: null };
-}
-
-function createFeedRequestIds(): Record<FeedFilter, number> {
-  return { all: 0, following: 0, stories: 0, opportunities: 0, system: 0, reviews: 0 };
-}
 type ReviewEditPayload = {
   body: string;
   overallRating: number;
@@ -422,13 +402,10 @@ export default function SocialApp({
   const [directMessageBody, setDirectMessageBody] = useState("");
   const [directLoading, setDirectLoading] = useState(false);
   const [directSending, setDirectSending] = useState(false);
-  const [feedPayload, setFeedPayload] = useState<FeedPayload | null>(null);
-  const [feedFilter, setFeedFilter] = useState<FeedFilter>("stories");
-  const [feedLoadingMore, setFeedLoadingMore] = useState(false);
   const [systemPayload, setSystemPayload] = useState<FeedPayload | null>(null);
-  const [feedLoading, setFeedLoading] = useState(false);
-  const [feedFailed, setFeedFailed] = useState(false);
   const hadFeedUserRef = useRef(false);
+  const feed = useFeed({ locale, userId: user?.id ?? null });
+  const { invalidate: invalidateFeedCache, load: loadFeed, reset: resetFeed, updateCached: updateCachedFeedPayloads } = feed;
   const [systemLoading, setSystemLoading] = useState(false);
   const [feedSaving, setFeedSaving] = useState(false);
   const [dailyDraft, setDailyDraft] = useState<FeedPost | null>(null);
@@ -441,18 +418,11 @@ export default function SocialApp({
   // Order of the feed as the gallery showed it when a post was opened; swipes move through this finite list.
   const [feedSequence, setFeedSequence] = useState<FeedPost[]>([]);
   const feedScrollPositionRef = useRef(0);
-  const feedFilterRef = useRef<FeedFilter>("all");
-  const feedCacheRef = useRef<FeedCache>(createFeedCache());
-  const feedCursorRef = useRef<Record<FeedFilter, string | null>>(createFeedCursors());
-  const feedRequestIdsRef = useRef<Record<FeedFilter, number>>(createFeedRequestIds());
-  const feedLoadInFlightRef = useRef(new Map<string, Promise<void>>());
-  const feedLoadGenerationRef = useRef(0);
   const systemDraftsLoadedRef = useRef(false);
   const systemDraftsLoadingRef = useRef(false);
   const systemDraftsLocaleRef = useRef<AppLocale | null>(null);
   const dailyDraftEnsuredRef = useRef(false);
   const feedRefreshNonceRef = useRef(refreshNonce);
-  feedFilterRef.current = feedFilter;
 
   useEffect(() => {
     if (!openFeedDraftsNonce) return;
@@ -520,11 +490,7 @@ export default function SocialApp({
     setDirectMessageBody("");
     setDirectLoading(false);
     setDirectSending(false);
-    setFeedPayload(null);
-    setFeedFilter("stories");
-    setFeedLoadingMore(false);
     setSystemPayload(null);
-    setFeedLoading(false);
     setSystemLoading(false);
     setFeedSaving(false);
     setDailyDraft(null);
@@ -533,22 +499,17 @@ export default function SocialApp({
     setSelectedBlogAuthorId(null);
     setSelectedSystemAccountKey(null);
     setSelectedPost(null);
-    feedCacheRef.current = createFeedCache();
-    feedCursorRef.current = createFeedCursors();
-    feedRequestIdsRef.current = createFeedRequestIds();
-    feedLoadInFlightRef.current.clear();
-    feedLoadGenerationRef.current += 1;
     systemDraftsLoadedRef.current = false;
     systemDraftsLoadingRef.current = false;
     systemDraftsLocaleRef.current = null;
     dailyDraftEnsuredRef.current = false;
-    setFeedFailed(false);
+    resetFeed();
     if (user?.id) hadFeedUserRef.current = true;
     else if (hadFeedUserRef.current) {
       hadFeedUserRef.current = false;
       clearFeedSnapshots();
     }
-  }, [user?.id]);
+  }, [resetFeed, user?.id]);
 
   const loadReferralLink = useCallback(async () => {
     if (!user) return;
@@ -911,87 +872,6 @@ export default function SocialApp({
     }
   }, [user]);
 
-  const loadFeed = useCallback(async (append = false, force = false) => {
-    if (!user) return;
-
-    const requestedFilter = feedFilter;
-    const cachedEntry = feedCacheRef.current[requestedFilter];
-    const hasUsableCache = cachedEntry?.locale === locale;
-    const cacheIsFresh = Boolean(cachedEntry && hasUsableCache && Date.now() - cachedEntry.fetchedAt < FEED_CACHE_TTL_MS);
-
-    if (!append) {
-      if (hasUsableCache && cachedEntry && feedFilterRef.current === requestedFilter) {
-        setFeedPayload(cachedEntry.payload);
-      }
-      if (!force && cacheIsFresh) {
-        if (feedFilterRef.current === requestedFilter) setFeedLoading(false);
-        return;
-      }
-      if (!hasUsableCache && feedFilterRef.current === requestedFilter) {
-        const snapshot = readFeedSnapshot(user.id, locale, requestedFilter);
-        if (snapshot) setFeedPayload((current) => current ?? snapshot);
-      }
-    }
-
-    const requestKey = `${user.id}:${locale}:${requestedFilter}:${append ? "append" : "replace"}`;
-    const currentRequest = feedLoadInFlightRef.current.get(requestKey);
-    if (currentRequest) return currentRequest;
-
-    const request = (async () => {
-      const requestGeneration = feedLoadGenerationRef.current;
-      const requestId = feedRequestIdsRef.current[requestedFilter] + 1;
-      feedRequestIdsRef.current[requestedFilter] = requestId;
-      if (append) setFeedLoadingMore(true);
-      else {
-        setFeedLoading(true);
-        setFeedFailed(false);
-      }
-      try {
-        const token = await getAccessToken();
-        const params = new URLSearchParams({ scope: "feed", locale, limit: "21", ts: String(Date.now()) });
-        if (requestedFilter !== "all") params.set("category", requestedFilter);
-        if (append && feedCursorRef.current[requestedFilter]) params.set("cursor", feedCursorRef.current[requestedFilter]!);
-        const response = await fetch(`/api/social/feed?${params.toString()}`, {
-          cache: "no-store",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Cache-Control": "no-cache"
-          }
-        });
-        const payload = (await response.json()) as FeedPayload;
-        if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load feed.");
-        if (feedLoadGenerationRef.current !== requestGeneration || feedRequestIdsRef.current[requestedFilter] !== requestId) return;
-
-        const currentEntry = feedCacheRef.current[requestedFilter];
-        const currentPayload = currentEntry?.locale === locale ? currentEntry.payload : null;
-        const nextPayload = append && currentPayload
-          ? { ...payload, posts: [...currentPayload.posts, ...payload.posts] }
-          : payload;
-        feedCursorRef.current[requestedFilter] = payload.nextCursor ?? null;
-        feedCacheRef.current[requestedFilter] = { payload: nextPayload, fetchedAt: Date.now(), locale };
-        if (feedFilterRef.current === requestedFilter) setFeedPayload(nextPayload);
-        if (!append) writeFeedSnapshot(user.id, locale, requestedFilter, nextPayload);
-      } catch (loadError) {
-        if (!append && feedLoadGenerationRef.current === requestGeneration && feedFilterRef.current === requestedFilter) setFeedFailed(true);
-        throw loadError;
-      } finally {
-        if (feedLoadGenerationRef.current === requestGeneration && feedRequestIdsRef.current[requestedFilter] === requestId) {
-          if (append) setFeedLoadingMore(false);
-          else setFeedLoading(false);
-        }
-      }
-    })();
-
-    feedLoadInFlightRef.current.set(requestKey, request);
-    try {
-      await request;
-    } finally {
-      if (feedLoadInFlightRef.current.get(requestKey) === request) {
-        feedLoadInFlightRef.current.delete(requestKey);
-      }
-    }
-  }, [feedFilter, locale, user]);
-
   const loadBlog = useCallback(async () => {
     if (!selectedBlogAuthorId) await ensureDailyDraft();
   }, [ensureDailyDraft, selectedBlogAuthorId]);
@@ -1061,26 +941,6 @@ export default function SocialApp({
   const handle = profile?.username ? `@${profile.username}` : t("profile.localMode");
   const pendingIncomingConfirmations = trustConfirmations?.filter((item) => item.counterparty_user_id === user?.id && item.status === "pending").length ?? 0;
   const combinedError = error ?? socialError;
-
-  function updateCachedFeedPayloads(update: (payload: FeedPayload) => FeedPayload) {
-    const nextCache = { ...feedCacheRef.current };
-    (Object.keys(nextCache) as FeedFilter[]).forEach((filter) => {
-      const entry = nextCache[filter];
-      if (entry) nextCache[filter] = { ...entry, payload: update(entry.payload) };
-    });
-    feedCacheRef.current = nextCache;
-    const currentEntry = nextCache[feedFilterRef.current];
-    setFeedPayload(currentEntry?.locale === locale ? currentEntry.payload : null);
-  }
-
-  function invalidateFeedCache() {
-    const nextCache = { ...feedCacheRef.current };
-    (Object.keys(nextCache) as FeedFilter[]).forEach((filter) => {
-      const entry = nextCache[filter];
-      if (entry) nextCache[filter] = { ...entry, fetchedAt: 0 };
-    });
-    feedCacheRef.current = nextCache;
-  }
 
   async function copyReferralLink() {
     if (!referralLink) return;
@@ -1655,7 +1515,7 @@ export default function SocialApp({
   function openPostDetail(post: FeedPost) {
     setStoryWishError(null);
     setSelectedPost(post);
-    const feedPosts = feedPayload?.posts ?? [];
+    const feedPosts = feed.payload?.posts ?? [];
     if (activeTab === "feed" && feedPosts.some((item) => item.id === post.id)) {
       const preferences = readFeedPreferences(user?.id);
       setFeedSequence(feedPosts
@@ -1803,11 +1663,11 @@ export default function SocialApp({
           systemDrafts={systemDrafts}
           externalLinkUrl={externalLinkUrl}
           linkComposerOpen={linkComposerOpen}
-          feedPayload={feedPayload}
-          filter={feedFilter}
-          failed={feedFailed}
-          loading={feedLoading}
-          loadingMore={feedLoadingMore}
+          feedPayload={feed.payload}
+          filter={feed.filter}
+          failed={feed.failed}
+          loading={feed.loading}
+          loadingMore={feed.loadingMore}
           onRetry={() => { void loadFeed(false, true).catch(() => undefined); }}
           saving={feedSaving}
           locale={locale}
@@ -1819,13 +1679,7 @@ export default function SocialApp({
           onDraftBodyChange={updateDailyDraftBody}
           onDraftBodyChangeForPost={updateSystemDraftBody}
           onExternalLinkUrlChange={setExternalLinkUrl}
-          onFilterChange={(nextFilter) => {
-            if (nextFilter === feedFilter) return;
-            feedFilterRef.current = nextFilter;
-            const cachedEntry = feedCacheRef.current[nextFilter];
-            setFeedPayload(cachedEntry?.locale === locale ? cachedEntry.payload : null);
-            setFeedFilter(nextFilter);
-          }}
+          onFilterChange={feed.changeFilter}
           onLoadMore={() => { void loadFeed(true); }}
           onLinkComposerToggle={() => setLinkComposerOpen((current) => !current)}
           onOpenAuthor={openPublicProfile}

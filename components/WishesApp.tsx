@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import Sheet from "@/components/ui/Sheet";
 import { Archive, Check, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
@@ -517,8 +518,7 @@ function FirstWishGuideModal({
       : option?.title[locale] ?? t("wishes.guide.title");
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet wish-modal" role="dialog" aria-modal="true" aria-label={t("wishes.guide.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="wish-modal" ariaLabel={t("wishes.guide.title")} onClose={onClose}>
         <div className="modal-header">
           <button
             className="text-button"
@@ -597,8 +597,7 @@ function FirstWishGuideModal({
             </>
           ) : null}
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -766,8 +765,7 @@ function WishDetailModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet wish-modal" role="dialog" aria-modal="true" aria-label={title} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="wish-modal" ariaLabel={title} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
           <h2>{title}</h2>
@@ -847,8 +845,7 @@ function WishDetailModal({
             </button>
           )}
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -891,8 +888,7 @@ function WishFormModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <form className="modal-sheet wish-form-modal" onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()}>
+    <Sheet as="form" bare className="wish-form-modal" ariaLabel={title} onSubmit={handleSubmit} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{title}</h2>
@@ -951,8 +947,7 @@ function WishFormModal({
           {form.imageUrl ? <img className="wish-form-preview" alt="" src={form.imageUrl} /> : null}
           {error ? <p className="finance-error inline">{error}</p> : null}
         </div>
-      </form>
-    </div>
+    </Sheet>
   );
 }
 

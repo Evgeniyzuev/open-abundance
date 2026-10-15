@@ -3197,3 +3197,9 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .challenge-section-toggle { min-height: 44px; }
 .feed-post-signal-menu-items button { min-height: 40px; }
 .feed-post-signal-button-row button { min-height: 40px; }
+
+/* Teams: the growth hero was sizing to its content (486px in a 363px column) and got clipped on phones. */
+.teams-profile-panel { grid-template-columns: minmax(0, 1fr); }
+.teams-profile-panel > *, .team-growth-heading > * { min-width: 0; }
+.compact-profile-button, .team-room-chip { min-height: 40px; }
+.legal-disclosure a, .profile-links a { display: inline-flex; align-items: center; min-height: 40px; }

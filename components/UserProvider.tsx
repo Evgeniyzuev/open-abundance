@@ -284,7 +284,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setWallet(payload.wallet);
     } catch (refreshError) {
       if (isLatestRefresh(requestId, refreshRequestIdRef)) {
-        setError(refreshError instanceof Error ? refreshError.message : "Failed to refresh user data.");
+        const timedOut = refreshError instanceof DOMException && (refreshError.name === "AbortError" || refreshError.name === "TimeoutError");
+        // A slow server must not paint a raw browser message over data that is already on screen.
+        if (timedOut) {
+          if (!currentUserIdRef.current) setError("The server is slow to respond. Try again in a moment.");
+        } else {
+          setError(refreshError instanceof Error ? refreshError.message : "Failed to refresh user data.");
+        }
       }
     } finally {
       if (isLatestRefresh(requestId, refreshRequestIdRef)) {

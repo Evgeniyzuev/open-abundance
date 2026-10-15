@@ -16,6 +16,7 @@ import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import { celebrate } from "@/lib/ui/feedback";
 import FeedStoryRings from "@/components/social/FeedStoryRings";
 import ChipRow from "@/components/ui/ChipRow";
+import Sheet from "@/components/ui/Sheet";
 import Skeleton from "@/components/ui/Skeleton";
 import { isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences } from "@/lib/feedPreferences";
 import { clearFeedSnapshots } from "@/lib/feedSnapshot";
@@ -2630,8 +2631,7 @@ function DirectMessageModal({
   const targetName = targetProfile ? formatProfileName(targetProfile, targetProfile.user_id) : t("social.people.message");
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet direct-message-modal" role="dialog" aria-modal="true" aria-label={t("social.direct.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="direct-message-modal" ariaLabel={t("social.direct.title")} onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}>
           <X size={18} />
         </button>
@@ -2669,8 +2669,7 @@ function DirectMessageModal({
             <Send size={15} />
           </button>
         </form>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -2718,8 +2717,7 @@ function ProfileEditorDialog({
   onClose: () => void;
 }) {
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet profile-action-modal profile-editor-modal" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="profile-action-modal profile-editor-modal" titleId="profile-editor-title" onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <div className="modal-header"><span>{t("profile.actions.edit")}</span><h2 id="profile-editor-title">{t("profile.public.title")}</h2></div>
         <form className="profile-editor" onSubmit={(event) => { event.preventDefault(); onSave(); }}>
@@ -2747,8 +2745,7 @@ function ProfileEditorDialog({
           </details>
           <div className="modal-action-row"><button className="secondary-button" type="submit" disabled={saving}><Save size={16} />{saving ? t("app.common.loading") : t("app.common.save")}</button><button className="secondary-button" type="button" disabled={saving} onClick={onClose}><X size={16} />{t("app.common.cancel")}</button></div>
         </form>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -2846,8 +2843,7 @@ function AppearanceDialog({ accentTheme, colorTheme, displayCurrency, locale, t,
 
 function ActivityDialog({ notifications, notificationsLoading, unreadCount, pendingConfirmations, locale, t, onClose, onMarkAllRead, onOpenNotification, onOpenConfirmations }: { notifications: PayoutNotification[] | null; notificationsLoading: boolean; unreadCount: number; pendingConfirmations: number; locale: AppLocale; t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void; onMarkAllRead: () => void; onOpenNotification: (item: PayoutNotification) => void; onOpenConfirmations: () => void }) {
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet profile-action-modal activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-title" onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="profile-action-modal activity-modal" titleId="activity-title" onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <div className="modal-header"><span>{t("profile.actions.activity")}</span><h2 id="activity-title">{t("profile.activity.title")}</h2>{unreadCount ? <small>{t("notifications.unreadCount", { count: unreadCount })}</small> : null}</div>
         {unreadCount ? <button className="text-button activity-mark-read" type="button" onClick={onMarkAllRead}>{t("profile.activity.markAllRead")}</button> : null}
@@ -2856,8 +2852,7 @@ function ActivityDialog({ notifications, notificationsLoading, unreadCount, pend
         {!notificationsLoading && notifications?.length ? <div className="notification-list">{notifications.map((item) => <article className={`notification-row${item.readAt ? "" : item.createdAt ? " unread" : ""}`} key={item.id}>{item.deep_link ? <button type="button" onClick={() => onOpenNotification(item)}><strong>{item.title}</strong><p>{item.body}</p></button> : <><strong>{item.title}</strong><p>{item.body}</p></>}</article>)}</div> : null}
         {!notificationsLoading && !pendingConfirmations && notifications && notifications.length === 0 ? <p className="feed-empty">{t("profile.activity.empty")}</p> : null}
         <NotificationControls locale={locale} t={t} />
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -2926,13 +2921,11 @@ function NotificationControls({ locale, t }: { locale: AppLocale; t: (key: Messa
 
 function SkillPassportDialog({ t, onClose }: { t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void }) {
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet profile-action-modal skills-modal" role="dialog" aria-modal="true" aria-labelledby="skills-title" onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="profile-action-modal skills-modal" titleId="skills-title" onClose={onClose}>
         <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}><X size={18} /></button>
         <div className="modal-header"><h2 id="skills-title">{t("profile.actions.skills")}</h2></div>
         <SkillPassportApp />
-      </section>
-    </div>
+    </Sheet>
   );
 }
 

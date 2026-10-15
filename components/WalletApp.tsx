@@ -2,6 +2,7 @@
 
 import { personLabel } from "@/lib/personName";
 import { useEffect, useState, useCallback } from "react";
+import Sheet from "@/components/ui/Sheet";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -2242,8 +2243,7 @@ function MarketplaceListingDetailModal({
   const kind = listing.listing_kind ?? "digital_asset";
   const kindLabel = kind === "physical_good" ? t("market.kind.physical") : t(`market.kind.${kind}` as MessageKey);
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("market.details")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={t("market.details")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("market.details")}</h2>
@@ -2258,8 +2258,7 @@ function MarketplaceListingDetailModal({
           <small>{t("market.termsVersion")}: {listing.terms_version ?? 1}</small>
           {listing.terms_hash ? <small>{t("market.termsHash")}: {listing.terms_hash.slice(0, 18)}…</small> : null}
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -2309,8 +2308,7 @@ function MarketplaceEditModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("market.edit")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={t("market.edit")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("market.edit")}</h2>
@@ -2326,8 +2324,7 @@ function MarketplaceEditModal({
           {error ? <p className="finance-error">{error}</p> : null}
           <small>{t("market.termsVersion")}: {(listing.terms_version ?? 1) + 1}</small>
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -2394,8 +2391,7 @@ function SellItemModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("market.sell")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={t("market.sell")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("market.sell")}</h2>
@@ -2493,8 +2489,7 @@ function SellItemModal({
             <FinanceState title={t("market.noSellableTitle")} description={t("market.limitReached")} />
           )}
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -2633,8 +2628,7 @@ function TonWithdrawalModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.withdraw.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={t("wallet.withdraw.title")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("wallet.withdraw.title")}</h2>
@@ -2717,8 +2711,7 @@ function TonWithdrawalModal({
             <button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.done")}</button>
           </div>
         ) : null}
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -2928,8 +2921,7 @@ function TonDepositModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.deposit.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={t("wallet.deposit.title")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("wallet.deposit.title")}</h2>
@@ -3048,8 +3040,7 @@ function TonDepositModal({
             ) : null}
           </div>
         ) : null}
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -3291,8 +3282,7 @@ function WalletTransferModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.transfer.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={t("wallet.transfer.title")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("wallet.transfer.title")}</h2>
@@ -3401,8 +3391,7 @@ function WalletTransferModal({
             </button>
           </div>
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -3461,8 +3450,7 @@ function TopupCoreModal({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small" role="dialog" aria-modal="true" aria-label={t("wallet.topup.title")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small" ariaLabel={t("wallet.topup.title")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{t("wallet.topup.title")}</h2>
@@ -3500,8 +3488,7 @@ function TopupCoreModal({
             </button>
           </div>
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 
@@ -3634,8 +3621,7 @@ function GrowthComparisonChart({
 
 function ComparisonInfoModal({ t, onClose }: { t: TFunction; onClose: () => void }) {
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="modal-sheet small comparison-info-modal" role="dialog" aria-modal="true" aria-label={t("wallet.calculator.comparisonInfoTitle")} onClick={(event) => event.stopPropagation()}>
+    <Sheet bare className="small comparison-info-modal" ariaLabel={t("wallet.calculator.comparisonInfoTitle")} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
           <h2>{t("wallet.calculator.comparisonInfoTitle")}</h2>
@@ -3647,8 +3633,7 @@ function ComparisonInfoModal({ t, onClose }: { t: TFunction; onClose: () => void
           <p>{t("wallet.calculator.comparisonInfoCore")}</p>
           <p>{t("wallet.calculator.comparisonInfoBenchmarks")}</p>
         </div>
-      </section>
-    </div>
+    </Sheet>
   );
 }
 

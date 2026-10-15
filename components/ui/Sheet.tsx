@@ -63,8 +63,8 @@ export default function Sheet({
       {createElement(
         as,
         {
-          "aria-label": title ? undefined : ariaLabel,
-          "aria-labelledby": title ? titleId : undefined,
+          "aria-label": titleId ? undefined : ariaLabel,
+          "aria-labelledby": titleId,
           "aria-modal": "true",
           className: `modal-sheet ${className}`.trim(),
           onClick: (event: { stopPropagation: () => void }) => event.stopPropagation(),

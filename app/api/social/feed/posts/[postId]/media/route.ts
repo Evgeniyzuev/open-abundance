@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Tables, TablesInsert } from "@/lib/database.types";
+import { deleteObject, isOwnMediaKey, readR2Config } from "@/lib/r2Media";
+import { getEditableDraft } from "@/lib/serverFeedMedia";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -102,7 +104,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { postI
 
     const { data: media, error: mediaError } = await supabase
       .from("feed_post_media")
-      .select("id,storage_path")
+      .select("id,storage_path,metadata")
       .eq("post_id", post.id)
       .eq("sort_order", 0)
       .maybeSingle();
@@ -112,6 +114,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { postI
     const { error: deleteError } = await supabase.from("feed_post_media").delete().eq("id", media.id);
     if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500, headers: NO_STORE_HEADERS });
     if (media.storage_path) await supabase.storage.from("feed-media").remove([media.storage_path]);
+    // A file uploaded straight to R2 is removed from the bucket too (best effort: the post is already clean).
+    const metadata = (media.metadata ?? {}) as Record<string, unknown>;
+    const config = readR2Config(process.env);
+    if (config && metadata.origin === "r2" && isOwnMediaKey(metadata.key, user.id, post.id)) await deleteObject(config, metadata.key).catch(() => false);
     return NextResponse.json({ deleted: true }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
@@ -119,19 +125,4 @@ export async function DELETE(request: NextRequest, { params }: { params: { postI
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
-}
-
-async function getEditableDraft(supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"], postId: string, userId: string) {
-  const { data, error } = await supabase
-    .from("feed_posts")
-    .select("id,author_user_id,post_type,status,deleted_at")
-    .eq("id", postId)
-    .eq("author_user_id", userId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  if (data.post_type === "external_link") return data;
-  // Manual posts and the day post (daily_progress / level_up) accept the author's own photo or video while still a draft.
-  return ["manual", "daily_progress", "level_up"].includes(data.post_type) && data.status === "draft" ? data : null;
 }

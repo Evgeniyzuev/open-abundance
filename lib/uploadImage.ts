@@ -41,9 +41,9 @@ export async function readJsonSafe<T extends Record<string, unknown> = Record<st
  * if it is still too big. A video above the safe size is refused. Anything that cannot be decoded in the
  * browser (for example an unsupported format) is sent unchanged and the server decides.
  */
-export async function prepareUpload(file: File): Promise<File> {
+export async function prepareUpload(file: File, options: { videoMaxBytes?: number } = {}): Promise<File> {
   if (!file.type.startsWith("image/")) {
-    if (file.size > UPLOAD_SAFE_BYTES) throw new UploadTooLargeError();
+    if (file.size > (options.videoMaxBytes ?? UPLOAD_SAFE_BYTES)) throw new UploadTooLargeError();
     return file;
   }
   if (file.size <= KEEP_AS_IS_BYTES && file.type === "image/jpeg") return file;

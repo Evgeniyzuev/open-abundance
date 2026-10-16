@@ -5,7 +5,8 @@ import { Check, ChevronDown, ImagePlus, Sparkles, X } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
-import { prepareUpload, readJsonSafe, UploadTooLargeError } from "@/lib/uploadImage";
+import { uploadPostMedia } from "@/lib/postMediaUpload";
+import { readJsonSafe, UploadTooLargeError } from "@/lib/uploadImage";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import { realityWinsCount, type RealityDaySummary } from "@/lib/realityDay";
 import { formatStatBlockValue, statBlockLabelKey } from "@/lib/realityDayFormat";
@@ -159,14 +160,7 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
     setError(null);
     try {
       if (file && !alreadyPublished) {
-        const form = new FormData();
-        form.append("file", await prepareUpload(file));
-        const uploadResponse = await fetchWithSupabaseAuth(`/api/social/feed/posts/${draft.id}/media`, { method: "POST", body: form }, { authRequired: true });
-        const uploadPayload = await readJsonSafe<{ error?: string }>(uploadResponse);
-        if (!uploadResponse.ok) {
-          if (uploadPayload.error === "upload_too_large") throw new UploadTooLargeError();
-          throw new Error(uploadPayload.error?.startsWith("http_") ? t("reality.day.uploadFailed") : uploadPayload.error ?? t("reality.day.uploadFailed"));
-        }
+        await uploadPostMedia(draft.id, file);
       }
       const response = await fetchWithSupabaseAuth(`/api/social/feed/posts/${draft.id}`, {
         method: "PATCH",

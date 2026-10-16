@@ -16,7 +16,9 @@ assert.equal(new UploadTooLargeError().message, "upload_too_large");
 
 // The Reality day upload shrinks photos first and reads every answer safely.
 const card = readFileSync(new URL("../components/RealityDayCard.tsx", import.meta.url), "utf8");
-assert.ok(card.includes("prepareUpload(file)"), "the photo is prepared before upload");
+assert.ok(card.includes("uploadPostMedia(draft.id, file)"), "the day post uploads through the shared helper");
+const helper = readFileSync(new URL("../lib/postMediaUpload.ts", import.meta.url), "utf8");
+assert.ok(helper.includes("prepareUpload(file"), "the photo is prepared before upload");
 assert.ok(!/await \w+Response\.json\(\)|await response\.json\(\) as \{ error\?: string \}/.test(card.slice(card.indexOf("async function publish()"))), "publish never calls response.json directly");
 const ru = readFileSync(new URL("../lib/messages/ru.ts", import.meta.url), "utf8");
 const en = readFileSync(new URL("../lib/messages/en.ts", import.meta.url), "utf8");

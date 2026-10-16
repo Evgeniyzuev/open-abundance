@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import type { Tables, TablesInsert } from "@/lib/database.types";
-import { deleteObject, isOwnMediaKey, readR2Config } from "@/lib/r2Media";
-import { getEditableDraft } from "@/lib/serverFeedMedia";
+import { buildMediaKey, deleteObject, isOwnMediaKey, putObject, readR2Config, validateUploadRequest } from "@/lib/r2Media";
+import { getEditableDraft, recordR2Media } from "@/lib/serverFeedMedia";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
-
-const IMAGE_LIMIT = 8 * 1024 * 1024;
-const VIDEO_LIMIT = 25 * 1024 * 1024;
-const MIME_EXTENSIONS: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "video/mp4": "mp4"
-};
 
 export async function POST(request: NextRequest, { params }: { params: { postId: string } }) {
   try {
@@ -26,67 +16,29 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
     const post = await getEditableDraft(supabase, params.postId, user.id);
     if (!post) return NextResponse.json({ error: "Draft not found." }, { status: 404, headers: NO_STORE_HEADERS });
 
+    // Media lives in Cloudflare R2 only; without its settings nothing is stored (Supabase Storage is not used).
+    const config = readR2Config(process.env);
+    if (!config) return NextResponse.json({ error: "not_configured" }, { status: 503, headers: NO_STORE_HEADERS });
+
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "Choose an image or MP4 video." }, { status: 400, headers: NO_STORE_HEADERS });
-    const extension = MIME_EXTENSIONS[file.type];
-    const limit = file.type === "video/mp4" ? VIDEO_LIMIT : IMAGE_LIMIT;
-    if (!extension || file.size > limit) {
-      return NextResponse.json({ error: "Use JPEG, PNG, WebP up to 8 MB or MP4 up to 25 MB." }, { status: 400, headers: NO_STORE_HEADERS });
-    }
-
     const durationValue = Number(form.get("durationSeconds"));
     const durationSeconds = Number.isFinite(durationValue) && durationValue > 0 ? Math.round(durationValue * 10) / 10 : null;
-    if (file.type === "video/mp4" && durationSeconds !== null && durationSeconds > 30) {
-      return NextResponse.json({ error: "Video must be 30 seconds or shorter." }, { status: 400, headers: NO_STORE_HEADERS });
+    const check = validateUploadRequest({ contentType: file.type, size: file.size, durationSeconds });
+    if (!check.ok) return NextResponse.json({ error: "Use JPEG, PNG, WebP up to 10 MB or MP4 up to 25 MB and 30 seconds.", code: check.code }, { status: 400, headers: NO_STORE_HEADERS });
+
+    const key = buildMediaKey(user.id, post.id, check.extension, crypto.randomUUID());
+    if (!(await putObject(config, key, await file.arrayBuffer(), file.type))) {
+      return NextResponse.json({ error: "Could not store the file. Try again." }, { status: 502, headers: NO_STORE_HEADERS });
     }
-
-    const { data: previous, error: previousError } = await supabase
-      .from("feed_post_media")
-      .select("*")
-      .eq("post_id", post.id)
-      .eq("sort_order", 0)
-      .maybeSingle();
-    if (previousError) return NextResponse.json({ error: previousError.message }, { status: 500, headers: NO_STORE_HEADERS });
-
-    const path = user.id + "/" + post.id + "/" + crypto.randomUUID() + "." + extension;
-    const { error: uploadError } = await supabase.storage.from("feed-media").upload(path, await file.arrayBuffer(), {
-      contentType: file.type,
-      cacheControl: "3600",
-      upsert: false
-    });
-    if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500, headers: NO_STORE_HEADERS });
-
-    const mediaPayload = {
-      post_id: post.id,
-      media_type: file.type === "video/mp4" ? "video" : "image",
-      media_url: null,
-      storage_path: path,
-      alt_text: {},
-      sort_order: 0,
-      metadata: {
-        origin: "user_upload",
-        contentType: file.type,
-        size: file.size,
-        durationSeconds
-      }
-    } satisfies TablesInsert<"feed_post_media">;
-    const { data: media, error: mediaError } = await supabase
-      .from("feed_post_media")
-      .upsert(mediaPayload, { onConflict: "post_id,sort_order" })
-      .select("*")
-      .single();
-    if (mediaError) {
-      await supabase.storage.from("feed-media").remove([path]);
-      return NextResponse.json({ error: mediaError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    try {
+      const media = await recordR2Media(supabase, config, { postId: post.id, userId: user.id, key, contentType: file.type, size: file.size, durationSeconds });
+      return NextResponse.json({ media }, { headers: NO_STORE_HEADERS });
+    } catch (recordError) {
+      await deleteObject(config, key);
+      return NextResponse.json({ error: recordError instanceof Error ? recordError.message : "Failed to save post media." }, { status: 500, headers: NO_STORE_HEADERS });
     }
-
-    if (previous?.storage_path && previous.storage_path !== path) {
-      await supabase.storage.from("feed-media").remove([previous.storage_path]);
-    }
-    return NextResponse.json({
-      media: { ...media, storage_path: null, media_url: `/api/social/content/${post.id}/media?mediaId=${media.id}` } satisfies Tables<"feed_post_media"> & { media_url: string | null }
-    }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to upload post media." },

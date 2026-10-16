@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import type { Json, TablesInsert } from "@/lib/database.types";
 import {
   buildMediaKey,
   deleteObject,
@@ -13,7 +12,7 @@ import {
   readR2Config,
   validateUploadRequest
 } from "@/lib/r2Media";
-import { getEditableDraft } from "@/lib/serverFeedMedia";
+import { getEditableDraft, recordR2Media } from "@/lib/serverFeedMedia";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -80,39 +79,15 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
         return NextResponse.json({ error: VALIDATION_MESSAGES.too_large, code: "rejected" }, { status: 400, headers: NO_STORE_HEADERS });
       }
 
-      const { data: previous, error: previousError } = await supabase
-        .from("feed_post_media")
-        .select("id,storage_path,metadata")
-        .eq("post_id", post.id)
-        .eq("sort_order", 0)
-        .maybeSingle();
-      if (previousError) return NextResponse.json({ error: previousError.message }, { status: 500, headers: NO_STORE_HEADERS });
-
       const durationValue = Number(body.durationSeconds);
       const durationSeconds = Number.isFinite(durationValue) && durationValue > 0 ? Math.round(durationValue * 10) / 10 : null;
-      const mediaPayload = {
-        post_id: post.id,
-        media_type: rule.kind,
-        media_url: publicMediaUrl(config, key),
-        storage_path: null,
-        alt_text: {},
-        sort_order: 0,
-        metadata: { origin: "r2", key, contentType, size: stored.size, durationSeconds, uploaderUserId: user.id } satisfies Json
-      } satisfies TablesInsert<"feed_post_media">;
-      const { data: media, error: mediaError } = await supabase
-        .from("feed_post_media")
-        .upsert(mediaPayload, { onConflict: "post_id,sort_order" })
-        .select("*")
-        .single();
-      if (mediaError) {
+      let media;
+      try {
+        media = await recordR2Media(supabase, config, { postId: post.id, userId: user.id, key, contentType, size: stored.size, durationSeconds });
+      } catch (recordError) {
         await deleteObject(config, key);
-        return NextResponse.json({ error: mediaError.message }, { status: 500, headers: NO_STORE_HEADERS });
+        return NextResponse.json({ error: recordError instanceof Error ? recordError.message : "Failed to save post media." }, { status: 500, headers: NO_STORE_HEADERS });
       }
-
-      // The replaced file is no longer used by the post: remove it from wherever it lives.
-      const previousMetadata = (previous?.metadata ?? {}) as Record<string, unknown>;
-      if (previous?.storage_path) await supabase.storage.from("feed-media").remove([previous.storage_path]);
-      if (previousMetadata.origin === "r2" && isOwnMediaKey(previousMetadata.key, user.id, post.id) && previousMetadata.key !== key) await deleteObject(config, previousMetadata.key);
 
       return NextResponse.json({ media }, { headers: NO_STORE_HEADERS });
     }

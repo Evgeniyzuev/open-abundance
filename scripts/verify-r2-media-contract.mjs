@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { buildMediaKey, deleteObject, headObject, isOwnMediaKey, MAX_UPLOADS_PER_DAY, presignUpload, presignUrl, publicMediaUrl, readR2Config, validateUploadRequest } from "../lib/r2Media.ts";
+import { readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { buildMediaKey, deleteObject, headObject, isOwnMediaKey, MAX_UPLOADS_PER_DAY, presignUpload, presignUrl, publicMediaUrl, putObject, readR2Config, validateUploadRequest } from "../lib/r2Media.ts";
 
 // 1. The signer reproduces the example from the AWS documentation ("Authenticating requests: query parameters"),
 //    so every presigned URL we hand out is computed by the real SigV4 algorithm.
@@ -71,6 +73,29 @@ assert.ok(calls.every((call) => call.url.includes("X-Amz-Signature=")), "both re
 const missing = async () => new Response(null, { status: 404 });
 assert.equal(await headObject(config, key, missing), null);
 assert.equal(await deleteObject(config, key, missing), true);
+
+// 6b. A server-side upload is one signed PUT with the content type.
+const putCalls = [];
+const fakePut = async (input, init) => { putCalls.push({ url: String(input), method: init?.method, type: init?.headers?.["Content-Type"] }); return new Response(null, { status: 200 }); };
+assert.equal(await putObject(config, key, new Uint8Array([1, 2, 3]), "image/jpeg", fakePut), true);
+assert.deepEqual([putCalls[0].method, putCalls[0].type], ["PUT", "image/jpeg"]);
+assert.equal(await putObject(config, key, new Uint8Array([1]), "image/jpeg", async () => new Response(null, { status: 403 })), false, "a refused upload is reported");
+
+// 6c. Supabase Storage receives no new media: nothing in the app uploads to the feed bucket any more.
+function sources(dir) {
+  const out = [];
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    if (name === "node_modules" || name === ".next") continue;
+    if (statSync(full).isDirectory()) out.push(...sources(full));
+    else if (/\.(ts|tsx)$/.test(name)) out.push(full);
+  }
+  return out;
+}
+const root = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const feedUploads = [...sources(join(root, "app")), ...sources(join(root, "lib")), ...sources(join(root, "components"))].filter((file) => /from\("feed-media"\)\s*\.upload|from\("feed-media"\)\.upload/.test(readFileSync(file, "utf8")));
+assert.deepEqual(feedUploads, [], "no route uploads to the Supabase feed-media bucket");
+assert.ok(readFileSync(new URL("../scripts/migrate-feed-media-to-r2.mjs", import.meta.url), "utf8").includes("--delete-old"), "a migration script exists for the files already in Supabase");
 
 // 7. Wiring: the secret stays on the server and the old path stays as the fallback.
 const route = readFileSync(new URL("../app/api/social/feed/posts/[postId]/media/direct/route.ts", import.meta.url), "utf8");

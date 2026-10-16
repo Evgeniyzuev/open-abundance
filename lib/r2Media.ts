@@ -148,3 +148,9 @@ export async function deleteObject(config: R2Config, key: string, fetchImpl: typ
   const response = await fetchImpl(objectRequest(config, key, "DELETE", {}, new Date()), { method: "DELETE" });
   return response.ok || response.status === 404;
 }
+
+/** Uploads bytes from the server (for the routes that receive a small file themselves). */
+export async function putObject(config: R2Config, key: string, body: ArrayBuffer | Uint8Array, contentType: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  const response = await fetchImpl(presignUpload(config, key, contentType), { method: "PUT", headers: { "Content-Type": contentType }, body: body as BodyInit });
+  return response.ok;
+}

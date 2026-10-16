@@ -35,7 +35,13 @@ const PATHS: Record<string, string[]> = {
   place_machu_picchu: ["M6 54 H58", "M10 46 H54", "M16 38 H48", "M22 30 H42", "M26 22 L32 10 L38 22"],
   amulet_ankh: ["M32 29 V58", "M18 38 H46"],
   amulet_hamsa: ["M32 58 C22 58 17 50 17 42 L12 32 C11 29 14 27 16 30 L19 36 V20 C19 16 23 16 23 20 V28 V12 C23 8 27 8 27 12 V28 V8 C27 5 32 5 32 5", "M32 58 C42 58 47 50 47 42 L52 32 C53 29 50 27 48 30 L45 36 V20 C45 16 41 16 41 20 V28 V12 C41 8 37 8 37 12 V28 V8 C37 5 32 5 32 5"],
-  amulet_eye: ["M6 32 C16 16 48 16 58 32 C48 48 16 48 6 32 Z"]
+  amulet_eye: ["M6 32 C16 16 48 16 58 32 C48 48 16 48 6 32 Z"],
+  // Core items (lib/coreItems.ts): the garden of the Core tree.
+  core_apple_seed: ["M32 12 C44 20 46 36 32 52 C18 36 20 20 32 12 Z", "M32 22 V44"],
+  core_watering_can: ["M14 26 H40 V50 H14 Z", "M40 32 L54 20", "M50 16 L58 24", "M18 26 C18 16 36 16 36 26", "M22 58 V56", "M30 60 V57", "M38 58 V56"],
+  core_living_soil: ["M6 40 H58", "M10 50 H54", "M32 40 V14", "M32 24 C26 16 18 18 16 24 C22 28 28 28 32 24", "M32 20 C38 12 46 14 48 20 C42 24 36 24 32 20", "M32 40 C28 46 22 48 18 54", "M32 40 C36 46 42 48 46 54"],
+  core_sun_stone: ["M32 20 L44 32 L32 44 L20 32 Z", "M32 6 V12", "M32 52 V58", "M6 32 H12", "M52 32 H58", "M14 14 L18 18", "M46 46 L50 50", "M14 50 L18 46", "M46 18 L50 14"],
+  core_golden_apple: ["M32 22 C24 16 12 20 12 34 C12 48 22 58 32 54 C42 58 52 48 52 34 C52 20 40 16 32 22 Z", "M32 22 C32 16 34 10 38 8", "M34 14 C40 10 46 12 48 16 C42 18 38 18 34 14"]
 };
 
 export default function SacredItemIcon({ itemKey, fallback, size = 56, x, y }: { itemKey?: string | null; fallback?: string; size?: number; x?: number; y?: number }) {

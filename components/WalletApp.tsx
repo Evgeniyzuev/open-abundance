@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { Calculator } from "lucide-react";
 import CoreCtaButton from "@/components/CoreCtaButton";
 import CoreIncomeTicker from "@/components/CoreIncomeTicker";
+import CoreTree from "@/components/CoreTree";
+import CoreGarden from "@/components/CoreGarden";
+import CoreAfterburnPanel from "@/components/CoreAfterburnPanel";
 import CoreSheet from "@/components/CoreSheet";
 import P2PWalletPanel from "@/components/P2PWalletPanel";
 import PaymentRequestModal from "@/components/PaymentRequestModal";
@@ -768,6 +771,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               onOpen={() => setCoreSheet({ open: true, view: "menu" })}
             />
           ) : null}
+          {user && core ? <CoreTree level={core.level} balance={core.balance} nextThreshold={core.next_level_threshold} locale={locale} t={t} /> : null}
           {user && core ? <CoreIncomeTicker balance={core.balance} reinvestPercent={core.reinvest_percent} locale={locale} t={t} /> : null}
           {user && core ? (
             <div className="core-cta-wrap">
@@ -778,6 +782,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               />
             </div>
           ) : null}
+          {user && core ? <CoreGarden walletBalance={wallet?.balance ?? 0} locale={locale} t={t} onPurchased={onRefresh} /> : null}
+          {user && core ? <CoreAfterburnPanel walletBalance={wallet?.balance ?? 0} locale={locale} t={t} /> : null}
           {user ? (
             <ReinvestPanel
               value={reinvestValue}

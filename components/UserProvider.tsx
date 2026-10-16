@@ -521,12 +521,24 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     try {
       const supabase = getBrowserSupabaseClient();
-      const { error: updateError } = await supabase
-        .from("user_profiles")
-        .update({ default_locale: normalizedLocale, updated_at: new Date().toISOString() })
-        .eq("user_id", user.id);
+      const {
+        data: { session },
+        error: sessionError
+      } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error("Supabase session is missing.");
 
-      if (updateError) throw updateError;
+      const response = await fetch("/api/user/locale", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ locale: normalizedLocale })
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to update language.");
+
       await refreshUserData();
     } catch (localeError) {
       storeLocalePreference(previousLocale);

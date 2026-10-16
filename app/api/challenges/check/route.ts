@@ -562,6 +562,26 @@ async function verifyChallenge(
     return { ok: false, reason: "Move any amount from Wallet to Core first." };
   }
 
+  if (challenge.verification_logic === "afterburn_over_5") {
+    const { data, error } = await db
+      .from("core_afterburn_runs")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("status", "moved")
+      .gt("amount", 5)
+      .limit(1);
+
+    if (error) {
+      return { ok: false, reason: "Could not check Afterburn moves. Try again." };
+    }
+
+    if ((data ?? []).length > 0) {
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Turn on Afterburn and keep more than $5 in Wallet above the kept amount until the night move." };
+  }
+
   if (challenge.verification_logic === "first_wallet_transfer") {
     const { data, error } = await supabase
       .from("wallet_ledger")

@@ -20,6 +20,7 @@ import { type CoreAccount, useUserContext, type WalletAccount } from "@/componen
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { playUiSound } from "@/lib/ui/sound";
+import { artSeed, challengeBadge, challengeCover, challengeGlyph, isOwnImage } from "@/lib/challengeArt";
 import { parseChallengeRewardAmount } from "@/lib/challengePresentation";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
@@ -934,17 +935,30 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
   );
 }
 
-function ChallengeVisual({ challenge }: { challenge: Challenge }) {
-  const Icon = getChallengeIcon(challenge);
-  const tone = getChallengeTone(challenge);
+/**
+ * The thumbnail of a challenge: its own picture when it has one, a 3D milestone cover for a few checks, and
+ * otherwise a drawn cover (category colour, a glyph for what the challenge asks, a glow and hue shift seeded by
+ * the id, and a number badge for the numbered series). A picture hotlinked from another site is not used.
+ */
+export function ChallengeVisual({ challenge, title = "" }: { challenge: Pick<Challenge, "id" | "category" | "image_url" | "verification_logic" | "title">; title?: string }) {
+  const Icon = getChallengeIcon(challenge as Challenge);
+  const tone = getChallengeTone(challenge as Challenge);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
-  const imageUrl = challenge.image_url && failedImageUrl !== challenge.image_url ? challenge.image_url : null;
+  const own = isOwnImage(challenge.image_url) ? challenge.image_url : null;
+  const cover = own ?? challengeCover(challenge.verification_logic);
+  const imageUrl = cover && failedImageUrl !== cover ? cover : null;
+  const milestoneArt = Boolean(imageUrl?.startsWith("/milestones/"));
   const objectArt = Boolean(imageUrl && ((imageUrl.startsWith("/challenges/") && imageUrl.endsWith(".png")) || imageUrl === "/core/core-reactor-pearl.webp"));
-  const visualClass = imageUrl ? (objectArt ? " challenge-art-object" : "") : " challenge-art-fallback";
+  const visualClass = imageUrl ? (milestoneArt ? " challenge-art-milestone" : objectArt ? " challenge-art-object" : "") : " challenge-art-fallback";
+  const glyph = challengeGlyph(challenge.verification_logic, challenge.category);
+  const badge = challenge.verification_logic?.startsWith("acquisition_") ? challengeBadge(title) : null;
+  const seed = artSeed(challenge.id);
+  const style = imageUrl ? undefined : ({ "--art-shift": `${seed.shift}deg`, "--art-x": `${seed.x}%`, "--art-y": `${seed.y}%` } as React.CSSProperties);
 
   return (
-    <span className={`challenge-thumb challenge-visual-${tone}${visualClass}`}>
-      {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : <span className="challenge-art-icon"><Icon size={25} /></span>}
+    <span className={`challenge-thumb challenge-visual-${tone}${visualClass}`} style={style}>
+      {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : glyph ? <span className="challenge-art-glyph" aria-hidden="true">{glyph}</span> : <span className="challenge-art-icon"><Icon size={25} /></span>}
+      {!imageUrl && badge ? <b className="challenge-art-badge" aria-hidden="true">{badge}</b> : null}
     </span>
   );
 }
@@ -966,7 +980,7 @@ function ChallengeRow({ challenge, children, expanded, locale, userLevel, t, onT
   return (
     <details className="challenge-disclosure" id={`challenge-${challenge.id}`} open={expanded}>
       <summary aria-label={[title, rewardLabel, state].filter(Boolean).join(". ")} className={locked ? "challenge-row locked" : "challenge-row"} onClick={(event) => { event.preventDefault(); onToggle(); }}>
-        <ChallengeVisual challenge={challenge} />
+        <ChallengeVisual challenge={challenge} title={title} />
         <span className="challenge-row-body">
           <span className="challenge-row-title">{title}</span>
           <span className="challenge-row-summary">

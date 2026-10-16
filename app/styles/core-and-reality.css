@@ -457,3 +457,35 @@
 @keyframes core-tree-drop-fall { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(var(--fall)); opacity: .2; } }
 @keyframes core-tree-gain-rise { 0% { opacity: 0; transform: translateY(8px) scale(.8); } 15% { opacity: 1; transform: translateY(0) scale(1.08); } 30% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .core-tree, .core-tree-crown, .core-tree-aura, .core-tree.is-fed .core-tree-scene, .core-tree.is-fed .core-tree-plant, .core-tree-gain { animation: none; transition: none; } .core-tree-drop, .core-tree-energy { display: none; } }
+
+/* Core garden: items whose first purchase tops up Core */
+.core-garden { margin: 10px 4px 0; }
+.core-garden > summary > span { display: grid; gap: 2px; }
+.core-garden > summary small { color: var(--muted); font-size: .8125rem; }
+.core-garden-body { display: grid; gap: 8px; padding: 0 14px 14px; }
+.core-garden-success { color: #16a34a; font-weight: 700; margin: 0; }
+.core-garden-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.core-garden-item { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; --rarity: #64748b; }
+.core-garden-item.rarity-uncommon { --rarity: #16a34a; }
+.core-garden-item.rarity-rare { --rarity: #2563eb; }
+.core-garden-item.rarity-epic { --rarity: #9333ea; }
+.core-garden-item.rarity-legendary { --rarity: #d97706; }
+.core-garden-item.is-open { border-color: var(--rarity); }
+.core-garden-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.core-garden-icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; color: var(--rarity); background: color-mix(in srgb, var(--rarity) 12%, transparent); }
+.core-garden-name { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.core-garden-name small { color: var(--rarity); font-size: .75rem; font-weight: 700; }
+.core-garden-price { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; color: #16a34a; }
+.core-garden-confirm { display: grid; gap: 8px; padding: 0 12px 12px; font-size: .875rem; }
+.core-garden-confirm p { margin: 0; }
+.core-garden-confirm small { color: var(--muted); }
+.core-garden-growth { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; margin: 0; padding: 0; list-style: none; }
+.core-garden-growth li { display: flex; justify-content: space-between; gap: 8px; }
+.core-garden-growth b { font-variant-numeric: tabular-nums; }
+.core-garden-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.core-garden-actions button { min-height: 44px; }
+.core-garden-name strong { font-size: 1rem; line-height: 1.2; }
+.core-garden-confirm .core-garden-effect { font-weight: 700; color: var(--text); }
+.core-garden-confirm > p:first-child { color: var(--muted); font-style: italic; }
+.core-garden-growth { font-size: .8125rem; }
+.core-garden-growth span { color: var(--muted); }

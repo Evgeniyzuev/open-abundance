@@ -63,13 +63,13 @@ export default function CorePlayRow({ level, balance, nextThreshold, walletBalan
     <>
       <div className="core-play-row" role="group" aria-label={t("corePlay.label")}>
         <button className={panel === "tree" ? "active" : ""} type="button" aria-expanded={panel === "tree"} onClick={() => choose("tree")}>
-          <Sprout size={18} aria-hidden="true" />{t("corePlay.tree")}
+          <span className="core-play-icon tone-tree" aria-hidden="true"><Sprout size={16} /></span>{t("corePlay.tree")}
         </button>
         <button className={panel === "garden" ? "active" : ""} type="button" aria-expanded={panel === "garden"} onClick={() => choose("garden")}>
-          <Flower2 size={18} aria-hidden="true" />{t("corePlay.garden")}
+          <span className="core-play-icon tone-garden" aria-hidden="true"><Flower2 size={16} /></span>{t("corePlay.garden")}
         </button>
         <button className={panel === "afterburn" ? "active" : ""} type="button" aria-expanded={panel === "afterburn"} onClick={() => choose("afterburn")}>
-          <Flame size={18} aria-hidden="true" />{t("afterburn.title")}
+          <span className="core-play-icon tone-afterburn" aria-hidden="true"><Flame size={16} /></span>{t("afterburn.title")}
         </button>
       </div>
       {panel === "tree" ? (

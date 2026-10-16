@@ -524,3 +524,7 @@
 .core-growth-popup { display: grid; gap: 8px; text-align: center; }
 .core-growth-popup .core-tree { margin: 0; }
 .core-growth-gain { margin: 0; color: #16a34a; font-size: 1.25rem; font-weight: 800; }
+.core-play-icon { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: #fff; }
+.core-play-icon.tone-tree { background: linear-gradient(135deg, #22c55e, #15803d); }
+.core-play-icon.tone-garden { background: linear-gradient(135deg, #ec4899, #8b5cf6); }
+.core-play-icon.tone-afterburn { background: linear-gradient(135deg, #f97316, #ef4444); }

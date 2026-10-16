@@ -385,3 +385,23 @@
 .referral-program > summary::-webkit-details-marker { display: none; }
 .referral-program > summary::after { content: ""; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform 0.15s; flex: none; }
 .referral-program[open] > summary::after { transform: rotate(-135deg); }
+
+/* Live Core income counter */
+.core-ticker { margin: 10px 4px 0; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; transition: box-shadow .3s ease, border-color .3s ease; }
+.core-ticker.is-pulsing { border-color: var(--blue); box-shadow: 0 0 0 4px var(--accent-soft), 0 0 22px rgba(79, 70, 229, 0.35); }
+.core-ticker-head { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.core-ticker-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #16a34a; animation: core-ticker-blink 1.6s ease-in-out infinite; }
+.core-ticker-label { flex: none; color: var(--muted); font-size: .8125rem; font-weight: 700; }
+.core-ticker-value { flex: 1; min-width: 0; font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.core-ticker-toggle { flex: none; display: inline-flex; align-items: center; gap: 2px; color: var(--blue); font-size: .8125rem; font-weight: 700; }
+.core-ticker-toggle svg { transition: transform .15s ease; }
+.core-ticker.is-open .core-ticker-toggle svg { transform: rotate(180deg); }
+.core-ticker-body { display: grid; gap: 10px; padding: 0 14px 14px; }
+.core-ticker-bar { height: 6px; border-radius: 999px; background: var(--surface-muted); overflow: hidden; }
+.core-ticker-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4f46e5, #16a34a); }
+.core-ticker-body dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; }
+.core-ticker-body dt { color: var(--muted); font-size: .75rem; }
+.core-ticker-body dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.core-ticker-body small { color: var(--muted); }
+@keyframes core-ticker-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .core-ticker, .core-ticker-dot { animation: none; transition: none; } }

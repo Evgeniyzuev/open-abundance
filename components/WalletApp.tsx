@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Calculator } from "lucide-react";
 import CoreCtaButton from "@/components/CoreCtaButton";
+import CoreIncomeTicker from "@/components/CoreIncomeTicker";
 import CoreSheet from "@/components/CoreSheet";
 import P2PWalletPanel from "@/components/P2PWalletPanel";
 import PaymentRequestModal from "@/components/PaymentRequestModal";
@@ -767,6 +768,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               onOpen={() => setCoreSheet({ open: true, view: "menu" })}
             />
           ) : null}
+          {user && core ? <CoreIncomeTicker balance={core.balance} reinvestPercent={core.reinvest_percent} locale={locale} t={t} /> : null}
           {user && core ? (
             <div className="core-cta-wrap">
               <CoreCtaButton

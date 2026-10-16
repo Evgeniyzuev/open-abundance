@@ -35,6 +35,12 @@ export type CoreTreeShape = {
   leaves: number;
   blossoms: number;
   fruits: number;
+  fruitRadius: number;
+  /** Apples lying on the ground under a grown tree. */
+  groundFruits: number;
+  roots: number;
+  /** 0..1: how grand the tree is past level 14 (aura, size beyond the frame). */
+  grandeur: number;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -79,20 +85,26 @@ export function coreTreeShape(growth: number): CoreTreeShape {
   const ease = 1 - Math.pow(1 - t, 1.6);
   const canopy = clamp((g - 3) / (TREE_FULL_LEVEL - 3), 0, 1);
   const beyond = Math.max(0, g - TREE_FULL_LEVEL);
+  // From level 14 the tree keeps growing past the frame: by level 28 the crown is wider than the card.
+  const grandeur = clamp((g - 14) / 14, 0, 1);
 
   return {
     growth: g,
     stage,
     nextStageLevel: nextEntry ? nextEntry[0] : null,
     nextStage: nextEntry ? nextEntry[1] : null,
-    trunkHeight: round(16 + 84 * ease),
-    trunkWidth: round(1.6 + 8.4 * t),
-    branches: g < 4 ? 0 : Math.min(6, 1 + Math.floor((g - 4) / 2)),
-    crownRadius: round(58 * Math.sqrt(canopy)),
+    trunkHeight: round(16 + 84 * ease + 34 * grandeur),
+    trunkWidth: round(1.6 + 8.4 * t + 8 * grandeur),
+    branches: g < 4 ? 0 : Math.min(8, 1 + Math.floor((g - 4) / 2)),
+    crownRadius: round(58 * Math.sqrt(canopy) + 44 * grandeur),
     stemLeaves: g >= 4 ? 0 : g < 1 ? 2 : g < 2 ? 3 : 4,
-    leaves: g < 3 ? 0 : Math.min(46, 5 + Math.floor((g - 3) * 2.6)),
+    leaves: g < 3 ? 0 : Math.min(46, 5 + Math.floor((g - 3) * 2.6)) + Math.floor(grandeur * 30),
     blossoms: g < 12 || g >= 18 ? 0 : g < 16 ? Math.min(14, 2 + Math.floor((g - 12) * 4)) : Math.max(0, 14 - Math.floor((g - 16) * 7)),
-    fruits: g < 16 ? 0 : g < TREE_FULL_LEVEL ? Math.min(20, 1 + Math.floor((g - 16) * 5)) : Math.min(30, 21 + Math.floor(beyond * 3))
+    fruits: g < 16 ? 0 : g < TREE_FULL_LEVEL ? Math.min(20, 1 + Math.floor((g - 16) * 5)) : Math.min(52, 21 + Math.floor(beyond * 4)),
+    fruitRadius: round(4.2 + 2 * grandeur),
+    groundFruits: g < 18 ? 0 : Math.min(7, 1 + Math.floor((g - 18) * 1.2)),
+    roots: g < 8 ? 0 : Math.min(5, 1 + Math.floor((g - 8) / 3)),
+    grandeur: round(grandeur)
   };
 }
 

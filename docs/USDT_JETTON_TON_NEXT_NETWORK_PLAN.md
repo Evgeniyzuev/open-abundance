@@ -138,3 +138,6 @@ Bridge, swap и параллельный запуск нескольких се�
 - [x] typecheck/lint/build/contract checks; `pnpm test:usdt`, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`; REST schema check returned HTTP 200. Bounded local HTTP smoke-check attempted once, but `next dev` was unavailable because of Windows `spawn EPERM`.
 - [x] remote migration apply; `20260802140000_ton_usdt_jetton_rail.sql` applied and migration list verified.
 - [ ] testnet and mainnet User QA; remains the next external gate before enabling real withdrawals.
+## Уточнение 2026-10-16: скан для привязанных адресов
+
+Депозит с привязанного адреса приходит без инвойса, а сканер USDT запускался только при активном инвойсе, поэтому перевод 3 USDT лежал в цепочке, пока его никто не просканировал. Миграция `20261016140000_usdt_scan_for_bound_senders.sql` добавляет в тот же 30-секундный конвейер сканирование раз в минуту, пока есть хотя бы один привязанный адрес (один запрос к TON Center в минуту). После применения перевод был найден за 10 секунд и зачислен как `credited_bound_sender`. Тест: `pnpm test:usdt-bound-scan`.

@@ -37,6 +37,7 @@
     "test:week-recap": "node --experimental-strip-types scripts/verify-week-recap-contract.mjs",
     "test:morning": "node --experimental-strip-types scripts/verify-morning-checkin-contract.mjs",
     "test:core-ticker": "node --experimental-strip-types scripts/verify-core-ticker-contract.mjs",
+    "test:usdt-bound-scan": "node --experimental-strip-types scripts/verify-usdt-bound-scan-contract.mjs",
     "test:history-balance": "node --experimental-strip-types scripts/verify-history-balance-contract.mjs",
     "test:core-growth-popup": "node --experimental-strip-types scripts/verify-core-growth-popup-contract.mjs",
     "test:core-tree": "node --experimental-strip-types scripts/verify-core-tree-contract.mjs",

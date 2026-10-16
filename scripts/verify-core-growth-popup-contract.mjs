@@ -17,8 +17,8 @@ assert.equal(show({ enabled: false }), false, "the switch turns it off");
 assert.equal(show({ announced: null }), false, "a rise nobody announced (accrual, reload) stays quiet");
 assert.equal(show({ now: announced.expiresAt + 1 }), false, "an old announcement expires");
 assert.equal(show({ next: 100 }), false, "no rise, no popup");
-assert.equal(show({ next: 100 + GROWTH_POPUP_MIN - 0.01 }), false, "tiny rises are ignored");
-assert.equal(show({ next: 100 + GROWTH_POPUP_MIN }), true, "the threshold itself counts");
+assert.equal(show({ next: 100.1 }), true, "even a ten-cent top-up opens it");
+assert.equal(show({ next: 99 }), false, "a fall never opens it");
 assert.equal(show({ next: Number.NaN }), false, "bad numbers never open it");
 
 // Wiring: both the top-up and a garden purchase announce, and the popup reads only the balance.

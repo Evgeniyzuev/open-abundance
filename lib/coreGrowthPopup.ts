@@ -2,8 +2,8 @@
 // The popup is display only: it shows the tree reacting to a top-up and changes no balance.
 
 export const GROWTH_POPUP_KEY = "oa.coreGrowthPopup";
-/** Smaller rises (cents of accrual and the like) never open the popup. */
-export const GROWTH_POPUP_MIN = 0.5;
+/** Any real rise opens the popup: only an announced top-up or purchase can, so accruals stay quiet. */
+export const GROWTH_POPUP_MIN = 1e-9;
 /** A purchase or top-up announces itself; a rise counts only while the announcement is fresh. */
 export const GROWTH_POPUP_WINDOW_MS = 30_000;
 

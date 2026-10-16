@@ -3,6 +3,7 @@
 import { BookOpen, X } from "lucide-react";
 import { useState } from "react";
 import Sheet from "@/components/ui/Sheet";
+import ArtifactPassport from "@/components/ArtifactPassport";
 import FutureBoard from "@/components/FutureBoard";
 import SacredInventory from "@/components/SacredInventory";
 import { useUserContext } from "@/components/UserProvider";
@@ -29,6 +30,7 @@ export default function ResultsApp() {
             <strong>{t("results.intro.cardTitle")}</strong>
           </button>
         </SacredInventory>
+        <ArtifactPassport />
       </section>
 
       {introOpen ? (

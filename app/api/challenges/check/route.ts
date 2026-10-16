@@ -4,6 +4,7 @@ import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { hasThreeSteps } from "@/lib/wishSteps";
 
 type CheckRequest = {
   challengeId?: string;
@@ -792,21 +793,6 @@ function hasProof(value: unknown, proofKey: string): boolean {
 
 function wordCount(value: string | null | undefined): number {
   return (value ?? "").trim().split(/\s+/).filter(Boolean).length;
-}
-
-function hasThreeSteps(value: string | null | undefined): boolean {
-  const text = (value ?? "").trim();
-  if (!text) return false;
-
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length >= 3);
-
-  if (lines.length >= 3) return true;
-
-  const numbered = text.match(/(?:^|\s)(?:[1-3][.)]|шаг\s*[1-3]|step\s*[1-3])/gi) ?? [];
-  return new Set(numbered.map((item) => item.replace(/\s+/g, "").toLowerCase())).size >= 3;
 }
 
 function isUuid(value: string): boolean {

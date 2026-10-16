@@ -681,6 +681,7 @@ function LevelUpModal({
 }) {
   return (
     <Sheet bare dismissible={false} className="small level-up-modal" ariaLabel={t("levelUp.title")}>
+        <img className="level-up-art" alt="" src="/milestones/level-up.webp" />
         <span className="level-up-badge">Lvl {level}</span>
         <h2>{t("levelUp.title")}</h2>
         <p>{t("levelUp.description", { level })}</p>

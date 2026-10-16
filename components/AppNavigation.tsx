@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
 import HumanityCard from "@/components/HumanityCard";
 import PayRequestEntry from "@/components/PayRequestEntry";
+import ArtifactWatcher from "@/components/ArtifactWatcher";
 import ReferralRewardNotice from "@/components/ReferralRewardNotice";
 import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -722,6 +723,7 @@ export default function AppNavigation() {
       </section>
       <PayRequestEntry />
       <ReferralRewardNotice />
+      <ArtifactWatcher />
       <BottomTabBar
         activeTab={activeMainTab}
         collapsed={navHidden && !bottomNavExpanded}

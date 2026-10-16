@@ -159,7 +159,7 @@
 .expedition-route-map { min-width: 0; overflow: hidden; border: 1px solid rgba(37, 99, 235, .2); border-radius: 22px; background: #9bd4df; box-shadow: 0 12px 28px rgba(30, 64, 175, .1); }
 .expedition-route-scroll { position: relative; max-height: min(72vh, 660px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .expedition-route-scroll:focus-visible { outline: 3px solid rgba(37, 99, 235, .45); outline-offset: -3px; }
-.expedition-map-canvas { position: relative; isolation: isolate; display: grid; gap: 10px; min-height: 1840px; overflow: hidden; padding: 28px 14px 52px; background-image: linear-gradient(180deg, rgba(219, 242, 246, .25), rgba(235, 246, 229, .12) 45%, rgba(15, 73, 92, .12)), url("/expedition/expedition-map-bg.png"); background-position: center; background-size: cover; }
+.expedition-map-canvas { position: relative; isolation: isolate; display: grid; gap: 10px; min-height: 1840px; overflow: hidden; padding: 28px 14px 52px; background-image: linear-gradient(180deg, rgba(219, 242, 246, .25), rgba(235, 246, 229, .12) 45%, rgba(15, 73, 92, .12)), url("/expedition/expedition-map-bg.webp"); background-position: center; background-size: cover; }
 .expedition-map-scrim { position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, rgba(255, 255, 255, .12), transparent 22%, transparent 76%, rgba(255, 255, 255, .18)); pointer-events: none; }
 .expedition-map-path { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .expedition-map-path path { fill: none; stroke: rgba(255, 247, 210, .78); stroke-width: 1.3; stroke-linecap: round; stroke-dasharray: 1 2.3; filter: drop-shadow(0 2px 2px rgba(32, 77, 81, .24)); }

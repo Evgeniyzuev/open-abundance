@@ -345,7 +345,7 @@ function OnboardingApp({
             <OnboardingArtwork
               alt={onboardingText(onboardingContent.mission.imageAlt, locale)}
               priority
-              src="/onboarding/ai-abundance-path.png"
+              src="/onboarding/ai-abundance-path.webp"
             />
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.mission.eyebrow, locale)}</span>
@@ -363,7 +363,7 @@ function OnboardingApp({
           <section className="onboarding-slide">
             <OnboardingArtwork
               alt={onboardingText(onboardingContent.stories.imageAlt, locale)}
-              src="/onboarding/people-stories.png"
+              src="/onboarding/people-stories.webp"
             />
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.stories.eyebrow, locale)}</span>
@@ -381,7 +381,7 @@ function OnboardingApp({
           <section className="onboarding-slide onboarding-program-slide">
             <OnboardingArtwork
               alt={onboardingText(onboardingContent.program.imageAlt, locale)}
-              src="/onboarding/twenty-levels.png"
+              src="/onboarding/twenty-levels.webp"
             />
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.program.eyebrow, locale)}</span>

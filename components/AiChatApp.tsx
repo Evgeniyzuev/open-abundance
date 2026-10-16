@@ -732,7 +732,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
       <header className="ai-chat-header">
         {messages.length > 0 ? (
           <div className="ai-chat-identity">
-            <Image className="ai-chat-avatar" src="/nova-fox-robot.png" alt="" width={44} height={44} priority />
+            <Image className="ai-chat-avatar" src="/nova-fox-robot.webp" alt="" width={44} height={44} priority />
             <div>
               <span className="ai-chat-kicker">{t("ai.chat.novaLabel")}</span>
               <h2 className="ai-chat-welcome-title">{novaName}</h2>
@@ -960,7 +960,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
       ) : messages.length === 0 ? (
         <div className="ai-chat-empty">
           <div className="ai-chat-welcome-hero" data-starting-prompt-count={quickActions.slice(0, 3).length}>
-            <Image src="/nova-fox-robot.png" alt="" width={640} height={760} priority />
+            <Image src="/nova-fox-robot.webp" alt="" width={640} height={760} priority />
           </div>
           <h1 className="ai-chat-empty-title">{novaName}</h1>
         </div>
@@ -969,7 +969,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
           {messages.map((message, index) => (
             <div className={message.role === "user" ? "ai-msg-user" : "ai-msg-assistant"} key={`${message.role}-${index}`}>
               {message.role === "assistant" ? (
-                <Image className="ai-msg-avatar" src="/nova-fox-robot.png" alt="" width={30} height={30} />
+                <Image className="ai-msg-avatar" src="/nova-fox-robot.webp" alt="" width={30} height={30} />
               ) : null}
               <div className="ai-msg-content">
                 {message.followup ? <small className="ai-followup-label">{t("ai.chat.followupLabel")}</small> : null}

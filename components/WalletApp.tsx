@@ -30,7 +30,7 @@ import { EconomyMetricsPanel, HistoryPanel, ReinvestPanel, CoreCalculatorPanel, 
 export type { WalletCalculatorRequest } from "@/components/wallet/walletTypes";
 
 export default function WalletApp({ active, activeTab, calculatorRequest, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; calculatorRequest?: WalletCalculatorRequest | null; refreshNonce: number; onRefresh: () => Promise<void> }) {
-  const { core, wallet, user, loading, error, locale, applyServerData, t } = useUserContext();
+  const { core, wallet, user, loading, error, locale, applyServerData, refreshUserData, t } = useUserContext();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState<CoreHistoryRow[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -374,6 +374,25 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
       document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
   }
+
+  // A deposit or an Afterburn move lands on the server on its own, so while the Wallet is on screen the
+  // balances are re-read when the tab comes back to the front, every 45 seconds, and when the history opens.
+  useEffect(() => {
+    if (!active || !user) return;
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void refreshUserData();
+    };
+    const timer = window.setInterval(refreshIfVisible, 45_000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [active, user, refreshUserData]);
+
+  useEffect(() => {
+    if (active && walletHistoryOpen) void refreshUserData();
+  }, [active, walletHistoryOpen, refreshUserData]);
 
   function toggleWalletHistory() {
     const nextOpen = !walletHistoryOpen;

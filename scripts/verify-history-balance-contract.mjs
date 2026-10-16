@@ -42,4 +42,9 @@ const coreRoute = readFileSync(new URL("../app/api/core/history/route.ts", impor
 assert.ok(walletRoute.includes("reconstructBalances") && coreRoute.includes("reconstructBalances"), "both routes reconstruct balances");
 assert.ok(!/\.in\("operation_type"/.test(walletRoute), "no allow-list hides a type such as a shop purchase");
 assert.ok(walletRoute.includes("system_shop_purchase"), "shop purchases are named");
+
+// The balance follows the history: the Wallet re-reads balances while it is on screen.
+const walletApp = readFileSync(new URL("../components/WalletApp.tsx", import.meta.url), "utf8");
+assert.ok(walletApp.includes("window.setInterval(refreshIfVisible, 45_000)") && walletApp.includes('document.addEventListener("visibilitychange", refreshIfVisible)'), "balances refresh on a timer and when the tab returns");
+assert.ok(walletApp.includes("if (active && walletHistoryOpen) void refreshUserData();"), "balances refresh when the history opens");
 console.log("History balance contract verified.");

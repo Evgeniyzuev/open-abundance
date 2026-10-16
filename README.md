@@ -47,6 +47,6 @@ pnpm lint
 pnpm test:e2e
 ```
 
-`pnpm exec tsc --noEmit` updates the tracked `tsconfig.tsbuildinfo`; restore that verification-only change afterward. The current smoke test is known to need alignment with the guest onboarding flow and is tracked as the second queued product step.
+`pnpm exec tsc --noEmit` updates the tracked `tsconfig.tsbuildinfo`; restore that verification-only change afterward. The e2e smoke suite (`tests/e2e/app-smoke.spec.ts`) matches the current guest onboarding flow and passes within the 30-second budget. It needs `NEXT_PUBLIC_SUPABASE_ANON_KEY` set (any value works, because the tests mock Supabase).
 
 For development conventions, UTF-8 handling, IndexedDB rules and frontend verification requirements, read [docs/DEVELOPMENT_RULES.md](docs/DEVELOPMENT_RULES.md).

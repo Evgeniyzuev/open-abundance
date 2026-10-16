@@ -398,7 +398,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setAuthResolved(true);
 
       if (session) {
-        await claimCurrentUserIfNeeded();
+        // A failed referral/registration claim retries on the next load; it must not keep Core and Wallet from loading.
+        await claimCurrentUserIfNeeded().catch((claimError) => {
+          console.warn("Registration claim failed", claimError);
+        });
       }
 
       if (mounted) await refreshUserData();

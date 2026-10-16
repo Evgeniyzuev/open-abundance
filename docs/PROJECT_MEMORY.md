@@ -201,7 +201,7 @@ Wallet пользователя уменьшается
 - Open Projects foundation;
 - marketplace artifacts/listings и internal DB-only deal lifecycle с atomic completion; buyer funds escrow, expire/refund, dispute и immutable reviews реализованы в локальном migration slice, remote apply и buyer/seller User QA остаются открытыми.
 
-Большинство контуров технически реализованы, но не прошли связный User QA. Единственный существующий e2e smoke-тест устарел относительно гостевого onboarding.
+Большинство контуров технически реализованы, но не прошли связный User QA. E2e smoke-тест `tests/e2e/app-smoke.spec.ts` приведён в соответствие с гостевым onboarding и проходит (2026-10-16).
 
 Обновление 2026-07-12:
 

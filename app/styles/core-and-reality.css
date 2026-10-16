@@ -416,3 +416,33 @@
 .core-ticker-body small { color: var(--muted); }
 @keyframes core-ticker-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .core-ticker, .core-ticker-dot, .core-drop, .core-ticker-water { animation: none; transition: none; } .core-drop { display: none; } }
+
+/* Core tree: grows from a sprout to an apple tree with the Core level */
+.core-tree { margin: 10px 4px 0; padding: 10px 14px 6px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); transition: box-shadow .3s ease, border-color .3s ease; }
+.core-tree.is-fed { border-color: #16a34a; box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.14), 0 0 22px rgba(22, 163, 74, 0.3); }
+.core-tree-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.core-tree-head strong { font-size: 1rem; font-weight: 800; }
+.core-tree-head span { color: var(--muted); font-size: .8125rem; text-align: right; }
+.core-tree-scene { position: relative; }
+.core-tree-scene svg { display: block; width: 100%; max-width: 320px; height: auto; margin: 0 auto; overflow: visible; }
+.core-tree-ground { fill: #a16207; opacity: .18; }
+.core-tree-trunk { fill: none; stroke: #8b5a2b; stroke-linecap: round; }
+.core-tree-leaf { fill: #22c55e; stroke: #15803d; stroke-width: .6; }
+.core-tree-cluster { fill: #22c55e; opacity: .92; }
+.core-tree-cluster.tone-1 { fill: #16a34a; }
+.core-tree-cluster.tone-2 { fill: #4ade80; }
+.core-tree-blossom circle { fill: #fbcfe8; }
+.core-tree-blossom .core-tree-blossom-heart { fill: #f59e0b; }
+.core-tree-fruit circle { fill: #dc2626; }
+.core-tree-fruit .core-tree-fruit-shine { fill: #fff; opacity: .55; }
+.core-tree-fruit-stem { fill: none; stroke: #78350f; stroke-width: 1.2; stroke-linecap: round; }
+.core-tree-crown { animation: core-tree-sway 6s ease-in-out infinite; }
+.core-tree.is-fed .core-tree-plant { animation: core-tree-shake .9s ease-in-out, core-tree-stretch 1.8s ease-out; filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.75)); }
+.core-tree-drop { fill: #3b82f6; animation: core-tree-drop-fall .7s ease-in forwards; }
+.core-tree-gain { position: absolute; left: 50%; top: 0; transform: translateX(-50%); padding: 3px 10px; border-radius: 999px; background: #16a34a; color: #fff; font-size: .875rem; font-weight: 800; white-space: nowrap; pointer-events: none; animation: core-tree-gain-rise 1.8s ease-out forwards; }
+@keyframes core-tree-sway { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
+@keyframes core-tree-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-3deg); } 45% { transform: rotate(2.5deg); } 70% { transform: rotate(-1.5deg); } }
+@keyframes core-tree-stretch { 0% { scale: 1; } 35% { scale: 1.04 1.08; } 100% { scale: 1; } }
+@keyframes core-tree-drop-fall { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(var(--fall)); opacity: .2; } }
+@keyframes core-tree-gain-rise { 0% { opacity: 0; translate: 0 10px; } 15% { opacity: 1; translate: 0 0; } 75% { opacity: 1; } 100% { opacity: 0; translate: 0 -24px; } }
+@media (prefers-reduced-motion: reduce) { .core-tree, .core-tree-crown, .core-tree.is-fed .core-tree-plant, .core-tree-gain { animation: none; transition: none; } .core-tree-drop { display: none; } }

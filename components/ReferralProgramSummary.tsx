@@ -40,8 +40,8 @@ export default function ReferralProgramSummary() {
   const money = (value: number) => formatAdaptiveMoney(value, locale);
 
   return (
-    <section className="referral-program" aria-label={t("referral.program.title")} style={{ margin: "12px 0", padding: 14, borderRadius: 16, background: "rgba(0, 113, 227, 0.06)" }}>
-      <strong>{t("referral.program.title")}</strong>
+    <details className="referral-program" style={{ margin: "12px 0", padding: 14, borderRadius: 16, background: "rgba(0, 113, 227, 0.06)" }}>
+      <summary><strong>{t("referral.program.title")}</strong></summary>
       <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
         <li>{t("referral.program.levelTwo", { amount: money(summary.amounts.levelTwoCore) })}</li>
         <li>{t("referral.program.humanity", { amount: money(summary.amounts.humanity) })}</li>
@@ -53,6 +53,6 @@ export default function ReferralProgramSummary() {
         <dt>{t("referral.program.statWallet")}</dt><dd>{money(summary.rewards.wallet)}</dd>
         <dt>{t("referral.program.statCore")}</dt><dd>{money(summary.rewards.core)}</dd>
       </dl>
-    </section>
+    </details>
   );
 }

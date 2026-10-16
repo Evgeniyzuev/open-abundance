@@ -380,3 +380,8 @@
 .morning-contexts button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 0.875rem; }
 .morning-contexts button.active { background: var(--accent-soft); border-color: var(--blue); color: var(--blue); }
 .morning-private { color: var(--muted); }
+
+.referral-program > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; list-style: none; min-height: 24px; }
+.referral-program > summary::-webkit-details-marker { display: none; }
+.referral-program > summary::after { content: ""; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform 0.15s; flex: none; }
+.referral-program[open] > summary::after { transform: rotate(-135deg); }

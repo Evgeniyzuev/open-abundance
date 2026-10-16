@@ -55,3 +55,27 @@ export function computeCoreTicker(input: { balance: number; reinvestPercent: num
 export function coreGrowthFactor(years: number): number {
   return Math.pow(1 + TICKER_DAILY_RATE, 365 * Math.max(0, years));
 }
+
+/** Rounded growth of Core in percent after `years` with full reinvestment (a scenario, not a promise). */
+export function coreGrowthPercent(years: number): number {
+  return (coreGrowthFactor(years) - 1) * 100;
+}
+
+/**
+ * Value of one water drop in the counter: the smallest 1, 2 or 5 x 10^k that is not below one second
+ * of income, so a drop falls roughly every one to two and a half seconds whatever the balance.
+ */
+export function dropUnit(perSecond: number): number {
+  if (!Number.isFinite(perSecond) || perSecond <= 0) return 0;
+  const exponent = Math.floor(Math.log10(perSecond));
+  for (const step of [1, 2, 5, 10]) {
+    const candidate = step * Math.pow(10, exponent);
+    if (candidate >= perSecond * (1 - 1e-12)) return candidate;
+  }
+  return Math.pow(10, exponent + 1);
+}
+
+/** Whole drops that have fallen today; the glass fills as the day passes. */
+export function dropsFallen(today: number, unit: number): number {
+  return unit > 0 ? Math.floor(today / unit + 1e-9) : 0;
+}

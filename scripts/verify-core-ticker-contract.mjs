@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { computeCoreTicker, coreGrowthFactor, secondsSinceUtcMidnight, tickerDecimals, TICKER_DAILY_RATE } from "../lib/coreTicker.ts";
+import { computeCoreTicker, coreGrowthFactor, coreGrowthPercent, dropsFallen, dropUnit, secondsSinceUtcMidnight, tickerDecimals, TICKER_DAILY_RATE } from "../lib/coreTicker.ts";
 import { DAILY_CORE_RATE } from "../lib/coreCalculator.ts";
 
 assert.equal(TICKER_DAILY_RATE, DAILY_CORE_RATE, "the ticker uses the same daily rate as the calculator and the accrual job");
@@ -34,6 +34,27 @@ assert.equal(tickerDecimals(1e-30), 12, "decimals are capped");
 assert.ok(Math.abs(coreGrowthFactor(1) - 1.26) < 0.01);
 assert.ok(Math.abs(coreGrowthFactor(3) - 2.0) < 0.05);
 assert.ok(Math.abs(coreGrowthFactor(10) - 10.1) < 0.3);
+
+// Growth shown as percent for several periods (1.26^N - 1), never as a promise.
+assert.equal(Math.round(coreGrowthPercent(1)), 26);
+assert.equal(Math.round(coreGrowthPercent(3)), 100);
+assert.ok(Math.round(coreGrowthPercent(10)) >= 900 && Math.round(coreGrowthPercent(10)) <= 915);
+assert.ok(coreGrowthPercent(30) > 100_000, "thirty years compounds to several hundred times");
+assert.equal(coreGrowthPercent(0), 0);
+
+// A water drop is worth 1, 2 or 5 x 10^k and falls every one to two and a half seconds.
+for (const balance of [1, 10, 100, 1000, 12345, 1_000_000]) {
+  const perSecond = balance * TICKER_DAILY_RATE / 86400;
+  const unit = dropUnit(perSecond);
+  const seconds = unit / perSecond;
+  assert.ok(seconds >= 0.999 && seconds <= 2.51, `balance ${balance}: a drop every ${seconds.toFixed(2)} s`);
+  const mantissa = unit / Math.pow(10, Math.floor(Math.log10(unit)));
+  assert.ok([1, 2, 5].some((step) => Math.abs(mantissa - step) < 1e-9), "unit is 1, 2 or 5 times a power of ten");
+}
+assert.equal(dropUnit(0), 0);
+assert.equal(dropsFallen(0.00001, 0.00001), 1);
+assert.equal(dropsFallen(0.000019, 0.00001), 1);
+assert.equal(dropsFallen(5, 0), 0);
 
 // The counter component only reads balances; it never calls the server or writes data.
 const component = readFileSync(new URL("../components/CoreIncomeTicker.tsx", import.meta.url), "utf8");

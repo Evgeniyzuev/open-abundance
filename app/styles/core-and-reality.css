@@ -397,11 +397,22 @@
 .core-ticker-toggle svg { transition: transform .15s ease; }
 .core-ticker.is-open .core-ticker-toggle svg { transform: rotate(180deg); }
 .core-ticker-body { display: grid; gap: 10px; padding: 0 14px 14px; }
-.core-ticker-bar { height: 6px; border-radius: 999px; background: var(--surface-muted); overflow: hidden; }
-.core-ticker-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4f46e5, #16a34a); }
-.core-ticker-body dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; }
+.core-ticker-main { display: flex; align-items: center; gap: 14px; }
+.core-ticker-glass { flex: none; width: 76px; height: 114px; overflow: visible; color: var(--blue); }
+.core-ticker-glass-line { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.core-ticker-water { fill: currentColor; opacity: .35; transition: y .6s linear, height .6s linear; }
+.core-drop { fill: currentColor; animation: core-drop-fall 1s ease-in forwards; }
+.core-ticker-dot.is-dripping { animation: core-ticker-bounce .5s ease-out; }
+.core-ticker-growth { display: grid; gap: 6px; font-size: .8125rem; }
+.core-ticker-growth > span { color: var(--muted); }
+.core-ticker-growth ul { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; margin: 0; padding: 0; list-style: none; }
+.core-ticker-growth li { display: flex; justify-content: space-between; gap: 8px; }
+.core-ticker-growth li span { font-weight: 800; font-variant-numeric: tabular-nums; }
+@keyframes core-drop-fall { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(var(--fall)); opacity: .15; } }
+@keyframes core-ticker-bounce { 0% { transform: scale(1); } 40% { transform: scale(1.9); } 100% { transform: scale(1); } }
+.core-ticker-body dl { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; }
 .core-ticker-body dt { color: var(--muted); font-size: .75rem; }
 .core-ticker-body dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .core-ticker-body small { color: var(--muted); }
 @keyframes core-ticker-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .core-ticker, .core-ticker-dot { animation: none; transition: none; } }
+@media (prefers-reduced-motion: reduce) { .core-ticker, .core-ticker-dot, .core-drop, .core-ticker-water { animation: none; transition: none; } .core-drop { display: none; } }

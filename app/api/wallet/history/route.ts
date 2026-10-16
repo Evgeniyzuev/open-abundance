@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { reconstructBalances } from "@/lib/historyBalance";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release" | "team_bonus" | "internal_turnover_fee";
+  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release" | "team_bonus" | "internal_turnover_fee" | "system_shop_purchase" | "referral_reward" | "other";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -25,6 +26,12 @@ type WalletHistoryRow = {
   messageHash?: string;
   counterpartyUserId?: string;
   sourceId?: string;
+  /** Balance of the Wallet right after this operation, when it can be trusted. */
+  balance_after?: number | null;
+  /** The raw ledger type when the kind is "other". */
+  operationType?: string;
+  /** Extra meaning of a Wallet to Core move: a Core garden item or an Afterburn night move. */
+  tag?: "core_item" | "afterburn";
   created_at: string;
 };
 
@@ -42,10 +49,11 @@ type CryptoDepositLedgerRow = {
   amount: number;
   created_at: string;
   metadata: Record<string, unknown>;
-  operation_type: "team_bonus" | "crypto_deposit" | "crypto_withdrawal" | "challenge_reward" | "wallet_core_topup" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release" | "internal_turnover_fee";
+  operation_type: string;
   direction: "credit" | "debit";
   counterparty_user_id?: string | null;
   source_id?: string | null;
+  balance_after?: number | null;
 };
 
 export const dynamic = "force-dynamic";
@@ -75,9 +83,8 @@ export async function GET(request: NextRequest) {
 
     const { data: cryptoLedger, error: cryptoError } = await supabase
       .from("wallet_ledger")
-      .select("id,amount,created_at,metadata,operation_type,direction,counterparty_user_id,source_id")
+      .select("id,amount,created_at,metadata,operation_type,direction,counterparty_user_id,source_id,balance_after")
       .eq("user_id", user.id)
-      .in("operation_type", ["crypto_deposit", "crypto_withdrawal", "challenge_reward", "wallet_core_topup", "wallet_transfer", "marketplace_escrow_hold", "marketplace_payment", "marketplace_refund", "p2p_escrow_hold", "p2p_escrow_release", "p2p_escrow_refund", "p2p_compensation", "p2p_recovery", "p2p_collateral_hold", "p2p_collateral_release", "team_bonus", "internal_turnover_fee"])
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -100,7 +107,10 @@ export async function GET(request: NextRequest) {
     const cryptoRows: WalletHistoryRow[] = ((cryptoLedger ?? []) as CryptoDepositLedgerRow[]).map((row) => ({
       id: row.id,
       operation_date: dateOnly(row.created_at),
-      kind: row.operation_type,
+      kind: knownKind(row.operation_type),
+      operationType: knownKind(row.operation_type) === "other" ? row.operation_type : undefined,
+      tag: row.metadata?.afterburn ? "afterburn" : row.metadata?.core_item ? "core_item" : undefined,
+      balance_after: row.balance_after === null || row.balance_after === undefined ? null : Number(row.balance_after),
       direction: row.direction,
       amount: Number(row.amount),
       amountUsd: row.operation_type === "crypto_deposit"
@@ -122,9 +132,16 @@ export async function GET(request: NextRequest) {
       created_at: row.created_at
     }));
 
-    const rows = [...dailyRows, ...cryptoRows]
-      .sort((left, right) => safeTimestamp(right.created_at) - safeTimestamp(left.created_at))
-      .slice(0, limit);
+    const merged = [...dailyRows, ...cryptoRows]
+      .sort((left, right) => safeTimestamp(right.created_at) - safeTimestamp(left.created_at));
+
+    // The balance after each row: exact for ledger rows, reconstructed for the daily payouts that have none.
+    const { data: walletAccount } = await supabase.from("wallet_accounts").select("balance").eq("user_id", user.id).maybeSingle();
+    const balances = reconstructBalances(
+      merged.map((row) => ({ delta: row.direction === "debit" ? -row.amount : row.amount, exactAfter: row.id.startsWith("daily-core:") ? null : row.balance_after })),
+      walletAccount ? Number(walletAccount.balance) : null
+    );
+    const rows = merged.slice(0, limit).map((row, index) => ({ ...row, balance_after: balances[index] }));
 
     return NextResponse.json(
       { rows },
@@ -161,6 +178,12 @@ function fixedDecimal(value: string, decimals: number): string {
   const normalized = /^\d+(?:\.\d+)?$/.test(value) ? value : "0";
   const [whole, fraction = ""] = normalized.split(".");
   return `${whole}.${fraction.slice(0, decimals).padEnd(decimals, "0")}`;
+}
+
+const KNOWN_KINDS: readonly string[] = ["daily_core_payout", "challenge_reward", "wallet_core_topup", "crypto_deposit", "crypto_withdrawal", "wallet_transfer", "marketplace_escrow_hold", "marketplace_payment", "marketplace_refund", "p2p_escrow_hold", "p2p_escrow_release", "p2p_escrow_refund", "p2p_compensation", "p2p_recovery", "p2p_collateral_hold", "p2p_collateral_release", "team_bonus", "internal_turnover_fee", "system_shop_purchase", "referral_reward"];
+
+function knownKind(value: string): WalletHistoryRow["kind"] {
+  return (KNOWN_KINDS.includes(value) ? value : "other") as WalletHistoryRow["kind"];
 }
 
 function dateOnly(value: string): string {

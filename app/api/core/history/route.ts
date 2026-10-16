@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { reconstructBalances } from "@/lib/historyBalance";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-type CoreHistoryKind = "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus";
+type CoreHistoryKind = "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus" | "referral_reward";
 type HistoryLocale = "ru" | "en";
 
 export type CoreHistoryRow = {
@@ -18,6 +19,8 @@ export type CoreHistoryRow = {
   challenge_id?: string;
   challenge_title?: string;
   metadata?: Record<string, unknown>;
+  /** Core balance right after this operation, when it can be trusted. */
+  balance_after?: number | null;
 };
 
 export async function GET(request: NextRequest) {
@@ -27,10 +30,10 @@ export async function GET(request: NextRequest) {
 
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
     const locale: HistoryLocale = request.nextUrl.searchParams.get("locale") === "ru" ? "ru" : "en";
-    const [accruals, challenges, reviews, topups, teamBonuses] = await Promise.all([
+    const [accruals, challenges, reviews, topups, teamBonuses, referralRewards, coreAccount] = await Promise.all([
       supabase
         .from("daily_core_accruals")
-        .select("accrual_date,core_amount,created_at")
+        .select("accrual_date,core_amount,core_after,created_at")
         .eq("user_id", user.id)
         .gt("core_amount", 0)
         .order("created_at", { ascending: false })
@@ -66,19 +69,29 @@ export async function GET(request: NextRequest) {
         .eq("leader_user_id", user.id)
         .gt("core_amount", 0)
         .order("created_at", { ascending: false })
-        .limit(limit)
+        .limit(limit),
+      (supabase as any)
+        .from("referral_rewards")
+        .select("id,amount,created_at,kind")
+        .eq("referrer_user_id", user.id)
+        .eq("destination", "core")
+        .gt("amount", 0)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabase.from("core_accounts").select("balance").eq("user_id", user.id).maybeSingle()
     ]);
 
-    const failed = [accruals, challenges, reviews, topups, teamBonuses].find((result) => result.error);
+    const failed = [accruals, challenges, reviews, topups, teamBonuses, referralRewards].find((result) => result.error);
     if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500, headers: NO_STORE_HEADERS });
 
     const rows: CoreHistoryRow[] = [
-      ...((accruals.data ?? []) as Array<{ accrual_date: string; core_amount: number; created_at: string }>).map((row) => ({
+      ...((accruals.data ?? []) as Array<{ accrual_date: string; core_amount: number; core_after: number | null; created_at: string }>).map((row) => ({
         id: `daily:${row.accrual_date}`,
         occurred_at: row.created_at,
         kind: "daily_accrual" as const,
         amount: Number(row.core_amount),
-        source_id: row.accrual_date
+        source_id: row.accrual_date,
+        balance_after: row.core_after === null || row.core_after === undefined ? null : Number(row.core_after)
       })),
       ...((challenges.data ?? []) as Array<{ id: string; challenge_id: string; core_reward_amount: number; reward_settled_at: string | null; updated_at: string; challenges?: unknown }>).map((row) => ({
         id: `challenge:${row.id}`,
@@ -104,6 +117,14 @@ export async function GET(request: NextRequest) {
         source_id: row.source_id ?? row.id,
         metadata: row.metadata ?? undefined
       })),
+      ...((referralRewards.data ?? []) as Array<{ id: string; amount: number; created_at: string; kind: string }>).map((row) => ({
+        id: `referral:${row.id}`,
+        occurred_at: row.created_at,
+        kind: "referral_reward" as const,
+        amount: Number(row.amount),
+        source_id: row.id,
+        metadata: { kind: row.kind }
+      })),
       ...((teamBonuses.data ?? []) as Array<{ id: string; core_amount: number; created_at: string; bonus_date: string; source_user_id: string; depth: number }>).map((row) => ({
         id: `team:${row.id}`,
         occurred_at: row.created_at,
@@ -114,10 +135,16 @@ export async function GET(request: NextRequest) {
       }))
     ]
       .filter((row) => Number.isFinite(row.amount) && row.amount > 0)
-      .sort((left, right) => safeTimestamp(right.occurred_at) - safeTimestamp(left.occurred_at))
-      .slice(0, limit);
+      .sort((left, right) => safeTimestamp(right.occurred_at) - safeTimestamp(left.occurred_at));
 
-    return NextResponse.json({ rows }, { headers: NO_STORE_HEADERS });
+    // Daily accruals store the exact Core after them; the other rows are reconstructed between them.
+    const balances = reconstructBalances(
+      rows.map((row) => ({ delta: row.amount, exactAfter: row.kind === "daily_accrual" ? row.balance_after : null })),
+      coreAccount?.data ? Number(coreAccount.data.balance) : null
+    );
+    const withBalances = rows.slice(0, limit).map((row, index) => ({ ...row, balance_after: balances[index] }));
+
+    return NextResponse.json({ rows: withBalances }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to load Core history." },

@@ -5,6 +5,7 @@ import { Check, ChevronDown, ImagePlus, Sparkles, X } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { prepareUpload, readJsonSafe, UploadTooLargeError } from "@/lib/uploadImage";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import { realityWinsCount, type RealityDaySummary } from "@/lib/realityDay";
 import { formatStatBlockValue, statBlockLabelKey } from "@/lib/realityDayFormat";
@@ -159,10 +160,13 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
     try {
       if (file && !alreadyPublished) {
         const form = new FormData();
-        form.append("file", file);
+        form.append("file", await prepareUpload(file));
         const uploadResponse = await fetchWithSupabaseAuth(`/api/social/feed/posts/${draft.id}/media`, { method: "POST", body: form }, { authRequired: true });
-        const uploadPayload = await uploadResponse.json() as { error?: string };
-        if (!uploadResponse.ok) throw new Error(uploadPayload.error ?? "Upload failed");
+        const uploadPayload = await readJsonSafe<{ error?: string }>(uploadResponse);
+        if (!uploadResponse.ok) {
+          if (uploadPayload.error === "upload_too_large") throw new UploadTooLargeError();
+          throw new Error(uploadPayload.error?.startsWith("http_") ? t("reality.day.uploadFailed") : uploadPayload.error ?? t("reality.day.uploadFailed"));
+        }
       }
       const response = await fetchWithSupabaseAuth(`/api/social/feed/posts/${draft.id}`, {
         method: "PATCH",
@@ -175,13 +179,13 @@ function RealityDaySheet({ preview, onClose, onPublished }: { preview: DayPrevie
           statBlocks: draft.statBlocks.map((block) => ({ blockKey: block.block_key, visibility: hidden.has(block.block_key) ? "private" : "public" }))
         })
       }, { authRequired: true });
-      const payload = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "Publish failed");
+      const payload = await readJsonSafe<{ error?: string }>(response);
+      if (!response.ok) throw new Error(payload.error?.startsWith("http_") ? t("reality.day.uploadFailed") : payload.error ?? "Publish failed");
       playUiSound("reward");
       setDone(true);
       onPublished();
     } catch (publishError) {
-      setError(publishError instanceof Error ? publishError.message : String(publishError));
+      setError(publishError instanceof UploadTooLargeError ? t("reality.day.fileTooLarge") : publishError instanceof Error ? publishError.message : String(publishError));
     } finally {
       setSaving(false);
     }

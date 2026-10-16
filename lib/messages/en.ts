@@ -598,6 +598,8 @@ const en = {
   "share.networks": "Share to networks",
   "share.copyLink": "Copy link",
   "share.copied": "Copied",
+  "reality.day.fileTooLarge": "The file is too large to upload. Choose another photo or a video up to 4 MB.",
+  "reality.day.uploadFailed": "The file could not be uploaded. Try again or choose another one.",
   "reality.day.caption": "Caption",
   "reality.day.payers": "Payers: {count}",
   "reality.day.source.sales": "Sales",

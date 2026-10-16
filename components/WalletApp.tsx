@@ -6,6 +6,7 @@ import CoreCtaButton from "@/components/CoreCtaButton";
 import CoreIncomeTicker from "@/components/CoreIncomeTicker";
 import CoreTree from "@/components/CoreTree";
 import CoreGarden from "@/components/CoreGarden";
+import CoreAfterburnPanel from "@/components/CoreAfterburnPanel";
 import CoreSheet from "@/components/CoreSheet";
 import P2PWalletPanel from "@/components/P2PWalletPanel";
 import PaymentRequestModal from "@/components/PaymentRequestModal";
@@ -782,6 +783,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
             </div>
           ) : null}
           {user && core ? <CoreGarden walletBalance={wallet?.balance ?? 0} locale={locale} t={t} onPurchased={onRefresh} /> : null}
+          {user && core ? <CoreAfterburnPanel walletBalance={wallet?.balance ?? 0} locale={locale} t={t} /> : null}
           {user ? (
             <ReinvestPanel
               value={reinvestValue}

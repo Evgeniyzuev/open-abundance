@@ -489,3 +489,24 @@
 .core-garden-confirm > p:first-child { color: var(--muted); font-style: italic; }
 .core-garden-growth { font-size: .8125rem; }
 .core-garden-growth span { color: var(--muted); }
+
+/* Afterburn: free Wallet money moves to Core every night before the accrual */
+.core-afterburn { display: grid; gap: 8px; margin: 10px 4px 0; padding: 12px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); transition: border-color .3s ease, box-shadow .3s ease; }
+.core-afterburn.is-on { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12); }
+.core-afterburn-head { display: flex; align-items: center; gap: 10px; }
+.core-afterburn-icon { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--muted); background: var(--surface-muted); }
+.core-afterburn.is-on .core-afterburn-icon { color: #fff; background: linear-gradient(135deg, #f97316, #ef4444); animation: core-afterburn-flicker 1.8s ease-in-out infinite; }
+.core-afterburn-title { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.core-afterburn-title small { color: var(--muted); font-size: .8125rem; }
+.core-afterburn-switch { flex: none; position: relative; width: 50px; height: 30px; border: 0; border-radius: 999px; background: var(--line); cursor: pointer; transition: background .2s ease; }
+.core-afterburn-switch span { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform .2s ease; }
+.core-afterburn-switch[aria-checked="true"] { background: #f97316; }
+.core-afterburn-switch[aria-checked="true"] span { transform: translateX(20px); }
+.core-afterburn-keep { display: flex; align-items: center; gap: 8px; font-size: .875rem; }
+.core-afterburn-keep > span { flex: none; color: var(--muted); }
+.core-afterburn-keep input { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--surface); color: var(--text); font: inherit; font-size: 1rem; }
+.core-afterburn-preview { margin: 0; font-weight: 700; font-size: .875rem; }
+.core-afterburn-last { margin: 0; color: var(--muted); font-size: .8125rem; }
+.core-afterburn > small { color: var(--muted); }
+@keyframes core-afterburn-flicker { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
+@media (prefers-reduced-motion: reduce) { .core-afterburn.is-on .core-afterburn-icon { animation: none; } }

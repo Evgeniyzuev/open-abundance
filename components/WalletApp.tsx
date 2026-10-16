@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Calculator } from "lucide-react";
 import CoreCtaButton from "@/components/CoreCtaButton";
 import CoreIncomeTicker from "@/components/CoreIncomeTicker";
-import CoreTree from "@/components/CoreTree";
-import CoreGarden from "@/components/CoreGarden";
-import CoreAfterburnPanel from "@/components/CoreAfterburnPanel";
+import CoreGrowthPopup, { type CoreSnapshot } from "@/components/CoreGrowthPopup";
+import CorePlayRow from "@/components/CorePlayRow";
 import CoreSheet from "@/components/CoreSheet";
 import P2PWalletPanel from "@/components/P2PWalletPanel";
 import PaymentRequestModal from "@/components/PaymentRequestModal";
@@ -15,6 +14,7 @@ import { TonUsdtDepositModal, TonUsdtWithdrawalModal } from "@/components/TonUsd
 import { WalletCryptoMethodModal, type WalletCryptoMethod } from "@/components/WalletCryptoMethodModal";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
 import { calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, normalizePercent } from "@/lib/coreCalculator";
+import { GROWTH_POPUP_KEY, GROWTH_POPUP_WINDOW_MS, parseGrowthPopupSetting, shouldShowGrowthPopup, type GrowthAnnouncement } from "@/lib/coreGrowthPopup";
 import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
 import { normalizeMarketplaceRating } from "@/lib/marketplaceRating";
 import { trackClientEvent } from "@/lib/clientAnalytics";
@@ -465,10 +465,39 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const summaryGoalLabel = calculatorMode === "target" ? formatTargetSummary(targetCalculation, t) : calculatorMode === "compare" ? formatDuration(simulation.days, t) : formatMoney(futureCore, locale);
   const summaryDailyLabel = calculatorMode === "target" ? formatMoney(requestedTargetCore, locale) : calculatorMode === "compare" ? formatMoney(futureCore, locale) : `${formatMoney(futureDailyIncome.gross, locale)}/${t("app.common.day")}`;
 
+  // "Core grew" pop-up: a top-up or a garden purchase announces itself, and the next rise of the
+  // balance while the announcement is fresh opens the pop-up with the tree growing.
+  const coreRef = useRef(core);
+  coreRef.current = core;
+  const announcedRef = useRef<GrowthAnnouncement | null>(null);
+  const snapshotRef = useRef<CoreSnapshot | null>(null);
+  const [growth, setGrowth] = useState<{ from: CoreSnapshot; to: CoreSnapshot } | null>(null);
+  const announceGrowth = useCallback(() => {
+    const current = coreRef.current;
+    if (!current) return;
+    announcedRef.current = { balance: current.balance, expiresAt: Date.now() + GROWTH_POPUP_WINDOW_MS };
+    snapshotRef.current = { level: current.level, balance: current.balance, nextThreshold: current.next_level_threshold ?? null };
+  }, []);
+
+  useEffect(() => {
+    if (!core || !snapshotRef.current) return;
+    let enabled = true;
+    try {
+      enabled = parseGrowthPopupSetting(window.localStorage.getItem(GROWTH_POPUP_KEY));
+    } catch {
+      // Enabled is the default without storage.
+    }
+    if (!shouldShowGrowthPopup({ announced: announcedRef.current, next: core.balance, enabled, now: Date.now() })) return;
+    setGrowth({ from: snapshotRef.current, to: { level: core.level, balance: core.balance, nextThreshold: core.next_level_threshold ?? null } });
+    announcedRef.current = null;
+    snapshotRef.current = null;
+  }, [core]);
+
   const handleTopupSuccess = useCallback(async (newCore: Tables<"core_accounts">, newWallet: Tables<"wallet_accounts">) => {
+    announceGrowth();
     applyServerData({ core: newCore, wallet: newWallet });
     await onRefresh();
-  }, [applyServerData, onRefresh]);
+  }, [announceGrowth, applyServerData, onRefresh]);
 
   const handleTransferSuccess = useCallback(async (newWallet: Tables<"wallet_accounts">) => {
     applyServerData({ wallet: newWallet });
@@ -771,7 +800,6 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               onOpen={() => setCoreSheet({ open: true, view: "menu" })}
             />
           ) : null}
-          {user && core ? <CoreTree level={core.level} balance={core.balance} nextThreshold={core.next_level_threshold} locale={locale} t={t} /> : null}
           {user && core ? <CoreIncomeTicker balance={core.balance} reinvestPercent={core.reinvest_percent} locale={locale} t={t} /> : null}
           {user && core ? (
             <div className="core-cta-wrap">
@@ -782,8 +810,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               />
             </div>
           ) : null}
-          {user && core ? <CoreGarden walletBalance={wallet?.balance ?? 0} locale={locale} t={t} onPurchased={onRefresh} /> : null}
-          {user && core ? <CoreAfterburnPanel walletBalance={wallet?.balance ?? 0} locale={locale} t={t} /> : null}
+          {user && core ? <CorePlayRow level={core.level} balance={core.balance} nextThreshold={core.next_level_threshold} walletBalance={wallet?.balance ?? 0} locale={locale} t={t} onPurchased={async () => { announceGrowth(); await onRefresh(); }} /> : null}
           {user ? (
             <ReinvestPanel
               value={reinvestValue}
@@ -920,6 +947,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
 
       {error ? <p className="finance-error">{error}</p> : null}
 
+      {growth ? <CoreGrowthPopup from={growth.from} to={growth.to} locale={locale} t={t} onClose={() => setGrowth(null)} /> : null}
       {user && core ? (
         <CoreSheet
           open={coreSheet.open && activeTab === "core"}

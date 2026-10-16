@@ -53,11 +53,9 @@ export default function CoreGarden({ walletBalance, locale, t, onPurchased }: { 
   }
 
   return (
-    <details className="mutual-balance-card core-garden">
-      <summary>
-        <span><strong>{t("coreGarden.title")}</strong><small>{t("coreGarden.subtitle")}</small></span>
-      </summary>
+    <section className="mutual-balance-card core-garden" aria-label={t("coreGarden.title")}>
       <div className="core-garden-body">
+        <small className="core-garden-subtitle">{t("coreGarden.subtitle")}</small>
         {message ? <p className={message.error ? "finance-error" : "core-garden-success"} role="status">{message.text}</p> : null}
         <ul className="core-garden-list">
           {CORE_ITEMS.map((item) => {
@@ -94,6 +92,6 @@ export default function CoreGarden({ walletBalance, locale, t, onPurchased }: { 
           })}
         </ul>
       </div>
-    </details>
+    </section>
   );
 }

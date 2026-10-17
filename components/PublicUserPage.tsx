@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import GuestJoinPanel from "@/components/GuestJoinPanel";
+import PublicTabBar from "@/components/PublicTabBar";
 import { PublicBlog } from "@/components/BlogWorkspace";
 import { PostDetailModal } from "@/components/social/FeedParts";
 import RealityView from "@/components/RealityView";
@@ -118,7 +119,7 @@ export default function PublicUserPage({ userId, initialView, initialPostId = nu
         {!loading ? (
           <>
             <GuestJoinPanel />
-            <header className="public-user-header">
+            {view === "profile" ? <header className="public-user-header">
               {view === "profile" ? <>
               <div className="profile-avatar">
                 {profile?.avatar_url ? <img alt="" src={profile.avatar_url} style={{ objectPosition: profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={34} />}
@@ -155,21 +156,7 @@ export default function PublicUserPage({ userId, initialView, initialPostId = nu
                 )
               ) : null}
               </> : null}
-              <nav className="public-user-tabs" aria-label={t("profile.public.title")}>
-                <Link className={view === "blog" ? "active" : ""} href={`/u/${userId}/blog`}>
-                  <BookOpen size={15} />
-                  {t("social.blog.title")}
-                </Link>
-                <Link className={view === "profile" ? "active" : ""} href={`/u/${userId}`}>
-                  <UserRound size={15} />
-                  {t("profile.public.title")}
-                </Link>
-                <Link href="/feed">
-                  <Newspaper size={15} />
-                  {t("social.feed.title")}
-                </Link>
-              </nav>
-            </header>
+            </header> : null}
             {pageError ? <p className="finance-error">{pageError}</p> : null}
             {view === "profile" && pageLoading && !profilePayload ? <p className="finance-error neutral">{t("app.common.loading")}</p> : null}
             {view === "profile" && profilePayload ? (
@@ -197,6 +184,7 @@ export default function PublicUserPage({ userId, initialView, initialPostId = nu
                 onUpdateReview={async () => undefined}
               />
             ) : null}
+            <PublicTabBar active={view} authorId={userId} />
           </>
         ) : null}
       </section>

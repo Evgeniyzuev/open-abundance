@@ -2,6 +2,7 @@
 
 import { personLabel } from "@/lib/personName";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { createPortal } from "react-dom";
 import FeedPostGallery, { getFeedPostCover, getFeedPostTitle } from "@/components/FeedPostGallery";
 import ProtectedImage from "@/components/ProtectedImage";
@@ -84,14 +85,35 @@ export function PublicBlog({ authorId, locale, active = true, revision = "", ini
   return <section className="blog-public" aria-label={t("social.blog.authorPosts")}>
     {payload ? <header className="blog-author-header">
       <div className="profile-avatar">{author?.avatar_url ? <img src={author.avatar_url} alt="" style={{ objectPosition: author.avatar_position ?? "50% 50%" }} /> : <span>{(author?.display_name ?? author?.username ?? "OA").slice(0, 2)}</span>}</div>
-      <h2>{author?.display_name ?? (author?.username ? `@${author.username}` : t("social.blog.authorFallback"))}</h2>
-      {author?.display_name && author?.username ? <small className="profile-handle">@{author.username}</small> : null}
-      {payload.blogHeader?.bio ? <p>{payload.blogHeader.bio}</p> : null}
-      <div className="blog-author-links">{payload.blogHeader?.links.map((link) => <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer">{link.label || link.url}</a>)}</div>
+      <div className="blog-author-info">
+        <h2>{author?.display_name ?? (author?.username ? `@${author.username}` : t("social.blog.authorFallback"))}</h2>
+        {author?.display_name && author?.username ? <small className="profile-handle">@{author.username}</small> : null}
+      </div>
+      {payload.blogHeader?.bio ? <BlogBio bio={payload.blogHeader.bio} t={t} /> : null}
+      {payload.blogHeader?.links.length ? <div className="blog-author-links">{payload.blogHeader.links.map((link) => <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={13} aria-hidden="true" />{link.label || linkHost(link.url)}</a>)}</div> : null}
     </header> : null}
     {payload?.posts.length ? <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={payload.posts} showAuthor={false} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onOpen={onOpenPost} /> : !loading && payload ? <p>{t("social.blog.empty")}</p> : null}
     <CollectionStatus loading={loading} error={error} more={Boolean(payload?.nextCursor)} t={t} onRetry={() => void load()} onMore={() => void load(payload?.nextCursor)} />
   </section>;
+}
+
+/** The bio is cut to three lines like in a social profile; a tap shows the rest. */
+function BlogBio({ bio, t }: { bio: string; t: Translate }) {
+  const [open, setOpen] = useState(false);
+  const long = bio.length > 120 || bio.split("\n").length > 3;
+  return <p className={`blog-author-bio${open ? " open" : ""}`}>
+    {bio}
+    {long ? <button type="button" className="text-button" onClick={() => setOpen((value) => !value)}>{open ? t("social.blog.bioLess") : t("social.blog.bioMore")}</button> : null}
+  </p>;
+}
+
+/** A short name for a link without a label: the site, not the whole address. */
+function linkHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 function CollectionStatus({ loading, error, more, t, onRetry, onMore }: { loading: boolean; error?: string; more: boolean; t: Translate; onRetry: () => void; onMore: () => void }) {

@@ -57,6 +57,20 @@ export function buildMediaKey(userId: string, postId: string, extension: string,
   return `feed/${userId}/${postId}/${uniqueId}.${extension}`;
 }
 
+/** Profile pictures live apart from feed media: avatars/{user}/{uuid}.{ext}. */
+export function buildAvatarKey(userId: string, extension: string, uniqueId: string): string {
+  return `avatars/${userId}/${uniqueId}.${extension}`;
+}
+
+/** The key of an avatar file of this person when the url points into our bucket, otherwise null (an outside link). */
+export function ownAvatarKey(config: Pick<R2Config, "publicBaseUrl">, url: unknown, userId: string): string | null {
+  if (typeof url !== "string") return null;
+  const prefix = `${config.publicBaseUrl}/avatars/${userId}/`;
+  if (!url.startsWith(prefix)) return null;
+  const name = url.slice(prefix.length);
+  return /^[0-9a-f-]{8,64}\.(jpg|png|webp)$/.test(name) ? `avatars/${userId}/${name}` : null;
+}
+
 /** A key is accepted only when it was issued for this person and this draft. */
 export function isOwnMediaKey(key: unknown, userId: string, postId: string): key is string {
   if (typeof key !== "string") return false;

@@ -31,6 +31,7 @@ import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
 import type { FeedMedia, FeedPayload, FeedPost, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { uploadAvatarPhoto } from "@/lib/avatarUpload";
 import { PROFILE_VISIBILITY_KEYS, PROFILE_VISIBILITY_LEVELS, type ProfileVisibility } from "@/lib/socialProfile";
 import { ACCENT_THEMES, COLOR_THEMES, UI_SCALES, type AccentTheme, type ColorTheme, type UiScale } from "@/lib/appearance";
 import { DISPLAY_CURRENCIES, DISPLAY_CURRENCY_SYMBOLS, type DisplayCurrency } from "@/lib/displayCurrency";
@@ -2474,6 +2475,7 @@ function ProfileEditorDialog({
           <label className="finance-field"><span>{t("profile.public.displayName")}</span><input required minLength={1} maxLength={80} value={editor.displayName} onChange={(event) => onChange((current) => ({ ...current, displayName: event.target.value }))} /></label>
           <NicknameField />
           <label className="finance-field"><span>{t("profile.public.bio")}</span><textarea maxLength={700} value={editor.bio} onChange={(event) => onChange((current) => ({ ...current, bio: event.target.value }))} /></label>
+          <small className="profile-link-hint">{t("profile.public.linkHint")}</small>
           <div className="term-row">
             <label className="finance-field"><span>{t("profile.public.linkLabel")}</span><input maxLength={40} value={editor.linkLabel} onChange={(event) => onChange((current) => ({ ...current, linkLabel: event.target.value }))} /></label>
             <label className="finance-field"><span>{t("profile.public.linkUrl")}</span><input maxLength={500} inputMode="url" value={editor.linkUrl} onChange={(event) => onChange((current) => ({ ...current, linkUrl: event.target.value }))} /></label>
@@ -2492,10 +2494,30 @@ function ProfileEditorDialog({
 function AvatarPicker({ currentUrl, value, position, removed, t, onChange, onPositionChange, onRemove }: { currentUrl: string | null; value: string; position: string; removed: boolean; t: (key: MessageKey, values?: Record<string, string | number>) => string; onChange: (value: string) => void; onPositionChange: (value: string) => void; onRemove: () => void }) {
   const previewUrl = removed ? null : normalizeAvatarPreviewUrl(value.trim() || currentUrl);
   const [positionX, positionY] = parseAvatarPosition(position);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      onChange(await uploadAvatarPhoto(file));
+    } catch (error) {
+      setUploadError(error instanceof Error && error.message === "not_configured" ? t("profile.avatar.uploadUnavailable") : t("profile.avatar.uploadFailed"));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <div className="avatar-picker">
       <div className="profile-avatar avatar-picker-preview">{previewUrl ? <img alt="" src={previewUrl} style={{ objectPosition: position }} /> : <UserRound size={34} />}</div>
+      <label className="secondary-button avatar-upload-button">
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden disabled={uploading} onChange={(event) => { void pickPhoto(event.target.files?.[0]); event.target.value = ""; }} />
+        {uploading ? t("profile.avatar.uploading") : t("profile.avatar.upload")}
+      </label>
+      {uploadError ? <small className="finance-error" role="alert">{uploadError}</small> : null}
       <label className="finance-field avatar-url-field">
         <span>{t("profile.avatar.change")} <MediaUrlHelp t={t} /></span>
         <input type="url" inputMode="url" maxLength={2048} placeholder={t("profile.avatar.placeholder")} value={value} onChange={(event) => onChange(event.target.value)} />

@@ -18,12 +18,25 @@ async function readMediaRows(base: string, serviceKey: string): Promise<unknown[
   return rows;
 }
 
+async function readAvatarRows(base: string, serviceKey: string): Promise<unknown[]> {
+  const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
+  const rows: unknown[] = [];
+  for (let offset = 0; offset < 100000; offset += 1000) {
+    const response = await fetch(`${base}/rest/v1/user_profiles?select=avatar_url&avatar_url=not.is.null&order=user_id&offset=${offset}&limit=1000`, { headers });
+    const page = await response.json();
+    if (!Array.isArray(page)) throw new Error("Could not read user_profiles");
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  return rows;
+}
+
 export async function runHousekeeping(input: { config: R2Config; supabaseUrl: string; serviceKey: string; apply: boolean; now?: Date }): Promise<HousekeepingResult> {
   const now = input.now ?? new Date();
   // Rows are read after the listing is taken, so a file uploaded in between is never mistaken for a leftover
   // (and the 24-hour grace period covers the rest).
-  const objects = await listObjects(input.config, "feed/");
-  const referenced = referencedKeys(await readMediaRows(input.supabaseUrl, input.serviceKey));
+  const objects = [...await listObjects(input.config, "feed/"), ...await listObjects(input.config, "avatars/")];
+  const referenced = referencedKeys([...await readMediaRows(input.supabaseUrl, input.serviceKey), ...await readAvatarRows(input.supabaseUrl, input.serviceKey)]);
   const orphans = findOrphans(objects, referenced, now);
   let deleted = 0;
   if (input.apply) for (const orphan of orphans) if (await deleteObject(input.config, orphan.key)) deleted += 1;

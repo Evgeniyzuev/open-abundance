@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { deleteObject, ownAvatarKey, readR2Config } from "@/lib/r2Media";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
 
     const previousPath = getStoredPath(current.avatar_url);
     if (previousPath) await supabase.storage.from(BUCKET).remove([previousPath]);
+    await removeOldR2Avatar(current.avatar_url, avatarUrl, user.id);
     return NextResponse.json({ profile }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json({ error: routeError instanceof Error ? routeError.message : "Failed to save avatar." }, { status: 500, headers: NO_STORE_HEADERS });
@@ -71,10 +73,19 @@ export async function DELETE(request: NextRequest) {
 
     const previousPath = getStoredPath(current.avatar_url);
     if (previousPath) await supabase.storage.from(BUCKET).remove([previousPath]);
+    await removeOldR2Avatar(current.avatar_url, null, user.id);
     return NextResponse.json({ profile }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json({ error: routeError instanceof Error ? routeError.message : "Failed to remove avatar." }, { status: 500, headers: NO_STORE_HEADERS });
   }
+}
+
+/** A replaced or removed picture that lived in our bucket is deleted there; an outside link is never touched. */
+async function removeOldR2Avatar(previousUrl: string | null, nextUrl: string | null, userId: string): Promise<void> {
+  const config = readR2Config(process.env);
+  if (!config || previousUrl === nextUrl) return;
+  const key = ownAvatarKey(config, previousUrl, userId);
+  if (key) await deleteObject(config, key).catch(() => false);
 }
 
 function getStoredPath(value: string | null): string | null {

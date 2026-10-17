@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import FeedPostGallery from "@/components/FeedPostGallery";
 import GuestJoinPanel from "@/components/GuestJoinPanel";
+import PublicTabBar from "@/components/PublicTabBar";
 import { PostDetailModal } from "@/components/social/FeedParts";
 import { useUserContext } from "@/components/UserProvider";
 import type { FeedPayload, FeedPost } from "@/lib/socialFeed";
@@ -93,6 +94,7 @@ export default function PublicFeedPage() {
                 onUpdateReview={async () => undefined}
               />
             ) : null}
+            <PublicTabBar active="feed" />
           </>
         ) : null}
       </section>

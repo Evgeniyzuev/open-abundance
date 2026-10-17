@@ -29,7 +29,14 @@ assert.ok(!me.includes("first_result_required") && !me.includes("hasFirstResult"
 assert.ok(panel.includes('href="/?auth=signin"') && panel.includes('href="/"') && panel.includes("public-join-actions"), "the guest panel has sign in and join buttons");
 
 // The blog comes first, the profile and the feed are one tap away; guests may read the public feed and nothing personal.
-assert.ok(page.indexOf('href={`/u/${userId}/blog`}') < page.indexOf('href={`/u/${userId}`}') && page.includes('href="/feed"'), "tabs: blog, profile, feed");
+const bar = read("components/PublicTabBar.tsx");
+assert.ok(page.includes("<PublicTabBar active={view} authorId={userId} />") && read("components/PublicFeedPage.tsx").includes('<PublicTabBar active="feed" />'), "every public page has the bottom bar");
+assert.ok(bar.indexOf('href: "/feed"') < bar.indexOf("/blog`") && bar.includes("/u/${person}`") && bar.includes("sessionStorage"), "the bar: feed, blog, profile; the feed leads back to the last person");
+assert.ok(read("components/BlogWorkspace.tsx").includes("BlogBio") && read("components/BlogWorkspace.tsx").includes("blog-author-info"), "the blog header is compact: avatar beside the name, short bio, link chips");
+// Avatar: a real photo upload next to the link field, signed server side, and the replaced file is removed from the bucket.
+assert.ok(read("app/api/social/profile/avatar/direct/route.ts").includes("buildAvatarKey(user.id") && read("components/SocialApp.tsx").includes("uploadAvatarPhoto(file)"), "the profile editor can upload a photo");
+assert.ok(read("app/api/social/profile/avatar/route.ts").includes("removeOldR2Avatar(current.avatar_url"), "a replaced picture is removed from the bucket");
+for (const key of ["profile.avatar.upload", "profile.avatar.uploading", "profile.avatar.uploadFailed", "profile.avatar.uploadUnavailable", "profile.public.linkHint", "public.nav.feed", "public.nav.blog", "public.nav.profile", "social.blog.bioMore", "social.blog.bioLess"]) assert.ok(read("lib/messages/en.ts").includes(`"${key}"`) && read("lib/messages/ru.ts").includes(`"${key}"`), `${key} exists in both languages`);
 assert.ok(read("next.config.mjs").includes("/@:username/blog") && read("app/u/by-username/[username]/blog/route.ts").includes("redirectToProfile(request, params.username, true)"), "/@nick/blog lands on the blog and keeps ?ref=");
 const feed = read("app/api/social/feed/route.ts");
 assert.ok(feed.includes('const guestFeed = scope === "feed" && !user && category !== "following" && !postType;') && feed.includes("!guestFeed"), "guests may read the public feed, not the personal views");

@@ -28,6 +28,10 @@ assert.equal(summary.bytes, 455);
 assert.equal(summary.orphanBytes, 300);
 assert.equal(summary.freeTierPercent, Math.round((455 / FREE_TIER_BYTES) * 10000) / 100);
 
+// Avatars are covered too: an avatar url names its key and an unnamed old file is a leftover.
+const avatarKey = `avatars/${user}/cccccccc-cccc-4ccc-8ccc-cccccccccccc.jpg`;
+assert.ok(referencedKeys([{ avatar_url: `https://x.r2.dev/${avatarKey}` }]).has(avatarKey), "an avatar url names its key");
+
 // Listing parses pages and the continuation token, and signs the prefix.
 const pages = [
   `<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>tok&amp;1</NextContinuationToken><Contents><Key>feed/a.jpg</Key><LastModified>2026-10-01T00:00:00.000Z</LastModified><Size>10</Size></Contents></ListBucketResult>`,

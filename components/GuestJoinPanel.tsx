@@ -5,8 +5,8 @@ import { useUserContext } from "@/components/UserProvider";
 import { readLocalGuest } from "@/lib/guestIdentity";
 
 /**
- * The panel guests see on the public pages (blog, profile, feed): what the place is, a note that an invitation is
- * saved when the device holds a code, and the two ways in. It is not shown to signed-in people.
+ * The slim translucent bar guests see at the top of the public pages (blog, profile, feed): the name, "You are invited"
+ * when the device holds an invitation code, and the two ways in. It is not shown to signed-in people.
  */
 export default function GuestJoinPanel() {
   const { user, loading, t } = useUserContext();
@@ -24,15 +24,18 @@ export default function GuestJoinPanel() {
 
   if (loading || user) return null;
   return (
-    <aside className="public-join-banner">
-      <span>
-        <strong>{t("public.join.title")}</strong>
-        <small>{inviteSaved ? t("public.join.invited") : t("public.join.text")}</small>
-      </span>
-      <span className="public-join-actions">
-        <a className="secondary-button" href="/?auth=signin">{t("public.join.signIn")}</a>
-        <a className="challenge-primary-action" href="/">{t("public.join.cta")}</a>
-      </span>
-    </aside>
+    <>
+      <aside className="glass-tabbar top-tabbar guest-bar">
+        <span className="guest-bar-text">
+          <strong>Open Abundance</strong>
+          {inviteSaved ? <small>{t("public.join.invited")}</small> : null}
+        </span>
+        <span className="guest-bar-actions">
+          <a className="guest-bar-signin" href="/?auth=signin">{t("public.join.signIn")}</a>
+          <a className="guest-bar-join" href="/">{t("public.join.cta")}</a>
+        </span>
+      </aside>
+      <div className="guest-bar-spacer" aria-hidden="true" />
+    </>
   );
 }

@@ -16,8 +16,8 @@ assert.ok(provider.includes('params.get("ref")') && provider.includes("capturePe
 // The guest sees an invitation to join; it says the invitation is saved when a code is stored.
 const page = read("components/PublicUserPage.tsx");
 const panel = read("components/GuestJoinPanel.tsx");
-assert.ok(panel.includes("public-join-banner") && panel.includes("readLocalGuest") && panel.includes("user)") && page.includes("<GuestJoinPanel />") && read("components/PublicFeedPage.tsx").includes("<GuestJoinPanel />"), "guests see the join panel on the profile, the blog and the feed");
-for (const key of ["public.join.title", "public.join.text", "public.join.invited", "public.join.cta", "public.join.signIn"]) assert.ok(read("lib/messages/en.ts").includes(`"${key}"`) && read("lib/messages/ru.ts").includes(`"${key}"`), `${key} exists in both languages`);
+assert.ok(panel.includes("guest-bar") && panel.includes("readLocalGuest") && panel.includes("user)") && page.includes("<GuestJoinPanel />") && read("components/PublicFeedPage.tsx").includes("<GuestJoinPanel />"), "guests see the join panel on the profile, the blog and the feed");
+for (const key of ["public.join.title", "public.join.invited", "public.join.cta", "public.join.signIn"]) assert.ok(read("lib/messages/en.ts").includes(`"${key}"`) && read("lib/messages/ru.ts").includes(`"${key}"`), `${key} exists in both languages`);
 
 // Wallet history: the counterparty is a name that opens the public profile, with the short id only as a fallback.
 const history = read("components/wallet/HistoryCounterparty.tsx");
@@ -26,7 +26,7 @@ assert.ok(read("app/api/wallet/history/route.ts").includes("counterpartyName") &
 assert.ok(!read("components/WalletApp.tsx").includes("shortId(row.counterpartyUserId)"), "the screen no longer prints the raw id");
 // Everyone signed in has an invitation link at once; the guest panel offers both ways in.
 assert.ok(!me.includes("first_result_required") && !me.includes("hasFirstResult"), "the invitation link has no first-result gate");
-assert.ok(panel.includes('href="/?auth=signin"') && panel.includes('href="/"') && panel.includes("public-join-actions"), "the guest panel has sign in and join buttons");
+assert.ok(panel.includes('href="/?auth=signin"') && panel.includes('href="/"') && panel.includes("guest-bar-actions"), "the guest panel has sign in and join buttons");
 
 // The blog comes first, the profile and the feed are one tap away; guests may read the public feed and nothing personal.
 const bar = read("components/PublicTabBar.tsx");

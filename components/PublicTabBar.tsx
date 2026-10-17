@@ -49,11 +49,11 @@ export default function PublicTabBar({ active, authorId }: { active: Section; au
   ];
   if (items.length < 2) return null;
   return (
-    <nav className="public-tab-bar" aria-label={t("public.nav.label")}>
+    <nav className="glass-tabbar bottom-tabbar public-tab-bar" aria-label={t("public.nav.label")}>
       {items.map(({ key, href, label, icon: Icon }) => (
-        <Link key={key} className={key === active ? "active" : ""} href={href} aria-current={key === active ? "page" : undefined}>
-          <Icon size={22} aria-hidden="true" />
-          <span>{label}</span>
+        <Link key={key} className={key === active ? "tab-button active" : "tab-button"} href={href} aria-label={label} aria-current={key === active ? "page" : undefined}>
+          <span className="tab-button-icon"><Icon size={28} strokeWidth={key === active ? 2.5 : 2} aria-hidden="true" /></span>
+          <span className="tab-button-label" aria-hidden="true">{label}</span>
         </Link>
       ))}
     </nav>

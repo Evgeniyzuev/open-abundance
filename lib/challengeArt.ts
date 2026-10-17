@@ -35,6 +35,12 @@ export const CHALLENGE_GLYPHS: Record<string, string> = {
   "trust_event_confirmed:help_given": "🤲",
   "trust_event_confirmed:proof_added": "✅",
   first_marketplace_listing: "🏪",
+  first_sale: "🎉",
+  sales_total_10: "💵",
+  sales_total_100: "💰",
+  sales_total_1000: "🏆",
+  first_wish_fulfilled: "🌠",
+  first_team_task_done: "🧩",
   peer_reviews: "🔍",
   install_ping_answered: "📲",
   acquisition_publications_milestone: "📣",
@@ -91,6 +97,10 @@ export function isOwnImage(url: string | null | undefined): boolean {
 
 const NUMBER_WORDS: Array<[RegExp, number]> = [
   [/двенадцат|twelve/i, 12],
+  [/пятьдесят|fifty/i, 50],
+  [/двадцат|twenty/i, 20],
+  [/(^|[^а-яё])десят|\bten\b/i, 10],
+  [/(^|[^а-яё])пять(?![а-яё])|\bfive\b/i, 5],
   [/шест[ьи]|six/i, 6],
   [/(^|[^а-яё])три(?![а-яё])|трёх|трех|three/i, 3],
   [/перв(ая|ый|ое|ую)|first/i, 1]

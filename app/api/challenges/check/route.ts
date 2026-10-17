@@ -4,6 +4,7 @@ import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
 import { hasThreeSteps } from "@/lib/wishSteps";
 
 type CheckRequest = {
@@ -329,6 +330,48 @@ async function verifyChallenge(
     if (error) return { ok: false, reason: "Could not check your confirmation. Try again." };
     if (Number(data?.humanity_level ?? 0) >= 2) return { ok: true };
     return { ok: false, reason: "Complete the humanity check first." };
+  }
+
+  // Sales: any completed Market deal where the person is the seller counts (founder decision 2026-10-17).
+  if (challenge.verification_logic === "first_sale" || salesThreshold(challenge.verification_logic) !== null) {
+    const { data, error } = await db
+      .from("marketplace_deals")
+      .select("price_amount")
+      .eq("seller_user_id", userId)
+      .eq("status", "completed")
+      .limit(5000);
+    if (error) return { ok: false, reason: "Could not check your sales. Try again." };
+    const rows = (data ?? []) as Array<{ price_amount: number | string | null }>;
+    const threshold = salesThreshold(challenge.verification_logic);
+    if (threshold === null) {
+      return rows.length > 0 ? { ok: true } : { ok: false, reason: "Complete your first sale in Wallet → Market first." };
+    }
+    return sumCompletedSales(rows.map((row) => row.price_amount)) >= threshold
+      ? { ok: true }
+      : { ok: false, reason: `Your completed sales must reach $${threshold}.` };
+  }
+
+  // The first fulfilled wish: any wish of the person with the status completed.
+  if (challenge.verification_logic === "first_wish_fulfilled") {
+    const { count, error } = await db
+      .from("wishes")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_user_id", userId)
+      .eq("status", "completed")
+      .is("deleted_at", null);
+    if (error) return { ok: false, reason: "Could not check your wishes. Try again." };
+    return Number(count ?? 0) > 0 ? { ok: true } : { ok: false, reason: "Mark one of your wishes as fulfilled first." };
+  }
+
+  // The first team task the leader has confirmed.
+  if (challenge.verification_logic === "first_team_task_done") {
+    const { count, error } = await db
+      .from("team_tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("member_user_id", userId)
+      .eq("status", "completed");
+    if (error) return { ok: false, reason: "Could not check your team tasks. Try again." };
+    return Number(count ?? 0) > 0 ? { ok: true } : { ok: false, reason: "Complete a task from your lead and wait for the confirmation." };
   }
 
   if (challenge.verification_logic === "first_marketplace_listing") {

@@ -951,7 +951,7 @@ export function ChallengeVisual({ challenge, title = "" }: { challenge: Pick<Cha
   const objectArt = Boolean(imageUrl && ((imageUrl.startsWith("/challenges/") && imageUrl.endsWith(".png")) || imageUrl === "/core/core-reactor-pearl.webp"));
   const visualClass = imageUrl ? (milestoneArt ? " challenge-art-milestone" : objectArt ? " challenge-art-object" : "") : " challenge-art-fallback";
   const glyph = challengeGlyph(challenge.verification_logic, challenge.category);
-  const badge = challenge.verification_logic?.startsWith("acquisition_") ? challengeBadge(title) : null;
+  const badge = challenge.verification_logic?.startsWith("acquisition_") || challenge.verification_logic?.startsWith("sales_total_") ? challengeBadge(title) : null;
   const seed = artSeed(challenge.id);
   const style = imageUrl ? undefined : ({ "--art-shift": `${seed.shift}deg`, "--art-x": `${seed.x}%`, "--art-y": `${seed.y}%` } as React.CSSProperties);
 

@@ -16,6 +16,15 @@ export type TaskStreakSettings = {
   livesEveryDays: number;
 };
 
+/** WOOP plan behind a task: the feeling to come back to, the likely obstacle and the if-then answer to it. */
+export type TaskPlan = {
+  wishId?: string;
+  feeling?: string;
+  obstacle?: string;
+  ifCue?: string;
+  thenAction?: string;
+};
+
 export type TaskItem = {
   id: string;
   title: string;
@@ -36,6 +45,9 @@ export type TaskItem = {
   syncStatus: SyncStatus;
   sourceNoteId?: string;
   remindAt?: string;
+  plan?: TaskPlan;
+  /** Id of the finished task whose "what's next" answer created this one. */
+  continueFrom?: string;
 };
 
 export type TaskCompletionType = "done" | "life";
@@ -56,6 +68,8 @@ export type TaskInput = Pick<TaskItem, "id" | "title" | "description" | "schedul
   thumbnailDataUrl?: string;
   sourceNoteId?: string;
   remindAt?: string;
+  plan?: TaskPlan;
+  continueFrom?: string;
 };
 
 export const TASKS_CHANGED_EVENT = "open-abundance:tasks-changed";
@@ -122,7 +136,9 @@ export async function saveTask(input: TaskInput): Promise<TaskItem> {
     updatedAt: now,
     syncStatus: input.syncStatus,
     sourceNoteId: input.sourceNoteId ?? existing?.sourceNoteId,
-    remindAt: input.remindAt ?? existing?.remindAt
+    remindAt: input.remindAt ?? existing?.remindAt,
+    plan: input.plan ?? existing?.plan,
+    continueFrom: input.continueFrom ?? existing?.continueFrom
   };
 
   await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) => store.put(task));

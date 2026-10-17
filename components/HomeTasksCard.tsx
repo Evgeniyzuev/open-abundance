@@ -5,6 +5,7 @@ import { ArrowRight, CheckSquare } from "lucide-react";
 import DecisionModal from "@/components/DecisionModal";
 import { useUserContext } from "@/components/UserProvider";
 import { getNextStep, isCompletedOn, isDueOn, todayKey } from "@/lib/taskSchedule";
+import { isContinueTaskDue } from "@/components/HomeContinueCard";
 import { getTaskCompletions, getTasks, TASKS_CHANGED_EVENT, type TaskItem } from "@/lib/tasksStore";
 
 const MAX_VISIBLE_TASKS = 3;
@@ -25,7 +26,8 @@ export default function HomeTasksCard({ active, onOpenTask, onOpenTasks }: HomeT
     try {
       const [stored, completions] = await Promise.all([getTasks(), getTaskCompletions()]);
       const day = todayKey();
-      setTasks(stored.filter((task) => isDueOn(task, day) && !isCompletedOn(task.id, day, completions)));
+      // "Continue" hooks already lead Home in their own card.
+      setTasks(stored.filter((task) => isDueOn(task, day) && !isContinueTaskDue(task, day) && !isCompletedOn(task.id, day, completions)));
     } catch {
       setTasks([]);
     }

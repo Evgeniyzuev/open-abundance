@@ -66,7 +66,11 @@ export async function GET(request: NextRequest) {
     const systemDraftsOnly = scope === "blog" && request.nextUrl.searchParams.get("drafts") === "system";
     const cabinet = scope === "blog" && request.nextUrl.searchParams.get("view") === "cabinet";
     const publicBlog = scope === "blog" && !cabinet && !systemDraftsOnly;
-    if (!user && !(publicBlog && requestedAuthorId)) {
+    // A visitor without a session may read the public feed (everything except the personal "following" view);
+    // the same trimming as for a public blog hides what only a signed-in viewer may see.
+    const guestFeed = scope === "feed" && !user && category !== "following" && !postType;
+    const publicView = publicBlog || guestFeed;
+    if (!user && !(publicBlog && requestedAuthorId) && !guestFeed) {
       return NextResponse.json({ error: error ?? "Missing Supabase access token." }, { status: 401, headers: NO_STORE_HEADERS });
     }
     if ((cabinet || systemDraftsOnly) && authorUserId !== viewerId) {
@@ -207,7 +211,7 @@ export async function GET(request: NextRequest) {
       loadProfiles(supabase, Array.from(new Set([...postRows.map((post) => post.author_user_id), authorUserId].filter(isString)))),
       loadStatBlocks(supabase, statBlockPostIds, cabinet || systemDraftsOnly),
       loadExternalLinks(supabase, externalLinkPostIds),
-      loadWishPosts(supabase, wishPostIds, publicBlog ? null : viewerId, cabinet),
+      loadWishPosts(supabase, wishPostIds, publicView ? null : viewerId, cabinet),
       cabinet ? Promise.resolve(new Map<string, FeedTranslationRow>()) : loadTranslations(supabase, postIds, locale),
       loadMedia(supabase, postIds),
       loadSystemAccounts(supabase, systemAccountKeys),
@@ -250,21 +254,21 @@ export async function GET(request: NextRequest) {
           const repost = post.repost_of_post_id ? repostSources.get(post.repost_of_post_id) ?? null : null;
           return {
             ...post,
-            ...(publicBlog ? { snapshot_id: null } : {}),
+            ...(publicView ? { snapshot_id: null } : {}),
             body: translation?.body ?? post.body,
             authorName: translation?.author_name ?? post.author_label,
             author: profiles.find((item) => item.user_id === post.author_user_id) ?? null,
-            statBlocks: cabinet ? statBlocks.filter((block) => block.post_id === post.id) : filterStatBlocksForViewer(post, statBlocks, publicBlog ? "" : viewerId),
+            statBlocks: cabinet ? statBlocks.filter((block) => block.post_id === post.id) : filterStatBlocksForViewer(post, statBlocks, publicView ? "" : viewerId),
             externalLinks: externalLinks.filter((link) => link.post_id === post.id).map((item) => post.post_type === "external_link" && item.thumbnail_url
               ? { ...item, thumbnail_url: `/api/social/content/${post.id}/thumbnail` }
               : item),
             media: media.filter((item) => item.post_id === post.id).map((item) => post.post_type === "external_link" && item.storage_path
               ? { ...item, storage_path: undefined, media_url: `/api/social/content/${post.id}/media?mediaId=${item.id}`, thumbnail_url: null, metadata: {} }
-              : publicBlog ? { ...item, storage_path: undefined, metadata: {} } : item),
+              : publicView ? { ...item, storage_path: undefined, metadata: {} } : item),
             wish: wishPosts.get(post.id) ?? null,
             projectReview: reviewMetadata.get(post.id) ?? null,
             verifiedChallenge: challengeSnapshotsByPostId.get(post.id) ?? null,
-            repostOf: publicBlog && repost ? { ...repost, media: repost.media.map((item) => ({ ...item, storage_path: undefined, metadata: {} })) } : repost,
+            repostOf: publicView && repost ? { ...repost, media: repost.media.map((item) => ({ ...item, storage_path: undefined, metadata: {} })) } : repost,
             systemStory: systemStory ? {
               ...systemStory,
               account: systemAccountsByKey.get(systemStory.system_account_key) ?? systemAccount

@@ -1120,7 +1120,7 @@
 .public-user-page { width: min(100%, 610px); display: grid; gap: 10px; margin: 0 auto; }
 .public-user-header { display: grid; justify-items: center; gap: 9px; border-radius: 16px; padding: 18px 13px 13px; background: var(--surface); box-shadow: var(--shadow); text-align: center; }
 .public-user-header > strong { max-width: 100%; overflow: hidden; font-size: 24px; line-height: 1.08; text-overflow: ellipsis; white-space: nowrap; }
-.public-user-tabs { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 4px; }
+.public-user-tabs { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 7px; margin-top: 4px; }
 .public-user-tabs a { min-width: 0; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 11px; background: var(--surface-soft); color: var(--muted); font-size: 0.8125rem; font-weight: 900; text-decoration: none; }
 .public-user-tabs a.active { background: var(--accent-soft); color: var(--blue); }
 .public-user-content { display: grid; gap: 10px; }

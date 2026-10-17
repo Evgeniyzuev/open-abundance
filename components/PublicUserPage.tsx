@@ -1,11 +1,11 @@
 "use client";
 
 import { personLabel } from "@/lib/personName";
-import { BookOpen, Check, ExternalLink, UserPlus, UserRound } from "lucide-react";
+import { BookOpen, Check, ExternalLink, Newspaper, UserPlus, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { readLocalGuest } from "@/lib/guestIdentity";
+import GuestJoinPanel from "@/components/GuestJoinPanel";
 import { PublicBlog } from "@/components/BlogWorkspace";
 import { PostDetailModal } from "@/components/social/FeedParts";
 import RealityView from "@/components/RealityView";
@@ -47,17 +47,6 @@ export default function PublicUserPage({ userId, initialView, initialPostId = nu
   const [pageError, setPageError] = useState<string | null>(null);
   const [followSaving, setFollowSaving] = useState(false);
   const viewerId = user?.id ?? null;
-  const [inviteSaved, setInviteSaved] = useState(false);
-
-  // A visitor who came by an invitation link: the code was stored on this device by the provider a moment ago.
-  useEffect(() => {
-    if (user) return;
-    let cancelled = false;
-    const read = () => readLocalGuest().then((guest) => { if (!cancelled && guest?.pendingReferral && !guest.pendingReferral.claimedAt) setInviteSaved(true); }).catch(() => undefined);
-    void read();
-    const timer = window.setTimeout(() => void read(), 1200);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [user]);
 
   const loadProfile = useCallback(async () => {
     setPageLoading(true);
@@ -128,18 +117,7 @@ export default function PublicUserPage({ userId, initialView, initialPostId = nu
       <section className="public-user-page">
         {!loading ? (
           <>
-            {!user ? (
-              <aside className="public-join-banner">
-                <span>
-                  <strong>{t("public.join.title")}</strong>
-                  <small>{inviteSaved ? t("public.join.invited") : t("public.join.text")}</small>
-                </span>
-                <span className="public-join-actions">
-                  <a className="secondary-button" href="/?auth=signin">{t("public.join.signIn")}</a>
-                  <a className="challenge-primary-action" href="/">{t("public.join.cta")}</a>
-                </span>
-              </aside>
-            ) : null}
+            <GuestJoinPanel />
             <header className="public-user-header">
               {view === "profile" ? <>
               <div className="profile-avatar">
@@ -178,13 +156,17 @@ export default function PublicUserPage({ userId, initialView, initialPostId = nu
               ) : null}
               </> : null}
               <nav className="public-user-tabs" aria-label={t("profile.public.title")}>
+                <Link className={view === "blog" ? "active" : ""} href={`/u/${userId}/blog`}>
+                  <BookOpen size={15} />
+                  {t("social.blog.title")}
+                </Link>
                 <Link className={view === "profile" ? "active" : ""} href={`/u/${userId}`}>
                   <UserRound size={15} />
                   {t("profile.public.title")}
                 </Link>
-                <Link className={view === "blog" ? "active" : ""} href={`/u/${userId}/blog`}>
-                  <BookOpen size={15} />
-                  {t("social.blog.title")}
+                <Link href="/feed">
+                  <Newspaper size={15} />
+                  {t("social.feed.title")}
                 </Link>
               </nav>
             </header>

@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
     }
 
     const code = existingCode?.code ?? await createReferralCode(supabase, user.id);
-    // The invitation is a link to the inviter's public page: a newcomer can read the profile and blog right away,
+    // The invitation is a link to the inviter's public blog (the profile and the feed are one tap away): a newcomer can read the profile and blog right away,
     // the code is remembered on the device, and registration later carries it.
     const { data: inviter } = await supabase.from("user_profiles").select("username").eq("user_id", user.id).maybeSingle();
-    const url = new URL(inviter?.username ? `/@${inviter.username}` : `/u/${user.id}`, request.nextUrl.origin);
+    const url = new URL(inviter?.username ? `/@${inviter.username}/blog` : `/u/${user.id}/blog`, request.nextUrl.origin);
     url.searchParams.set("ref", code);
 
     return NextResponse.json({ available: true, code, url: url.toString(), reason: null }, { headers: NO_STORE_HEADERS });

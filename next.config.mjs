@@ -3,7 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     // Folders starting with "@" are parallel routes in the App Router, so the short link is a rewrite.
-    return [{ source: "/@:username", destination: "/u/by-username/:username" }];
+    return [
+      { source: "/@:username", destination: "/u/by-username/:username" },
+      // The invitation link opens the person's blog first.
+      { source: "/@:username/blog", destination: "/u/by-username/:username/blog" }
+    ];
   },
   async redirects() {
     // A payment link to a person. A redirect, not a rewrite: the client reads the query from the address bar.

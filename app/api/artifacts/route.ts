@@ -11,7 +11,7 @@ export const fetchCache = "force-no-store";
 type CompletedRow = {
   reward_settled_at: string | null;
   updated_at: string;
-  challenges: { verification_logic: string | null } | Array<{ verification_logic: string | null }> | null;
+  challenges: { verification_logic: string | null; core_reward_amount: number | null } | Array<{ verification_logic: string | null; core_reward_amount: number | null }> | null;
 };
 
 /**
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const [completed, core, wishes] = await Promise.all([
       supabase
         .from("user_challenges")
-        .select("reward_settled_at,updated_at,challenges(verification_logic)")
+        .select("reward_settled_at,updated_at,challenges(verification_logic,core_reward_amount)")
         .eq("user_id", user.id)
         .eq("status", "completed")
         .limit(500),
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     const completedRows = ((completed.data ?? []) as unknown as CompletedRow[]).map((row) => {
       const challenge = Array.isArray(row.challenges) ? row.challenges[0] : row.challenges;
-      return { logic: challenge?.verification_logic ?? null, at: row.reward_settled_at ?? row.updated_at };
+      return { logic: challenge?.verification_logic ?? null, at: row.reward_settled_at ?? row.updated_at, reward: challenge?.core_reward_amount ?? null };
     });
     const wishStepsAt = (wishes.data ?? [])
       .filter((wish) => hasThreeSteps(wish.description))

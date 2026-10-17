@@ -9,42 +9,50 @@ export type ArtifactDefinition = {
   image: string;
   /** Challenge checks (verification_logic) whose completion opens it. */
   logics: string[];
+  /** Where the window's button leads: the main tab and, when needed, its inner tab. */
+  target: { main: "home" | "goals" | "challenges" | "wallet" | "people"; sub?: string };
 };
 
 export const ARTIFACTS: ArtifactDefinition[] = [
-  { key: "first_light", image: "/milestones/first-light.webp", logics: [] },
-  { key: "wish_path", image: "/milestones/wish-path.webp", logics: ["wish_steps_created"] },
-  { key: "today_done", image: "/milestones/today-done.webp", logics: ["today_core_target_reached"] },
-  { key: "seven_day_rhythm", image: "/milestones/seven-day-rhythm.webp", logics: ["today_completion_streak_7"] },
-  { key: "first_story", image: "/milestones/first-story.webp", logics: ["first_growth_post_published"] },
-  { key: "help_someone", image: "/milestones/help-someone.webp", logics: ["trust_event_confirmed:help_given", "team_task_help_completed"] },
-  { key: "skill_evidence", image: "/milestones/skill-evidence.webp", logics: ["skill_profile_completed"] },
-  { key: "level_up", image: "/milestones/level-up.webp", logics: [] }
+  { key: "first_light", image: "/milestones/first-light.webp", logics: [], target: { main: "challenges" } },
+  { key: "wish_path", image: "/milestones/wish-path.webp", logics: ["wish_steps_created"], target: { main: "goals", sub: "desires" } },
+  { key: "today_done", image: "/milestones/today-done.webp", logics: ["today_core_target_reached"], target: { main: "home" } },
+  { key: "seven_day_rhythm", image: "/milestones/seven-day-rhythm.webp", logics: ["today_completion_streak_7"], target: { main: "home" } },
+  { key: "first_story", image: "/milestones/first-story.webp", logics: ["first_growth_post_published"], target: { main: "people", sub: "blog" } },
+  { key: "help_someone", image: "/milestones/help-someone.webp", logics: ["trust_event_confirmed:help_given", "team_task_help_completed"], target: { main: "people", sub: "teams" } },
+  { key: "skill_evidence", image: "/milestones/skill-evidence.webp", logics: ["trust_event_confirmed:proof_added"], target: { main: "people", sub: "profile" } },
+  { key: "level_up", image: "/milestones/level-up.webp", logics: [], target: { main: "wallet", sub: "core" } }
 ];
 
 /** The level-up dialog already announces new levels, so this artifact is never announced a second time. */
 export const SILENT_ARTIFACTS: ArtifactKey[] = ["level_up"];
 
-export type CompletedChallenge = { logic: string | null; at: string };
-export type UnlockedArtifact = { key: ArtifactKey; at: string | null };
+export type CompletedChallenge = { logic: string | null; at: string; reward?: number | null };
+export type UnlockedArtifact = { key: ArtifactKey; at: string | null; reward?: number | null };
 
 /** Which artifacts the confirmed facts open, with the date of the earliest fact that opened each. */
 export function computeUnlocked(input: { completed: CompletedChallenge[]; level: number; wishStepsAt: string | null }): UnlockedArtifact[] {
   const earliest = (rows: CompletedChallenge[]) => rows.map((row) => row.at).filter(Boolean).sort()[0] ?? null;
+  /** The Core reward of the challenge that opened it (the earliest one), so the window can show what was earned. */
+  const rewardOf = (rows: CompletedChallenge[]) => {
+    const first = [...rows].filter((row) => row.at).sort((a, b) => a.at.localeCompare(b.at))[0];
+    const amount = Number(first?.reward ?? 0);
+    return amount > 0 ? amount : null;
+  };
   const unlocked: UnlockedArtifact[] = [];
 
   for (const artifact of ARTIFACTS) {
     if (artifact.key === "first_light") {
-      if (input.completed.length > 0) unlocked.push({ key: artifact.key, at: earliest(input.completed) });
+      if (input.completed.length > 0) unlocked.push({ key: artifact.key, at: earliest(input.completed), reward: rewardOf(input.completed) });
     } else if (artifact.key === "wish_path") {
       const challengeAt = earliest(input.completed.filter((row) => row.logic === "wish_steps_created"));
       const at = [challengeAt, input.wishStepsAt].filter(Boolean).sort()[0] ?? null;
-      if (input.wishStepsAt || challengeAt) unlocked.push({ key: artifact.key, at });
+      if (input.wishStepsAt || challengeAt) unlocked.push({ key: artifact.key, at, reward: rewardOf(input.completed.filter((row) => row.logic === "wish_steps_created")) });
     } else if (artifact.key === "level_up") {
       if (input.level >= 1) unlocked.push({ key: artifact.key, at: null });
     } else {
       const matching = input.completed.filter((row) => row.logic && artifact.logics.includes(row.logic));
-      if (matching.length > 0) unlocked.push({ key: artifact.key, at: earliest(matching) });
+      if (matching.length > 0) unlocked.push({ key: artifact.key, at: earliest(matching), reward: rewardOf(matching) });
     }
   }
   return unlocked;

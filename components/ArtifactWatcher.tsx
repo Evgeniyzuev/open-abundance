@@ -19,6 +19,7 @@ export default function ArtifactWatcher() {
   const { user, core, wallet, t } = useUserContext();
   const userId = user?.id ?? null;
   const [queue, setQueue] = useState<ArtifactKey[]>([]);
+  const [rewards, setRewards] = useState<Record<string, number>>({});
   const lastRun = useRef(0);
   const running = useRef(false);
 
@@ -33,6 +34,7 @@ export default function ArtifactWatcher() {
       const { announce, nextSeen } = pickToAnnounce(unlocked.map((item) => item.key), previous);
       // Announced artifacts are recorded when the window is closed; the quiet ones are recorded right away.
       writeSeenArtifacts(userId, nextSeen.filter((key) => !announce.includes(key as ArtifactKey)).concat(previous ?? []));
+      setRewards((current) => ({ ...current, ...Object.fromEntries(unlocked.filter((item) => item.reward).map((item) => [item.key, Number(item.reward)])) }));
       if (announce.length) setQueue((current) => [...current, ...announce.filter((key) => !current.includes(key))]);
     } catch {
       // Missing an announcement is harmless: the artifact stays in the list and is announced at the next check.
@@ -68,11 +70,11 @@ export default function ArtifactWatcher() {
     setQueue((current) => current.slice(1));
   }
 
-  return <ArtifactModal artifactKey={key} t={t} onClose={close} />;
+  return <ArtifactModal artifactKey={key} reward={rewards[key] ?? null} t={t} onClose={close} />;
 }
 
 /** The "Artifact opened" window: the picture, the name and what was confirmed. */
-export function ArtifactModal({ artifactKey, t, onClose }: { artifactKey: ArtifactKey; t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void }) {
+export function ArtifactModal({ artifactKey, reward, t, onClose }: { artifactKey: ArtifactKey; reward?: number | null; t: (key: MessageKey, values?: Record<string, string | number>) => string; onClose: () => void }) {
   const artifact = ARTIFACTS.find((item) => item.key === artifactKey);
   if (!artifact) return null;
   return (
@@ -81,7 +83,9 @@ export function ArtifactModal({ artifactKey, t, onClose }: { artifactKey: Artifa
       <img className="artifact-modal-image" alt="" src={artifact.image} />
       <h2>{t(`artifact.${artifactKey}.title` as MessageKey)}</h2>
       <p>{t("artifact.proof", { proof: t(`artifact.${artifactKey}.proof` as MessageKey) })}</p>
-      <button className="challenge-primary-action" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
+      {reward ? <p className="artifact-modal-reward">{t("artifact.reward", { amount: reward })}</p> : null}
+      <button className="challenge-primary-action" type="button" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent("oa:open-tab", { detail: artifact.target })); }}>{t(`artifact.${artifactKey}.cta` as MessageKey)}</button>
+      <button className="secondary-button" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
     </Sheet>
   );
 }

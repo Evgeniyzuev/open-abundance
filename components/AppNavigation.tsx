@@ -286,6 +286,27 @@ export default function AppNavigation() {
     return true;
   }, []);
 
+  // The "Artifact opened" window (and other places) ask to open a screen by name.
+  useEffect(() => {
+    const openTab = (event: Event) => {
+      const detail = (event as CustomEvent<{ main?: string; sub?: string }>).detail;
+      const main = detail?.main;
+      if (main !== "home" && main !== "goals" && main !== "challenges" && main !== "wallet" && main !== "people") return;
+      const sub = detail?.sub;
+      const current = navigationStateRef.current;
+      applyNavigationState({
+        mainTab: main,
+        homeTab: current.homeTab,
+        goalTab: main === "goals" && sub ? (sub as GoalTabId) : current.goalTab,
+        walletTab: main === "wallet" && sub ? (sub as WalletTabId) : current.walletTab,
+        socialTab: main === "people" && sub ? (sub as SocialTabId) : current.socialTab
+      });
+      if (main === "challenges") setActiveChallengeTab("challenges");
+    };
+    window.addEventListener("oa:open-tab", openTab);
+    return () => window.removeEventListener("oa:open-tab", openTab);
+  }, [applyNavigationState]);
+
   const updateNavFromScrollIntent = useCallback((delta: number) => {
     if (window.scrollY <= 0) {
       setNavHidden(false);

@@ -553,3 +553,9 @@
 @media (prefers-reduced-motion: reduce) { .artifact-modal-image { animation: none; } }
 .results-item-tile[aria-disabled="true"] { opacity: .45; }
 .results-item-note { color: var(--muted); font-size: .8125rem; }
+
+.artifact-modal-reward {
+  margin: 0;
+  font-weight: 700;
+  color: var(--accent-strong, #0a7a4b);
+}

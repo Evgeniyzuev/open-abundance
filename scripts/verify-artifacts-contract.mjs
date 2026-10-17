@@ -46,6 +46,17 @@ assert.equal(hasThreeSteps("шаг 1 найти шаг 2 позвонить ша
 assert.equal(hasThreeSteps("просто мечта"), false);
 assert.equal(hasThreeSteps(null), false);
 
+// Version 2: the window shows the reward of the challenge that opened it and a button to the matching screen.
+const rewarded = computeUnlocked({ completed: [{ logic: "today_core_target_reached", at: "2026-10-12T10:00:00Z", reward: 3 }, { logic: "trust_event_confirmed:proof_added", at: "2026-10-13T10:00:00Z", reward: 2 }], level: 0, wishStepsAt: null });
+assert.equal(rewarded.find((item) => item.key === "today_done").reward, 3, "the reward of the opening challenge is returned");
+assert.equal(rewarded.find((item) => item.key === "skill_evidence").reward, 2, "Skill in action opens by an accepted proof");
+assert.ok(!computeUnlocked({ completed: [{ logic: "skill_profile_completed", at: "2026-10-12T10:00:00Z" }], level: 0, wishStepsAt: null }).some((item) => item.key === "skill_evidence"), "filling the profile alone no longer opens Skill in action");
+for (const artifact of ARTIFACTS) {
+  assert.ok(artifact.target.main, `${artifact.key} has a target screen`);
+  for (const file of ["lib/messages/en.ts", "lib/messages/ru.ts"]) assert.ok(read(file).includes(`"artifact.${artifact.key}.cta"`), `${artifact.key} has a button label in ${file}`);
+}
+assert.ok(read("components/AppNavigation.tsx").includes('"oa:open-tab"') && read("components/ArtifactWatcher.tsx").includes('"oa:open-tab"'), "the button and the navigation share the oa:open-tab event");
+
 // Wiring.
 assert.ok(read("app/api/challenges/check/route.ts").includes('import { hasThreeSteps } from "@/lib/wishSteps"') && !/function hasThreeSteps/.test(read("app/api/challenges/check/route.ts")), "the challenge uses the shared step rule");
 const route = read("app/api/artifacts/route.ts");

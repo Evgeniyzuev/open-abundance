@@ -82,6 +82,8 @@ export type PresignInput = {
   expiresSeconds: number;
   /** Extra headers the browser must send unchanged (for example content-type); they are part of the signature. */
   signedHeaders?: Record<string, string>;
+  /** Extra query parameters (for example the listing's prefix); they are part of the signature. */
+  query?: Record<string, string>;
 };
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -104,7 +106,8 @@ export function presignUrl(input: PresignInput): string {
     "X-Amz-Credential": `${input.accessKeyId}/${scope}`,
     "X-Amz-Date": amzDate,
     "X-Amz-Expires": String(input.expiresSeconds),
-    "X-Amz-SignedHeaders": signedHeaders
+    "X-Amz-SignedHeaders": signedHeaders,
+    ...(input.query ?? {})
   };
   const canonicalQuery = Object.keys(query).sort().map((name) => `${encode(name)}=${encode(query[name])}`).join("&");
   const canonicalHeaders = names.map((name) => `${name}:${headers[name].trim()}\n`).join("");
@@ -153,4 +156,44 @@ export async function deleteObject(config: R2Config, key: string, fetchImpl: typ
 export async function putObject(config: R2Config, key: string, body: ArrayBuffer | Uint8Array, contentType: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
   const response = await fetchImpl(presignUpload(config, key, contentType), { method: "PUT", headers: { "Content-Type": contentType }, body: body as BodyInit });
   return response.ok;
+}
+
+export type StoredObject = { key: string; size: number; lastModified: string };
+
+/** Every object under a prefix (the bucket is listed page by page, 1000 at a time). */
+export async function listObjects(config: R2Config, prefix: string, fetchImpl: typeof fetch = fetch): Promise<StoredObject[]> {
+  const objects: StoredObject[] = [];
+  let token = "";
+  for (let page = 0; page < 200; page += 1) {
+    const query: Record<string, string> = { "list-type": "2", prefix, "max-keys": "1000" };
+    if (token) query["continuation-token"] = token;
+    const url = presignUrl({
+      method: "GET",
+      host: `${config.accountId}.r2.cloudflarestorage.com`,
+      path: `/${config.bucket}`,
+      region: "auto",
+      service: "s3",
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+      now: new Date(),
+      expiresSeconds: SIGNED_URL_SECONDS,
+      query
+    });
+    const response = await fetchImpl(url);
+    if (!response.ok) throw new Error(`R2 listing failed (${response.status})`);
+    const xml = await response.text();
+    for (const block of xml.match(/<Contents>[\s\S]*?<\/Contents>/g) ?? []) {
+      const key = block.match(/<Key>([\s\S]*?)<\/Key>/)?.[1];
+      if (!key) continue;
+      objects.push({ key: decodeXml(key), size: Number(block.match(/<Size>(\d+)<\/Size>/)?.[1] ?? 0), lastModified: block.match(/<LastModified>([^<]+)<\/LastModified>/)?.[1] ?? "" });
+    }
+    const next = xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1];
+    if (!next || !/<IsTruncated>true<\/IsTruncated>/.test(xml)) break;
+    token = decodeXml(next);
+  }
+  return objects;
+}
+
+function decodeXml(value: string): string {
+  return value.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 }

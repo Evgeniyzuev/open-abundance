@@ -37,6 +37,7 @@
     "test:week-recap": "node --experimental-strip-types scripts/verify-week-recap-contract.mjs",
     "test:morning": "node --experimental-strip-types scripts/verify-morning-checkin-contract.mjs",
     "test:core-ticker": "node --experimental-strip-types scripts/verify-core-ticker-contract.mjs",
+    "test:r2-housekeeping": "node --experimental-strip-types scripts/verify-r2-housekeeping-contract.mjs",
     "test:day-credit": "node --experimental-strip-types scripts/verify-day-credit-contract.mjs",
     "test:sales-challenges": "node --experimental-strip-types scripts/verify-sales-challenges-contract.mjs",
     "test:artifacts": "node --experimental-strip-types scripts/verify-artifacts-contract.mjs",

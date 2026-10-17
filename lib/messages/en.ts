@@ -2665,7 +2665,27 @@ const en = {
     "nextHook.label": "What will you do next? Leave a hook for tomorrow",
     "nextHook.placeholder": "For example: finish the second paragraph",
     "nextHook.save": "Leave for tomorrow",
-    "nextHook.continue": "Continue"
+    "nextHook.continue": "Continue",
+    "resistance.open": "I don't feel like starting",
+    "resistance.question": "What feels unpleasant about this task?",
+    "resistance.unclear.label": "Don't know where to start",
+    "resistance.unclear.tip": "Start with the smallest action that will surely work. The rest gets clearer as you go.",
+    "resistance.unclear.step": "Open it and write any one line",
+    "resistance.big.label": "Too big",
+    "resistance.big.tip": "You don't have to do it all at once. Agree with yourself on the first ten minutes only.",
+    "resistance.big.step": "Work for 10 minutes and stop",
+    "resistance.fear.label": "Afraid it will turn out badly",
+    "resistance.fear.tip": "Good results rarely come on the first try. Make the first version a rough draft and rewrite it later.",
+    "resistance.fear.step": "Make a draft nobody will see",
+    "resistance.boring.label": "Boring",
+    "resistance.boring.tip": "Stop at the moment you know what comes next: tomorrow you will want to continue.",
+    "resistance.boring.step": "Do a little and note what comes next",
+    "resistance.addStep": "Make it the first step: {step}",
+    "resistance.added": "Added as the first step",
+    "comeback.label": "Welcome back",
+    "comeback.title": "Counting from today",
+    "comeback.wins": "Already done. Days completed: {days}, tasks finished: {finished}",
+    "comeback.start": "Start from today"
 } satisfies Record<string, string>;
 
 export default en;

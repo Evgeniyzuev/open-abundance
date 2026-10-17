@@ -2665,7 +2665,27 @@ const ru: Record<string, string> = {
     "nextHook.label": "Что сделаешь следующим? Оставь зацепку на завтра",
     "nextHook.placeholder": "Например: дописать второй абзац",
     "nextHook.save": "Оставить на завтра",
-    "nextHook.continue": "Продолжить"
+    "nextHook.continue": "Продолжить",
+    "resistance.open": "Не хочется начинать",
+    "resistance.question": "Что в этой задаче неприятно?",
+    "resistance.unclear.label": "Не знаю, с чего начать",
+    "resistance.unclear.tip": "Начни с самого маленького действия, которое точно получится. Остальное станет яснее по ходу.",
+    "resistance.unclear.step": "Открыть и написать одну любую строчку",
+    "resistance.big.label": "Слишком большая",
+    "resistance.big.tip": "Не нужно делать всё сразу. Договорись с собой только о первых десяти минутах.",
+    "resistance.big.step": "Поработать 10 минут и остановиться",
+    "resistance.fear.label": "Боюсь, что выйдет плохо",
+    "resistance.fear.tip": "У большинства хороший результат получается не с первого раза. Первый вариант можно сделать черновым и потом переписать.",
+    "resistance.fear.step": "Сделать черновик, который никто не увидит",
+    "resistance.boring.label": "Скучно",
+    "resistance.boring.tip": "Остановись в момент, когда ясно, что делать дальше: так завтра будет тянуть продолжить.",
+    "resistance.boring.step": "Сделать немного и записать, что будет дальше",
+    "resistance.addStep": "Сделать первым шагом: {step}",
+    "resistance.added": "Добавлено первым шагом",
+    "comeback.label": "С возвращением",
+    "comeback.title": "Считаем с сегодняшнего дня",
+    "comeback.wins": "Уже получилось. Выполненных дней: {days}, завершённых задач: {finished}",
+    "comeback.start": "Начать с сегодня"
 };
 
 export default ru;

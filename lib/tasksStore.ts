@@ -162,6 +162,23 @@ export async function appendTaskSubtasks(taskId: string, steps: string[]): Promi
   return next;
 }
 
+/** Puts one step in front of the others, so the easiest way in becomes "start here". */
+export async function prependTaskSubtask(taskId: string, step: string): Promise<TaskItem | undefined> {
+  const task = await getTask(taskId);
+  const trimmed = step.trim();
+  if (!task || !trimmed) return task;
+  if (task.subtasks[0]?.trim().toLowerCase() === trimmed.toLowerCase()) return task;
+  const next: TaskItem = {
+    ...task,
+    subtasks: [trimmed, ...task.subtasks].slice(0, MAX_TASK_SUBTASKS),
+    doneSubtasks: task.doneSubtasks?.map((index) => index + 1).filter((index) => index < MAX_TASK_SUBTASKS),
+    updatedAt: new Date().toISOString(),
+    syncStatus: "local"
+  };
+  await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) => store.put(next));
+  return next;
+}
+
 /** Sets or clears the one-off reminder; a one-time task moves to the reminder's local date. */
 export async function setTaskReminder(taskId: string, remindAt: string | undefined): Promise<TaskItem | undefined> {
   const task = await getTask(taskId);

@@ -29,7 +29,8 @@ export const VALUE_EVENTS = [
   "feedback_submitted",
   "wish_outcome_answered",
   "wish_woop_saved",
-  "task_next_hook_saved"
+  "task_next_hook_saved",
+  "task_resistance_step_added"
 ] as const;
 
 /** Viewing without acting; many of these with no value event on the same day is a doomscroll signal. */

@@ -621,3 +621,9 @@
 .home-continue-card { width: 100%; grid-template-columns: minmax(0, 1fr) 18px; align-items: center; text-align: left; color: var(--text); border: 0; font: inherit; cursor: pointer; }
 .home-continue-card span { display: grid; gap: 2px; min-width: 0; }
 .home-continue-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-resistance { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); }
+.task-resistance p { margin: 0; }
+.task-resistance-open { justify-self: start; }
+.home-comeback-card h2 { margin: 0; }
+.home-comeback-card p { margin: 0; color: var(--muted); }
+.home-comeback-card ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }

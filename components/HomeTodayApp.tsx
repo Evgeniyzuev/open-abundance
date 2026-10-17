@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import DailySetCard from "@/components/DailySetCard";
 import MorningCheckInCard from "@/components/MorningCheckIn";
+import HomeComebackCard from "@/components/HomeComebackCard";
 import HomeContinueCard from "@/components/HomeContinueCard";
 import HomeTasksCard from "@/components/HomeTasksCard";
 import WeekRecapPrompt from "@/components/WeekRecapPrompt";
@@ -357,6 +358,7 @@ export default function HomeTodayApp({
       </header>
 
       <HomeContinueCard active={active} onOpenTask={onOpenTask} />
+      <HomeComebackCard active={active} onOpenTasks={onOpenTasks} />
 
       {loading || status === "loading" ? <p className="home-status">{t("app.common.loading")}</p> : null}
       {status === "offline" ? <p className="home-status">{t("home.offline")}</p> : null}

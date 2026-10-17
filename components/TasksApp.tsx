@@ -20,6 +20,7 @@ import {
 import type { TaskCompletion, TaskItem, TaskSchedule, TaskStreakSettings } from "@/lib/tasksStore";
 import Sheet from "@/components/ui/Sheet";
 import NextStepSheet from "@/components/NextStepSheet";
+import TaskResistanceHelper from "@/components/TaskResistanceHelper";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
@@ -874,6 +875,7 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
               {doneToday ? t("tasks.doneToday") : t("tasks.doneAction")}
             </button>
           ) : null}
+          {!task.completed && !task.deleted && !doneToday ? <TaskResistanceHelper taskId={task.id} onChanged={onChanged} /> : null}
           {!task.completed && !task.deleted ? (
             <TaskStepSuggester title={task.title} description={task.description} existingSteps={task.subtasks} onAccept={addSteps} />
           ) : null}

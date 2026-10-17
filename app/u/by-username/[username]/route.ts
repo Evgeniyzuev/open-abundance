@@ -5,7 +5,7 @@ import { validateUsername } from "@/lib/username";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /@nickname  (rewritten to /u/by-username/nickname)
+ * GET /@nickname  (rewritten to /u/by-username/nickname; ?ref=... is passed on to the profile)
  *
  * Short link to a public profile. A nickname released in the last 30 days still leads to the
  * person who used it, so shared links do not break the moment someone renames. Unknown names get a
@@ -35,7 +35,8 @@ export async function GET(request: NextRequest, { params }: { params: { username
   }
 
   if (!userId) return notFound();
-  return NextResponse.redirect(new URL(`/u/${userId}`, request.url), 307);
+  // The query string travels with the redirect, so a shared link like /@nick?ref=CODE keeps its invitation.
+  return NextResponse.redirect(new URL(`/u/${userId}${request.nextUrl.search}`, request.url), 307);
 }
 
 function notFound() {

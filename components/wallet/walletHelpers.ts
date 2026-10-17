@@ -495,3 +495,17 @@ export function targetCalculationDays(calculation: ReturnType<typeof findDaysToT
   if (calculation.kind === "estimated") return Math.round(calculation.days);
   return null;
 }
+
+/** True for the history rows that have a person on the other side. */
+export function hasHistoryCounterparty(row: WalletHistoryRow): boolean {
+  return Boolean(row.counterpartyUserId) && (row.kind === "wallet_transfer" || row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund" || row.kind.startsWith("p2p_"));
+}
+
+/** The text of a history row without the counterparty (that one is a link): the deal, the crypto details or the Core payout rate. */
+export function historyDetail(row: WalletHistoryRow, locale: AppLocale, t: TFunction): string {
+  if (row.kind === "challenge_reward" || row.kind === "wallet_core_topup" || row.kind === "team_bonus" || row.kind === "system_shop_purchase" || row.kind === "referral_reward" || row.kind === "other" || row.kind === "internal_turnover_fee" || row.kind === "wallet_transfer") return "";
+  if (row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund" || row.kind.startsWith("p2p_")) return row.sourceId ? `${t("wallet.history.deal")}: ${shortId(row.sourceId)}` : "";
+  if (row.kind === "crypto_deposit") return formatCryptoDepositDetails(row, locale);
+  if (row.kind === "crypto_withdrawal") return formatCryptoWithdrawalDetails(row, locale, t);
+  return `${t("wallet.dailyRate")} ${formatPercent((row.daily_rate ?? 0) * 100, locale)} · ${t("wallet.reinvest")} ${formatPercentCompact(row.reinvest_percent ?? 0, locale)}`;
+}

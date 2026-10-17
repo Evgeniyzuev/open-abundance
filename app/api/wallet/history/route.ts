@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { reconstructBalances } from "@/lib/historyBalance";
-import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { personName } from "@/lib/personName";
+import { createServiceSupabaseClient, getAuthenticatedUser } from "@/lib/serverSupabase";
 
 type WalletHistoryRow = {
   id: string;
@@ -25,6 +26,8 @@ type WalletHistoryRow = {
   destinationAddress?: string;
   messageHash?: string;
   counterpartyUserId?: string;
+  /** The counterparty's public name (display name, otherwise @nickname), so the screen can link to the profile. */
+  counterpartyName?: string;
   sourceId?: string;
   /** Balance of the Wallet right after this operation, when it can be trusted. */
   balance_after?: number | null;
@@ -142,6 +145,14 @@ export async function GET(request: NextRequest) {
       walletAccount ? Number(walletAccount.balance) : null
     );
     const rows = merged.slice(0, limit).map((row, index) => ({ ...row, balance_after: balances[index] }));
+
+    // Names of the people on the other side of transfers and deals (public profile data only).
+    const counterpartyIds = [...new Set(rows.map((row) => row.counterpartyUserId).filter((id): id is string => Boolean(id)))];
+    if (counterpartyIds.length > 0) {
+      const { data: people } = await createServiceSupabaseClient().from("user_profiles").select("user_id,display_name,username").in("user_id", counterpartyIds);
+      const names = new Map((people ?? []).map((person) => [person.user_id, personName(person, "")]));
+      for (const row of rows) if (row.counterpartyUserId && names.get(row.counterpartyUserId)) row.counterpartyName = names.get(row.counterpartyUserId);
+    }
 
     return NextResponse.json(
       { rows },

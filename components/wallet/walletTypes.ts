@@ -43,6 +43,7 @@ export type WalletHistoryRow = {
   destinationAddress?: string;
   messageHash?: string;
   counterpartyUserId?: string;
+  counterpartyName?: string;
   sourceId?: string;
   balance_after?: number | null;
   operationType?: string;

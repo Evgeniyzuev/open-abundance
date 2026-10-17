@@ -559,3 +559,6 @@
   font-weight: 700;
   color: var(--accent-strong, #0a7a4b);
 }
+
+.history-counterparty-link { color: var(--blue, #2457d6); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.history-counterparty:not(:last-child)::after { content: " \00b7  "; }

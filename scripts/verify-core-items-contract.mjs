@@ -37,4 +37,11 @@ for (const file of ["../lib/messages/en.ts", "../lib/messages/ru.ts"]) {
   for (const rarity of ["common", "uncommon", "rare", "epic", "legendary"]) assert.ok(messages.includes(`"coreGarden.rarity.${rarity}"`), `${file}: ${rarity}`);
   assert.ok(messages.includes('"coreGarden.note"'), `${file} has the not-a-guarantee note`);
 }
+// A bought garden item shows up on the Results screen but never enters a contract.
+const inventoryRoute = readFileSync(new URL("../app/api/shop/merge/route.ts", import.meta.url), "utf8");
+assert.ok(/\.in\("artifact_type", \["sacred_item", "core_item"\]\)/.test(inventoryRoute), "the Results list includes the Core garden items");
+const inventory = readFileSync(new URL("../components/SacredInventory.tsx", import.meta.url), "utf8");
+assert.ok(inventory.includes('item.artifact_type !== "core_item"') && inventory.includes("if (!canMergeItem(item)) return;"), "a garden item cannot be picked for a contract");
+const shopSql = readFileSync(new URL("../supabase/migrations/20261014200000_system_shop_purchase.sql", import.meta.url), "utf8");
+assert.ok(/artifact_type = 'sacred_item'/.test(shopSql), "the server contract only takes sacred items, so garden items cannot be cashed into a higher rarity");
 console.log("Core items contract verified.");

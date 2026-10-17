@@ -1069,6 +1069,7 @@ const en = {
   "market.mutual.title": "Mutual balance",
   "shop.title": "Shop",
   "shop.bought": "Item added to your items",
+  "shop.coreItemNote": "A Core garden item: its first purchase from the system added its price to your Core. When resold on the Market it is an ordinary lore card with no effect on Core.",
   "shop.items": "My items",
   "shop.contract": "Contract",
   "shop.merge": "Merge 2 into 1",

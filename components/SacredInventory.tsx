@@ -9,7 +9,10 @@ import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { nextSacredRarity } from "@/lib/sacredItems";
 
-type OwnedItem = { id: string; title: string; description: string | null; rarity: string; metadata: { glyph?: string; item_key?: string } | null };
+type OwnedItem = { id: string; title: string; description: string | null; rarity: string; artifact_type?: string; metadata: { glyph?: string; item_key?: string } | null };
+
+/** Core garden items are collectibles: they stay out of the contract (only the sacred items of the shop merge). */
+const canMergeItem = (item: OwnedItem) => item.artifact_type !== "core_item";
 
 async function sendJson(path: string, body: Record<string, unknown>) {
   const response = await fetchWithSupabaseAuth(path, {
@@ -71,6 +74,7 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
     void run(() => sendJson("/api/marketplace/listings", { artifactId: item.id, listingKind: "digital_asset", priceAmount: amount }), t("market.create"));
   }
 
+  const mergeable = items.filter(canMergeItem);
   const picked = items.filter((item) => selected.includes(item.id));
   const canMerge = picked.length === 2 && picked[0].rarity === picked[1].rarity && nextSacredRarity(picked[0].rarity) !== null;
 
@@ -80,6 +84,7 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
       setPrice("");
       return;
     }
+    if (!canMergeItem(item)) return;
     setSelected((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current.slice(-1), item.id]);
   }
 
@@ -92,7 +97,9 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
           <button
             className={`results-item-tile${selected.includes(item.id) ? " selected" : ""}`}
             data-rarity={item.rarity}
-            aria-pressed={contract ? selected.includes(item.id) : undefined}
+            aria-pressed={contract && canMergeItem(item) ? selected.includes(item.id) : undefined}
+            aria-disabled={contract && !canMergeItem(item) ? true : undefined}
+            data-kind={item.artifact_type}
             key={item.id}
             type="button"
             onClick={() => tap(item)}
@@ -102,7 +109,7 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
           </button>
         ))}
       </div>
-      {items.length >= 2 ? (
+      {mergeable.length >= 2 ? (
         <div className="results-contract-row">
           <button className="secondary-button" type="button" aria-pressed={contract} onClick={() => { setContract(!contract); setSelected([]); }}>{t("shop.contract")}</button>
           {contract ? (
@@ -122,6 +129,7 @@ export default function SacredInventory({ children }: { children?: ReactNode }) 
             <div className="results-detail-body">
               <h1>{opened.title}</h1>
               {opened.description ? <p>{opened.description}</p> : null}
+              {opened.artifact_type === "core_item" ? <p className="results-item-note">{t("shop.coreItemNote")}</p> : null}
               <input inputMode="decimal" value={price} placeholder={t("market.price")} aria-label={t("market.price")} onChange={(event) => setPrice(event.target.value)} />
               <button className="challenge-primary-action" type="button" disabled={busy || !price.trim()} onClick={() => sell(opened)}>
                 {busy ? t("app.common.loading") : t("market.sell")}

@@ -55,7 +55,7 @@ async function prepareAuthenticatedApp(page: Page) {
     }));
 
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("open-abundance-offline", 4);
+      const request = indexedDB.open("open-abundance-offline");
       request.onupgradeneeded = () => {
         for (const storeName of ["notes", "lists", "tasks", "taskCompletions", "guestIdentity"]) {
           if (!request.result.objectStoreNames.contains(storeName)) {
@@ -127,7 +127,7 @@ test("new visitor completes the three-screen story and can request an email OTP"
   await expect(page.getByRole("heading", { name: "Others are already succeeding" })).toBeVisible();
 
   await page.getByRole("button", { name: "View stories" }).click();
-  await expect(page.getByRole("heading", { name: "20 levels to $1,000,000" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "20 levels to 1,000,000 $" })).toBeVisible();
   await expect(page.getByText("Your route is ready")).toBeVisible();
   await expect(page.getByRole("button", { name: "GO" })).toBeVisible();
 
@@ -183,9 +183,12 @@ test("reflection inbox captures offline without calling AI and survives reload",
     window.localStorage.setItem("openAbundanceLocale", "en");
   });
   await page.goto("/");
+  const capture = page.getByRole("textbox", { name: "Quick thought or feeling capture" });
+  // Go offline only after the notes view has loaded; the offline contract is about saving, not about fetching the app shell.
+  await expect(capture).toBeVisible();
 
   await context.setOffline(true);
-  await page.getByRole("textbox", { name: "Quick thought or feeling capture" }).fill("I keep postponing one difficult message.");
+  await capture.fill("I keep postponing one difficult message.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Saved");
   await expect(page.getByText("Remind me to process the inbox once a day")).toHaveCount(0);
@@ -193,7 +196,7 @@ test("reflection inbox captures offline without calling AI and survives reload",
 
   const saved = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("open-abundance-offline", 4);
+      const request = indexedDB.open("open-abundance-offline");
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -227,7 +230,7 @@ test("Home shows one local item for due reflection notes", async ({ page }) => {
   });
   await page.goto("/?view=home");
   await page.evaluate(() => {
-    const request = indexedDB.open("open-abundance-offline", 4);
+    const request = indexedDB.open("open-abundance-offline");
     request.onsuccess = () => {
       const db = request.result;
       const note = {
@@ -250,6 +253,8 @@ test("Home shows one local item for due reflection notes", async ({ page }) => {
       };
     };
   });
+  // The Today card is a collapsed secondary disclosure on Home; the local item lives inside it.
+  await page.locator(".home-today-card > summary").click();
   await expect(page.getByRole("button", { name: /Review notes/ })).toBeVisible();
   await page.getByRole("button", { name: /Review notes/ }).click();
   await expect(page.getByRole("heading", { name: "Process" })).toBeVisible();
@@ -393,7 +398,7 @@ test("local-first shell does not wait for a signed-in user context refresh", asy
     }));
 
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("open-abundance-offline", 4);
+      const request = indexedDB.open("open-abundance-offline");
       request.onupgradeneeded = () => {
         for (const storeName of ["notes", "lists", "tasks", "taskCompletions", "guestIdentity"]) {
           if (!request.result.objectStoreNames.contains(storeName)) {
@@ -494,7 +499,7 @@ test("authenticated user sees former Core path cards in the standard available l
   await page.goto("/?view=challenges");
 
   await expect(page.getByRole("heading", { name: "First Core Path" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Available" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Available\b/ })).toBeVisible();
   await expect(page.getByText("Save Your Progress", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Choose Your Main Wish", { exact: true })).toBeVisible();
   await expect(page.getByText("Build Your Growth Plan", { exact: true })).toBeVisible();

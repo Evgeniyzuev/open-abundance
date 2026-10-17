@@ -19,6 +19,7 @@ import {
 } from "@/lib/tasksStore";
 import type { TaskCompletion, TaskItem, TaskSchedule, TaskStreakSettings } from "@/lib/tasksStore";
 import Sheet from "@/components/ui/Sheet";
+import NextStepSheet from "@/components/NextStepSheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { closeReflectionForTask, linkReflectionTask } from "@/lib/notesStore";
@@ -108,6 +109,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
   const [suggestedExpanded, setSuggestedExpanded] = useState(false);
   const [archiveExpanded, setArchiveExpanded] = useState(false);
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
+  const [nextHookTask, setNextHookTask] = useState<TaskItem | null>(null);
   const [clock, setClock] = useState(() => Date.now());
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
   const localLoadRequestRef = useRef(0);
@@ -309,12 +311,15 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
     if (task.schedule.type === "once") {
       if (task.sourceNoteId) await closeReflectionForTask(task.id);
       setSelectedTaskId(null);
-      window.alert(t("tasks.alertDone", { title: task.title }));
+      // Instead of a plain "done" alert, leave a hook for tomorrow while it is clear what comes next.
+      setNextHookTask(task);
       return;
     }
 
     if (!task.schedule.infinite && task.schedule.targetDays && completedBefore + 1 >= task.schedule.targetDays) {
       setStreakDecisionTask(task);
+    } else if (task.plan) {
+      setNextHookTask(task);
     }
   }
 
@@ -542,6 +547,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
           onFinish={() => finishTask(streakDecisionTask)}
         />
       ) : null}
+      {nextHookTask ? <NextStepSheet task={nextHookTask} onClose={() => setNextHookTask(null)} /> : null}
     </section>
   );
 }
@@ -840,6 +846,9 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
         <div className="task-detail-body">
           <h3>{task.title}</h3>
           {task.description ? <p>{task.description}</p> : null}
+          {task.plan?.ifCue && task.plan.thenAction ? (
+            <p className="task-if-then">{t("woop.ifThenLine", { cue: task.plan.ifCue, action: task.plan.thenAction })}</p>
+          ) : null}
           {progress.label ? <strong>{progress.label}</strong> : null}
           {progress.percent !== null ? <span className="task-progress detail"><span style={{ width: `${progress.percent}%` }} /></span> : null}
           {task.subtasks.length > 0 ? (

@@ -22,6 +22,7 @@ import {
 import { PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 import ProtectedImage from "@/components/ProtectedImage";
 import TaskStepSuggester from "@/components/TaskStepSuggester";
+import WishWoopSheet from "@/components/WishWoopSheet";
 import { saveTask } from "@/lib/tasksStore";
 import { todayKey } from "@/lib/taskSchedule";
 
@@ -741,6 +742,7 @@ function WishDetailModal({
   const imageUrl = selectedWish.wish.image_url;
   const category = selectedWish.wish.category;
   const [stepsAdded, setStepsAdded] = useState(false);
+  const [woopOpen, setWoopOpen] = useState(false);
 
   /** Accepted steps toward the wish become one ordinary local task for today. */
   async function addWishSteps(steps: string[]) {
@@ -785,7 +787,16 @@ function WishDetailModal({
           {isPersonal && selectedWish.wish.status === "active" ? (
             stepsAdded
               ? <p className="wish-steps-added" role="status">{t("home.help.taskAdded")}</p>
-              : <TaskStepSuggester title={title} description={description ?? ""} existingSteps={[]} onAccept={addWishSteps} />
+              : <>
+                <button className="secondary-button wish-woop-button" type="button" onClick={() => setWoopOpen(true)}>
+                  <Target size={16} />
+                  {t("woop.start")}
+                </button>
+                <TaskStepSuggester title={title} description={description ?? ""} existingSteps={[]} onAccept={addWishSteps} />
+              </>
+          ) : null}
+          {woopOpen && isPersonal ? (
+            <WishWoopSheet wishId={selectedWish.wish.id} wishTitle={title} onClose={() => setWoopOpen(false)} onSaved={() => { setWoopOpen(false); setStepsAdded(true); }} />
           ) : null}
           {isPersonal ? (
             <div className="wish-detail-actions">

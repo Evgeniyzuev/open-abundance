@@ -27,7 +27,9 @@ export const VALUE_EVENTS = [
   "market_offer_prefilled",
   "reflection_captured",
   "feedback_submitted",
-  "wish_outcome_answered"
+  "wish_outcome_answered",
+  "wish_woop_saved",
+  "task_next_hook_saved"
 ] as const;
 
 /** Viewing without acting; many of these with no value event on the same day is a doomscroll signal. */

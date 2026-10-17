@@ -562,3 +562,18 @@
 
 .history-counterparty-link { color: var(--blue, #2457d6); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .history-counterparty:not(:last-child)::after { content: " \00b7  "; }
+
+.confirm-purchase { display: grid; gap: 12px; }
+.confirm-purchase h2 { margin: 0; }
+.confirm-purchase-details { display: grid; gap: 8px; margin: 0; }
+.confirm-purchase-details div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-muted); }
+.confirm-purchase-details dt { color: var(--muted); font-size: 0.8125rem; }
+.confirm-purchase-details dd { margin: 0; font-weight: 850; text-align: right; overflow-wrap: anywhere; }
+.confirm-purchase-note { margin: 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.35; }
+
+.wish-product-title { color: var(--text); font-weight: 850; line-height: 1.25; overflow-wrap: anywhere; text-decoration: none; }
+.wish-product-title:hover { color: var(--blue); text-decoration: underline; }
+.wish-product-host { color: var(--muted); }
+.wish-product-hint { color: #b86200; line-height: 1.3; }
+.wish-product-edit { display: grid; gap: 6px; margin: 6px 0; }
+.wish-product-open { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; text-decoration: none; }

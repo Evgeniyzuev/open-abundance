@@ -38,6 +38,7 @@
     "test:morning": "node --experimental-strip-types scripts/verify-morning-checkin-contract.mjs",
     "test:core-ticker": "node --experimental-strip-types scripts/verify-core-ticker-contract.mjs",
     "test:r2-housekeeping": "node --experimental-strip-types scripts/verify-r2-housekeeping-contract.mjs",
+    "test:product-links": "node --experimental-strip-types scripts/verify-product-links-contract.mjs",
     "test:public-invite": "node --experimental-strip-types scripts/verify-public-invite-contract.mjs",
     "test:day-credit": "node --experimental-strip-types scripts/verify-day-credit-contract.mjs",
     "test:sales-challenges": "node --experimental-strip-types scripts/verify-sales-challenges-contract.mjs",

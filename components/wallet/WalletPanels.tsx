@@ -10,6 +10,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
 import { ExchangeOffers, MutualBalanceCard } from "@/components/MarketExchange";
 import { SacredShop } from "@/components/SacredShop";
+import ConfirmPurchase from "@/components/ConfirmPurchase";
 import type { CalculatorMode, TargetKind, TermUnit, TFunction, MarketplaceListing, MarketplaceDeal, EconomyPeriodType, EconomyMetricRow } from "@/components/wallet/walletTypes";
 import { buildComparisonSeries, linePath, xForDay, yForValue, formatIndexTick, formatIndexValue, formatAnnualReturn, formatChartTick, formatPercentCompact, sellerName, artifactInitial, parseNumber, clamp, unitLabel, formatDuration, formatTargetDate } from "@/components/wallet/walletHelpers";
 import { ComparisonInfoModal, FinanceState } from "@/components/wallet/WalletModals";
@@ -586,6 +587,7 @@ export function MarketplacePanel({
   onSell: () => void;
 }) {
   const canCreate = openListingCount < listingLimit;
+  const [confirmListing, setConfirmListing] = useState<MarketplaceListing | null>(null);
 
   return (
     <section className="market-panel">
@@ -646,7 +648,7 @@ export function MarketplacePanel({
                   ) : (
                     <div className="market-card-actions">
                       <button className="text-button" type="button" onClick={() => onView(listing.id)}>{t("market.details")}</button>
-                      <button className="text-button" type="button" disabled={dealSavingId === listing.id} onClick={() => onBuy(listing.id)}>
+                      <button className="text-button" type="button" disabled={dealSavingId === listing.id} onClick={() => setConfirmListing(listing)}>
                         {dealSavingId === listing.id ? t("app.common.loading") : t("market.buy")}
                       </button>
                       {onExchange ? (
@@ -700,6 +702,16 @@ export function MarketplacePanel({
             );
           })}
         </div>
+      ) : null}
+      {confirmListing ? (
+        <ConfirmPurchase
+          title={confirmListing.title}
+          price={formatAdaptiveMoney(Number(confirmListing.price_amount), locale)}
+          note="purchase.confirm.noteMarket"
+          busy={dealSavingId === confirmListing.id}
+          onConfirm={() => { const id = confirmListing.id; setConfirmListing(null); onBuy(id); }}
+          onCancel={() => setConfirmListing(null)}
+        />
       ) : null}
     </section>
   );

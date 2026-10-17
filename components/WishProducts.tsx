@@ -30,8 +30,9 @@ export default function WishProducts() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pricingId, setPricingId] = useState<string | null>(null);
-  const [priceDraft, setPriceDraft] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState({ title: "", price: "", image: "" });
+  const [hintId, setHintId] = useState<string | null>(null);
   const userId = user?.id ?? null;
 
   const load = useCallback(async () => {
@@ -58,6 +59,11 @@ export default function WishProducts() {
     }
   }
 
+  function startEditing(product: Product) {
+    setEditingId(product.id);
+    setDraft({ title: product.title, price: product.price_amount === null ? "" : String(Number(product.price_amount)), image: product.image_url ?? "" });
+  }
+
   if (!userId) return null;
   const visible = products.filter((product) => product.status !== "dropped");
 
@@ -70,12 +76,18 @@ export default function WishProducts() {
           event.preventDefault();
           if (!url.trim()) return;
           void act(async () => {
-            await call("/api/wishes/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.trim() }) });
+            const payload = await call("/api/wishes/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.trim() }) });
+            const added = payload.product as Product | undefined;
             setUrl("");
+            // The shop did not share a picture or a price (some, like Ozon, block automatic reading): open the form to fill them in.
+            if (added && (!added.image_url || added.price_amount === null)) {
+              setHintId(added.id);
+              startEditing(added);
+            }
           });
         }}
       >
-        <input type="url" inputMode="url" value={url} placeholder={t("wishes.products.placeholder")} aria-label={t("wishes.products.placeholder")} onChange={(event) => setUrl(event.target.value)} />
+        <input type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" value={url} placeholder={t("wishes.products.placeholder")} aria-label={t("wishes.products.placeholder")} onChange={(event) => setUrl(event.target.value)} />
         <button className="secondary-button" type="submit" disabled={busy || !url.trim()}>{busy ? t("app.common.loading") : t("wishes.add")}</button>
       </form>
       {error ? <p className="finance-error">{error}</p> : null}
@@ -86,30 +98,40 @@ export default function WishProducts() {
             <img src={product.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
           ) : <span className="wish-product-placeholder" aria-hidden="true" />}
           <div>
-            <strong>{product.title}</strong>
+            <a className="wish-product-title" href={product.source_url} target="_blank" rel="noreferrer noopener">{product.title}</a>
             {product.price_amount !== null ? <small>{product.price_currency === "USD" ? formatAdaptiveMoney(Number(product.price_amount), locale) : `${Number(product.price_amount)} ${product.price_currency}`}</small> : null}
-            {pricingId === product.id ? (
+            <small className="wish-product-host">{hostOf(product.source_url)}</small>
+            {hintId === product.id && editingId === product.id ? <small className="wish-product-hint">{t("wishes.products.fillHint")}</small> : null}
+            {editingId === product.id ? (
               <form
-                className="wish-products-form"
+                className="wish-product-edit"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  const amount = Number(priceDraft.replace(",", "."));
-                  if (!Number.isFinite(amount) || amount < 0) return;
+                  const body: Record<string, unknown> = { title: draft.title.trim(), imageUrl: draft.image.trim() };
+                  const amount = draft.price.trim() === "" ? null : Number(draft.price.replace(",", "."));
+                  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) return;
+                  // A changed price is typed by hand, in dollars like everything else in the app; an untouched one keeps the store's currency.
+                  if (amount !== (product.price_amount === null ? null : Number(product.price_amount))) { body.priceAmount = amount; body.priceCurrency = "USD"; }
                   void act(async () => {
-                    await call(`/api/wishes/products/${product.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priceAmount: amount, priceCurrency: "USD" }) });
-                    setPricingId(null);
-                    setPriceDraft("");
+                    await call(`/api/wishes/products/${product.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+                    setEditingId(null);
+                    setHintId(null);
                   });
                 }}
               >
-                <input inputMode="decimal" value={priceDraft} placeholder={t("market.price")} aria-label={t("market.price")} onChange={(event) => setPriceDraft(event.target.value)} />
-                <button className="secondary-button" type="submit" disabled={busy || !priceDraft.trim()}>{t("app.common.save")}</button>
+                <input value={draft.title} maxLength={240} placeholder={t("wishes.products.titleField")} aria-label={t("wishes.products.titleField")} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+                <input inputMode="decimal" value={draft.price} placeholder={t("market.price")} aria-label={t("market.price")} onChange={(event) => setDraft({ ...draft, price: event.target.value })} />
+                <input type="text" inputMode="url" value={draft.image} placeholder={t("wishes.products.imageField")} aria-label={t("wishes.products.imageField")} onChange={(event) => setDraft({ ...draft, image: event.target.value })} />
+                <span className="wish-product-actions">
+                  <button className="secondary-button" type="submit" disabled={busy || !draft.title.trim()}>{t("app.common.save")}</button>
+                  <button className="text-button" type="button" onClick={() => { setEditingId(null); setHintId(null); }}>{t("app.common.cancel")}</button>
+                </span>
               </form>
             ) : null}
             <div className="wish-product-actions">
-              <a className="text-button" href={product.source_url} target="_blank" rel="noreferrer noopener" aria-label={product.title}><ExternalLink size={15} /></a>
-              {pricingId !== product.id ? (
-                <button className="text-button" type="button" disabled={busy} onClick={() => { setPricingId(product.id); setPriceDraft(product.price_amount === null ? "" : String(Number(product.price_amount))); }}>{t("market.price")}</button>
+              <a className="secondary-button wish-product-open" href={product.source_url} target="_blank" rel="noreferrer noopener"><ExternalLink size={15} />{t("wishes.products.open")}</a>
+              {editingId !== product.id ? (
+                <button className="text-button" type="button" disabled={busy} onClick={() => startEditing(product)}>{t("wishes.products.edit")}</button>
               ) : null}
               {product.status === "considering" ? (
                 <button className="text-button" type="button" disabled={busy} onClick={() => { void act(() => call(`/api/wishes/products/${product.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "bought" }) })); }}>{t("wishes.products.bought")}</button>
@@ -121,4 +143,12 @@ export default function WishProducts() {
       ))}
     </details>
   );
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
 }

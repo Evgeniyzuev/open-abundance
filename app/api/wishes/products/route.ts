@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { splitSharedText } from "@/lib/productLink";
 import { loadLinkPreview, normalizeLinkSource } from "@/lib/sharePreview";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,9 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as {
       url?: unknown; title?: unknown; priceAmount?: unknown; priceCurrency?: unknown;
     };
-    const source = normalizeLinkSource(body.url);
+    // The field may hold shared text ("Phone X 128 GB https://shop/..."): the address is the link, the words are a title.
+    const shared = typeof body.url === "string" ? splitSharedText(body.url) : { url: null, title: "" };
+    const source = normalizeLinkSource(shared.url ?? body.url);
     if (!source) return NextResponse.json({ error: "Enter a valid link." }, { status: 400, headers: NO_STORE_HEADERS });
 
     const { count } = await (supabase as any)
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     const preview = await loadLinkPreview(source);
     const titleOverride = typeof body.title === "string" ? body.title.trim().slice(0, 240) : "";
-    const title = titleOverride || preview.title || source.fallbackTitle;
+    const title = titleOverride || preview.title || shared.title || source.fallbackTitle;
 
     const manualAmount = typeof body.priceAmount === "number" || typeof body.priceAmount === "string" ? Number(body.priceAmount) : NaN;
     const priceAmount = Number.isFinite(manualAmount) && manualAmount >= 0 && manualAmount < 1e12 ? Math.round(manualAmount * 100) / 100 : preview.priceAmount ?? null;

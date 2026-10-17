@@ -2,6 +2,7 @@ import { lookup } from "node:dns/promises";
 import { isIP, type LookupFunction } from "node:net";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
+import { absoluteUrl, readJsonLdProduct } from "./productLink.ts";
 
 export type LinkSource = {
   provider: "tiktok" | "instagram" | "telegram" | "youtube" | "x" | "website";
@@ -118,7 +119,7 @@ export async function loadLinkPreview(source: LinkSource): Promise<LinkPreview> 
     if (response.status < 200 || response.status >= 300 || !/^text\/html\b/i.test(response.contentType ?? "")) return emptyPreview(source);
     const html = response.body.toString("utf8");
     const metadata = parseHtmlMetadata(html);
-    const thumbnail = metadata.thumbnailUrl ? normalizeSafeExternalPage(metadata.thumbnailUrl) : null;
+    const thumbnail = metadata.thumbnailUrl ? normalizeSafeExternalPage(absoluteUrl(metadata.thumbnailUrl, source.externalUrl)) : null;
     const safeThumbnail = thumbnail ? await isPublicAddressUrl(new URL(thumbnail), deadlineAt) : false;
     const title = metadata.title ?? source.fallbackTitle;
     const authorName = metadata.authorName ?? source.authorHandle;
@@ -159,28 +160,31 @@ function limitedText(value: unknown, maxLength: number): string | null {
 function parseHtmlMetadata(html: string) {
   const metas = new Map<string, string>();
   for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
-    const key = readAttribute(tag, "property") ?? readAttribute(tag, "name");
+    const key = readAttribute(tag, "property") ?? readAttribute(tag, "name") ?? readAttribute(tag, "itemprop");
     const value = readAttribute(tag, "content");
     if (key && value) metas.set(key.toLowerCase(), value);
   }
-  const rawTitle = metas.get("og:title") ?? metas.get("twitter:title") ?? html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1];
+  const product = readJsonLdProduct(html);
+  const rawTitle = metas.get("og:title") ?? metas.get("twitter:title") ?? product.name ?? html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1];
   const canonical = html.match(/<link\b[^>]*>/gi)?.find((tag) => (readAttribute(tag, "rel") ?? "").toLowerCase().split(/\s+/).includes("canonical"));
   return {
     title: rawTitle ? limitedText(rawTitle.replace(/<[^>]+>/g, ""), 240) : null,
     description: limitedText(metas.get("og:description") ?? metas.get("description") ?? metas.get("twitter:description"), 500),
-    thumbnailUrl: metas.get("og:image:secure_url") ?? metas.get("og:image") ?? metas.get("twitter:image") ?? null,
+    thumbnailUrl: metas.get("og:image:secure_url") ?? metas.get("og:image") ?? metas.get("twitter:image") ?? metas.get("image") ?? product.image ?? null,
     authorName: limitedText(metas.get("article:author") ?? metas.get("author"), 120),
     canonicalUrl: canonical ? normalizeSafeExternalPage(readAttribute(canonical, "href")) : null,
-    ...readPrice(metas)
+    ...readPrice(metas, product)
   };
 }
 
-function readPrice(metas: Map<string, string>): { priceAmount: number | null; priceCurrency: string | null } {
-  const rawAmount = metas.get("product:price:amount") ?? metas.get("og:price:amount");
+function readPrice(metas: Map<string, string>, product?: { price: number | null; currency: string | null }): { priceAmount: number | null; priceCurrency: string | null } {
+  const rawAmount = metas.get("product:price:amount") ?? metas.get("og:price:amount") ?? metas.get("price");
   const amount = rawAmount ? Number(rawAmount.replace(/\s/g, "").replace(",", ".")) : NaN;
-  const rawCurrency = metas.get("product:price:currency") ?? metas.get("og:price:currency");
+  const rawCurrency = metas.get("product:price:currency") ?? metas.get("og:price:currency") ?? metas.get("pricecurrency");
   const currency = rawCurrency && /^[A-Za-z]{3}$/.test(rawCurrency.trim()) ? rawCurrency.trim().toUpperCase() : null;
-  return { priceAmount: Number.isFinite(amount) && amount >= 0 && amount < 1e12 ? amount : null, priceCurrency: currency };
+  const fromMeta = Number.isFinite(amount) && amount >= 0 && amount < 1e12 ? amount : null;
+  // A shop that publishes no price tags usually still publishes schema.org Product data.
+  return fromMeta !== null ? { priceAmount: fromMeta, priceCurrency: currency ?? product?.currency ?? null } : { priceAmount: product?.price ?? null, priceCurrency: currency ?? product?.currency ?? null };
 }
 
 function readAttribute(tag: string, name: string): string | null {

@@ -6,14 +6,17 @@ import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import { SACRED_ITEMS } from "@/lib/sacredItems";
+import ConfirmPurchase from "@/components/ConfirmPurchase";
 
 /** System shop: collectible symbolic items for $. Bought items go to Results and can be sold or merged there. */
 export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
   const { locale, t } = useUserContext();
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   async function buy(itemKey: string) {
+    setPendingKey(null);
     setSavingKey(itemKey);
     setMessage(null);
     try {
@@ -34,6 +37,8 @@ export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
     }
   }
 
+  const pending = pendingKey ? SACRED_ITEMS.find((item) => item.key === pendingKey) ?? null : null;
+
   return (
     <details className="mutual-balance-card">
       <summary>{t("shop.title")}</summary>
@@ -51,7 +56,7 @@ export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
                 <span>{formatAdaptiveMoney(item.price ?? 0, locale)}</span>
               </div>
               <div className="market-card-actions">
-                <button className="text-button" type="button" disabled={savingKey === item.key} onClick={() => { void buy(item.key); }}>
+                <button className="text-button" type="button" disabled={savingKey === item.key} onClick={() => setPendingKey(item.key)}>
                   {savingKey === item.key ? t("app.common.loading") : t("market.buy")}
                 </button>
               </div>
@@ -59,6 +64,15 @@ export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
           </article>
         ))}
       </div>
+      {pending ? (
+        <ConfirmPurchase
+          title={pending.title[locale]}
+          price={formatAdaptiveMoney(pending.price ?? 0, locale)}
+          note="purchase.confirm.noteShop"
+          onConfirm={() => { void buy(pending.key); }}
+          onCancel={() => setPendingKey(null)}
+        />
+      ) : null}
     </details>
   );
 }

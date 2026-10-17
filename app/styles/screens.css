@@ -377,8 +377,12 @@
 .challenge-visual-gold { background: linear-gradient(145deg, #ffe88a, #ffad1f 62%, #c45c00); color: #fff; }
 .challenge-visual-violet { background: linear-gradient(145deg, #c4a7ff, #7a52e8 62%, #4a27a9); color: #fff; }
 .challenge-visual-rose { background: linear-gradient(145deg, #ff9eb4, #e63c68 62%, #a91442); color: #fff; }
-.challenge-art-fallback { position: relative; isolation: isolate; }
-.challenge-art-fallback::before { content: ""; position: absolute; z-index: -1; width: 52px; height: 52px; border: 1px solid rgba(255,255,255,0.4); border-radius: 17px; background: rgba(255,255,255,0.13); }
+.challenge-art-fallback { position: relative; isolation: isolate; filter: hue-rotate(var(--art-shift, 0deg)); }
+.challenge-art-fallback::before { content: ""; position: absolute; z-index: -1; inset: 0; background: radial-gradient(circle at var(--art-x, 30%) var(--art-y, 25%), rgba(255,255,255,0.55), rgba(255,255,255,0) 58%), radial-gradient(circle at 85% 90%, rgba(255,255,255,0.22), rgba(255,255,255,0) 40%); }
+.challenge-art-glyph { display: inline-flex; color: #fff; line-height: 1; filter: hue-rotate(calc(var(--art-shift, 0deg) * -1)) drop-shadow(0 3px 5px rgba(8, 24, 48, 0.28)); }
+.challenge-art-badge { position: absolute; right: 5px; bottom: 5px; min-width: 22px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.94); color: #1b2a41; font-size: 0.8125rem; font-weight: 900; line-height: 1.35; text-align: center; filter: hue-rotate(calc(var(--art-shift, 0deg) * -1)); }
+.challenge-thumb.challenge-art-milestone { background: #eef2ff; }
+.challenge-thumb.challenge-art-milestone img { object-fit: cover; transform: scale(1.1); }
 .challenge-art-icon { width: 45px; height: 45px; display: inline-flex; align-items: center; justify-content: center; border-radius: 15px; color: #fff; }
 .challenge-row-body { min-width: 0; display: grid; align-content: center; gap: 7px; padding: 10px 30px 10px 0; }
 .challenge-row-title { min-width: 0; display: block; overflow: hidden; font-size: 1.125rem; font-weight: 850; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
@@ -405,6 +409,13 @@
 .today-challenge-head small { color: var(--muted); font-size: 0.8125rem; font-weight: 750; }
 .today-progress { width: 100%; height: 9px; overflow: hidden; border-radius: 999px; background: var(--surface-muted); }
 .today-progress span { height: 100%; display: block; border-radius: inherit; background: var(--accent-fill); }
+.today-progress { position: relative; }
+.today-progress-half { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(27, 42, 65, 0.25); }
+.today-credit { display: grid; gap: 3px; padding: 9px 11px; border-radius: 12px; background: var(--surface-muted); font-size: 0.8125rem; line-height: 1.3; }
+.today-credit strong { font-size: 0.875rem; }
+.today-credit span { color: var(--muted); }
+.today-credit.counted, .today-credit.full { background: color-mix(in srgb, var(--accent-soft) 70%, transparent); }
+.today-credit.full strong { color: #b86200; }
 .today-streak-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .today-streak-row span { min-height: 26px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 9px; background: var(--accent-soft); color: var(--blue); font-size: 0.75rem; font-weight: 850; }
 .today-checklist { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1211,7 +1222,7 @@
 .feed-post-interest-question button:hover, .feed-post-interest-question button:focus-visible { border-color: var(--accent-fill); color: var(--accent-fill); outline: 0; }
 .ui-skeleton { display: block; border-radius: var(--radius-sm, 8px); background: linear-gradient(110deg, var(--surface-muted) 24%, var(--surface) 42%, var(--surface-muted) 62%); background-size: 260% 100%; animation: feed-tile-loading 1.25s ease-in-out infinite; }
 .feed-post-tile-skeleton { border-radius: 0; }
-.feed-post-hero-skeleton { position: relative; grid-column: 1 / -1; aspect-ratio: 16 / 10; overflow: hidden; border-radius: var(--radius-md, 12px); background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(241,242,247,0.42)), url("/onboarding/people-stories.png") center / cover; animation: none; }
+.feed-post-hero-skeleton { position: relative; grid-column: 1 / -1; aspect-ratio: 16 / 10; overflow: hidden; border-radius: var(--radius-md, 12px); background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(241,242,247,0.42)), url("/onboarding/people-stories.webp") center / cover; animation: none; }
 .feed-post-hero-skeleton::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.45) 48%, transparent 66%); background-size: 260% 100%; animation: feed-tile-loading 1.25s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .ui-skeleton, .feed-post-hero-skeleton::after { animation: none; } }
 .ui-chip-row { display: grid; gap: 7px; min-width: 0; }

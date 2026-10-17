@@ -22,11 +22,14 @@ export async function fetchWithSupabaseAuth(
   }
 
   const firstResponse = await fetchWithToken(input, init, session?.access_token ?? null);
+  announceChallengeCheck(input, firstResponse);
   if (firstResponse.status !== 401 || !session?.access_token) return firstResponse;
 
   const refreshedSession = await refreshBrowserSession();
   if (refreshedSession?.access_token) {
-    return fetchWithToken(input, init, refreshedSession.access_token);
+    const retried = await fetchWithToken(input, init, refreshedSession.access_token);
+    announceChallengeCheck(input, retried);
+    return retried;
   }
 
   if (!options.authRequired) {
@@ -61,4 +64,11 @@ function fetchWithToken(input: RequestInfo | URL, init: RequestInit, accessToken
     ...init,
     headers
   });
+}
+
+/** A successful challenge check may have opened an achievement artifact: let the artifact watcher look again. */
+function announceChallengeCheck(input: RequestInfo | URL, response: Response) {
+  if (typeof window === "undefined" || !response.ok) return;
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (url.includes("/api/challenges/check")) window.dispatchEvent(new Event("open-abundance:artifacts-check"));
 }

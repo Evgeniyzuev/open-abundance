@@ -23,14 +23,14 @@ import type { Tables } from "@/lib/database.types";
 import { useWalletFees } from "@/lib/useWalletFees";
 import { ExchangeOfferDialog } from "@/components/MarketExchange";
 import type { WalletTab, WalletCalculatorRequest, CoreHistoryRow, WalletHistoryRow, ChallengeProgressResponse, CoreGrowthPlanResponse, CalculatorMode, TargetKind, TermUnit, WalletRecipient, MarketplaceListing, MarketplaceListingInput, MarketplaceDeal, EconomyPeriodType, EconomyMetricKey, EconomyVisibilityRow, EconomyMetricRow } from "@/components/wallet/walletTypes";
-import { loadCoreHistory, formatHistoryDay, coreHistoryLabel, coreHistoryDetail, loadWalletHistory, loadMarketplaceData, loadMarketplaceDeals, loadMarketplaceListing, updateMarketplaceListing, createMarketplaceDeal, marketplaceDealAction, createMarketplaceListing, cancelMarketplaceListing, getAccessToken, formatPercent, formatPercentCompact, formatDate, formatDay, shortId, formatFixedUsd, formatCryptoDepositDetails, formatCryptoWithdrawalDetails, parseNumber, isValidPercentString, formatInputNumber, formatDuration, formatTargetSummary, targetCalculationDays } from "@/components/wallet/walletHelpers";
+import { loadCoreHistory, formatHistoryDay, coreHistoryLabel, coreHistoryDetail, historyBalanceText, loadWalletHistory, loadMarketplaceData, loadMarketplaceDeals, loadMarketplaceListing, updateMarketplaceListing, createMarketplaceDeal, marketplaceDealAction, createMarketplaceListing, cancelMarketplaceListing, getAccessToken, formatPercent, formatPercentCompact, formatDate, formatDay, shortId, formatFixedUsd, formatCryptoDepositDetails, formatCryptoWithdrawalDetails, parseNumber, isValidPercentString, formatInputNumber, formatDuration, formatTargetSummary, targetCalculationDays } from "@/components/wallet/walletHelpers";
 import { MarketplaceListingDetailModal, MarketplaceEditModal, SellItemModal, TonWithdrawalModal, TonDepositModal, WalletTransferModal, TopupCoreModal, FinanceState } from "@/components/wallet/WalletModals";
 import { EconomyMetricsPanel, HistoryPanel, ReinvestPanel, CoreCalculatorPanel, BalancePanel, CoreLevelProgress, MarketplacePanel } from "@/components/wallet/WalletPanels";
 
 export type { WalletCalculatorRequest } from "@/components/wallet/walletTypes";
 
 export default function WalletApp({ active, activeTab, calculatorRequest, refreshNonce, onRefresh }: { active: boolean; activeTab: WalletTab; calculatorRequest?: WalletCalculatorRequest | null; refreshNonce: number; onRefresh: () => Promise<void> }) {
-  const { core, wallet, user, loading, error, locale, applyServerData, t } = useUserContext();
+  const { core, wallet, user, loading, error, locale, applyServerData, refreshUserData, t } = useUserContext();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState<CoreHistoryRow[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -374,6 +374,25 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
       document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
   }
+
+  // A deposit or an Afterburn move lands on the server on its own, so while the Wallet is on screen the
+  // balances are re-read when the tab comes back to the front, every 45 seconds, and when the history opens.
+  useEffect(() => {
+    if (!active || !user) return;
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void refreshUserData();
+    };
+    const timer = window.setInterval(refreshIfVisible, 45_000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [active, user, refreshUserData]);
+
+  useEffect(() => {
+    if (active && walletHistoryOpen) void refreshUserData();
+  }, [active, walletHistoryOpen, refreshUserData]);
 
   function toggleWalletHistory() {
     const nextOpen = !walletHistoryOpen;
@@ -735,7 +754,13 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                       : row.kind === "challenge_reward"
                       ? t("wallet.history.challengeReward")
                       : row.kind === "wallet_core_topup"
-                        ? t("wallet.history.walletCoreTopup")
+                        ? row.tag === "afterburn" ? t("wallet.history.afterburn") : row.tag === "core_item" ? t("wallet.history.coreItem") : t("wallet.history.walletCoreTopup")
+                        : row.kind === "system_shop_purchase"
+                        ? t("wallet.history.shopPurchase")
+                        : row.kind === "referral_reward"
+                        ? t("wallet.history.referralReward")
+                        : row.kind === "other"
+                        ? t("wallet.history.other")
                         : row.kind === "wallet_transfer"
                       ? t("wallet.history.transfer")
                       : row.kind === "marketplace_escrow_hold"
@@ -771,17 +796,17 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
                     <span>{t("wallet.wallet")}</span>
                   </div>
                   <p>
-                    {row.kind === "challenge_reward" || row.kind === "wallet_core_topup" || row.kind === "team_bonus"
-                      ? `${t("wallet.history.source")}: ${shortId(row.sourceId ?? row.id)}`
+                    {[row.kind === "challenge_reward" || row.kind === "wallet_core_topup" || row.kind === "team_bonus" || row.kind === "system_shop_purchase" || row.kind === "referral_reward" || row.kind === "other" || row.kind === "internal_turnover_fee"
+                      ? ""
                       : row.kind === "wallet_transfer"
-                      ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.source")}: ${shortId(row.sourceId)}` : ""}`
+                      ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}`
                       : row.kind === "marketplace_escrow_hold" || row.kind === "marketplace_payment" || row.kind === "marketplace_refund" || row.kind.startsWith("p2p_")
                         ? `${row.counterpartyUserId ? `${t("wallet.history.counterparty")}: ${shortId(row.counterpartyUserId)}` : ""}${row.sourceId ? ` · ${t("wallet.history.deal")}: ${shortId(row.sourceId)}` : ""}`
                     : row.kind === "crypto_deposit"
                       ? formatCryptoDepositDetails(row, locale)
                       : row.kind === "crypto_withdrawal"
                         ? formatCryptoWithdrawalDetails(row, locale, t)
-                      : `${t("wallet.dailyRate")} ${formatPercent((row.daily_rate ?? 0) * 100, locale)} · ${t("wallet.reinvest")} ${formatPercentCompact(row.reinvest_percent ?? 0, locale)}`}
+                      : `${t("wallet.dailyRate")} ${formatPercent((row.daily_rate ?? 0) * 100, locale)} · ${t("wallet.reinvest")} ${formatPercentCompact(row.reinvest_percent ?? 0, locale)}`, historyBalanceText(row.balance_after, locale, t)].filter(Boolean).join(" · ")}
                   </p>
                 </article>
               ))}

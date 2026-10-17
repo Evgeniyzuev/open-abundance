@@ -12,18 +12,19 @@ export type WalletCalculatorRequest = {
 export type CoreHistoryRow = {
   id: string;
   occurred_at: string;
-  kind: "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus";
+  kind: "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus" | "referral_reward";
   amount: number;
   source_id: string;
   challenge_id?: string;
   challenge_title?: string;
   metadata?: Record<string, unknown>;
+  balance_after?: number | null;
 };
 
 export type WalletHistoryRow = {
   id: string;
   operation_date: string;
-  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release" | "team_bonus" | "internal_turnover_fee";
+  kind: "daily_core_payout" | "challenge_reward" | "wallet_core_topup" | "crypto_deposit" | "crypto_withdrawal" | "wallet_transfer" | "marketplace_escrow_hold" | "marketplace_payment" | "marketplace_refund" | "p2p_escrow_hold" | "p2p_escrow_release" | "p2p_escrow_refund" | "p2p_compensation" | "p2p_recovery" | "p2p_collateral_hold" | "p2p_collateral_release" | "team_bonus" | "internal_turnover_fee" | "system_shop_purchase" | "referral_reward" | "other";
   direction: "credit" | "debit";
   amount: number;
   daily_rate?: number;
@@ -43,6 +44,9 @@ export type WalletHistoryRow = {
   messageHash?: string;
   counterpartyUserId?: string;
   sourceId?: string;
+  balance_after?: number | null;
+  operationType?: string;
+  tag?: "core_item" | "afterburn";
   created_at: string;
 };
 

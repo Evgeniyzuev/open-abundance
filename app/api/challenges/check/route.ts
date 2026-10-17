@@ -4,6 +4,9 @@ import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
+import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
+import { hasThreeSteps } from "@/lib/wishSteps";
 
 type CheckRequest = {
   challengeId?: string;
@@ -330,6 +333,48 @@ async function verifyChallenge(
     return { ok: false, reason: "Complete the humanity check first." };
   }
 
+  // Sales: any completed Market deal where the person is the seller counts (founder decision 2026-10-17).
+  if (challenge.verification_logic === "first_sale" || salesThreshold(challenge.verification_logic) !== null) {
+    const { data, error } = await db
+      .from("marketplace_deals")
+      .select("price_amount")
+      .eq("seller_user_id", userId)
+      .eq("status", "completed")
+      .limit(5000);
+    if (error) return { ok: false, reason: "Could not check your sales. Try again." };
+    const rows = (data ?? []) as Array<{ price_amount: number | string | null }>;
+    const threshold = salesThreshold(challenge.verification_logic);
+    if (threshold === null) {
+      return rows.length > 0 ? { ok: true } : { ok: false, reason: "Complete your first sale in Wallet → Market first." };
+    }
+    return sumCompletedSales(rows.map((row) => row.price_amount)) >= threshold
+      ? { ok: true }
+      : { ok: false, reason: `Your completed sales must reach $${threshold}.` };
+  }
+
+  // The first fulfilled wish: any wish of the person with the status completed.
+  if (challenge.verification_logic === "first_wish_fulfilled") {
+    const { count, error } = await db
+      .from("wishes")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_user_id", userId)
+      .eq("status", "completed")
+      .is("deleted_at", null);
+    if (error) return { ok: false, reason: "Could not check your wishes. Try again." };
+    return Number(count ?? 0) > 0 ? { ok: true } : { ok: false, reason: "Mark one of your wishes as fulfilled first." };
+  }
+
+  // The first team task the leader has confirmed.
+  if (challenge.verification_logic === "first_team_task_done") {
+    const { count, error } = await db
+      .from("team_tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("member_user_id", userId)
+      .eq("status", "completed");
+    if (error) return { ok: false, reason: "Could not check your team tasks. Try again." };
+    return Number(count ?? 0) > 0 ? { ok: true } : { ok: false, reason: "Complete a task from your lead and wait for the confirmation." };
+  }
+
   if (challenge.verification_logic === "first_marketplace_listing") {
     const { count, error } = await db
       .from("marketplace_listings")
@@ -473,6 +518,31 @@ async function verifyChallenge(
       return { ok: false, reason: `Complete Today for 7 consecutive days. Current streak: ${payload.completionStreak}.` };
     } catch {
       return { ok: false, reason: "Could not check the Today streak. Try again." };
+    }
+  }
+
+  const dailyGoal = dailyGoalRule(challenge.verification_logic);
+  if (dailyGoal) {
+    try {
+      const payload = await syncTodayForUser(supabase, userId);
+      const { data: dayRows, error: dayError } = await supabase
+        .from("user_today_instances")
+        .select("local_date,status,progress_core,target_core")
+        .eq("user_id", userId)
+        .gte("local_date", daysBefore(payload.today.local_date, 120))
+        .lte("local_date", payload.today.local_date);
+      if (dayError) throw dayError;
+      const stats = dayCreditStats(dayRows ?? [], payload.today.local_date);
+      const value = dailyGoal.kind === "counted_streak" ? stats.countedStreak : stats.fullTotal;
+      if (value >= dailyGoal.days) return { ok: true };
+      return {
+        ok: false,
+        reason: dailyGoal.kind === "counted_streak"
+          ? `Reach at least half of the daily Core target for ${dailyGoal.days} days in a row. Current streak: ${stats.countedStreak}.`
+          : `Reach the full daily Core target on ${dailyGoal.days} days. Full days so far: ${stats.fullTotal}.`
+      };
+    } catch {
+      return { ok: false, reason: "Could not check the daily goal. Try again." };
     }
   }
 
@@ -794,21 +864,6 @@ function wordCount(value: string | null | undefined): number {
   return (value ?? "").trim().split(/\s+/).filter(Boolean).length;
 }
 
-function hasThreeSteps(value: string | null | undefined): boolean {
-  const text = (value ?? "").trim();
-  if (!text) return false;
-
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length >= 3);
-
-  if (lines.length >= 3) return true;
-
-  const numbered = text.match(/(?:^|\s)(?:[1-3][.)]|шаг\s*[1-3]|step\s*[1-3])/gi) ?? [];
-  return new Set(numbered.map((item) => item.replace(/\s+/g, "").toLowerCase())).size >= 3;
-}
-
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -842,4 +897,9 @@ function getSupabaseProjectRef(supabaseUrl: string): string {
   } catch {
     return "unknown";
   }
+}
+
+function daysBefore(date: string, days: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day - days)).toISOString().slice(0, 10);
 }

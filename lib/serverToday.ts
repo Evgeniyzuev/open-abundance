@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/lib/database.types";
+import { dayCredit, dayCreditStats, type DayCredit, type DayCreditStats } from "@/lib/dayCredit";
 
 type ServerSupabase = SupabaseClient<Database>;
 type CoreGrowthPlan = Tables<"user_core_growth_plans">;
@@ -24,6 +25,8 @@ export type TodayPayload = {
   checkInStreak: number;
   completionStreak: number;
   totalCompletions: number;
+  /** How much of today's target counts for the daily goal chain (any action / 50% / 100%) and the streaks of it. */
+  credit: DayCreditStats & { today: DayCredit };
   items: TodayItem[];
   plan: CoreGrowthPlan | null;
   progressEvents: TodayProgressEvent[];
@@ -97,6 +100,7 @@ export async function syncTodayForUser(
     checkInStreak: streaks.checkInStreak,
     completionStreak: streaks.completionStreak,
     totalCompletions: streaks.totalCompletions,
+    credit: { ...streaks.credit, today: dayCredit(today) },
     items,
     plan,
     progressEvents,
@@ -329,11 +333,11 @@ async function getTodayStreaks(
   supabase: ServerSupabase,
   userId: string,
   localDate: string
-): Promise<{ checkInStreak: number; completionStreak: number; totalCompletions: number }> {
+): Promise<{ checkInStreak: number; completionStreak: number; totalCompletions: number; credit: DayCreditStats }> {
   const [datesResult, totalResult] = await Promise.all([
     supabase
       .from("user_today_instances")
-      .select("local_date,status")
+      .select("local_date,status,progress_core,target_core")
       .eq("user_id", userId)
       .lte("local_date", localDate)
       .order("local_date", { ascending: false }),
@@ -353,7 +357,8 @@ async function getTodayStreaks(
   return {
     checkInStreak: countConsecutiveDays(localDate, dates),
     completionStreak: countConsecutiveDays(completionCursor, completedDates),
-    totalCompletions: totalResult.count ?? 0
+    totalCompletions: totalResult.count ?? 0,
+    credit: dayCreditStats(datesResult.data ?? [], localDate)
   };
 }
 

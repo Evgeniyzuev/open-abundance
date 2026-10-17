@@ -94,7 +94,7 @@ export default function NovaDailyCard({ active, onOpenChat, onOpenCore }: { acti
   return (
     <section className="home-card self-serve-checkin nova-daily-card" aria-labelledby="nova-daily-title">
       <div className="nova-daily-head">
-        <Image src="/nova-fox-robot.png" alt="" width={28} height={28} />
+        <Image src="/nova-fox-robot.webp" alt="" width={28} height={28} />
         <strong>{t("nova.card.from")}</strong>
         <button
           className="nova-daily-close"

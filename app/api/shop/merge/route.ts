@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
     const [{ data: artifacts, error: artifactsError }, { data: listed }] = await Promise.all([
       supabase
         .from("user_artifacts")
-        .select("id,title,description,rarity,metadata,created_at")
+        .select("id,title,description,rarity,metadata,artifact_type,created_at")
         .eq("user_id", user.id)
-        .eq("artifact_type", "sacred_item")
+        .in("artifact_type", ["sacred_item", "core_item"])
         .eq("transferable", true)
         .is("locked_by_deal_id", null)
         .order("created_at", { ascending: false }),

@@ -1,7 +1,7 @@
 import { personLabel } from "@/lib/personName";
 import { DAILY_CORE_RATE, calculateFutureCore, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
-import { formatRateMoney } from "@/lib/moneyFormat";
+import { formatAdaptiveMoney, formatRateMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { HALF_YEAR_DAYS, COMPARISON_BASE_INDEX, BENCHMARKS, type CoreHistoryRow, type WalletHistoryRow, type TermUnit, type TFunction, type ComparisonPoint, type ComparisonSeries, type WalletTransferContact, type WalletRecipient, type MarketplaceListing, type MarketplaceResponse, type MarketplaceListingInput, type MarketplaceDeal } from "@/components/wallet/walletTypes";
 
@@ -28,12 +28,22 @@ export function coreHistoryLabel(row: CoreHistoryRow, locale: AppLocale, t: TFun
   if (row.kind === "daily_accrual") return t("wallet.history.coreDailyAccrual");
   if (row.kind === "challenge_reward") return localizedHistoryTitle(row.challenge_title, locale) ?? t("wallet.history.challengeReward");
   if (row.kind === "peer_review_reward") return t("wallet.history.peerReviewReward");
-  if (row.kind === "wallet_core_topup") return t("wallet.history.walletCoreTopup");
+  if (row.kind === "wallet_core_topup") {
+    if (row.metadata?.afterburn) return t("wallet.history.afterburn");
+    if (row.metadata?.core_item) return t("wallet.history.coreItem");
+    return t("wallet.history.walletCoreTopup");
+  }
+  if (row.kind === "referral_reward") return t("wallet.history.referralReward");
   return t("wallet.history.teamBonus");
 }
 
+/** Second line of a Core history row: the balance after the operation, when it can be trusted. */
 export function coreHistoryDetail(row: CoreHistoryRow, locale: AppLocale, t: TFunction): string {
-  return localizedHistoryTitle(row.challenge_title, locale) ?? `${t("wallet.history.source")}: ${shortId(row.source_id)}`;
+  return historyBalanceText(row.balance_after, locale, t);
+}
+
+export function historyBalanceText(balance: number | null | undefined, locale: AppLocale, t: TFunction): string {
+  return typeof balance === "number" && Number.isFinite(balance) ? `${t("wallet.history.balance")}: ${formatAdaptiveMoney(balance, locale)}` : "";
 }
 
 export function localizedHistoryTitle(value: unknown, locale: AppLocale): string | undefined {

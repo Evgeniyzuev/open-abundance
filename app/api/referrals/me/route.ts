@@ -4,7 +4,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
-import { hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 
 export const dynamic = "force-dynamic";
 
@@ -15,28 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     }
 
-    const [{ data: resultSnapshots, error: resultError }, { data: progressRows, error: progressError }] = await Promise.all([
-      supabase
-        .from("challenge_completion_snapshots")
-        .select("challenge_category")
-        .eq("user_id", user.id),
-      supabase
-        .from("user_challenges")
-        .select("status,challenges(category)")
-        .eq("user_id", user.id)
-    ]);
-
-    if (resultError || progressError) {
-      return NextResponse.json({ error: resultError?.message ?? progressError?.message ?? "Failed to load referral eligibility." }, { status: 500, headers: NO_STORE_HEADERS });
-    }
-
-    if (!hasFirstResult(resultSnapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])) {
-      return NextResponse.json(
-        { available: false, code: null, url: null, reason: "first_result_required" },
-        { headers: NO_STORE_HEADERS }
-      );
-    }
-
+    // Everyone who signed in has an invitation link from the first minute (no "first result" gate).
     const { data: existingCode, error: existingError } = await supabase
       .from("referral_codes")
       .select("code")

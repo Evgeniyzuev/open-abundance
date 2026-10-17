@@ -106,10 +106,10 @@ export async function GET(request: NextRequest) {
     const helpCompleted = leaderTasks.some((task) => task.status === "completed" && task.newcomer_eligible);
     const leaderPath = isLeader ? {
         firstResultCompleted,
-        inviteUnlocked: firstResultCompleted,
+        inviteUnlocked: true,
         referralRegistered: registeredReferrals > 0,
         newcomerHelpCompleted: helpCompleted,
-        next: !firstResultCompleted ? "publish_result" : registeredReferrals === 0 ? "invite_participant" : helpCompleted ? "complete" : "help_newcomer"
+        next: registeredReferrals === 0 ? "invite_participant" : helpCompleted ? "complete" : "help_newcomer"
       } as const : null;
 
     const leaderProfile = membership?.leader_user_id

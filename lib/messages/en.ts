@@ -1961,6 +1961,7 @@ const en = {
   "public.join.text": "A place where people help each other grow. Join to follow, message and start your own path.",
   "public.join.invited": "You are invited. The invitation is saved and will be applied when you join.",
   "public.join.cta": "Join",
+  "public.join.signIn": "Sign in",
   "social.feed.systemDrafts": "Event drafts",
   "social.feed.cover": "Cover",
   "social.feed.cover.upload": "Upload",

@@ -16,11 +16,14 @@ assert.ok(provider.includes('params.get("ref")') && provider.includes("capturePe
 // The guest sees an invitation to join; it says the invitation is saved when a code is stored.
 const page = read("components/PublicUserPage.tsx");
 assert.ok(page.includes("public-join-banner") && page.includes("readLocalGuest") && page.includes("!user"), "guests see the join banner");
-for (const key of ["public.join.title", "public.join.text", "public.join.invited", "public.join.cta"]) assert.ok(read("lib/messages/en.ts").includes(`"${key}"`) && read("lib/messages/ru.ts").includes(`"${key}"`), `${key} exists in both languages`);
+for (const key of ["public.join.title", "public.join.text", "public.join.invited", "public.join.cta", "public.join.signIn"]) assert.ok(read("lib/messages/en.ts").includes(`"${key}"`) && read("lib/messages/ru.ts").includes(`"${key}"`), `${key} exists in both languages`);
 
 // Wallet history: the counterparty is a name that opens the public profile, with the short id only as a fallback.
 const history = read("components/wallet/HistoryCounterparty.tsx");
 assert.ok(history.includes("href={`/u/${row.counterpartyUserId}`}") && history.includes("row.counterpartyName || shortId("), "the counterparty is a profile link");
 assert.ok(read("app/api/wallet/history/route.ts").includes("counterpartyName") && read("app/api/wallet/history/route.ts").includes('.from("user_profiles").select("user_id,display_name,username")'), "the history API resolves names");
 assert.ok(!read("components/WalletApp.tsx").includes("shortId(row.counterpartyUserId)"), "the screen no longer prints the raw id");
+// Everyone signed in has an invitation link at once; the guest panel offers both ways in.
+assert.ok(!me.includes("first_result_required") && !me.includes("hasFirstResult"), "the invitation link has no first-result gate");
+assert.ok(page.includes('href="/?auth=signin"') && page.includes('href="/"') && page.includes("public-join-actions"), "the guest panel has sign in and join buttons");
 console.log("Public invitation and history links contract verified.");

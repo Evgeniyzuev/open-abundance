@@ -134,7 +134,10 @@ export default function PublicUserPage({ userId, initialView, initialPostId = nu
                   <strong>{t("public.join.title")}</strong>
                   <small>{inviteSaved ? t("public.join.invited") : t("public.join.text")}</small>
                 </span>
-                <a className="challenge-primary-action" href="/">{t("public.join.cta")}</a>
+                <span className="public-join-actions">
+                  <a className="secondary-button" href="/?auth=signin">{t("public.join.signIn")}</a>
+                  <a className="challenge-primary-action" href="/">{t("public.join.cta")}</a>
+                </span>
               </aside>
             ) : null}
             <header className="public-user-header">

@@ -1,5 +1,6 @@
 "use client";
 
+import type { DayCredit } from "@/lib/dayCredit";
 import { ArrowRight, Bell, CheckCircle2, Compass, FileText, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
@@ -61,6 +62,7 @@ type TodayPayload = {
   checkInStreak: number;
   completionStreak: number;
   totalCompletions: number;
+  credit?: { today: DayCredit; countedStreak: number; keptStreak: number; fullTotal: number };
   error?: string;
   items: TodayItem[];
   plan: TodayPlan | null;
@@ -479,6 +481,7 @@ export default function HomeTodayApp({
           </span>
           <span className="today-progress" aria-label={t("today.progress")}>
             <span style={{ width: `${user ? todayPercent : 0}%` }} />
+            {user && todayTarget > 0 ? <i className="today-progress-half" title={t("today.halfMark")} aria-hidden="true" /> : null}
           </span>
         </summary>
         <div className="home-secondary-content">
@@ -487,7 +490,19 @@ export default function HomeTodayApp({
             <div className="today-streak-row">
               <span>{t("today.streakSummary", { streak: today.completionStreak, total: today.totalCompletions })}</span>
             </div>
+            {today.credit ? (
+              <div className={`today-credit ${today.credit.today}`}>
+                <strong>{creditMessage(today.credit.today, todayProgress, todayTarget, t, locale)}</strong>
+                <span>{t("today.halfStreak", { count: today.credit.countedStreak })} · {t("today.fullDays", { count: today.credit.fullTotal })}</span>
+              </div>
+            ) : null}
             <div className="today-milestones">
+              {today.credit ? (
+                <>
+                  <MilestoneButton current={today.credit.countedStreak} label={t("today.halfStreakChallenge3")} target={3} onClick={onOpenNextChallenge} />
+                  <MilestoneButton current={today.credit.countedStreak} label={t("today.halfStreakChallenge7")} target={7} onClick={onOpenNextChallenge} />
+                </>
+              ) : null}
               <MilestoneButton current={today.completionStreak} label={t("today.streakChallenge7")} target={7} onClick={onOpenNextChallenge} />
               <MilestoneButton current={today.totalCompletions} label={t("today.totalChallenge30")} target={30} onClick={onOpenNextChallenge} />
             </div>
@@ -553,6 +568,14 @@ export default function HomeTodayApp({
       ) : null}
     </section>
   );
+}
+
+/** What the day is worth now and how far the next step is: any action keeps the streak, 50% counts, 100% is a full day. */
+function creditMessage(credit: DayCredit, progress: number, target: number, t: (key: MessageKey, values?: Record<string, string | number>) => string, locale: AppLocale): string {
+  if (credit === "full") return t("today.creditFull");
+  if (credit === "none" || target <= 0) return t("today.creditNone");
+  const amount = formatMoney(Math.max(0, (credit === "kept" ? target / 2 : target) - progress), locale);
+  return t(credit === "kept" ? "today.creditKept" : "today.creditCounted", { amount });
 }
 
 function MilestoneButton({ current, label, target, onClick }: { current: number; label: string; target: number; onClick: () => void }) {

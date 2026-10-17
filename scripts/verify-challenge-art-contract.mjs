@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { artSeed, challengeBadge, challengeCover, challengeGlyph, CHALLENGE_GLYPHS, isOwnImage, MILESTONE_COVERS } from "../lib/challengeArt.ts";
 
 // Glyphs: one per kind of check, a category fallback, nothing for the unknown.
-assert.equal(challengeGlyph("referral_program", "social"), "🤝");
-assert.equal(challengeGlyph("acquisition_metric_unknown", "social"), "📣", "any acquisition check is a megaphone");
-assert.equal(challengeGlyph("never_seen", "finance"), "💰", "an unknown check falls back to the category glyph");
+assert.equal(challengeGlyph("referral_program", "social"), "Handshake");
+assert.equal(challengeGlyph("acquisition_metric_unknown", "social"), "Megaphone", "any acquisition check is a megaphone");
+assert.equal(challengeGlyph("never_seen", "finance"), "Coins", "an unknown check falls back to the category glyph");
 assert.equal(challengeGlyph(null, null), null, "no glyph at all leaves the old icon in place");
 const logics = Object.keys(CHALLENGE_GLYPHS);
 assert.ok(new Set(logics.map((key) => CHALLENGE_GLYPHS[key])).size >= logics.length - 6, "glyphs are mostly distinct, so challenges do not look alike");
@@ -50,5 +50,10 @@ assert.ok(new Set(seeds.map((seed) => seed.shift)).size > 20, "hues differ acros
 
 // Wiring: the card uses the helpers and the thumbnail never loads a foreign image.
 const app = readFileSync(new URL("../components/ChallengesApp.tsx", import.meta.url), "utf8");
+// Every icon the rules name is a real, imported SVG icon (no emoji, which look different on iPhone and Android).
+const iconSource = readFileSync(new URL("../components/ChallengeGlyphIcon.tsx", import.meta.url), "utf8");
+const artSource = readFileSync(new URL("../lib/challengeArt.ts", import.meta.url), "utf8");
+for (const name of new Set([...Object.values(CHALLENGE_GLYPHS), "Megaphone", ...(artSource.match(/(?<=: ")[A-Z][A-Za-z]+(?=")/g) ?? [])])) assert.ok(new RegExp(`\\b${name}\\b`).test(iconSource), `${name} is available to the cover`);
+assert.ok(!/\p{Extended_Pictographic}/u.test(artSource.split("MILESTONE_COVERS")[0]), "the glyph tables hold icon names, not emoji");
 assert.ok(app.includes("isOwnImage(challenge.image_url)") && app.includes("challengeGlyph("), "the thumbnail uses the art rules");
 console.log("Challenge art contract verified.");

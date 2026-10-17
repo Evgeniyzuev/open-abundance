@@ -20,6 +20,7 @@ import { type CoreAccount, useUserContext, type WalletAccount } from "@/componen
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { playUiSound } from "@/lib/ui/sound";
+import ChallengeGlyphIcon from "@/components/ChallengeGlyphIcon";
 import { artSeed, challengeBadge, challengeCover, challengeGlyph, isOwnImage } from "@/lib/challengeArt";
 import { parseChallengeRewardAmount } from "@/lib/challengePresentation";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -137,6 +138,7 @@ type TodayPayload = {
   checkInStreak: number;
   completionStreak: number;
   totalCompletions: number;
+  credit?: { today: string; countedStreak: number; keptStreak: number; fullTotal: number };
   completed?: boolean;
   error?: string;
   items: TodayItem[];
@@ -892,6 +894,7 @@ function TodayChallengeCard({
         <div className="today-streak-row">
           <span>{t("today.checkInStreak", { count: payload.checkInStreak })}</span>
           <span>{t("today.completionStreak", { count: payload.completionStreak })}</span>
+          {payload.credit ? <span>{t("today.halfStreak", { count: payload.credit.countedStreak })}</span> : null}
         </div>
 
         <div className="today-checklist">
@@ -957,7 +960,7 @@ export function ChallengeVisual({ challenge, title = "" }: { challenge: Pick<Cha
 
   return (
     <span className={`challenge-thumb challenge-visual-${tone}${visualClass}`} style={style}>
-      {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : glyph ? <span className="challenge-art-glyph" aria-hidden="true">{glyph}</span> : <span className="challenge-art-icon"><Icon size={25} /></span>}
+      {imageUrl ? <img alt="" src={imageUrl} loading="lazy" onError={() => setFailedImageUrl(imageUrl)} /> : glyph ? <span className="challenge-art-glyph" aria-hidden="true"><ChallengeGlyphIcon name={glyph} /></span> : <span className="challenge-art-icon"><Icon size={25} /></span>}
       {!imageUrl && badge ? <b className="challenge-art-badge" aria-hidden="true">{badge}</b> : null}
     </span>
   );

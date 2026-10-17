@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { dayCredit, dayCreditStats, dailyGoalRule } from "../lib/dayCredit.ts";
 
 const row = (local_date, progress_core, target_core = 10, status = "accepted") => ({ local_date, status, progress_core, target_core });
@@ -30,4 +31,15 @@ assert.deepEqual(dailyGoalRule("daily_goal_full_total_7"), { kind: "full_total",
 assert.equal(dailyGoalRule("daily_goal_half_streak_0"), null);
 assert.equal(dailyGoalRule("daily_goal_x_3"), null);
 assert.equal(dailyGoalRule(null), null);
+
+// Today screen: the server sends the credit, the screen shows it, and every text exists in both languages.
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const server = read("lib/serverToday.ts");
+assert.ok(server.includes("dayCreditStats(datesResult.data") && server.includes("credit: { ...streaks.credit, today: dayCredit(today) }"), "the Today payload carries the credit");
+assert.ok(/select\("local_date,status,progress_core,target_core"\)/.test(server), "the streak query reads the progress of each day");
+const home = read("components/HomeTodayApp.tsx");
+for (const key of ["today.creditNone", "today.creditKept", "today.creditCounted", "today.creditFull", "today.halfStreak", "today.fullDays", "today.halfStreakChallenge3", "today.halfStreakChallenge7", "today.halfMark"]) {
+  assert.ok(read("lib/messages/en.ts").includes(`"${key}"`) && read("lib/messages/ru.ts").includes(`"${key}"`), `${key} exists in both languages`);
+}
+assert.ok(home.includes("today-progress-half") && home.includes("creditMessage("), "the bar marks the half and the screen explains the day");
 console.log("Daily goal credit contract verified.");

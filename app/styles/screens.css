@@ -379,7 +379,7 @@
 .challenge-visual-rose { background: linear-gradient(145deg, #ff9eb4, #e63c68 62%, #a91442); color: #fff; }
 .challenge-art-fallback { position: relative; isolation: isolate; filter: hue-rotate(var(--art-shift, 0deg)); }
 .challenge-art-fallback::before { content: ""; position: absolute; z-index: -1; inset: 0; background: radial-gradient(circle at var(--art-x, 30%) var(--art-y, 25%), rgba(255,255,255,0.55), rgba(255,255,255,0) 58%), radial-gradient(circle at 85% 90%, rgba(255,255,255,0.22), rgba(255,255,255,0) 40%); }
-.challenge-art-glyph { font-size: 2.2rem; line-height: 1; filter: hue-rotate(calc(var(--art-shift, 0deg) * -1)) drop-shadow(0 3px 5px rgba(8, 24, 48, 0.28)); }
+.challenge-art-glyph { display: inline-flex; color: #fff; line-height: 1; filter: hue-rotate(calc(var(--art-shift, 0deg) * -1)) drop-shadow(0 3px 5px rgba(8, 24, 48, 0.28)); }
 .challenge-art-badge { position: absolute; right: 5px; bottom: 5px; min-width: 22px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.94); color: #1b2a41; font-size: 0.8125rem; font-weight: 900; line-height: 1.35; text-align: center; filter: hue-rotate(calc(var(--art-shift, 0deg) * -1)); }
 .challenge-thumb.challenge-art-milestone { background: #eef2ff; }
 .challenge-thumb.challenge-art-milestone img { object-fit: cover; transform: scale(1.1); }
@@ -409,6 +409,13 @@
 .today-challenge-head small { color: var(--muted); font-size: 0.8125rem; font-weight: 750; }
 .today-progress { width: 100%; height: 9px; overflow: hidden; border-radius: 999px; background: var(--surface-muted); }
 .today-progress span { height: 100%; display: block; border-radius: inherit; background: var(--accent-fill); }
+.today-progress { position: relative; }
+.today-progress-half { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(27, 42, 65, 0.25); }
+.today-credit { display: grid; gap: 3px; padding: 9px 11px; border-radius: 12px; background: var(--surface-muted); font-size: 0.8125rem; line-height: 1.3; }
+.today-credit strong { font-size: 0.875rem; }
+.today-credit span { color: var(--muted); }
+.today-credit.counted, .today-credit.full { background: color-mix(in srgb, var(--accent-soft) 70%, transparent); }
+.today-credit.full strong { color: #b86200; }
 .today-streak-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .today-streak-row span { min-height: 26px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 9px; background: var(--accent-soft); color: var(--blue); font-size: 0.75rem; font-weight: 850; }
 .today-checklist { display: flex; flex-wrap: wrap; gap: 6px; }

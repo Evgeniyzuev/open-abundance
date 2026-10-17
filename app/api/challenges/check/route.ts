@@ -5,6 +5,7 @@ import { recordProductEvent } from "@/lib/serverAnalytics";
 import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
+import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
 import { hasThreeSteps } from "@/lib/wishSteps";
 
 type CheckRequest = {
@@ -520,6 +521,31 @@ async function verifyChallenge(
     }
   }
 
+  const dailyGoal = dailyGoalRule(challenge.verification_logic);
+  if (dailyGoal) {
+    try {
+      const payload = await syncTodayForUser(supabase, userId);
+      const { data: dayRows, error: dayError } = await supabase
+        .from("user_today_instances")
+        .select("local_date,status,progress_core,target_core")
+        .eq("user_id", userId)
+        .gte("local_date", daysBefore(payload.today.local_date, 120))
+        .lte("local_date", payload.today.local_date);
+      if (dayError) throw dayError;
+      const stats = dayCreditStats(dayRows ?? [], payload.today.local_date);
+      const value = dailyGoal.kind === "counted_streak" ? stats.countedStreak : stats.fullTotal;
+      if (value >= dailyGoal.days) return { ok: true };
+      return {
+        ok: false,
+        reason: dailyGoal.kind === "counted_streak"
+          ? `Reach at least half of the daily Core target for ${dailyGoal.days} days in a row. Current streak: ${stats.countedStreak}.`
+          : `Reach the full daily Core target on ${dailyGoal.days} days. Full days so far: ${stats.fullTotal}.`
+      };
+    } catch {
+      return { ok: false, reason: "Could not check the daily goal. Try again." };
+    }
+  }
+
   if (challenge.verification_logic === "today_completion_total_30") {
     try {
       const payload = await syncTodayForUser(supabase, userId);
@@ -871,4 +897,9 @@ function getSupabaseProjectRef(supabaseUrl: string): string {
   } catch {
     return "unknown";
   }
+}
+
+function daysBefore(date: string, days: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day - days)).toISOString().slice(0, 10);
 }

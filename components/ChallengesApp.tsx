@@ -1656,6 +1656,9 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
       return BookOpen;
     case "today_completion_streak_7":
     case "today_completion_total_30":
+    case "daily_goal_half_streak_3":
+    case "daily_goal_half_streak_7":
+    case "daily_goal_full_total_7":
     case "three_day_focus":
     case "day_2_return":
       return CalendarDays;

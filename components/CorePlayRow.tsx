@@ -1,20 +1,21 @@
 "use client";
 
-import { Flame, Flower2, Sprout } from "lucide-react";
+import { Flame, Flower2, PieChart, Sprout } from "lucide-react";
 import { useEffect, useState } from "react";
 import CoreAfterburnPanel from "@/components/CoreAfterburnPanel";
 import CoreGarden from "@/components/CoreGarden";
+import CoreSourcesPanel from "@/components/CoreSourcesPanel";
 import CoreTree from "@/components/CoreTree";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { GROWTH_POPUP_KEY, parseGrowthPopupSetting } from "@/lib/coreGrowthPopup";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
-type Panel = "tree" | "garden" | "afterburn";
+type Panel = "tree" | "garden" | "afterburn" | "sources";
 
 const PANEL_KEY = "oa.corePlay.panel";
 
 /**
- * One compact row of three buttons, Tree, Garden and Afterburn: each opens its block below and a second tap closes
+ * One compact row of four buttons, Tree, Garden, Afterburn and Sources: each opens its block below and a second tap closes
  * it. Both are closed by default. The tree block also holds the switch of the "Core grew" pop-up.
  */
 export default function CorePlayRow({ level, balance, nextThreshold, walletBalance, locale, t, onPurchased }: {
@@ -32,7 +33,7 @@ export default function CorePlayRow({ level, balance, nextThreshold, walletBalan
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(PANEL_KEY);
-      if (saved === "tree" || saved === "garden" || saved === "afterburn") setPanel(saved);
+      if (saved === "tree" || saved === "garden" || saved === "afterburn" || saved === "sources") setPanel(saved);
       setPopupOn(parseGrowthPopupSetting(window.localStorage.getItem(GROWTH_POPUP_KEY)));
     } catch {
       // Closed panels and an enabled pop-up are the defaults without storage.
@@ -71,6 +72,9 @@ export default function CorePlayRow({ level, balance, nextThreshold, walletBalan
         <button className={panel === "afterburn" ? "active" : ""} type="button" aria-expanded={panel === "afterburn"} onClick={() => choose("afterburn")}>
           <span className="core-play-icon tone-afterburn" aria-hidden="true"><Flame size={16} /></span>{t("afterburn.title")}
         </button>
+        <button className={panel === "sources" ? "active" : ""} type="button" aria-expanded={panel === "sources"} onClick={() => choose("sources")}>
+          <span className="core-play-icon tone-sources" aria-hidden="true"><PieChart size={16} /></span>{t("corePlay.sources")}
+        </button>
       </div>
       {panel === "tree" ? (
         <>
@@ -83,6 +87,7 @@ export default function CorePlayRow({ level, balance, nextThreshold, walletBalan
       ) : null}
       {panel === "garden" ? <CoreGarden walletBalance={walletBalance} locale={locale} t={t} onPurchased={onPurchased} /> : null}
       {panel === "afterburn" ? <CoreAfterburnPanel walletBalance={walletBalance} locale={locale} t={t} /> : null}
+      {panel === "sources" ? <CoreSourcesPanel locale={locale} t={t} /> : null}
     </>
   );
 }

@@ -51,6 +51,7 @@
     "test:core-growth-popup": "node --experimental-strip-types scripts/verify-core-growth-popup-contract.mjs",
     "test:core-tree": "node --experimental-strip-types scripts/verify-core-tree-contract.mjs",
     "test:core-items": "node --experimental-strip-types scripts/verify-core-items-contract.mjs",
+    "test:core-sources": "node --experimental-strip-types scripts/verify-core-sources-contract.mjs",
     "test:core-afterburn": "node --experimental-strip-types scripts/verify-core-afterburn-contract.mjs",
     "test:reality-day": "node --experimental-strip-types scripts/verify-reality-day-contract.mjs",
     "test:follows": "node scripts/verify-follows-contract.mjs",

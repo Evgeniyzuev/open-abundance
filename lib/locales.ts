@@ -9,7 +9,9 @@ export const LOCALES = [
   { code: "en", nativeName: "English", intl: "en-US", dir: "ltr", complete: true },
   { code: "ru", nativeName: "Русский", intl: "ru-RU", dir: "ltr", complete: true },
   // Partial: only level 1 (interface). Everything else falls back to English.
-  { code: "es", nativeName: "Español", intl: "es-419", dir: "ltr", complete: false }
+  { code: "es", nativeName: "Español", intl: "es-419", dir: "ltr", complete: false },
+  { code: "zh", nativeName: "简体中文", intl: "zh-CN", dir: "ltr", complete: false },
+  { code: "hi", nativeName: "हिन्दी", intl: "hi-IN", dir: "ltr", complete: false }
 ] as const;
 
 export type AppLocale = (typeof LOCALES)[number]["code"];

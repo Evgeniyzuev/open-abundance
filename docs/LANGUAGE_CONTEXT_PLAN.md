@@ -8,12 +8,12 @@ The first onboarding can additionally speak Simplified Chinese (`zh`, suitable f
 
 The app resolves language like this:
 
-1. A signed-in user gets `user_profiles.default_locale` if it is a language from `lib/locales.ts` (`en`, `ru`, `es`).
+1. A signed-in user gets `user_profiles.default_locale` if it is a language from `lib/locales.ts` (`en`, `ru`, `es`, `zh`, `hi`).
 2. Any other profile value resolves to English.
 3. Guests first use the explicit main-app choice from `openAbundanceLocale`.
-4. Without a main-app choice, guests use the first browser language the app has (`ru*`, `es*`); everything else becomes English.
+4. Without a main-app choice, guests use the first browser language the app has (`ru*`, `es*`, `zh*`, `hi*`); everything else becomes English.
 5. Onboarding uses its own `openAbundanceOnboardingLocale` preference and maps browser prefixes `ru`, `zh`, `es`, and `hi` to the matching onboarding copy; unsupported browsers use English.
-6. (2026-10-18) New registration keeps the onboarding language when the app has it (`ru`, `en`, `es`); onboarding-only `zh` and `hi` map to profile `en` until their app dictionaries exist. Guests with no explicit app choice also continue in the onboarding language. The server validates against `lib/locales.ts`.
+6. (2026-10-18) New registration keeps the onboarding language when the app has it (`ru`, `en`, `es`, `zh`, `hi`). Guests with no explicit app choice also continue in the onboarding language. The server validates against `lib/locales.ts`.
 
 Расширение на zh, hi, es, ar (RTL), рефакторинг и порядок работ: [I18N_EXPANSION_PLAN.md](I18N_EXPANSION_PLAN.md).
 

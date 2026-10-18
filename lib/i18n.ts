@@ -40,7 +40,9 @@ type EnglishMessages = typeof import("@/lib/messages/en").default;
 const MESSAGE_LOADERS: Record<AppLocale, () => Promise<{ default: MessageDictionary }>> = {
   en: () => import("@/lib/messages/en"),
   ru: () => import("@/lib/messages/ru"),
-  es: () => import("@/lib/messages/es")
+  es: () => import("@/lib/messages/es"),
+  zh: () => import("@/lib/messages/zh"),
+  hi: () => import("@/lib/messages/hi")
 };
 
 const dictionaries: Partial<Record<AppLocale, MessageDictionary>> = {};

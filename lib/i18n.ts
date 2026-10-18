@@ -4,12 +4,18 @@ export { DEFAULT_LOCALE, SUPPORTED_LOCALES, detectBrowserLocale, intlLocale, isA
 
 export const LOCALE_STORAGE_KEY = "openAbundanceLocale";
 
+// Written by the onboarding language picker (lib/onboardingContent.ts).
+const ONBOARDING_LOCALE_KEY = "openAbundanceOnboardingLocale";
+
 export function detectPreferredLocale(): AppLocale {
   if (typeof window === "undefined") return DEFAULT_LOCALE;
 
   try {
     const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
     if (isAppLocale(storedLocale)) return storedLocale;
+    // No explicit app choice yet: continue in the language picked during onboarding (zh and hi have no app dictionary yet).
+    const onboardingLocale = window.localStorage.getItem(ONBOARDING_LOCALE_KEY);
+    if (isAppLocale(onboardingLocale)) return onboardingLocale;
   } catch {
     // Browser language remains a safe fallback when storage is unavailable.
   }

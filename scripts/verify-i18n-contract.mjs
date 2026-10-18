@@ -48,6 +48,12 @@ assert.ok(i18n.includes("needsEnglishFallback(locale)"), "partial languages load
 assert.ok(read("app/api/user/locale/route.ts").includes("!isAppLocale(locale)"), "locale API validates against the registry");
 assert.ok(read("components/UserProvider.tsx").includes("localeDirection(locale)"), "provider sets text direction");
 
+// Onboarding choice continues into the app: registered languages carry over, zh/hi fall back to English.
+const onboarding = read("lib/onboardingContent.ts");
+assert.ok(onboarding.includes("isAppLocale(locale) ? locale : DEFAULT_LOCALE"), "onboarding-only languages fall back to English");
+assert.ok(onboarding.includes("onboardingToAppLocale(normalizeOnboardingLocale(storedLocale))"), "registration locale follows the onboarding choice");
+assert.ok(i18n.includes("openAbundanceOnboardingLocale") && i18n.includes("isAppLocale(onboardingLocale)"), "guests continue in the onboarding language");
+
 // New code must use AppLocale, not a hand-written language union.
 const literalUnion = '"ru" | "en"';
 let offenders = [];

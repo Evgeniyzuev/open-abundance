@@ -13,7 +13,7 @@ The app resolves language like this:
 3. Guests first use the explicit main-app choice from `openAbundanceLocale`.
 4. Without a main-app choice, guests use the browser language: `ru*` becomes Russian, everything else becomes English.
 5. Onboarding uses its own `openAbundanceOnboardingLocale` preference and maps browser prefixes `ru`, `zh`, `es`, and `hi` to the matching onboarding copy; unsupported browsers use English.
-6. New registration maps onboarding `ru` to profile `ru`; onboarding `en`, `zh`, `es`, and `hi` map to profile `en`. The server still validates `ru | en`.
+6. (2026-10-18) New registration keeps the onboarding language when the app has it (`ru`, `en`, `es`); onboarding-only `zh` and `hi` map to profile `en` until their app dictionaries exist. Guests with no explicit app choice also continue in the onboarding language. The server validates against `lib/locales.ts`.
 
 Расширение на zh, hi, es, ar (RTL), рефакторинг и порядок работ: [I18N_EXPANSION_PLAN.md](I18N_EXPANSION_PLAN.md).
 

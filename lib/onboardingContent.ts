@@ -1,6 +1,7 @@
-import { detectPreferredLocale, type AppLocale } from "@/lib/i18n";
+import { DEFAULT_LOCALE, detectPreferredLocale, isAppLocale, type AppLocale } from "@/lib/i18n";
 
-export type OnboardingLocale = AppLocale | "zh" | "es" | "hi";
+// Onboarding also speaks languages the main app does not have yet (zh, hi); those continue in English after registration.
+export type OnboardingLocale = AppLocale | "zh" | "hi";
 export type OnboardingLocalizedText = Record<OnboardingLocale, string>;
 
 export const ONBOARDING_LOCALES: OnboardingLocale[] = ["ru", "en", "zh", "es", "hi"];
@@ -426,11 +427,16 @@ export function storeOnboardingLocalePreference(locale: OnboardingLocale): void 
   }
 }
 
+/** The app language that continues the onboarding choice; onboarding-only languages fall back to English. */
+export function onboardingToAppLocale(locale: OnboardingLocale): AppLocale {
+  return isAppLocale(locale) ? locale : DEFAULT_LOCALE;
+}
+
 export function getOnboardingRegistrationLocale(): AppLocale {
   if (typeof window !== "undefined") {
     try {
       const storedLocale = window.localStorage.getItem(ONBOARDING_LOCALE_STORAGE_KEY);
-      if (storedLocale) return normalizeOnboardingLocale(storedLocale) === "ru" ? "ru" : "en";
+      if (storedLocale) return onboardingToAppLocale(normalizeOnboardingLocale(storedLocale));
     } catch {
       // The app locale remains a safe fallback when storage is unavailable.
     }

@@ -92,6 +92,7 @@
 .onboarding-theme-stories { background: linear-gradient(145deg, #fff0da 0%, #f4e5ff 48%, #dff7f1 100%); }
 .onboarding-theme-program { background: linear-gradient(145deg, #dceeff 0%, #e7e1ff 43%, #fff0c7 100%); }
 .onboarding-theme-auth, .onboarding-theme-email { background: linear-gradient(145deg, #e4f3ff 0%, #ece5ff 48%, #e5f8ef 100%); }
+.onboarding-backdrop { display: none; }
 .onboarding-shell { position: relative; width: min(100%, 590px); min-height: min(820px, calc(100dvh - 36px)); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.86); border-radius: 30px; padding: 15px; background: rgba(255,255,255,0.82); box-shadow: 0 30px 90px rgba(44,38,86,0.2); backdrop-filter: blur(28px) saturate(1.25); }
 .onboarding-top { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 2px; }
 .onboarding-brand-row { min-width: 0; display: inline-flex; align-items: center; gap: 9px; }
@@ -291,6 +292,42 @@
   .onboarding-artwork { aspect-ratio: 1.48; border-radius: 21px; }
   .onboarding-copy h1 { font-size: clamp(30px, 9.4vw, 38px); }
   .onboarding-copy p { font-size: 0.9375rem; }
+  /* Story slides: the art runs edge to edge, its blurred copy tints the whole screen, text sits on a dark scrim. */
+  .onboarding-theme-mission, .onboarding-theme-stories, .onboarding-theme-program { background: #17123f; }
+  .onboarding-theme-mission::before, .onboarding-theme-mission::after,
+  .onboarding-theme-stories::before, .onboarding-theme-stories::after,
+  .onboarding-theme-program::before, .onboarding-theme-program::after { display: none; }
+  .onboarding-backdrop { position: fixed; inset: 0; z-index: -1; display: block; overflow: hidden; pointer-events: none; }
+  .onboarding-backdrop img { object-fit: cover; object-position: center top; }
+  .onboarding-backdrop::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(18,14,52,0.38) 0%, rgba(18,14,52,0) 16%, rgba(18,14,52,0) 46%, rgba(18,14,52,0.6) 62%, rgba(18,14,52,0.9) 100%); }
+  .onboarding-theme-mission .onboarding-shell, .onboarding-theme-stories .onboarding-shell, .onboarding-theme-program .onboarding-shell { background: transparent; backdrop-filter: none; }
+  .onboarding-theme-mission .onboarding-slide, .onboarding-theme-stories .onboarding-slide, .onboarding-theme-program .onboarding-slide { height: 100%; grid-template-rows: minmax(0, 1fr) auto auto; align-content: stretch; gap: 0; }
+  .onboarding-theme-mission .onboarding-artwork, .onboarding-theme-stories .onboarding-artwork, .onboarding-theme-program .onboarding-artwork { display: none; }
+  .onboarding-theme-mission .onboarding-copy, .onboarding-theme-stories .onboarding-copy, .onboarding-theme-program .onboarding-copy { grid-row: 2; align-content: end; gap: 12px; padding: 0 4px 18px; text-shadow: 0 2px 14px rgba(18,14,52,0.55); }
+  .onboarding-theme-mission .onboarding-copy h1, .onboarding-theme-stories .onboarding-copy h1, .onboarding-theme-program .onboarding-copy h1 { color: #fff; font-size: clamp(34px, 10.4vw, 44px); }
+  .onboarding-theme-mission .onboarding-copy p, .onboarding-theme-stories .onboarding-copy p, .onboarding-theme-program .onboarding-copy p { color: rgba(255,255,255,0.88); font-size: 1rem; }
+  .onboarding-theme-mission .onboarding-copy > span, .onboarding-theme-stories .onboarding-copy > span, .onboarding-theme-program .onboarding-copy > span { background: rgba(255,255,255,0.16); color: #fff; }
+  .onboarding-theme-mission .onboarding-slide > .onboarding-primary-action, .onboarding-theme-stories .onboarding-slide > .onboarding-primary-action, .onboarding-theme-program .onboarding-final-actions { grid-row: 3; }
+  /* Program slide: the hero stands bottom-left, so text and button move to the right column. */
+  .onboarding-theme-program .onboarding-backdrop::after { background: linear-gradient(180deg, rgba(18,14,52,0.38) 0%, rgba(18,14,52,0) 16%), radial-gradient(ellipse 92% 64% at 100% 100%, rgba(18,14,52,0.88) 0%, rgba(18,14,52,0.7) 48%, rgba(18,14,52,0) 100%); }
+  .onboarding-theme-program .onboarding-copy { width: 58%; margin-left: auto; }
+  .onboarding-theme-program .onboarding-copy { text-align: right; justify-items: end; }
+  .onboarding-theme-program .onboarding-copy h1 { font-size: clamp(30px, 9vw, 40px); }
+  .onboarding-theme-program .onboarding-copy p { font-size: 0.875rem; }
+  /* Stories slide: the third person stands bottom-right, so text and button move to the left column. */
+  .onboarding-theme-stories .onboarding-backdrop::after { background: linear-gradient(180deg, rgba(18,14,52,0.38) 0%, rgba(18,14,52,0) 16%), radial-gradient(ellipse 92% 56% at 0% 100%, rgba(18,14,52,0.88) 0%, rgba(18,14,52,0.7) 48%, rgba(18,14,52,0) 100%); }
+  .onboarding-theme-stories .onboarding-copy { width: 56%; margin-right: auto; }
+  .onboarding-theme-stories .onboarding-copy h1 { font-size: clamp(30px, 9vw, 40px); }
+  .onboarding-theme-stories .onboarding-copy p { font-size: 0.875rem; }
+  /* Same high-contrast button on every story slide: white on the dark scrim, with a soft glow. */
+  .onboarding-theme-mission .onboarding-primary-action, .onboarding-theme-stories .onboarding-primary-action, .onboarding-theme-program .onboarding-primary-action { min-height: 58px; background: #fff; color: #2a1f8f; font-size: 1.0625rem; text-shadow: none; box-shadow: 0 0 0 3px rgba(255,255,255,0.28), 0 14px 34px rgba(18,14,52,0.5); }
+  .onboarding-theme-program .onboarding-copy .onboarding-program-prompt { color: #ffe9a8; }
+  .onboarding-theme-mission .onboarding-brand-row strong, .onboarding-theme-stories .onboarding-brand-row strong, .onboarding-theme-program .onboarding-brand-row strong { color: #fff; }
+  .onboarding-theme-mission .onboarding-back-button, .onboarding-theme-stories .onboarding-back-button, .onboarding-theme-program .onboarding-back-button,
+  .onboarding-theme-mission .onboarding-language-select, .onboarding-theme-stories .onboarding-language-select, .onboarding-theme-program .onboarding-language-select { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.16); color: #fff; box-shadow: none; }
+  .onboarding-language-select option { background: #fff; color: #17142c; }
+  .onboarding-theme-mission .onboarding-progress i, .onboarding-theme-stories .onboarding-progress i, .onboarding-theme-program .onboarding-progress i { background: rgba(255,255,255,0.32); }
+  .onboarding-theme-mission .onboarding-progress i.active, .onboarding-theme-stories .onboarding-progress i.active, .onboarding-theme-program .onboarding-progress i.active { background: #fff; }
   .onboarding-program-slide { gap: 11px; }
   .onboarding-auth-slide { gap: 22px; padding: 16px 0 32px; }
   .onboarding-auth-panel { border-radius: 21px; padding: 15px; }

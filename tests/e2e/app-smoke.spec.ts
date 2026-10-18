@@ -127,7 +127,7 @@ test("new visitor completes the three-screen story and can request an email OTP"
   await expect(page.getByRole("heading", { name: "Others are already succeeding" })).toBeVisible();
 
   await page.getByRole("button", { name: "View stories" }).click();
-  await expect(page.getByRole("heading", { name: "20 levels to 1,000,000 $" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "20 levels to the life of your dreams" })).toBeVisible();
   await expect(page.getByText("Your route is ready")).toBeVisible();
   await expect(page.getByRole("button", { name: "GO" })).toBeVisible();
 

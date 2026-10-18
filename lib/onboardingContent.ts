@@ -164,12 +164,12 @@ export const onboardingContent: OnboardingContent = {
       ar: "مسارك"
     },
     title: {
-      ru: "20 уровней до {target}",
-      en: "20 levels to {target}",
-      zh: "20 个等级，直到 {target}",
-      es: "20 niveles hasta {target}",
-      hi: "{target} तक 20 स्तर",
-      ar: "20 مستوى حتى {target}"
+      ru: "20 уровней до жизни твоей мечты",
+      en: "20 levels to the life of your dreams",
+      zh: "20 个等级，通往你梦想的生活",
+      es: "20 niveles hacia la vida de tus sueños",
+      hi: "आपके सपनों की ज़िंदगी तक 20 स्तर",
+      ar: "20 مستوى نحو حياة أحلامك"
     },
     body: {
       ru: "Выполняй простые задания, развивай навыки и прокачивай свой доход. Больше возможностей с каждым уровнем.",

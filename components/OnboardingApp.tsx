@@ -45,6 +45,12 @@ type OnboardingDraft = {
 };
 
 const steps: StoryStepId[] = ["mission", "stories", "program"];
+// Vertical 9:16 art used as the full-screen background on phones.
+const STORY_ARTWORK: Record<StoryStepId, string> = {
+  mission: "/onboarding/ai-abundance-path-9-16.jpg",
+  stories: "/onboarding/people-stories-9-16.jpg",
+  program: "/onboarding/twenty-levels-9-16.jpg"
+};
 const PENDING_EMAIL_OTP_STORAGE_KEY = "openAbundancePendingEmailOtp";
 const PENDING_EMAIL_OTP_TTL_MS = 15 * 60 * 1000;
 const EMAIL_OTP_RESEND_SECONDS = 60;
@@ -175,7 +181,7 @@ function OnboardingApp({
   onEmailOtpVerify: (email: string, token: string) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
 }) {
-  const { locale: appLocale, money } = useUserContext();
+  const { locale: appLocale } = useUserContext();
   const appLocaleRef = useRef(appLocale);
   appLocaleRef.current = appLocale;
   const [step, setStep] = useState<StepId>(initialStep);
@@ -307,10 +313,16 @@ function OnboardingApp({
     clearPendingEmailOtp();
   }
 
+  const backdropSrc = step === "auth" || step === "email" ? null : STORY_ARTWORK[step];
   const previousStep = step === "email" ? "auth" : step === "auth" ? "program" : currentIndex > 0 ? steps[currentIndex - 1] : null;
 
   return (
     <main className={`onboarding-screen onboarding-theme-${step}`}>
+      {backdropSrc ? (
+        <div className="onboarding-backdrop" aria-hidden="true">
+          <Image alt="" fill priority sizes="(max-width: 430px) 100vw, 1px" src={backdropSrc} />
+        </div>
+      ) : null}
       <section className="onboarding-shell" aria-live="polite">
         <header className="onboarding-top">
           <div className="onboarding-brand-row">
@@ -400,7 +412,7 @@ function OnboardingApp({
             />
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.program.eyebrow, locale)}</span>
-              <h1>{onboardingText(onboardingContent.program.title, locale).replace("{target}", money.formatRounded(1_000_000))}</h1>
+              <h1>{onboardingText(onboardingContent.program.title, locale)}</h1>
               <p>{onboardingText(onboardingContent.program.body, locale)}</p>
               <p className="onboarding-program-prompt">{onboardingText(onboardingContent.program.prompt, locale)}</p>
             </div>

@@ -53,7 +53,7 @@
 .reflection-editable { display: grid; gap: 6px; }
 .reflection-section { display: grid; gap: 8px; border-radius: 14px; padding: 12px; background: var(--surface-soft); }
 .reflection-section h3 { font-size: 0.9375rem; }
-.reflection-section ul { display: grid; gap: 5px; margin: 0; padding-inline-start:: 20px; }
+.reflection-section ul { display: grid; gap: 5px; margin: 0; padding-inline-start: 20px; }
 .reflection-cause { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: 8px; }
 .reflection-cause input { margin-top: 3px; }
 .reflection-cause span { display: grid; gap: 3px; }
@@ -72,7 +72,7 @@
 .reflection-inline-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .reflection-inline-actions .active { border-color: #7e62ff; background: var(--purple-soft); color: var(--purple-text); }
 .reflection-safety { border: 1px solid rgba(255, 59, 48, 0.25); border-radius: 14px; padding: 14px; background: var(--danger-soft); color: #7d1f1a; }
-.reflection-safety ul { display: grid; gap: 7px; margin: 0; padding-inline-start:: 20px; }
+.reflection-safety ul { display: grid; gap: 7px; margin: 0; padding-inline-start: 20px; }
 .reflection-error { margin-top: 10px; border-radius: 12px; padding: 10px; background: var(--danger-soft); color: #b42318; }
 .reflection-loading { margin-top: 10px; color: var(--muted); text-align: center; }
 .task-reminder-field { display: grid; gap: 6px; color: var(--muted); font-size: 0.75rem; font-weight: 800; }
@@ -109,7 +109,7 @@
 }
 
 .ai-chat-status-row strong { color: var(--danger); font-weight: 800; }
-.ai-chat-status-row small { margin-inline-start:: auto; font-size: 0.68rem; }
+.ai-chat-status-row small { margin-inline-start: auto; font-size: 0.68rem; }
 
 .ai-chat-modal-backdrop {
   position: fixed;
@@ -227,7 +227,7 @@
 .app-testing-platform-tabs, .feed-filter-row { display: flex; gap: 7px; overflow-x: auto; }
 .install-guide-details { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--surface); }
 .install-guide-details summary { cursor: pointer; font-weight: 800; }
-.install-guide-steps { margin: 0; padding-inline-start:: 20px; display: grid; gap: 6px; font-size: .875rem; line-height: 1.4; }
+.install-guide-steps { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; font-size: .875rem; line-height: 1.4; }
 .install-guide-steps li { display: grid; gap: 6px; }
 .install-illustration { width: 100%; max-width: 280px; height: auto; }
 .install-guide-official { justify-self: start; font-size: .84rem; font-weight: 700; color: var(--blue); text-decoration: underline; }
@@ -244,7 +244,7 @@
 .app-testing-preview-author { display: flex; align-items: center; gap: 8px; }
 .app-testing-preview-author > span { display: grid; place-items: center; width: 32px; height: 32px; overflow: hidden; border-radius: 50%; background: var(--surface-muted); }
 .app-testing-preview-author img { width: 100%; height: 100%; object-fit: cover; }
-.app-testing-preview-author small { margin-inline-start:: auto; color: var(--muted); }
+.app-testing-preview-author small { margin-inline-start: auto; color: var(--muted); }
 .app-testing-preview blockquote { margin: 0; color: var(--text); line-height: 1.55; white-space: pre-wrap; }
 .app-testing-preview > small { color: var(--muted); }
 .app-testing-consent { display: flex; align-items: flex-start; gap: 9px; border-radius: 14px; padding: 12px; background: var(--surface-muted); color: var(--text); font-size: 0.82rem; line-height: 1.45; }
@@ -284,7 +284,7 @@
 .challenge-review-card p { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .peer-reviews-panel { display: grid; gap: 12px; }
 .peer-reviews-progress { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px; border-radius: 12px; background: var(--surface-soft); color: var(--text); font-size: 0.875rem; font-weight: 800; }
-.peer-reviews-progress strong { margin-inline-start:: auto; color: var(--accent); white-space: nowrap; }
+.peer-reviews-progress strong { margin-inline-start: auto; color: var(--accent); white-space: nowrap; }
 .peer-reviews-empty { display: grid; gap: 10px; }
 .peer-reviews-source { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
 .peer-reviews-source-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

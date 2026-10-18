@@ -62,9 +62,9 @@
 .public-shared-post-media img { display: block; max-width: 100%; max-height: 420px; margin: 12px auto; object-fit: contain; }
 .public-shared-post > article > .primary-button { display: inline-flex; margin-top: 16px; text-decoration: none; }
 @media (max-width: 639px) {
-  .wish-section > .wish-grid { width: calc(100% + 12px); max-width: none; margin-inline-start:: -6px; }
-  .feed-layout > .feed-post-gallery { width: calc(100% + 16px); max-width: none; margin-inline-start:: -8px; }
-  .blog-public > .feed-post-gallery { width: calc(100% + 12px); max-width: none; margin-inline-start:: -6px; }
+  .wish-section > .wish-grid { width: calc(100% + 12px); max-width: none; margin-inline-start: -6px; }
+  .feed-layout > .feed-post-gallery { width: calc(100% + 16px); max-width: none; margin-inline-start: -8px; }
+  .blog-public > .feed-post-gallery { width: calc(100% + 12px); max-width: none; margin-inline-start: -6px; }
   .blog-editor-dialog { box-sizing: border-box; width: 100%; height: 100dvh; max-width: 100%; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; padding: max(16px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); }
 }
 
@@ -100,7 +100,7 @@
 .core-journey-value { display: grid; gap: 3px; min-width: 0; }
 .core-journey-value small { font-size: .75rem; }
 .core-journey-value strong { font-size: 1.25rem; overflow-wrap: anywhere; }
-.core-journey-next { display: flex; align-items: center; gap: 6px; margin-inline-start:: auto; max-width: 45%; font-size: .8rem; }
+.core-journey-next { display: flex; align-items: center; gap: 6px; margin-inline-start: auto; max-width: 45%; font-size: .8rem; }
 .core-journey-next svg, .journey-feed-entry > svg { flex-shrink: 0; }
 .journey-feed-entry {
   display: flex;
@@ -183,9 +183,9 @@
 .expedition-map-stops { display: grid; gap: 24px; min-width: 0; }
 .expedition-map-point { position: relative; z-index: 2; display: grid; justify-items: center; width: min(89%, 400px); min-width: 0; }
 .expedition-map-point.expanded { z-index: 12; }
-.expedition-map-point.left { margin-inline-start:: 2%; }
-.expedition-map-point.center { margin-inline-end:: auto; margin-inline-start:: auto; }
-.expedition-map-point.right { margin-inline-end:: 2%; margin-inline-start:: auto; }
+.expedition-map-point.left { margin-inline-start: 2%; }
+.expedition-map-point.center { margin-inline-end: auto; margin-inline-start: auto; }
+.expedition-map-point.right { margin-inline-end: 2%; margin-inline-start: auto; }
 .expedition-map-point-button { position: relative; z-index: 3; display: grid; place-items: center; width: 62px; height: 62px; padding: 0; border: 3px solid rgba(255, 255, 255, .95); border-radius: 50%; color: #176b83; background: rgba(217, 242, 243, .92); box-shadow: 0 8px 17px rgba(24, 83, 96, .25), inset 0 1px 0 rgba(255, 255, 255, .8); font: inherit; cursor: pointer; transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease; }
 .expedition-map-point-button:hover, .expedition-map-point-button.selected { transform: scale(1.08); box-shadow: 0 0 0 5px rgba(255, 255, 255, .32), 0 11px 22px rgba(24, 83, 96, .3); }
 .expedition-map-point-button.current { width: 72px; height: 72px; color: #fff; background: linear-gradient(145deg, #267ac9, #168c83); box-shadow: 0 0 0 6px rgba(255, 255, 255, .34), 0 12px 24px rgba(24, 83, 96, .3); }
@@ -224,7 +224,7 @@
 .expedition-state.complete { color: #047857; background: #d1fae5; }
 .expedition-detail > p { margin: 0; color: var(--muted, #687789); line-height: 1.45; overflow-wrap: anywhere; }
 .expedition-reward-line { display: flex; align-items: center; gap: 8px; color: #047857; }
-.expedition-reward-line span { margin-inline-start:: auto; color: var(--muted, #687789); font-size: .78rem; }
+.expedition-reward-line span { margin-inline-start: auto; color: var(--muted, #687789); font-size: .78rem; }
 .expedition-detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .expedition-detail-actions small { color: var(--muted, #687789); }
 .expedition-companion { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: var(--surface-soft, #f7f9fc); }
@@ -253,7 +253,7 @@
   .expedition-map-heading small { max-width: none; text-align: start; }
   .expedition-state { display: none; }
   .expedition-route-scroll { max-height: min(68vh, 620px); }
-  .expedition-map-canvas { min-height: 2020px; padding-inline-end:: 10px; padding-inline-start:: 10px; }
+  .expedition-map-canvas { min-height: 2020px; padding-inline-end: 10px; padding-inline-start: 10px; }
   .expedition-map-level, .expedition-map-point, .expedition-map-empty { width: 94%; }
   .expedition-map-point-button { width: 56px; height: 56px; }
   .expedition-map-point-button.current { width: 66px; height: 66px; }
@@ -261,7 +261,7 @@
   .expedition-map-point-button.complete { width: 44px; height: 44px; }
   .expedition-map-completed-section > .expedition-map-stops { max-height: 154px; }
   .expedition-map-popover { width: min(84vw, 250px); }
-  .expedition-map-section-heading { padding-inline-start:: 10px; padding-inline-end:: 10px; }
+  .expedition-map-section-heading { padding-inline-start: 10px; padding-inline-end: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .expedition-node-card, .expedition-entry-card, .expedition-route-progress span { transition: none !important; }

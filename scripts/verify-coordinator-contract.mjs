@@ -177,4 +177,48 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
   assert.ok(readFileSync("app/api/internal/coordinator/report/route.ts", "utf8").includes("isGrowthOperator(user.id)"), "operator only");
 }
 
+// Next-step pushes: first unmet basic step, paced, once per step.
+{
+  const { nextStepFor, planNudges, parseNudgeKey, nudgeIdempotencyKey, NUDGE_COOLDOWN_MS, NUDGE_MAX_PER_PERSON, NEXT_STEPS } = await import("../lib/coordinatorNextStep.ts");
+  const fresh = person({ id: "a", registeredAt: new Date(NOW - 3_600_000).toISOString() });
+  assert.equal(nextStepFor(fresh, NOW), null, "nobody is nudged in the first day");
+  assert.equal(nextStepFor(person({ id: "b" }), NOW).key, "wish");
+  assert.equal(nextStepFor(person({ id: "c", wishes: 1 }), NOW).key, "calculator");
+  assert.equal(nextStepFor(person({ id: "d", wishes: 1, calculatorUsed: true }), NOW).key, "accept_challenge");
+  assert.equal(nextStepFor(person({ id: "e", wishes: 1, calculatorUsed: true, challengesAccepted: 1 }), NOW).key, "finish_challenge");
+  assert.equal(nextStepFor(person({ id: "f", wishes: 1, calculatorUsed: true, challengesAccepted: 1, challengesCompleted: 1 }), NOW).key, "invite");
+  assert.equal(nextStepFor(person({ id: "g", wishes: 1, calculatorUsed: true, challengesAccepted: 1, challengesCompleted: 1, referralsInvited: 1 }), NOW), null, "nothing left to ask");
+
+  const key = nudgeIdempotencyKey("wish", "0a55a540-1111-2222-3333-444455556666");
+  assert.deepEqual(parseNudgeKey(key), { step: "wish", userId: "0a55a540-1111-2222-3333-444455556666" });
+  assert.equal(parseNudgeKey("p2p-action:x"), null);
+
+  const people = [person({ id: "p1" }), person({ id: "p2" }), person({ id: "p3" }), person({ id: "p4" })];
+  const history = new Map([
+    ["p2", { lastAt: NOW - NUDGE_COOLDOWN_MS - 1000, steps: new Set(["wish"]), count: 1 }],
+    ["p3", { lastAt: NOW - 1000, steps: new Set(["calculator"]), count: 1 }],
+    ["p4", { lastAt: NOW - NUDGE_COOLDOWN_MS - 1000, steps: new Set(["a", "b", "c", "d"]), count: NUDGE_MAX_PER_PERSON }]
+  ]);
+  const planned = planNudges(people, history, NOW, 10);
+  assert.deepEqual(planned.map((item) => item.userId), ["p1"], "repeat step, cooldown and lifetime cap all hold people back");
+  assert.equal(planNudges([person({ id: "x1" }), person({ id: "x2" })], new Map(), NOW, 1).length, 1, "per-run limit");
+
+  for (const step of Object.values(NEXT_STEPS)) {
+    for (const lang of ["ru", "en"]) {
+      assert.ok(step.copy[lang].title.length > 0 && step.copy[lang].title.length <= 160, `${step.key} ${lang} title length`);
+      assert.ok(step.copy[lang].body.length > 0 && step.copy[lang].body.length <= 500, `${step.key} ${lang} body length`);
+    }
+    assert.ok(step.deepLink.startsWith("/?view="), `${step.key} deep link opens a screen`);
+  }
+
+  const route = read("app/api/internal/coordinator/nudges/route.ts");
+  assert.ok(route.includes("COORDINATOR_NUDGES_ENABLED") && route.includes("dryRun: !enabled"), "sending needs the switch");
+  assert.ok(route.includes("TON_SCANNER_SECRET") && route.includes("isGrowthOperator"), "cron secret or operator only");
+  const sender = read("lib/coordinatorNudges.ts");
+  assert.ok(sender.includes('p_category: "reminders"'), "users can mute through the reminders preference");
+  assert.ok(sender.includes("nudgeIdempotencyKey"), "one push per step and person");
+  const nudgeSql = read("supabase/migrations/20261018120000_coordinator_nudges_cron.sql");
+  assert.ok(nudgeSql.includes("'open-abundance-coordinator-nudges-daily'") && nudgeSql.includes("/api/internal/coordinator/nudges"));
+}
+
 console.log("coordinator contract ok");

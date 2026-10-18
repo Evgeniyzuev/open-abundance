@@ -739,9 +739,11 @@ function normalizeSystemAccountKey(value: unknown): string {
   return value;
 }
 
-// The feed defaults to Russian when no language is passed; other languages read the original text when no translation exists.
+// Post translations exist only for Russian and English. The feed defaults to Russian when no language is passed;
+// every other interface language reads the English translations (English is the base language).
 function normalizeLocale(value: unknown): AppLocale {
-  return isAppLocale(value) ? value : "ru";
+  if (!isAppLocale(value)) return "ru";
+  return value === "ru" ? "ru" : "en";
 }
 
 function normalizeCursor(value: unknown): string | null {

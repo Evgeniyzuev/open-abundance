@@ -3,7 +3,7 @@
 import { localeDirection } from "@/lib/locales";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Mail, Sparkles } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
 import LegalDisclosure from "@/components/LegalDisclosure";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
@@ -72,19 +72,6 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     setOnboardingLocale(detectPreferredOnboardingLocale());
   }, []);
-
-  // Onboarding has its own language: follow it with <html lang> and dir (right-to-left for Arabic), then restore the app's values.
-  useEffect(() => {
-    if (!onboardingLocale) return;
-    const root = document.documentElement;
-    const previous = { lang: root.lang, dir: root.dir };
-    root.lang = onboardingLocale;
-    root.dir = localeDirection(onboardingLocale);
-    return () => {
-      root.lang = previous.lang;
-      root.dir = previous.dir;
-    };
-  }, [onboardingLocale]);
 
   const profileCompleted = hasCompletedFirstExperience(profile);
 
@@ -188,8 +175,22 @@ function OnboardingApp({
   onEmailOtpVerify: (email: string, token: string) => Promise<void>;
   onGoogleSignIn: () => Promise<void>;
 }) {
-  const { money } = useUserContext();
+  const { locale: appLocale, money } = useUserContext();
+  const appLocaleRef = useRef(appLocale);
+  appLocaleRef.current = appLocale;
   const [step, setStep] = useState<StepId>(initialStep);
+
+  // While onboarding is on screen it has its own language: follow it with <html lang> and dir (right-to-left for Arabic).
+  // On leaving, hand both back to the app language (the provider only re-applies them when its own locale changes).
+  useEffect(() => {
+    const root = document.documentElement;
+    root.lang = locale;
+    root.dir = localeDirection(locale);
+    return () => {
+      root.lang = appLocaleRef.current;
+      root.dir = localeDirection(appLocaleRef.current);
+    };
+  }, [locale]);
   const [activeAuthMethod, setActiveAuthMethod] = useState<AuthMethod | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [email, setEmail] = useState("");

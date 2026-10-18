@@ -13,6 +13,7 @@ import {
   weeklyFallbackText,
   type WeeklyStats
 } from "@/lib/novaWeekly";
+import type { AppLocale } from "@/lib/locales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
   return json({ summary: { weekStart, body } });
 }
 
-async function writeWeeklyText(stats: WeeklyStats, locale: "ru" | "en"): Promise<string | null> {
+async function writeWeeklyText(stats: WeeklyStats, locale: AppLocale): Promise<string | null> {
   const system = `${buildAiSystemPrompt({ locale, capability: "chat.general" })}
 
 ## Weekly summary

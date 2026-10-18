@@ -15,6 +15,7 @@ import {
   type ReflectionProposal,
   type ReflectionStepResponse
 } from "@/lib/reflections";
+import type { AppLocale } from "@/lib/locales";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function buildFallbackProposal(rawText: string, locale: "ru" | "en"): ReflectionProposal {
+function buildFallbackProposal(rawText: string, locale: AppLocale): ReflectionProposal {
   const shortSummary = rawText.length > 500 ? `${rawText.slice(0, 497)}...` : rawText;
   if (locale === "ru") {
     return {
@@ -193,7 +194,7 @@ ADAPTIVE ANSWERS:
 ${answers.length ? answers.map((item, index) => `${index + 1}. Q: ${item.question}\nA: ${item.answer}`).join("\n") : "None"}`;
 }
 
-function validateModelResponse(value: unknown, answerCount: number, locale: "ru" | "en", hasGuidedSelections: boolean): ReflectionStepResponse {
+function validateModelResponse(value: unknown, answerCount: number, locale: AppLocale, hasGuidedSelections: boolean): ReflectionStepResponse {
   if (!isRecord(value)) throw new Error("AI response is not an object.");
 
   if (!hasGuidedSelections) {

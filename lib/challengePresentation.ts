@@ -1,6 +1,7 @@
+import type { AppLocale } from "@/lib/locales";
 export type ChallengeRewardLabel = Record<string, string> | string | number | null;
 
-export function parseChallengeRewardAmount(value: ChallengeRewardLabel, locale: "ru" | "en"): number | null {
+export function parseChallengeRewardAmount(value: ChallengeRewardLabel, locale: AppLocale): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
 
   const raw = localizedRewardLabel(value, locale).trim();
@@ -20,7 +21,7 @@ export function parseChallengeRewardAmount(value: ChallengeRewardLabel, locale: 
   return Number.isFinite(amount) ? amount : null;
 }
 
-function localizedRewardLabel(value: ChallengeRewardLabel, locale: "ru" | "en"): string {
+function localizedRewardLabel(value: ChallengeRewardLabel, locale: AppLocale): string {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
   return value?.[locale] ?? value?.en ?? "";

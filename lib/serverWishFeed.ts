@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables, TablesInsert } from "@/lib/database.types";
+import type { AppLocale } from "@/lib/locales";
 
 type FeedPostRow = Tables<"feed_posts">;
 type WishRow = Tables<"wishes">;
@@ -124,7 +125,7 @@ export async function publishWishCompletionToFeed(
   supabase: SupabaseClient<Database>,
   userId: string,
   wish: WishRow,
-  locale: "ru" | "en"
+  locale: AppLocale
 ): Promise<WishFeedPublishResult> {
   if (wish.owner_user_id !== userId || wish.deleted_at !== null || wish.status !== "completed") {
     return {

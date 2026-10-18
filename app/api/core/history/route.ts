@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { reconstructBalances } from "@/lib/historyBalance";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import type { AppLocale } from "@/lib/locales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 type CoreHistoryKind = "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus" | "referral_reward";
-type HistoryLocale = "ru" | "en";
+type HistoryLocale = AppLocale;
 
 export type CoreHistoryRow = {
   id: string;

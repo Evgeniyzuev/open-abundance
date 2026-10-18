@@ -3,6 +3,7 @@ import type { Tables, TablesUpdate } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { publishWishCompletionToFeed, publishWishToFeed } from "@/lib/serverWishFeed";
+import { normalizeLocale, type AppLocale } from "@/lib/locales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -181,10 +182,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { wishI
 
 function normalizeBoolean(value: unknown): boolean {
   return value === true || value === "true";
-}
-
-function normalizeLocale(value: unknown): "ru" | "en" {
-  return value === "ru" ? "ru" : "en";
 }
 
 function canReadWish(wish: WishRow, viewerUserId: string): boolean {

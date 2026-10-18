@@ -1,3 +1,4 @@
+import type { AppLocale } from "@/lib/locales";
 // Pure helpers for Nova's weekly summary (no imports, tested directly by node).
 // The week is the last completed Monday-to-Sunday week in UTC. The summary uses only the person's own
 // counts; the text is written by a model from those facts, with a plain template as the fallback.
@@ -49,7 +50,7 @@ export function weeklyFacts(stats: WeeklyStats): string[] {
 }
 
 /** Plain text used when the model is unavailable. Never claims more than the counts say. */
-export function weeklyFallbackText(stats: WeeklyStats, locale: "ru" | "en"): string {
+export function weeklyFallbackText(stats: WeeklyStats, locale: AppLocale): string {
   const ru = locale === "ru";
   const parts: string[] = [];
   parts.push(ru ? `На этой неделе вы заходили в приложение в ${stats.activeDays} из 7 дней.` : `This week you opened the app on ${stats.activeDays} of 7 days.`);

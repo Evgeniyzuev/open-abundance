@@ -3,12 +3,13 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { localizedList, localizedText, type SkillPassportPayload, type SkillVerificationLogic } from "@/lib/skills";
 import { asSkillDbClient, isMissingSkillSchemaError } from "@/lib/skillsServer";
+import type { AppLocale } from "@/lib/locales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-type Locale = "ru" | "en";
+type Locale = AppLocale;
 
 export async function GET(request: NextRequest) {
   const { supabase, user, error: authError } = await getAuthenticatedUser(request);

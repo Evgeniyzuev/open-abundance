@@ -1,3 +1,4 @@
+import type { AppLocale } from "@/lib/locales";
 /**
  * Rough, free check for language about immediate harm. Shared by every private
  * AI flow so they all stop and show the same support message instead of a plan.
@@ -22,7 +23,7 @@ export function hasSafetyText(text: string): boolean {
   return SAFETY_PATTERNS.some((pattern) => pattern.test(value));
 }
 
-export function buildSafetyPayload(locale: "ru" | "en"): SafetyPayload {
+export function buildSafetyPayload(locale: AppLocale): SafetyPayload {
   if (locale === "ru") {
     return {
       mode: "safety",

@@ -1,4 +1,5 @@
-export type LegalLocale = "ru" | "en";
+import type { AppLocale } from "@/lib/locales";
+export type LegalLocale = AppLocale;
 
 export type LegalSection = {
   title: string;

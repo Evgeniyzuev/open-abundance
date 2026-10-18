@@ -1,7 +1,8 @@
 import Link from "next/link";
+import type { AppLocale } from "@/lib/locales";
 
 type LegalDisclosureProps = {
-  locale: "ru" | "en";
+  locale: AppLocale;
   summary: string;
   privacy: string;
   terms: string;

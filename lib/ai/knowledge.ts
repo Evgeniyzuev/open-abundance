@@ -1,3 +1,4 @@
+import type { AppLocale } from "@/lib/locales";
 /**
  * Server-side Open Abundance knowledge and capability instructions.
  *
@@ -21,7 +22,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
 export type AiCapability = "chat.general" | "reflection.process" | "task.decompose" | "notes.triage" | "decision.choose" | "routine.plan" | "market.listing";
 
 type SystemPromptOptions = {
-  locale: "ru" | "en";
+  locale: AppLocale;
   capability: AiCapability;
 };
 

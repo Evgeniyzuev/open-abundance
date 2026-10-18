@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAppLocale } from "@/lib/locales";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
@@ -13,7 +14,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json().catch(() => null) as { locale?: unknown } | null;
     const locale = body?.locale;
-    if (locale !== "ru" && locale !== "en") {
+    if (!isAppLocale(locale)) {
       return NextResponse.json({ error: "Unsupported language." }, { status: 400, headers: NO_STORE_HEADERS });
     }
 

@@ -15,6 +15,8 @@ The app resolves language like this:
 5. Onboarding uses its own `openAbundanceOnboardingLocale` preference and maps browser prefixes `ru`, `zh`, `es`, and `hi` to the matching onboarding copy; unsupported browsers use English.
 6. New registration maps onboarding `ru` to profile `ru`; onboarding `en`, `zh`, `es`, and `hi` map to profile `en`. The server still validates `ru | en`.
 
+Расширение на zh, hi, es, ar (RTL), рефакторинг и порядок работ: [I18N_EXPANSION_PLAN.md](I18N_EXPANSION_PLAN.md).
+
 ## Implementation
 
 - `lib/i18n.ts` owns `AppLocale`, locale detection, the local preference key, and the message dictionary.

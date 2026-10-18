@@ -1,3 +1,4 @@
+import type { AppLocale } from "@/lib/locales";
 export type FirstWishOption = {
   key: string;
   title: { ru: string; en: string };
@@ -228,6 +229,6 @@ export const FIRST_WISH_CATEGORIES: FirstWishCategory[] = [
   }
 ];
 
-export function firstWishCategoryTitle(category: FirstWishCategory, locale: "ru" | "en"): string {
+export function firstWishCategoryTitle(category: FirstWishCategory, locale: AppLocale): string {
   return `${category.emoji} ${category.title[locale]}`;
 }

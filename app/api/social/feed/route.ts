@@ -10,6 +10,7 @@ import { normalizeProfileVisibilitySettings } from "@/lib/socialProfile";
 import { normalizeLinkSource } from "@/lib/sharePreview";
 import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import type { AppLocale } from "@/lib/locales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -496,7 +497,7 @@ async function loadExternalLinks(supabase: SupabaseClient<Database>, postIds: st
 async function loadTranslations(
   supabase: SupabaseClient<Database>,
   postIds: string[],
-  locale: "ru" | "en"
+  locale: AppLocale
 ): Promise<Map<string, FeedTranslationRow>> {
   if (!postIds.length) return new Map();
 
@@ -570,7 +571,7 @@ async function loadProjectReviewMetadata(
 async function loadRepostSources(
   supabase: SupabaseClient<Database>,
   postIds: string[],
-  locale: "ru" | "en"
+  locale: AppLocale
 ): Promise<Map<string, FeedRepostSource>> {
   if (!postIds.length) return new Map();
 
@@ -738,7 +739,7 @@ function normalizeSystemAccountKey(value: unknown): string {
   return value;
 }
 
-function normalizeLocale(value: unknown): "ru" | "en" {
+function normalizeLocale(value: unknown): AppLocale {
   return value === "en" ? "en" : "ru";
 }
 

@@ -7,7 +7,7 @@ import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseC
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import type { Tables } from "@/lib/database.types";
 import { capturePendingReferral, getOrCreateLocalGuest, markLocalGuestClaimed, markPendingReferralClaimed } from "@/lib/guestIdentity";
-import { detectPreferredLocale, loadMessages, normalizeLocale, storeLocalePreference, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
+import { detectPreferredLocale, localeDirection, loadMessages, normalizeLocale, storeLocalePreference, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
 import { getOnboardingRegistrationLocale } from "@/lib/onboardingContent";
 import { captureAcquisitionContext, readAcquisitionContext } from "@/lib/acquisition";
 import {
@@ -209,6 +209,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = locale;
+    document.documentElement.dir = localeDirection(locale);
   }, [locale]);
 
   useEffect(() => {

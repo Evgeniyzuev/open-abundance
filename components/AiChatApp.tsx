@@ -42,6 +42,7 @@ import type { MessageKey } from "@/lib/i18n";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { getSoundsEnabled, playUiSound, setSoundsEnabled } from "@/lib/ui/sound";
 import { readPrimaryWish } from "@/lib/wishJourney";
+import type { AppLocale } from "@/lib/locales";
 
 type ChatMessage = AiLocalMessage;
 
@@ -1143,7 +1144,7 @@ function createDraftChat(userId: string): AiLocalChat {
   };
 }
 
-function getChatTitle(messages: ChatMessage[], locale: "ru" | "en"): string {
+function getChatTitle(messages: ChatMessage[], locale: AppLocale): string {
   const firstUserMessage = messages.find((message) => message.role === "user")?.content.trim().replace(/\s+/g, " ");
   return firstUserMessage?.slice(0, 72) || (locale === "ru" ? "Новый чат" : "New chat");
 }
@@ -1232,7 +1233,7 @@ function upsertSavedChat(chats: AiLocalChat[], chat: AiLocalChat): AiLocalChat[]
   return [chat, ...chats.filter((item) => item.id !== chat.id)].slice(0, 50);
 }
 
-function formatChatDate(value: string, locale: "ru" | "en"): string {
+function formatChatDate(value: string, locale: AppLocale): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(date);
@@ -1271,7 +1272,7 @@ async function loadSharedContextLines(share: AiContextShare, coreBalance: number
   }
 }
 
-function buildAiContext(locale: "ru" | "en", profile: ReturnType<typeof useUserContext>["profile"], level: number | null, userId: string | null, memoryItems: AiMemoryItem[], activeWishTitles: string[]): string {
+function buildAiContext(locale: AppLocale, profile: ReturnType<typeof useUserContext>["profile"], level: number | null, userId: string | null, memoryItems: AiMemoryItem[], activeWishTitles: string[]): string {
   const wish = readPrimaryWish(userId ?? undefined);
   const profileName = profile?.display_name || profile?.username || "";
   const lines = [`language: ${locale}`, profileName ? `display name: ${profileName}` : "", level !== null ? `level: ${level}` : ""];
@@ -1281,7 +1282,7 @@ function buildAiContext(locale: "ru" | "en", profile: ReturnType<typeof useUserC
   return lines.filter(Boolean).join("\n");
 }
 
-async function loadSuggestedPrompts(answer: string, previousUserMessage: string, locale: "ru" | "en"): Promise<AiPrompt[]> {
+async function loadSuggestedPrompts(answer: string, previousUserMessage: string, locale: AppLocale): Promise<AiPrompt[]> {
   const fallback = fallbackPrompts(answer, locale);
   try {
     const token = await getAiAccessToken();
@@ -1301,7 +1302,7 @@ async function loadSuggestedPrompts(answer: string, previousUserMessage: string,
   }
 }
 
-function fallbackPrompts(answer: string, locale: "ru" | "en"): AiPrompt[] {
+function fallbackPrompts(answer: string, locale: AppLocale): AiPrompt[] {
   const lower = answer.toLowerCase();
   const ru = locale === "ru";
   const prompts = lower.includes(ru ? "желан" : "wish")

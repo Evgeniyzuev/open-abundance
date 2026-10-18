@@ -1,3 +1,4 @@
+import type { AppLocale } from "@/lib/locales";
 export type CardBlock = { block_key: string; value: unknown };
 export type CardText = { kicker: string; headline: string };
 export type CardModel = {
@@ -18,7 +19,7 @@ const MIN_INTERESTING_CORE = 1;
  * What the day card says: one headline (the most interesting fact of the day) and up to three
  * non-zero numbers that do not repeat the headline. Hidden blocks are simply absent.
  */
-export function buildCardModel(blocks: CardBlock[], locale: "ru" | "en"): CardModel {
+export function buildCardModel(blocks: CardBlock[], locale: AppLocale): CardModel {
   const block = (key: string) => blocks.find((item) => item.block_key === key)?.value;
   const level = readNumber(block("level"), "levelAfter");
   const levelBefore = readNumber(block("level"), "levelBefore");
@@ -48,7 +49,7 @@ export function buildCardModel(blocks: CardBlock[], locale: "ru" | "en"): CardMo
   return { kind, level, levelBefore, turnover, coreGrowth, wins, challengeTitle, wishTitle, tiles: tiles.slice(0, 3) };
 }
 
-function firstTitle(items: unknown[], locale: "ru" | "en"): string | null {
+function firstTitle(items: unknown[], locale: AppLocale): string | null {
   for (const item of items) {
     if (!item || typeof item !== "object") continue;
     const title = (item as Record<string, unknown>).title;

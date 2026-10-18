@@ -6,6 +6,7 @@ import { normalizeUuid } from "@/lib/uuid";
 import { publishWishToFeed } from "@/lib/serverWishFeed";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
+import type { AppLocale } from "@/lib/locales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -292,7 +293,7 @@ async function loadRecommendedWishTemplate(
   return data;
 }
 
-function localizedText(value: unknown, locale: "ru" | "en"): string {
+function localizedText(value: unknown, locale: AppLocale): string {
   if (typeof value === "string") return value;
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const record = value as Record<string, unknown>;

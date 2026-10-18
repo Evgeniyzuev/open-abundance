@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { ACQUISITION_PLATFORM_RULES } from "@/lib/acquisitionChallenges";
+import type { AppLocale } from "@/lib/locales";
 
 type Challenge = {
   core_reward_amount: number;
@@ -38,7 +39,7 @@ export default function AcquisitionChallengePanel({
   readOnly = false
 }: {
   challenge: Challenge;
-  locale: "ru" | "en";
+  locale: AppLocale;
   onRefresh: () => Promise<void>;
   onComplete: (reward: { coreAmount: number; walletAmount: number; claimed: boolean; coreBalanceAfter?: number | null; walletBalanceAfter?: number | null }) => void;
   readOnly?: boolean;

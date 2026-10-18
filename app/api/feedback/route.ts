@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAppLocale } from "@/lib/locales";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   const screen = typeof body?.screen === "string" ? body.screen.trim().slice(0, 80) || null : null;
-  const locale = body?.locale === "ru" || body?.locale === "en" ? body.locale : null;
+  const locale = isAppLocale(body?.locale) ? body.locale : null;
 
   const db = supabase as any;
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

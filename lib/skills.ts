@@ -1,3 +1,4 @@
+import type { AppLocale } from "@/lib/locales";
 export type SkillVerificationLogic =
   | "referral_count"
   | "public_post_count"
@@ -43,7 +44,7 @@ export type SkillPassportPayload = {
   error?: string;
 };
 
-export function localizedText(value: unknown, locale: "ru" | "en"): string {
+export function localizedText(value: unknown, locale: AppLocale): string {
   if (typeof value === "string") return value;
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
 
@@ -51,7 +52,7 @@ export function localizedText(value: unknown, locale: "ru" | "en"): string {
   return record[locale] ?? record.en ?? record.ru ?? "";
 }
 
-export function localizedList(value: unknown, locale: "ru" | "en"): string[] {
+export function localizedList(value: unknown, locale: AppLocale): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => localizedText(item, locale))

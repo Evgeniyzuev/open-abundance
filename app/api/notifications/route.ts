@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { normalizeLocale, translate, type MessageKey } from "@/lib/i18n";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import type { AppLocale } from "@/lib/locales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function notificationCopy(eventType: string | undefined, locale: "ru" | "en") {
+function notificationCopy(eventType: string | undefined, locale: AppLocale) {
   const key = eventType?.startsWith("wallet.") ? "wallet"
     : eventType === "rewards.daily_core_accrual" ? "dailyCore"
       : eventType === "rewards.team_core_growth" ? "teamReward"

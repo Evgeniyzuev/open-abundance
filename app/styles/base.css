@@ -307,6 +307,8 @@ body {
 [dir="rtl"] .rtl-flip { transform: scaleX(-1); }
 [dir="rtl"] .core-afterburn-switch[aria-checked="true"] span { transform: translateX(-20px); }
 [dir="rtl"] .core-play-switch button[aria-checked="true"] span { transform: translateX(-18px); }
+/* Each text run takes its own direction from its first strong character, so English fallbacks, usernames and user content keep their punctuation in right-to-left pages. */
+[dir="rtl"] :is(p, h1, h2, h3, h4, small, li, summary, label, legend, figcaption, blockquote, strong, span, button, dt, dd) { unicode-bidi: plaintext; }
 /* Code-like values stay left-to-right inside right-to-left text. */
 [dir="rtl"] code, [dir="rtl"] .ltr-value { direction: ltr; unicode-bidi: isolate; }
 button, input, textarea, select { font: inherit; }

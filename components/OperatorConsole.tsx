@@ -46,6 +46,8 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [proposals, setProposals] = useState<Recommendation[]>([]);
   const [proposalBusy, setProposalBusy] = useState(false);
+  const [nudges, setNudges] = useState<Array<{ user: string; step: string }> | null>(null);
+  const [nudgeBusy, setNudgeBusy] = useState(false);
 
   const loadProposals = useCallback(async (generate: boolean) => {
     setProposalBusy(true);
@@ -57,6 +59,18 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
       // The treasury panel stays usable if the coordinator queue is unavailable.
     } finally {
       setProposalBusy(false);
+    }
+  }, []);
+
+  const previewNudges = useCallback(async () => {
+    setNudgeBusy(true);
+    try {
+      const response = await fetchWithSupabaseAuth("/api/internal/coordinator/nudges", { cache: "no-store" }, { authRequired: true });
+      if (response.ok) setNudges(((await response.json()) as { planned: Array<{ user: string; step: string }> }).planned);
+    } catch {
+      // The preview is optional; the rest of the console keeps working.
+    } finally {
+      setNudgeBusy(false);
     }
   }, []);
 
@@ -181,6 +195,22 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
                     <button className="secondary-button" type="button" disabled={proposalBusy} onClick={() => void decide(item.id, "approved")}>{t("operator.coordinator.approve")}</button>
                     <button className="secondary-button" type="button" disabled={proposalBusy} onClick={() => void decide(item.id, "rejected")}>{t("operator.coordinator.reject")}</button>
                   </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section aria-label={t("operator.nudges.title")}>
+          <h3 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            {t("operator.nudges.title")}
+            <button className="secondary-button" type="button" disabled={nudgeBusy} onClick={() => void previewNudges()}>{t("operator.nudges.preview")}</button>
+          </h3>
+          {nudges === null ? null : nudges.length === 0 ? <p className="transfer-muted">{t("operator.nudges.none")}</p> : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+              {nudges.map((item) => (
+                <li key={item.user} style={{ padding: "8px 10px", borderRadius: 10, background: "rgba(0, 0, 0, 0.04)" }}>
+                  <strong>{item.user}</strong> · <span className="transfer-muted">{t(`operator.nudges.step.${item.step}` as never)}</span>
                 </li>
               ))}
             </ul>

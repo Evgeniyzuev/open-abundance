@@ -70,8 +70,7 @@ assert.ok(i18n.includes("u2068") && i18n.includes('localeDirection(locale) === "
 const cssFiles = execFileSync("git", ["ls-files", "app/styles", "components/*.module.css"], { cwd: root, encoding: "utf8" }).split("\n").filter((file) => file.endsWith(".css"));
 const physical = /(^|[\s;{])(margin-left|margin-right|padding-left|padding-right|border-left|border-right|text-align:\s*(left|right)|float:\s*(left|right)|(left|right)\s*:(?!\s*50%|\s*calc\(50%))/;
 const physicalOffenders = cssFiles.flatMap((file) => read(file).split("\n").map((line, index) => [file, index + 1, line]).filter(([, , line]) => physical.test(line)).map(([f, n]) => `${f}:${n}`));
-const doubleColon = cssFiles.flatMap((file) => read(file).split("
-").map((line, index) => [file, index + 1, line]).filter(([, , line]) => /[a-z]::\s/.test(line)).map(([f, n]) => `${f}:${n}`));
+const doubleColon = cssFiles.flatMap((file) => read(file).split("\n").map((line, index) => [file, index + 1, line]).filter(([, , line]) => /[a-z]::\s/.test(line)).map(([f, n]) => `${f}:${n}`));
 assert.deepEqual(doubleColon, [], `CSS declaration with a doubled colon: ${doubleColon.slice(0, 5)}`);
 assert.deepEqual(physicalOffenders, [], `use logical CSS properties: ${physicalOffenders.slice(0, 5)}`);
 

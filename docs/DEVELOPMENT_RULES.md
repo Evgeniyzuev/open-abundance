@@ -207,7 +207,7 @@ The operator runbook with the verified PowerShell command is [`docs/DATABASE.md`
 
 Use the linked Supabase CLI workflow as the canonical migration path. For this project, the verified connection method is `--linked --password` with `POSTGRES_PASSWORD` read from `.env`. Do not construct a `--db-url` from `POSTGRES_URL*`: that route produced connection errors in this workspace even though the linked password route worked with the same `.env`.
 
-Use the globally installed `supabase` CLI directly:
+Use the globally installed `supabase` CLI directly. `--yes` (non-interactive confirmation) exists since CLI v2.121.0, installed on this workspace via `scoop update supabase`; older versions reject the flag. With an older CLI pipe `'y'` into the command instead:
 
 ```powershell
 $path = Join-Path (Get-Location) '.env'
@@ -222,7 +222,7 @@ if ([string]::IsNullOrWhiteSpace($pw)) {
   throw 'POSTGRES_PASSWORD is missing in .env'
 }
 
-& supabase db push --linked --password $pw
+& supabase db push --linked --password $pw --yes
 $exitCode = $LASTEXITCODE
 Remove-Variable pw -ErrorAction SilentlyContinue
 exit $exitCode

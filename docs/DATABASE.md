@@ -81,7 +81,7 @@ if ([string]::IsNullOrWhiteSpace($pw)) {
   throw 'POSTGRES_PASSWORD is missing in .env'
 }
 
-& supabase db push --linked --password $pw
+& supabase db push --linked --password $pw --yes
 $exitCode = $LASTEXITCODE
 Remove-Variable pw -ErrorAction SilentlyContinue
 exit $exitCode

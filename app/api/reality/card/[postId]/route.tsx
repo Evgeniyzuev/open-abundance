@@ -2,7 +2,10 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { normalizeLocale, translate, type AppLocale, type MessageKey } from "@/lib/i18n";
+import type { AppLocale, MessageKey } from "@/lib/i18n";
+import { normalizeLocale } from "@/lib/locales";
+import enMessages from "@/lib/messages/en";
+import ruMessages from "@/lib/messages/ru";
 import { buildCardModel, type CardBlock, type CardModel, type CardText } from "@/lib/realityCardModel";
 
 export const runtime = "edge";
@@ -27,7 +30,8 @@ type CardData = { name: string; avatar: string | null; cover: string | null; dat
 export async function GET(request: Request, { params }: { params: { postId: string } }) {
   const url = new URL(request.url);
   const format = url.searchParams.get("format") === "story" ? "story" : "post";
-  const locale = normalizeLocale(url.searchParams.get("locale"));
+  // The image fonts cover Latin and Cyrillic only, so the card speaks Russian or English; other languages read English.
+  const locale: AppLocale = normalizeLocale(url.searchParams.get("locale")) === "ru" ? "ru" : "en";
   const size = SIZES[format];
   const postId = /^[0-9a-f-]{36}$/i.test(params.postId) ? params.postId : null;
   if (!postId) return new Response("Not found", { status: 404 });
@@ -36,7 +40,10 @@ export async function GET(request: Request, { params }: { params: { postId: stri
   const data = demo ? demoCard(demo) : await loadCard(postId);
   if (!data) return new Response("Not found", { status: 404 });
 
-  const t: Translate = (key, values) => translate(locale, key, values);
+  // Dictionaries are imported directly: lib/i18n would bundle every language into this edge function (1 MB plan limit).
+  const dictionary: Record<string, string> = locale === "ru" ? ruMessages : enMessages;
+  const t: Translate = (key, values) =>
+    Object.entries(values ?? {}).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, String(value)), dictionary[key] ?? (enMessages as Record<string, string>)[key] ?? key);
   const model = buildCardModel(data.blocks, locale);
   const text = cardText(model, locale, t);
   const story = format === "story";

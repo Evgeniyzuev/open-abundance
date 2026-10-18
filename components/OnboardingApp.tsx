@@ -1,5 +1,6 @@
 "use client";
 
+import { localeDirection } from "@/lib/locales";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Mail, Sparkles } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
@@ -71,6 +72,19 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     setOnboardingLocale(detectPreferredOnboardingLocale());
   }, []);
+
+  // Onboarding has its own language: follow it with <html lang> and dir (right-to-left for Arabic), then restore the app's values.
+  useEffect(() => {
+    if (!onboardingLocale) return;
+    const root = document.documentElement;
+    const previous = { lang: root.lang, dir: root.dir };
+    root.lang = onboardingLocale;
+    root.dir = localeDirection(onboardingLocale);
+    return () => {
+      root.lang = previous.lang;
+      root.dir = previous.dir;
+    };
+  }, [onboardingLocale]);
 
   const profileCompleted = hasCompletedFirstExperience(profile);
 

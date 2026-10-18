@@ -64,6 +64,19 @@ try {
 }
 assert.deepEqual(offenders, [], "use AppLocale instead of the literal union");
 
+// The day-card Edge function (1 MB limit) uses a small dictionary that must match the full ones and must not import them.
+const cardSource = read("lib/messages/cardMessages.ts");
+const cardRoute = read("app/api/reality/card/[postId]/route.tsx");
+assert.ok(!/lib\/messages\/(en|ru)"|from "@\/lib\/i18n"/.test(cardRoute.replace(/import type[^\n]*\n/g, "")), "card route does not import the full dictionaries or lib/i18n");
+const ruFull = parseKeys(read("lib/messages/ru.ts"));
+for (const [language, full] of [["en", en], ["ru", ruFull]]) {
+  const start = cardSource.indexOf(`  ${language}: {`);
+  const block = cardSource.slice(start, cardSource.indexOf("\n  }", start));
+  const small = parseKeys(block);
+  assert.ok(small.size >= 10, `card ${language} dictionary is parsed`);
+  for (const [key, value] of small) assert.equal(value, full.get(key), `card ${language}/${key} equals the full dictionary`);
+}
+
 // Right-to-left: Arabic is registered as rtl, and styles use logical properties (centering with left: 50% is the only allowed physical offset).
 assert.ok(entries.some((entry) => entry.dir === "rtl"), "an RTL language is registered");
 assert.ok(i18n.includes("u2068") && i18n.includes('localeDirection(locale) === "rtl"'), "values inserted into RTL text are bidi-isolated");

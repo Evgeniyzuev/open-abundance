@@ -1,17 +1,18 @@
 import { DEFAULT_LOCALE, detectPreferredLocale, isAppLocale, type AppLocale } from "@/lib/i18n";
 
-// Onboarding copy exists for these app languages; Arabic onboarding comes later (the app opens in Arabic once chosen in Appearance).
-export type OnboardingLocale = Exclude<AppLocale, "ar">;
+// Onboarding has copy for every app language (type-checked: a new language must add its text here).
+export type OnboardingLocale = AppLocale;
 export type OnboardingLocalizedText = Record<OnboardingLocale, string>;
 
-export const ONBOARDING_LOCALES: OnboardingLocale[] = ["ru", "en", "zh", "es", "hi"];
+export const ONBOARDING_LOCALES: OnboardingLocale[] = ["ru", "en", "zh", "es", "hi", "ar"];
 export const ONBOARDING_LOCALE_STORAGE_KEY = "openAbundanceOnboardingLocale";
 export const ONBOARDING_LOCALE_LABELS: Record<OnboardingLocale, string> = {
   ru: "RU",
   en: "EN",
   zh: "中文",
   es: "ES",
-  hi: "HI"
+  hi: "HI",
+  ar: "عربي"
 };
 
 type OnboardingContent = {
@@ -84,35 +85,39 @@ export const ONBOARDING_SEEN_STORAGE_KEY = "openAbundanceOnboardingSeen";
 export const ONBOARDING_DRAFT_STORAGE_KEY = "openAbundanceOnboardingDraft";
 
 export const onboardingContent: OnboardingContent = {
-  brand: { ru: "Open Abundance", en: "Open Abundance", zh: "Open Abundance", es: "Open Abundance", hi: "Open Abundance" },
+  brand: { ru: "Open Abundance", en: "Open Abundance", zh: "Open Abundance", es: "Open Abundance", hi: "Open Abundance", ar: "Open Abundance" },
   mission: {
     eyebrow: {
       ru: "Первый ИИ-инструмент изобилия",
       en: "The first AI abundance tool",
       zh: "第一个 AI 丰盛工具",
       es: "La primera herramienta de abundancia con IA",
-      hi: "बहुतायत के लिए पहला AI टूल"
+      hi: "बहुतायत के लिए पहला AI टूल",
+      ar: "أول أداة وفرة بالذكاء الاصطناعي"
     },
     title: {
       ru: "Создавай изобилие в своей жизни",
       en: "Create abundance in your life",
       zh: "在生活中创造丰盛",
       es: "Crea abundancia en tu vida",
-      hi: "अपने जीवन में समृद्धि बनाएं"
+      hi: "अपने जीवन में समृद्धि बनाएं",
+      ar: "اصنع الوفرة في حياتك"
     },
     body: {
       ru: "Выбирай желания — Open Abundance превратит их в понятный маршрут. Двигайся к своим целям быстрее и увереннее ✈️",
       en: "Choose your wishes — Open Abundance will turn them into a clear route. Move toward your goals faster and with greater confidence ✈️",
       zh: "选择你的愿望——Open Abundance 会把它们变成清晰的路线。更快、更有信心地走向你的目标 ✈️",
       es: "Elige tus deseos: Open Abundance los convertirá en una ruta clara. Avanza hacia tus objetivos más rápido y con más confianza ✈️",
-      hi: "अपनी इच्छाएं चुनें — Open Abundance उन्हें एक स्पष्ट मार्ग में बदलेगा। अपने लक्ष्यों की ओर तेज़ी और भरोसे के साथ बढ़ें ✈️"
+      hi: "अपनी इच्छाएं चुनें — Open Abundance उन्हें एक स्पष्ट मार्ग में बदलेगा। अपने लक्ष्यों की ओर तेज़ी और भरोसे के साथ बढ़ें ✈️",
+      ar: "اختر أمنياتك — وسيحوّلها Open Abundance إلى مسار واضح. تقدّم نحو أهدافك بسرعة أكبر وثقة أعلى ✈️"
     },
     imageAlt: {
       ru: "Светящийся ИИ превращает желания человека в маршрут возможностей",
       en: "A glowing AI turns a person's wishes into a path of opportunities",
       zh: "发光的人工智能把一个人的愿望变成通往机会的路线",
       es: "Una IA luminosa convierte los deseos de una persona en una ruta de oportunidades",
-      hi: "एक चमकदार AI व्यक्ति की इच्छाओं को अवसरों की राह में बदलता है"
+      hi: "एक चमकदार AI व्यक्ति की इच्छाओं को अवसरों की राह में बदलता है",
+      ar: "ذكاء اصطناعي متوهج يحوّل أمنيات الإنسان إلى مسار من الفرص"
     }
   },
   stories: {
@@ -121,28 +126,32 @@ export const onboardingContent: OnboardingContent = {
       en: "Abundance stories",
       zh: "Abundance 故事",
       es: "Historias de Abundance",
-      hi: "Abundance की कहानियां"
+      hi: "Abundance की कहानियां",
+      ar: "قصص Abundance"
     },
     title: {
       ru: "У других уже получилось",
       en: "Others are already succeeding",
       zh: "别人已经做到了",
       es: "Otros ya lo están logrando",
-      hi: "दूसरे लोग पहले ही कर चुके हैं"
+      hi: "दूसरे लोग पहले ही कर चुके हैं",
+      ar: "آخرون نجحوا بالفعل"
     },
     body: {
       ru: "Посмотри, как участники Open Abundance решают проблемы, достигают целей и меняют свою жизнь.",
       en: "See how Open Abundance members solve problems, reach goals, and change their lives.",
       zh: "看看 Open Abundance 的参与者如何解决问题、实现目标并改变生活。",
       es: "Descubre cómo los participantes de Open Abundance resuelven problemas, alcanzan objetivos y cambian sus vidas.",
-      hi: "देखें कि Open Abundance के प्रतिभागी समस्याएं कैसे हल करते हैं, लक्ष्य कैसे हासिल करते हैं और अपना जीवन कैसे बदलते हैं।"
+      hi: "देखें कि Open Abundance के प्रतिभागी समस्याएं कैसे हल करते हैं, लक्ष्य कैसे हासिल करते हैं और अपना जीवन कैसे बदलते हैं।",
+      ar: "شاهد كيف يحلّ أعضاء Open Abundance مشكلاتهم ويحققون أهدافهم ويغيّرون حياتهم."
     },
     imageAlt: {
       ru: "Три участника радуются достигнутым творческим, рабочим и личным целям",
       en: "Three members celebrate creative, professional, and personal goals",
       zh: "三位参与者庆祝实现了创意、职业和个人目标",
       es: "Tres participantes celebran sus objetivos creativos, profesionales y personales",
-      hi: "तीन प्रतिभागी रचनात्मक, पेशेवर और व्यक्तिगत लक्ष्यों की खुशी मनाते हैं"
+      hi: "तीन प्रतिभागी रचनात्मक, पेशेवर और व्यक्तिगत लक्ष्यों की खुशी मनाते हैं",
+      ar: "ثلاثة أعضاء يحتفلون بأهداف إبداعية ومهنية وشخصية"
     }
   },
   program: {
@@ -151,35 +160,40 @@ export const onboardingContent: OnboardingContent = {
       en: "Your route",
       zh: "你的路线",
       es: "Tu ruta",
-      hi: "आपका मार्ग"
+      hi: "आपका मार्ग",
+      ar: "مسارك"
     },
     title: {
       ru: "20 уровней до {target}",
       en: "20 levels to {target}",
       zh: "20 个等级，直到 {target}",
       es: "20 niveles hasta {target}",
-      hi: "{target} तक 20 स्तर"
+      hi: "{target} तक 20 स्तर",
+      ar: "20 مستوى حتى {target}"
     },
     body: {
       ru: "Выполняй простые задания, развивай навыки и прокачивай свой доход. Больше возможностей с каждым уровнем.",
       en: "Complete simple tasks, build skills and grow your income. More opportunities with every level.",
       zh: "完成简单任务，培养技能，提升你的收入。每升一级，机会更多。",
       es: "Completa tareas sencillas, desarrolla habilidades y haz crecer tus ingresos. Más oportunidades con cada nivel.",
-      hi: "सरल कार्य पूरे करें, कौशल विकसित करें और अपनी आय बढ़ाएं। हर स्तर के साथ अधिक अवसर।"
+      hi: "सरल कार्य पूरे करें, कौशल विकसित करें और अपनी आय बढ़ाएं। हर स्तर के साथ अधिक अवसर।",
+      ar: "أنجز مهام بسيطة، وطوّر مهاراتك، وزد دخلك. فرص أكثر مع كل مستوى."
     },
     prompt: {
       ru: "Маршрут построен",
       en: "Your route is ready",
       zh: "你的路线已规划完成",
       es: "Tu ruta está lista",
-      hi: "आपका मार्ग तैयार है"
+      hi: "आपका मार्ग तैयार है",
+      ar: "مسارك جاهز"
     },
     imageAlt: {
       ru: "Путь из двадцати уровней поднимается к сияющей вершине",
       en: "A twenty-level path climbs toward a radiant summit",
       zh: "一条二十级的道路通向光芒四射的顶峰",
       es: "Un camino de veinte niveles asciende hacia una cumbre radiante",
-      hi: "बीस स्तरों का मार्ग एक उज्ज्वल शिखर की ओर बढ़ता है"
+      hi: "बीस स्तरों का मार्ग एक उज्ज्वल शिखर की ओर बढ़ता है",
+      ar: "مسار من عشرين مستوى يصعد نحو قمة متألقة"
     }
   },
   auth: {
@@ -188,21 +202,24 @@ export const onboardingContent: OnboardingContent = {
       en: "Next step",
       zh: "下一步",
       es: "Siguiente paso",
-      hi: "अगला कदम"
+      hi: "अगला कदम",
+      ar: "الخطوة التالية"
     },
     title: {
       ru: "Войти или создать аккаунт",
       en: "Sign in or create an account",
       zh: "登录或创建账户",
       es: "Inicia sesión o crea una cuenta",
-      hi: "साइन इन करें या खाता बनाएं"
+      hi: "साइन इन करें या खाता बनाएं",
+      ar: "سجّل الدخول أو أنشئ حسابًا"
     },
     body: {
       ru: "Выбери удобный способ продолжить.",
       en: "Choose how you want to continue.",
       zh: "选择你想继续的方式。",
       es: "Elige cómo quieres continuar.",
-      hi: "चुनें कि आप कैसे आगे बढ़ना चाहते हैं।"
+      hi: "चुनें कि आप कैसे आगे बढ़ना चाहते हैं।",
+      ar: "اختر كيف تريد المتابعة."
     }
   },
   emailAuth: {
@@ -211,101 +228,114 @@ export const onboardingContent: OnboardingContent = {
       en: "Email sign-in",
       zh: "邮箱登录",
       es: "Acceso por email",
-      hi: "ईमेल साइन-इन"
+      hi: "ईमेल साइन-इन",
+      ar: "تسجيل الدخول بالبريد"
     },
     title: {
       ru: "Продолжить с email",
       en: "Continue with email",
       zh: "使用邮箱继续",
       es: "Continuar con email",
-      hi: "ईमेल के साथ जारी रखें"
+      hi: "ईमेल के साथ जारी रखें",
+      ar: "المتابعة بالبريد الإلكتروني"
     },
     body: {
       ru: "Получи шестизначный код и введи его здесь.",
       en: "Get a six-digit code and enter it here.",
       zh: "获取六位验证码并在此输入。",
       es: "Recibe un código de seis dígitos e introdúcelo aquí.",
-      hi: "छह अंकों का कोड पाएं और उसे यहां दर्ज करें।"
+      hi: "छह अंकों का कोड पाएं और उसे यहां दर्ज करें।",
+      ar: "احصل على رمز من ستة أرقام وأدخله هنا."
     },
-    emailLabel: { ru: "Email", en: "Email", zh: "电子邮箱", es: "Email", hi: "ईमेल" },
+    emailLabel: { ru: "Email", en: "Email", zh: "电子邮箱", es: "Email", hi: "ईमेल", ar: "البريد الإلكتروني" },
     emailPlaceholder: {
       ru: "you@example.com",
       en: "you@example.com",
       zh: "you@example.com",
       es: "you@example.com",
-      hi: "you@example.com"
+      hi: "you@example.com",
+      ar: "you@example.com"
     },
     otpLabel: {
       ru: "Код подтверждения",
       en: "Verification code",
       zh: "验证码",
       es: "Código de verificación",
-      hi: "सत्यापन कोड"
+      hi: "सत्यापन कोड",
+      ar: "رمز التحقق"
     },
-    otpPlaceholder: { ru: "000000", en: "000000", zh: "000000", es: "000000", hi: "000000" },
+    otpPlaceholder: { ru: "000000", en: "000000", zh: "000000", es: "000000", hi: "000000", ar: "000000" },
     otpSent: {
       ru: "Код отправлен — проверь почту.",
       en: "Code sent — check your email.",
       zh: "验证码已发送，请检查邮箱。",
       es: "Código enviado: revisa tu correo.",
-      hi: "कोड भेज दिया गया है — अपना ईमेल देखें।"
+      hi: "कोड भेज दिया गया है — अपना ईमेल देखें।",
+      ar: "تم إرسال الرمز — تحقق من بريدك."
     },
     resendIn: {
       ru: "Отправить снова через {seconds} с",
       en: "Resend in {seconds}s",
       zh: "{seconds} 秒后重新发送",
       es: "Reenviar en {seconds} s",
-      hi: "{seconds} सेकंड में फिर भेजें"
+      hi: "{seconds} सेकंड में फिर भेजें",
+      ar: "إعادة الإرسال بعد {seconds} ث"
     }
   },
   actions: {
-    back: { ru: "Назад", en: "Back", zh: "返回", es: "Atrás", hi: "वापस" },
+    back: { ru: "Назад", en: "Back", zh: "返回", es: "Atrás", hi: "वापस", ar: "رجوع" },
     changeEmail: {
       ru: "Изменить email",
       en: "Change email",
       zh: "更改电子邮箱",
       es: "Cambiar email",
-      hi: "ईमेल बदलें"
+      hi: "ईमेल बदलें",
+      ar: "تغيير البريد"
     },
-    continue: { ru: "Продолжить", en: "Continue", zh: "继续", es: "Continuar", hi: "जारी रखें" },
-    go: { ru: "GO", en: "GO", zh: "GO", es: "GO", hi: "GO" },
-    language: { ru: "Язык", en: "Language", zh: "语言", es: "Idioma", hi: "भाषा" },
+    continue: { ru: "Продолжить", en: "Continue", zh: "继续", es: "Continuar", hi: "जारी रखें", ar: "متابعة" },
+    go: { ru: "GO", en: "GO", zh: "GO", es: "GO", hi: "GO", ar: "GO" },
+    language: { ru: "Язык", en: "Language", zh: "语言", es: "Idioma", hi: "भाषा", ar: "اللغة" },
     resendEmailCode: {
       ru: "Отправить код снова",
       en: "Resend code",
       zh: "重新发送验证码",
       es: "Reenviar código",
-      hi: "कोड फिर भेजें"
+      hi: "कोड फिर भेजें",
+      ar: "إعادة إرسال الرمز"
     },
     sendEmailCode: {
       ru: "Отправить код",
       en: "Send verification code",
       zh: "发送验证码",
       es: "Enviar código",
-      hi: "सत्यापन कोड भेजें"
+      hi: "सत्यापन कोड भेजें",
+      ar: "إرسال رمز التحقق"
     },
     signInEmail: {
       ru: "Продолжить с Email",
       en: "Continue with email",
       zh: "使用邮箱继续",
       es: "Continuar con email",
-      hi: "ईमेल के साथ जारी रखें"
+      hi: "ईमेल के साथ जारी रखें",
+      ar: "المتابعة بالبريد الإلكتروني"
     },
     signInGoogle: {
       ru: "Продолжить с Google",
       en: "Continue with Google",
       zh: "使用 Google 继续",
       es: "Continuar con Google",
-      hi: "Google के साथ जारी रखें"
+      hi: "Google के साथ जारी रखें",
+      ar: "المتابعة عبر Google"
     },
     verifyEmailCode: {
       ru: "Подтвердить",
       en: "Verify code",
       zh: "验证代码",
       es: "Verificar código",
-      hi: "कोड सत्यापित करें"
+      hi: "कोड सत्यापित करें",
+      ar: "تأكيد الرمز"
     },
-    viewStories: { ru: "Смотреть истории", en: "View stories", zh: "查看故事", es: "Ver historias", hi: "कहानियां देखें" }
+    viewStories: { ru: "Смотреть истории", en: "View stories", zh: "查看故事", es: "Ver historias", hi: "कहानियां देखें", ar: "عرض القصص" }
   },
   legal: {
     summary: {
@@ -313,35 +343,40 @@ export const onboardingContent: OnboardingContent = {
       en: "Terms",
       zh: "条款 / Terms",
       es: "Términos / Terms",
-      hi: "शर्तें / Terms"
+      hi: "शर्तें / Terms",
+      ar: "الشروط / Terms"
     },
     privacy: {
       ru: "Конфиденциальность",
       en: "Privacy",
       zh: "隐私",
       es: "Privacidad",
-      hi: "गोपनीयता"
+      hi: "गोपनीयता",
+      ar: "الخصوصية"
     },
     terms: {
       ru: "Условия",
       en: "Terms of Use",
       zh: "使用条款",
       es: "Términos de uso",
-      hi: "उपयोग की शर्तें"
+      hi: "उपयोग की शर्तें",
+      ar: "شروط الاستخدام"
     },
     contact: {
       ru: "Связаться",
       en: "Contact",
       zh: "联系",
       es: "Contacto",
-      hi: "संपर्क"
+      hi: "संपर्क",
+      ar: "اتصال"
     },
     acknowledgement: {
       ru: "Продолжая, вы принимаете Условия и подтверждаете ознакомление с Политикой конфиденциальности.",
       en: "By continuing, you accept the Terms and acknowledge the Privacy Policy.",
       zh: "继续即表示您接受使用条款并确认已阅读隐私政策。",
       es: "Al continuar, aceptas los Términos y confirmas que has leído la Política de privacidad.",
-      hi: "जारी रखकर, आप शर्तें स्वीकार करते हैं और गोपनीयता नीति पढ़ने की पुष्टि करते हैं।"
+      hi: "जारी रखकर, आप शर्तें स्वीकार करते हैं और गोपनीयता नीति पढ़ने की पुष्टि करते हैं।",
+      ar: "بمتابعتك، فإنك تقبل الشروط وتقرّ بقراءة سياسة الخصوصية."
     }
   },
   errors: {
@@ -350,35 +385,40 @@ export const onboardingContent: OnboardingContent = {
       en: "Could not start sign-in. Check your connection and try again.",
       zh: "无法开始登录。请检查网络连接后重试。",
       es: "No se pudo iniciar sesión. Comprueba tu conexión e inténtalo de nuevo.",
-      hi: "साइन इन शुरू नहीं हो सका। अपना कनेक्शन जांचें और फिर कोशिश करें।"
+      hi: "साइन इन शुरू नहीं हो सका। अपना कनेक्शन जांचें और फिर कोशिश करें।",
+      ar: "تعذّر بدء تسجيل الدخول. تحقق من اتصالك وحاول مرة أخرى."
     },
     emailInvalid: {
       ru: "Введи корректный email.",
       en: "Enter a valid email address.",
       zh: "请输入有效的电子邮箱地址。",
       es: "Introduce un email válido.",
-      hi: "एक मान्य ईमेल पता दर्ज करें।"
+      hi: "एक मान्य ईमेल पता दर्ज करें।",
+      ar: "أدخل عنوان بريد إلكتروني صالحًا."
     },
     emailOtpInvalid: {
       ru: "Введи шестизначный код из письма.",
       en: "Enter the six-digit code from the email.",
       zh: "请输入邮件中的六位验证码。",
       es: "Introduce el código de seis dígitos del correo.",
-      hi: "ईमेल में मिला छह अंकों का कोड दर्ज करें।"
+      hi: "ईमेल में मिला छह अंकों का कोड दर्ज करें।",
+      ar: "أدخل الرمز المكوّن من ستة أرقام من الرسالة."
     },
     emailOtpSend: {
       ru: "Не удалось отправить код. Проверь подключение и попробуй ещё раз.",
       en: "Could not send the code. Check your connection and try again.",
       zh: "无法发送验证码。请检查网络连接后重试。",
       es: "No se pudo enviar el código. Comprueba tu conexión e inténtalo de nuevo.",
-      hi: "कोड नहीं भेजा जा सका। अपना कनेक्शन जांचें और फिर कोशिश करें।"
+      hi: "कोड नहीं भेजा जा सका। अपना कनेक्शन जांचें और फिर कोशिश करें।",
+      ar: "تعذّر إرسال الرمز. تحقق من اتصالك وحاول مرة أخرى."
     },
     emailOtpVerify: {
       ru: "Код неверный или истёк. Проверь письмо и попробуй ещё раз.",
       en: "The code is invalid or expired. Check the email and try again.",
       zh: "验证码无效或已过期。请检查邮件后重试。",
       es: "El código no es válido o ha caducado. Revisa el correo e inténtalo de nuevo.",
-      hi: "कोड गलत है या उसकी अवधि समाप्त हो गई है। ईमेल जांचें और फिर कोशिश करें।"
+      hi: "कोड गलत है या उसकी अवधि समाप्त हो गई है। ईमेल जांचें और फिर कोशिश करें।",
+      ar: "الرمز غير صالح أو منتهي الصلاحية. تحقق من الرسالة وحاول مرة أخرى."
     }
   }
 };
@@ -400,6 +440,7 @@ export function detectOnboardingBrowserLocale(): OnboardingLocale {
     if (language.startsWith("zh")) return "zh";
     if (language.startsWith("es")) return "es";
     if (language.startsWith("hi")) return "hi";
+    if (language.startsWith("ar")) return "ar";
   }
   return "en";
 }

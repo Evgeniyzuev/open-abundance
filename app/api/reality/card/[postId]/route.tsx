@@ -2,10 +2,8 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import type { AppLocale, MessageKey } from "@/lib/i18n";
-import { normalizeLocale } from "@/lib/locales";
-import enMessages from "@/lib/messages/en";
-import ruMessages from "@/lib/messages/ru";
+import { normalizeLocale, type AppLocale } from "@/lib/locales";
+import { CARD_MESSAGES, type CardMessageKey } from "@/lib/messages/cardMessages";
 import { buildCardModel, type CardBlock, type CardModel, type CardText } from "@/lib/realityCardModel";
 
 export const runtime = "edge";
@@ -21,7 +19,7 @@ const fonts = Promise.all([
   fetch(new URL("../fonts/inter-cyrillic-800-normal.woff", import.meta.url)).then((response) => response.arrayBuffer())
 ]);
 
-type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
+type Translate = (key: CardMessageKey, values?: Record<string, string | number>) => string;
 type CardData = { name: string; avatar: string | null; cover: string | null; date: string; dayNumber: number; caption: string | null; blocks: CardBlock[] };
 
 // Image of a published public reality day: 4:5 for posts (?format=post), 9:16 for stories (?format=story).
@@ -40,10 +38,10 @@ export async function GET(request: Request, { params }: { params: { postId: stri
   const data = demo ? demoCard(demo) : await loadCard(postId);
   if (!data) return new Response("Not found", { status: 404 });
 
-  // Dictionaries are imported directly: lib/i18n would bundle every language into this edge function (1 MB plan limit).
-  const dictionary: Record<string, string> = locale === "ru" ? ruMessages : enMessages;
+  // A small dictionary instead of the full ones: this Edge function has a 1 MB size limit (see lib/messages/cardMessages.ts).
+  const dictionary: Record<string, string> = CARD_MESSAGES[locale === "ru" ? "ru" : "en"];
   const t: Translate = (key, values) =>
-    Object.entries(values ?? {}).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, String(value)), dictionary[key] ?? (enMessages as Record<string, string>)[key] ?? key);
+    Object.entries(values ?? {}).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, String(value)), dictionary[key] ?? key);
   const model = buildCardModel(data.blocks, locale);
   const text = cardText(model, locale, t);
   const story = format === "story";

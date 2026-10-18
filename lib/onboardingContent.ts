@@ -1,7 +1,7 @@
 import { DEFAULT_LOCALE, detectPreferredLocale, isAppLocale, type AppLocale } from "@/lib/i18n";
 
-// Every onboarding language is also an app language; a language the app lacks would fall back to English after registration.
-export type OnboardingLocale = AppLocale;
+// Onboarding copy exists for these app languages; Arabic onboarding comes later (the app opens in Arabic once chosen in Appearance).
+export type OnboardingLocale = Exclude<AppLocale, "ar">;
 export type OnboardingLocalizedText = Record<OnboardingLocale, string>;
 
 export const ONBOARDING_LOCALES: OnboardingLocale[] = ["ru", "en", "zh", "es", "hi"];

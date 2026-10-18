@@ -11,7 +11,9 @@ export const LOCALES = [
   // Partial: only level 1 (interface). Everything else falls back to English.
   { code: "es", nativeName: "Español", intl: "es-419", dir: "ltr", complete: false },
   { code: "zh", nativeName: "简体中文", intl: "zh-CN", dir: "ltr", complete: false },
-  { code: "hi", nativeName: "हिन्दी", intl: "hi-IN", dir: "ltr", complete: false }
+  { code: "hi", nativeName: "हिन्दी", intl: "hi-IN", dir: "ltr", complete: false },
+  // Right-to-left. Numbers stay Latin digits (Intl "nu-latn") so amounts, TON addresses and hashes keep one shape everywhere.
+  { code: "ar", nativeName: "العربية", intl: "ar-u-nu-latn", dir: "rtl", complete: false }
 ] as const;
 
 export type AppLocale = (typeof LOCALES)[number]["code"];

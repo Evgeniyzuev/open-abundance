@@ -50,7 +50,7 @@ export default function ReferralRewardNotice() {
       <section className="modal-sheet small" role="dialog" aria-modal="true" aria-labelledby="referral-reward-title" onClick={(event) => event.stopPropagation()}>
         <h2 id="referral-reward-title">{t("referral.notice.title")}</h2>
         <p>{t("referral.notice.count", { count: unseen.length })}</p>
-        <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
+        <ul style={{ margin: "8px 0", paddingInlineStart: 18 }}>
           {wallet > 0 ? <li>{t("referral.notice.wallet", { amount: formatAdaptiveMoney(wallet, locale) })}</li> : null}
           {core > 0 ? <li>{t("referral.notice.core", { amount: formatAdaptiveMoney(core, locale) })}</li> : null}
         </ul>

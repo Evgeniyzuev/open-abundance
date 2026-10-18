@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, detectBrowserLocale, isAppLocale, needsEnglishFallback, normalizeLocale, type AppLocale } from "@/lib/locales";
+import { DEFAULT_LOCALE, detectBrowserLocale, isAppLocale, localeDirection, needsEnglishFallback, normalizeLocale, type AppLocale } from "@/lib/locales";
 
 export { DEFAULT_LOCALE, SUPPORTED_LOCALES, detectBrowserLocale, intlLocale, isAppLocale, localeDirection, normalizeLocale, pick, type AppLocale } from "@/lib/locales";
 
@@ -42,7 +42,8 @@ const MESSAGE_LOADERS: Record<AppLocale, () => Promise<{ default: MessageDiction
   ru: () => import("@/lib/messages/ru"),
   es: () => import("@/lib/messages/es"),
   zh: () => import("@/lib/messages/zh"),
-  hi: () => import("@/lib/messages/hi")
+  hi: () => import("@/lib/messages/hi"),
+  ar: () => import("@/lib/messages/ar")
 };
 
 const dictionaries: Partial<Record<AppLocale, MessageDictionary>> = {};
@@ -69,8 +70,10 @@ export function translate(locale: AppLocale, key: MessageKey, values?: Record<st
   // Fallback chain: selected language -> English -> the key itself.
   const template = dictionaries[locale]?.[key] ?? dictionaries.en?.[key] ?? key;
   if (!values) return template;
+  // In right-to-left text, isolate inserted values (amounts, names, numbers) so they keep their own direction.
+  const rtl = localeDirection(locale) === "rtl";
   return Object.entries(values).reduce(
-    (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+    (text, [name, value]) => text.replaceAll(`{${name}}`, rtl ? `\u2068${value}\u2069` : String(value)),
     template
   );
 }

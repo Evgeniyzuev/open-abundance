@@ -6,7 +6,7 @@
 .header h2 { margin: 2px 0 3px; font-size: 1.08rem; }
 .header p, .skillCopy p { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.35; }
 .kicker { color: var(--blue); font-size: .68rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
-.headerActions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.headerActions { display: flex; align-items: center; gap: 6px; margin-inline-start:: auto; }
 .core { white-space: nowrap; border-radius: 999px; padding: 6px 9px; background: var(--surface-soft); color: var(--muted); font-size: .7rem; font-weight: 850; }
 .refreshButton { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 9px; background: var(--surface-muted); color: var(--text); cursor: pointer; }
 .refreshButton:disabled { opacity: .55; cursor: wait; }

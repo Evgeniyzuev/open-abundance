@@ -129,7 +129,7 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
         {report ? (
           <section aria-label={t("operator.coverage")}>
             <h3>
-              <span aria-hidden="true" style={{ display: "inline-block", width: 12, height: 12, borderRadius: 999, background: LIGHT_COLORS[report.light], marginRight: 8 }} />
+              <span aria-hidden="true" style={{ display: "inline-block", width: 12, height: 12, borderRadius: 999, background: LIGHT_COLORS[report.light], marginInlineEnd: 8 }} />
               {t("operator.coverage")}: {t(`operator.light.${report.light}` as never)}
             </h3>
             <dl style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 12px", margin: 0 }}>

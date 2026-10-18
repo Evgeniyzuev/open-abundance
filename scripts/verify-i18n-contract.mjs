@@ -64,4 +64,12 @@ try {
 }
 assert.deepEqual(offenders, [], "use AppLocale instead of the literal union");
 
+// Right-to-left: Arabic is registered as rtl, and styles use logical properties (centering with left: 50% is the only allowed physical offset).
+assert.ok(entries.some((entry) => entry.dir === "rtl"), "an RTL language is registered");
+assert.ok(i18n.includes("u2068") && i18n.includes('localeDirection(locale) === "rtl"'), "values inserted into RTL text are bidi-isolated");
+const cssFiles = execFileSync("git", ["ls-files", "app/styles", "components/*.module.css"], { cwd: root, encoding: "utf8" }).split("\n").filter((file) => file.endsWith(".css"));
+const physical = /(^|[\s;{])(margin-left|margin-right|padding-left|padding-right|border-left|border-right|text-align:\s*(left|right)|float:\s*(left|right)|(left|right)\s*:(?!\s*50%|\s*calc\(50%))/;
+const physicalOffenders = cssFiles.flatMap((file) => read(file).split("\n").map((line, index) => [file, index + 1, line]).filter(([, , line]) => physical.test(line)).map(([f, n]) => `${f}:${n}`));
+assert.deepEqual(physicalOffenders, [], `use logical CSS properties: ${physicalOffenders.slice(0, 5)}`);
+
 console.log(`i18n contract passed (${entries.map((e) => e.code).join(", ")}; ${en.size} keys)`);

@@ -56,7 +56,7 @@ const skillMessages = {
 export type SkillMessageKey = keyof typeof skillMessages.en;
 
 export function skillTranslate(locale: AppLocale, key: SkillMessageKey, values?: Record<string, string | number>): string {
-  const template: string = skillMessages[locale][key] ?? skillMessages.en[key];
+  const template: string = (skillMessages as Record<string, Record<string, string>>)[locale]?.[key] ?? skillMessages.en[key];
   if (!values) return template;
   return Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, String(value)), template);
 }

@@ -25,6 +25,7 @@ import TaskStepSuggester from "@/components/TaskStepSuggester";
 import WishWoopSheet from "@/components/WishWoopSheet";
 import { saveTask } from "@/lib/tasksStore";
 import { todayKey } from "@/lib/taskSchedule";
+import { pick } from "@/lib/locales";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -515,8 +516,8 @@ function FirstWishGuideModal({
   const heading = step === "category"
     ? t("wishes.guide.title")
     : step === "option" && category
-      ? `${category.emoji} ${category.title[locale]}`
-      : option?.title[locale] ?? t("wishes.guide.title");
+      ? `${category.emoji} ${pick(locale, category.title)}`
+      : option ? pick(locale, option.title) : t("wishes.guide.title");
 
   return (
     <Sheet bare className="wish-modal" ariaLabel={t("wishes.guide.title")} onClose={onClose}>
@@ -551,7 +552,7 @@ function FirstWishGuideModal({
                     }}
                   >
                     <div className="wish-tile-placeholder">{item.emoji}</div>
-                    <span>{item.title[locale]}</span>
+                    <span>{pick(locale, item.title)}</span>
                   </button>
                 ))}
               </div>
@@ -570,15 +571,15 @@ function FirstWishGuideModal({
                   }}
                 >
                   <div className="wish-tile-placeholder">{category.emoji}</div>
-                  <span>{item.title[locale]}</span>
+                  <span>{pick(locale, item.title)}</span>
                 </button>
               ))}
             </div>
           ) : null}
           {step === "summary" && category && option ? (
             <>
-              <strong>{option.title[locale]}</strong>
-              <p>{option.description[locale]}</p>
+              <strong>{pick(locale, option.title)}</strong>
+              <p>{pick(locale, option.description)}</p>
               <div className="wish-meta">
                 <span>{formatRoundedMoney(option.targetAmount, locale)}</span>
                 <span>{t("wishes.guide.levelNeeded", { level: option.difficultyLevel })}</span>
@@ -604,9 +605,9 @@ function FirstWishGuideModal({
 
 function firstWishToForm(category: FirstWishCategory, option: FirstWishOption, locale: AppLocale): FormState {
   return {
-    title: option.title[locale],
-    description: option.description[locale],
-    category: category.title[locale],
+    title: pick(locale, option.title),
+    description: pick(locale, option.description),
+    category: pick(locale, category.title),
     imageUrl: "",
     targetAmount: String(option.targetAmount),
     targetCurrency: "USD",

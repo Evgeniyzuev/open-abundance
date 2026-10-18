@@ -7,6 +7,7 @@ import { CORE_ITEMS, type CoreItem } from "@/lib/coreItems";
 import { coreGrowthFactor } from "@/lib/coreTicker";
 import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { pick } from "@/lib/locales";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -42,7 +43,7 @@ export default function CoreGarden({ walletBalance, locale, t, onPurchased }: { 
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok || payload.error) throw new Error(payload.error ?? "Request failed");
       setSelected(null);
-      setMessage({ text: t("coreGarden.bought", { item: item.title[locale], amount: formatAdaptiveMoney(item.price, locale) }), error: false });
+      setMessage({ text: t("coreGarden.bought", { item: pick(locale, item.title), amount: formatAdaptiveMoney(item.price, locale) }), error: false });
       await onPurchased();
     } catch (buyError) {
       const text = buyError instanceof Error ? buyError.message : String(buyError);
@@ -65,12 +66,12 @@ export default function CoreGarden({ walletBalance, locale, t, onPurchased }: { 
               <li className={`core-garden-item rarity-${item.rarity}${open ? " is-open" : ""}`} key={item.key}>
                 <button className="core-garden-row" type="button" aria-expanded={open} onClick={() => choose(item)}>
                   <span className="core-garden-icon"><SacredItemIcon itemKey={item.key} fallback={item.glyph} size={36} /></span>
-                  <span className="core-garden-name"><strong>{item.title[locale]}</strong><small>{t(`coreGarden.rarity.${item.rarity}` as MessageKey)}</small></span>
+                  <span className="core-garden-name"><strong>{pick(locale, item.title)}</strong><small>{t(`coreGarden.rarity.${item.rarity}` as MessageKey)}</small></span>
                   <span className="core-garden-price">+{formatAdaptiveMoney(item.price, locale)}</span>
                 </button>
                 {open ? (
                   <div className="core-garden-confirm">
-                    <p>{item.lore[locale]}</p>
+                    <p>{pick(locale, item.lore)}</p>
                     <p className="core-garden-effect">{t("coreGarden.effect", { amount: formatAdaptiveMoney(item.price, locale) })}</p>
                     <ul className="core-garden-growth" aria-label={t("coreTicker.growth")}>
                       {GROWTH_YEARS.map((years) => (

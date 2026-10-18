@@ -24,6 +24,7 @@ import {
   type ReflectionTaskDraft
 } from "@/lib/reflections";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import { pick } from "@/lib/locales";
 
 const PRIVACY_SEEN_KEY = "open-abundance:reflection-ai-privacy-seen:v1";
 const GUIDED_STEPS: ReflectionGuidedStepId[] = ["feelings", "causes", "desiredChanges", "actions"];
@@ -317,9 +318,9 @@ export default function ReflectionProcessor({ note, onClose, onRefresh, onSchedu
 
             {practice ? (
               <div className="reflection-practice-choice">
-                <label><span>{t("reflections.practice")}</span><select value={proposal.practiceId} onChange={(event) => setProposal({ ...proposal, practiceId: event.target.value as ReflectionProposal["practiceId"] })}>{REFLECTION_PRACTICES.map((item) => <option key={item.id} value={item.id}>{item.title[locale]}</option>)}</select></label>
+                <label><span>{t("reflections.practice")}</span><select value={proposal.practiceId} onChange={(event) => setProposal({ ...proposal, practiceId: event.target.value as ReflectionProposal["practiceId"] })}>{REFLECTION_PRACTICES.map((item) => <option key={item.id} value={item.id}>{pick(locale, item.title)}</option>)}</select></label>
                 <a className="reflection-practice" href={practice.sourceUrl} target="_blank" rel="noreferrer">
-                  <span><strong>{practice.title[locale]}</strong><small>{practice.description[locale]}</small></span>
+                  <span><strong>{pick(locale, practice.title)}</strong><small>{pick(locale, practice.description)}</small></span>
                   <ExternalLink size={17} />
                 </a>
               </div>

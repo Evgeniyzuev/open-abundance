@@ -1,5 +1,6 @@
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import type { Tables } from "@/lib/database.types";
+import type { Localized } from "@/lib/locales";
 
 export type WalletTab = "wallet" | "core" | "market" | "p2p";
 
@@ -134,7 +135,7 @@ export type TFunction = (key: MessageKey, values?: Record<string, string | numbe
 
 export type MarketBenchmark = {
   id: string;
-  label: Record<AppLocale, string>;
+  label: Localized<string>;
   color: string;
   annualReturn: number;
 };

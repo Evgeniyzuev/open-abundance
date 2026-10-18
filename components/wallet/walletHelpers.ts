@@ -1,6 +1,6 @@
 import { personLabel } from "@/lib/personName";
 import { DAILY_CORE_RATE, calculateFutureCore, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
-import type { AppLocale, MessageKey } from "@/lib/i18n";
+import { pick, type AppLocale, type MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatRateMoney } from "@/lib/moneyFormat";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { HALF_YEAR_DAYS, COMPARISON_BASE_INDEX, BENCHMARKS, type CoreHistoryRow, type WalletHistoryRow, type TermUnit, type TFunction, type ComparisonPoint, type ComparisonSeries, type WalletTransferContact, type WalletRecipient, type MarketplaceListing, type MarketplaceResponse, type MarketplaceListingInput, type MarketplaceDeal } from "@/components/wallet/walletTypes";
@@ -246,7 +246,7 @@ export function buildComparisonSeries({
 
       return {
         id: benchmark.id,
-        label: benchmark.label[locale],
+        label: pick(locale, benchmark.label),
         color: benchmark.color,
         points,
         finalIndex: points.at(-1)?.value ?? COMPARISON_BASE_INDEX,

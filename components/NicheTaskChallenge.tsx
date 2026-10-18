@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { NICHES } from "@/lib/nicheTasks";
+import { pick } from "@/lib/locales";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -44,7 +45,7 @@ export default function NicheTaskChallenge({ locale, t, onProof, onPassedChange 
 
       {NICHES.map((niche) => (
         <fieldset className="challenge-field" key={niche.key} disabled={saved}>
-          <legend>{niche.title[locale]}</legend>
+          <legend>{pick(locale, niche.title)}</legend>
           {niche.tasks.map((task) => (
             <label className="challenge-field" key={task.key} htmlFor={`niche-${task.key}`}>
               <span>
@@ -58,9 +59,9 @@ export default function NicheTaskChallenge({ locale, t, onProof, onPassedChange 
                     onPassedChange?.(false);
                   }}
                 />{" "}
-                <strong>{task.title[locale]}</strong>
+                <strong>{pick(locale, task.title)}</strong>
               </span>
-              {selectedKey === task.key ? <p className="challenge-note">{task.firstStep[locale]}</p> : null}
+              {selectedKey === task.key ? <p className="challenge-note">{pick(locale, task.firstStep)}</p> : null}
             </label>
           ))}
         </fieldset>

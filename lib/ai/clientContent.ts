@@ -1,4 +1,5 @@
 import type { AppLocale } from "@/lib/i18n";
+import type { Localized } from "@/lib/locales";
 
 export type AiPromptCategory = "mechanics" | "route" | "ai" | "trust";
 
@@ -8,17 +9,17 @@ export type AiPrompt = {
   text: string;
 };
 
-export const NOVA_NAME: Record<AppLocale, string> = {
+export const NOVA_NAME: Localized<string> = {
   ru: "Нова",
   en: "Nova"
 };
 
-export const WELCOME_MESSAGES: Record<AppLocale, string> = {
+export const WELCOME_MESSAGES: Localized<string> = {
   ru: "Привет! Я Нова — спокойный навигатор по Open Abundance. Помогу разобраться в идее, выбрать один понятный шаг и посмотреть на варианты без лишнего давления.",
   en: "Hello! I'm Nova, a calm guide to Open Abundance. I can help you understand an idea, choose one clear next step, and look at options without pressure."
 };
 
-export const SUGGESTED_PROMPTS: Record<AppLocale, AiPrompt[]> = {
+export const SUGGESTED_PROMPTS: Localized<AiPrompt[]> = {
   ru: [
     { id: "core", category: "mechanics", text: "Как работает Core?" },
     { id: "level", category: "mechanics", text: "Что открывает новый уровень?" },
@@ -65,7 +66,7 @@ export const SUGGESTED_PROMPTS: Record<AppLocale, AiPrompt[]> = {
   ]
 };
 
-export const QUICK_ACTIONS: Record<AppLocale, AiPrompt[]> = {
+export const QUICK_ACTIONS: Localized<AiPrompt[]> = {
   ru: [
     { id: "quick-idea", category: "route", text: "Помоги разобрать мою идею." },
     { id: "quick-wish", category: "route", text: "Помоги сформулировать желание." },

@@ -7,6 +7,7 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import { SACRED_ITEMS } from "@/lib/sacredItems";
 import ConfirmPurchase from "@/components/ConfirmPurchase";
+import { pick } from "@/lib/locales";
 
 /** System shop: collectible symbolic items for $. Bought items go to Results and can be sold or merged there. */
 export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
@@ -51,7 +52,7 @@ export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
               <small>{item.rarity}</small>
             </div>
             <div className="market-card-body">
-              <strong>{item.title[locale]}</strong>
+              <strong>{pick(locale, item.title)}</strong>
               <div className="market-card-meta">
                 <span>{formatAdaptiveMoney(item.price ?? 0, locale)}</span>
               </div>
@@ -66,7 +67,7 @@ export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
       </div>
       {pending ? (
         <ConfirmPurchase
-          title={pending.title[locale]}
+          title={pick(locale, pending.title)}
           price={formatAdaptiveMoney(pending.price ?? 0, locale)}
           note="purchase.confirm.noteShop"
           onConfirm={() => { void buy(pending.key); }}

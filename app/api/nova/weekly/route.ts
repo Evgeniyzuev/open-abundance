@@ -30,7 +30,9 @@ export async function GET(request: NextRequest) {
   const { supabase, user, error } = await getAuthenticatedUser(request);
   if (!user) return json({ error }, 401);
   const db = supabase as any;
-  const locale = request.nextUrl.searchParams.get("locale") === "en" ? "en" : "ru";
+  const requestedLocale = request.nextUrl.searchParams.get("locale");
+  // Weekly texts exist in Russian and English; Russian stays the default, other languages read English.
+  const locale: AppLocale = requestedLocale === null || requestedLocale === "ru" ? "ru" : "en";
   const weekStart = previousWeekStart(Date.now());
 
   const { data: cached } = await db.from("nova_weekly_summaries").select("body,empty").eq("user_id", user.id).eq("week_start", weekStart).maybeSingle();

@@ -7,7 +7,9 @@ export const LOCALES = [
   // `intl`: BCP 47 tag for Intl formatting. `dir`: writing direction.
   // `complete`: the dictionary has every English key (enforced by `pnpm test:i18n`), so English need not be loaded as a fallback.
   { code: "en", nativeName: "English", intl: "en-US", dir: "ltr", complete: true },
-  { code: "ru", nativeName: "Русский", intl: "ru-RU", dir: "ltr", complete: true }
+  { code: "ru", nativeName: "Русский", intl: "ru-RU", dir: "ltr", complete: true },
+  // Partial: only level 1 (interface). Everything else falls back to English.
+  { code: "es", nativeName: "Español", intl: "es-419", dir: "ltr", complete: false }
 ] as const;
 
 export type AppLocale = (typeof LOCALES)[number]["code"];
@@ -48,8 +50,11 @@ export function detectBrowserLocale(): AppLocale {
   return DEFAULT_LOCALE;
 }
 
+/** Per-language values where English is required and every other language is optional. */
+export type Localized<T> = { en: T } & Partial<Record<AppLocale, T>>;
+
 /** Picks a per-language value, falling back to English when the language has none. */
-export function pick<T>(locale: AppLocale, values: Partial<Record<AppLocale, T>> & { en: T }): T {
+export function pick<T>(locale: AppLocale, values: Localized<T>): T {
   return values[locale] ?? values.en;
 }
 

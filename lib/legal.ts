@@ -1,5 +1,11 @@
 import type { AppLocale } from "@/lib/locales";
-export type LegalLocale = AppLocale;
+// Legal texts exist only in Russian and English; other interface languages show the English version.
+export const LEGAL_LOCALES = ["ru", "en"] as const;
+export type LegalLocale = (typeof LEGAL_LOCALES)[number];
+
+export function toLegalLocale(locale: AppLocale): LegalLocale {
+  return locale === "ru" ? "ru" : "en";
+}
 
 export type LegalSection = {
   title: string;

@@ -10,7 +10,7 @@ import { normalizeProfileVisibilitySettings } from "@/lib/socialProfile";
 import { normalizeLinkSource } from "@/lib/sharePreview";
 import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
 import { recordProductEvent } from "@/lib/serverAnalytics";
-import type { AppLocale } from "@/lib/locales";
+import { isAppLocale, type AppLocale } from "@/lib/locales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -739,8 +739,9 @@ function normalizeSystemAccountKey(value: unknown): string {
   return value;
 }
 
+// The feed defaults to Russian when no language is passed; other languages read the original text when no translation exists.
 function normalizeLocale(value: unknown): AppLocale {
-  return value === "en" ? "en" : "ru";
+  return isAppLocale(value) ? value : "ru";
 }
 
 function normalizeCursor(value: unknown): string | null {

@@ -14,7 +14,7 @@ import {
   syncTodayDailyReminder
 } from "@/lib/pushReminders";
 
-const FIRST_CHECK_DELAY_MS = 5_000;
+const FIRST_CHECK_DELAY_MS = 9_000; // after the install prompt (5 s) so only one of the two opens per day
 const RETRY_DELAY_MS = 8_000;
 const MAX_RETRIES = 4;
 

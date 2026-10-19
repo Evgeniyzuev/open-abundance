@@ -2700,7 +2700,11 @@ const en = {
     "push.prompt.later": "Not now",
     "push.setting.title": "Reminders",
     "push.setting.description": "Push reminders about tasks and rewards. Categories can be fine-tuned in Activity → Notification settings.",
-    "push.setting.unsupported": "Not available in this browser. On iPhone, add the app to the Home Screen first."
+    "push.setting.unsupported": "Not available in this browser. On iPhone, add the app to the Home Screen first.",
+    "install.prompt.title": "Open it as an app?",
+    "install.prompt.body": "Add Open Abundance to your Home Screen: it opens faster, feels like a normal app and can remind you so you do not miss rewards.",
+    "install.prompt.install": "Install",
+    "install.prompt.gotIt": "Got it"
 } satisfies Record<string, string>;
 
 export default en;

@@ -2700,7 +2700,11 @@ const ru: Record<string, string> = {
   "push.prompt.later": "Не сейчас",
     "push.setting.title": "Напоминания",
     "push.setting.description": "Push-напоминания о заданиях и наградах. Категории можно настроить в «Активность» → «Настройки уведомлений».",
-    "push.setting.unsupported": "В этом браузере недоступно. На iPhone сначала добавь приложение на экран «Домой»."
+    "push.setting.unsupported": "В этом браузере недоступно. На iPhone сначала добавь приложение на экран «Домой».",
+    "install.prompt.title": "Открывать как приложение?",
+    "install.prompt.body": "Добавь Open Abundance на экран «Домой»: так он открывается быстрее, работает как обычное приложение и может напоминать, чтобы ты не упускал награды.",
+    "install.prompt.install": "Установить",
+    "install.prompt.gotIt": "Понятно"
 };
 
 export default ru;

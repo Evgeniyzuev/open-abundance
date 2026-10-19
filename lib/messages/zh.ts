@@ -1799,7 +1799,20 @@ const zh: Record<string, string> = {
   "push.prompt.later": "暂不",
   "push.setting.title": "提醒",
   "push.setting.description": "关于任务和奖励的推送提醒。分类可在“动态 → 通知设置”中调整。",
-  "push.setting.unsupported": "此浏览器不支持。在 iPhone 上请先把应用添加到主屏幕。"
+  "push.setting.unsupported": "此浏览器不支持。在 iPhone 上请先把应用添加到主屏幕。",
+  "install.prompt.title": "要作为应用打开吗？",
+  "install.prompt.body": "把 Open Abundance 添加到主屏幕：打开更快，像普通应用一样使用，还能提醒你，不错过奖励。",
+  "install.prompt.install": "安装",
+  "install.prompt.gotIt": "知道了",
+  "appTesting.installGuide.ios": "在 iOS 上安装 Open Abundance 的三个步骤",
+  "appTesting.installGuide.android": "在 Android 上安装 Open Abundance 的三个步骤",
+  "appTesting.installStep.ios.share": "在 Safari 中点按“分享”",
+  "appTesting.installStep.ios.home": "选择“添加到主屏幕”",
+  "appTesting.installStep.ios.open": "添加并打开图标",
+  "appTesting.installStep.android.menu": "打开 Chrome 菜单",
+  "appTesting.installStep.android.install": "选择“安装应用”",
+  "appTesting.installStep.android.open": "确认并打开图标",
+  "appTesting.installNow": "安装应用"
 };
 
 export default zh;

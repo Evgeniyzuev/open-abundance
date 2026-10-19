@@ -1,6 +1,7 @@
 import AppNavigation from "@/components/AppNavigation";
 import GrowthAnalytics from "@/components/GrowthAnalytics";
 import { OnboardingGate } from "@/components/OnboardingApp";
+import InstallAppPrompt from "@/components/InstallAppPrompt";
 import PublicIntro from "@/components/PublicIntro";
 import PushReminderPrompt from "@/components/PushReminderPrompt";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
@@ -15,6 +16,7 @@ export default function Home() {
       <UserProvider>
         <ShareTargetBootstrap />
         <GrowthAnalytics />
+        <InstallAppPrompt />
         <PushReminderPrompt />
         <OnboardingGate>
           <AppNavigation />

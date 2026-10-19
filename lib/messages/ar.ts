@@ -1799,7 +1799,20 @@ const ar: Record<string, string> = {
   "push.prompt.later": "ليس الآن",
   "push.setting.title": "التذكيرات",
   "push.setting.description": "تذكيرات فورية عن المهام والمكافآت. يمكن ضبط الفئات من النشاط ← إعدادات الإشعارات.",
-  "push.setting.unsupported": "غير متاح في هذا المتصفح. على iPhone أضف التطبيق إلى الشاشة الرئيسية أولًا."
+  "push.setting.unsupported": "غير متاح في هذا المتصفح. على iPhone أضف التطبيق إلى الشاشة الرئيسية أولًا.",
+  "install.prompt.title": "هل تفتحه كتطبيق؟",
+  "install.prompt.body": "أضف Open Abundance إلى الشاشة الرئيسية: يفتح أسرع، ويعمل كتطبيق عادي، ويمكنه تذكيرك حتى لا تفوتك المكافآت.",
+  "install.prompt.install": "تثبيت",
+  "install.prompt.gotIt": "فهمت",
+  "appTesting.installGuide.ios": "ثلاث خطوات لتثبيت Open Abundance على iOS",
+  "appTesting.installGuide.android": "ثلاث خطوات لتثبيت Open Abundance على Android",
+  "appTesting.installStep.ios.share": "اضغط «مشاركة» في Safari",
+  "appTesting.installStep.ios.home": "اختر «إضافة إلى الشاشة الرئيسية»",
+  "appTesting.installStep.ios.open": "أضِف وافتح الأيقونة",
+  "appTesting.installStep.android.menu": "افتح قائمة Chrome",
+  "appTesting.installStep.android.install": "اختر «تثبيت التطبيق»",
+  "appTesting.installStep.android.open": "أكّد وافتح الأيقونة",
+  "appTesting.installNow": "تثبيت التطبيق"
 };
 
 export default ar;

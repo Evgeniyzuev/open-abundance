@@ -1799,7 +1799,20 @@ const hi: Record<string, string> = {
   "push.prompt.later": "अभी नहीं",
   "push.setting.title": "रिमाइंडर",
   "push.setting.description": "कार्यों और पुरस्कारों के पुश रिमाइंडर। श्रेणियाँ गतिविधि → सूचना सेटिंग्स में बदली जा सकती हैं।",
-  "push.setting.unsupported": "इस ब्राउज़र में उपलब्ध नहीं है। iPhone पर पहले ऐप को होम स्क्रीन में जोड़ें।"
+  "push.setting.unsupported": "इस ब्राउज़र में उपलब्ध नहीं है। iPhone पर पहले ऐप को होम स्क्रीन में जोड़ें।",
+  "install.prompt.title": "ऐप की तरह खोलें?",
+  "install.prompt.body": "Open Abundance को होम स्क्रीन पर जोड़ें: यह तेज़ खुलता है, सामान्य ऐप जैसा चलता है और याद दिला सकता है ताकि आपके पुरस्कार न छूटें।",
+  "install.prompt.install": "इंस्टॉल करें",
+  "install.prompt.gotIt": "समझ गया/गई",
+  "appTesting.installGuide.ios": "iOS पर Open Abundance इंस्टॉल करने के तीन चरण",
+  "appTesting.installGuide.android": "Android पर Open Abundance इंस्टॉल करने के तीन चरण",
+  "appTesting.installStep.ios.share": "Safari में शेयर दबाएँ",
+  "appTesting.installStep.ios.home": "होम स्क्रीन में जोड़ें चुनें",
+  "appTesting.installStep.ios.open": "जोड़ें और आइकन खोलें",
+  "appTesting.installStep.android.menu": "Chrome मेनू खोलें",
+  "appTesting.installStep.android.install": "ऐप इंस्टॉल करें चुनें",
+  "appTesting.installStep.android.open": "पुष्टि करें और आइकन खोलें",
+  "appTesting.installNow": "ऐप इंस्टॉल करें"
 };
 
 export default hi;

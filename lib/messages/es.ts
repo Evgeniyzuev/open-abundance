@@ -1799,7 +1799,20 @@ const es: Record<string, string> = {
   "push.prompt.later": "Ahora no",
   "push.setting.title": "Recordatorios",
   "push.setting.description": "Notificaciones push sobre tareas y recompensas. Las categorías se ajustan en Actividad → Ajustes de notificaciones.",
-  "push.setting.unsupported": "No disponible en este navegador. En iPhone, añade primero la app a la pantalla de inicio."
+  "push.setting.unsupported": "No disponible en este navegador. En iPhone, añade primero la app a la pantalla de inicio.",
+  "install.prompt.title": "¿Abrirla como app?",
+  "install.prompt.body": "Añade Open Abundance a tu pantalla de inicio: se abre más rápido, funciona como una app normal y puede recordarte para que no pierdas recompensas.",
+  "install.prompt.install": "Instalar",
+  "install.prompt.gotIt": "Entendido",
+  "appTesting.installGuide.ios": "Tres pasos para instalar Open Abundance en iOS",
+  "appTesting.installGuide.android": "Tres pasos para instalar Open Abundance en Android",
+  "appTesting.installStep.ios.share": "Toca Compartir en Safari",
+  "appTesting.installStep.ios.home": "Elige Añadir a pantalla de inicio",
+  "appTesting.installStep.ios.open": "Añade y abre el icono",
+  "appTesting.installStep.android.menu": "Abre el menú de Chrome",
+  "appTesting.installStep.android.install": "Elige Instalar app",
+  "appTesting.installStep.android.open": "Confirma y abre el icono",
+  "appTesting.installNow": "Instalar la app"
 };
 
 export default es;

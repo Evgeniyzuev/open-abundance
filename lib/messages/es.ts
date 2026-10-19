@@ -1793,9 +1793,9 @@ const es: Record<string, string> = {
   "comeback.title": "Contando desde hoy",
   "comeback.wins": "Ya hecho. Días completados: {days}, tareas terminadas: {finished}",
   "comeback.start": "Empezar desde hoy",
-  "push.prompt.title": "Recordatorios suaves",
-  "push.prompt.body": "Permite las notificaciones y te enviaremos un aviso breve cuando te espere tu siguiente paso. Puedes desactivarlo cuando quieras en los ajustes de notificaciones.",
-  "push.prompt.enable": "Activar",
+  "push.prompt.title": "¿Te recordamos las tareas?",
+  "push.prompt.body": "Activa los recordatorios para no perder las recompensas de las tareas de hoy. Puedes desactivarlos cuando quieras en los ajustes de notificaciones.",
+  "push.prompt.enable": "Recuérdame",
   "push.prompt.later": "Ahora no"
 };
 

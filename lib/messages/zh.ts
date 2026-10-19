@@ -1793,9 +1793,9 @@ const zh: Record<string, string> = {
   "comeback.title": "从今天开始计",
   "comeback.wins": "已经完成。完成天数：{days}，完成任务：{finished}",
   "comeback.start": "从今天开始",
-  "push.prompt.title": "温和的提醒",
-  "push.prompt.body": "允许通知后，当你的下一步在等你时，我们会发一条简短提醒。你可以随时在通知设置中关闭。",
-  "push.prompt.enable": "开启",
+  "push.prompt.title": "要提醒你完成任务吗？",
+  "push.prompt.body": "开启提醒，就不会错过今天任务的奖励。你可以随时在通知设置中关闭。",
+  "push.prompt.enable": "提醒我",
   "push.prompt.later": "暂不"
 };
 

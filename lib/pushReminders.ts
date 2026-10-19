@@ -41,8 +41,11 @@ export function getDailyReminderSettings(): DailyReminderSettings {
   }
 }
 
+export const DAILY_REMINDER_CHANGED_EVENT = "oa:daily-reminder-changed";
+
 export function saveDailyReminderSettings(settings: DailyReminderSettings) {
   localStorage.setItem(DAILY_REMINDER_SETTINGS_KEY, JSON.stringify(settings));
+  window.dispatchEvent(new Event(DAILY_REMINDER_CHANGED_EVENT));
 }
 
 export function isPushSupported(): boolean {
@@ -68,23 +71,35 @@ export async function registerPushDevice(): Promise<boolean> {
   }
 }
 
-const PUSH_PROMPT_DISMISSED_KEY = "open-abundance:push-prompt-dismissed-at";
-const PUSH_PROMPT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+// The reminder pop-up follows the same "first entry of the day" pattern as the app-open check
+// (GrowthAnalytics): one key per person and day, so it appears at most once a day and stops after a few asks.
+const PUSH_ASK_MAX_TIMES = 7;
 
-export function wasPushPromptDismissedRecently(): boolean {
+function pushAskKey(userId: string, day: string) {
+  return `openAbundancePushAsk:${userId}:${day}`;
+}
+
+export function shouldAskPushToday(userId: string): boolean {
+  if (!isPushSupported() || Notification.permission !== "default") return false;
+  const settings = getDailyReminderSettings();
+  if (settings.configured && !settings.enabled) return false; // the person switched reminders off
   try {
-    const at = Number(localStorage.getItem(PUSH_PROMPT_DISMISSED_KEY));
-    return Number.isFinite(at) && at > 0 && Date.now() - at < PUSH_PROMPT_COOLDOWN_MS;
+    const day = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(pushAskKey(userId, day))) return false;
+    return Number(localStorage.getItem(`openAbundancePushAskCount:${userId}`) ?? 0) < PUSH_ASK_MAX_TIMES;
   } catch {
     return false;
   }
 }
 
-export function dismissPushPrompt(): void {
+export function markPushAskedToday(userId: string): void {
   try {
-    localStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, String(Date.now()));
+    const day = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(pushAskKey(userId, day), "1");
+    const countKey = `openAbundancePushAskCount:${userId}`;
+    localStorage.setItem(countKey, String(Number(localStorage.getItem(countKey) ?? 0) + 1));
   } catch {
-    // The prompt may simply show again next time.
+    // The pop-up may simply show again next time.
   }
 }
 

@@ -5,6 +5,7 @@ import { recordProductEvent } from "@/lib/serverAnalytics";
 import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
+import { confirmedReferralsThreshold } from "@/lib/creatorChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
 import { hasThreeSteps } from "@/lib/wishSteps";
 
@@ -331,6 +332,31 @@ async function verifyChallenge(
     if (error) return { ok: false, reason: "Could not check your confirmation. Try again." };
     if (Number(data?.humanity_level ?? 0) >= 2) return { ok: true };
     return { ok: false, reason: "Complete the humanity check first." };
+  }
+
+  // "Author from scratch": invited people who passed the humanity check (level 2) are counted from the facts, not claimed.
+  const confirmedTarget = confirmedReferralsThreshold(challenge.verification_logic);
+  if (confirmedTarget !== null) {
+    const { data: edges, error: edgesError } = await db
+      .from("referral_edges")
+      .select("referral_user_id")
+      .eq("referrer_user_id", userId)
+      .limit(5000);
+    if (edgesError) return { ok: false, reason: "Could not check your invitations. Try again." };
+    const invitedIds = ((edges ?? []) as Array<{ referral_user_id: string }>).map((edge) => edge.referral_user_id);
+    let confirmed = 0;
+    for (let start = 0; start < invitedIds.length && confirmed < confirmedTarget; start += 200) {
+      const { count, error } = await db
+        .from("humanity_verifications")
+        .select("user_id", { count: "exact", head: true })
+        .in("user_id", invitedIds.slice(start, start + 200))
+        .gte("humanity_level", 2);
+      if (error) return { ok: false, reason: "Could not check your invitations. Try again." };
+      confirmed += Number(count ?? 0);
+    }
+    return confirmed >= confirmedTarget
+      ? { ok: true }
+      : { ok: false, reason: `${confirmed} of ${confirmedTarget} invited people have confirmed they are a person.` };
   }
 
   // Sales: any completed Market deal where the person is the seller counts (founder decision 2026-10-17).

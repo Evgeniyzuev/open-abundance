@@ -42,6 +42,7 @@
     "test:public-invite": "node --experimental-strip-types scripts/verify-public-invite-contract.mjs",
     "test:day-credit": "node --experimental-strip-types scripts/verify-day-credit-contract.mjs",
     "test:sales-challenges": "node --experimental-strip-types scripts/verify-sales-challenges-contract.mjs",
+    "test:creator-challenges": "node --experimental-strip-types scripts/verify-creator-challenges-contract.mjs",
     "test:artifacts": "node --experimental-strip-types scripts/verify-artifacts-contract.mjs",
     "test:challenge-art": "node --experimental-strip-types scripts/verify-challenge-art-contract.mjs",
     "test:r2-media": "node --experimental-strip-types scripts/verify-r2-media-contract.mjs",

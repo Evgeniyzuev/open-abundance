@@ -757,6 +757,10 @@
 .legal-sections p, .legal-sections li { color: var(--text); font-size: 0.9375rem; line-height: 1.62; }
 .legal-sections p { margin: 0; }
 .legal-sections ul { display: grid; gap: 6px; margin: 0; padding-inline-start: 22px; }
+.legal-sections h2 a { color: var(--text); text-decoration: none; }
+.legal-sections h2 a:hover { color: var(--blue); }
+.guide-faq-item { display: grid; gap: 4px; }
+.guide-faq-item h3 { margin: 0; font-size: 1rem; line-height: 1.3; }
 .legal-primary-action { width: fit-content; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 13px; padding: 0 16px; background: var(--blue); color: var(--fixed-white); font-size: 0.875rem; font-weight: 900; text-decoration: none; }
 .legal-document-footer { display: grid; gap: 14px; border-top: 1px solid var(--line-subtle); padding-top: 18px; }
 .legal-document-footer nav { display: flex; flex-wrap: wrap; gap: 9px 16px; }

@@ -1,0 +1,18 @@
+# Open Abundance
+
+> Open Abundance is a free web app (installable PWA) and an open experiment in participation and mutual help. People pick a personal wish, turn it into small daily steps, help each other in small growth circles, and get rewards in an internal balance for verified useful actions. Early pilot; internal rewards are not an investment or a guaranteed return.
+
+## Answers (in Russian)
+
+- [Что такое Open Abundance](https://open-abundance.vercel.app/guide/chto-takoe-open-abundance)
+- [Как найти единомышленников](https://open-abundance.vercel.app/guide/kak-najti-edinomyshlennikov)
+- [Что делать, если одиноко](https://open-abundance.vercel.app/guide/chto-delat-esli-odinoko)
+- [Как тратить меньше времени в соцсетях](https://open-abundance.vercel.app/guide/kak-tratit-menshe-vremeni-v-socsetyah)
+- [Как превратить желание в план: метод WOOP](https://open-abundance.vercel.app/guide/kak-prevratit-zhelanie-v-plan)
+- [Как вернуться к привычке после срыва](https://open-abundance.vercel.app/guide/kak-vernutsya-k-privychke-posle-sryva)
+- [Как работают челленджи и награды](https://open-abundance.vercel.app/guide/kak-rabotayut-chellendzhi-i-nagrady)
+
+## Legal
+
+- [Privacy](https://open-abundance.vercel.app/privacy)
+- [Terms](https://open-abundance.vercel.app/terms)

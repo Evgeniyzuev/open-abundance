@@ -292,6 +292,16 @@
   .onboarding-artwork { aspect-ratio: 1.48; border-radius: 21px; }
   .onboarding-copy h1 { font-size: clamp(30px, 9.4vw, 38px); }
   .onboarding-copy p { font-size: 0.9375rem; }
+  .onboarding-program-slide { gap: 11px; }
+  .onboarding-auth-slide { gap: 22px; padding: 16px 0 32px; }
+  .onboarding-auth-panel { border-radius: 21px; padding: 15px; }
+  .results-detail-cover { min-height: 210px; }
+  .results-detail-body h1 { font-size: 26px; }
+}
+@media (max-width: 600px) {
+  /* Story slides fill the whole screen on any phone, including 440px-wide ones. */
+  .onboarding-theme-mission, .onboarding-theme-stories, .onboarding-theme-program { place-items: stretch; padding: 0; }
+  .onboarding-theme-mission .onboarding-shell, .onboarding-theme-stories .onboarding-shell, .onboarding-theme-program .onboarding-shell { width: 100%; min-height: 100dvh; border: 0; border-radius: 0; padding: calc(env(safe-area-inset-top) + 11px) 12px calc(env(safe-area-inset-bottom) + 12px); box-shadow: none; }
   /* Story slides: the art runs edge to edge, its blurred copy tints the whole screen, text sits on a dark scrim. */
   .onboarding-theme-mission, .onboarding-theme-stories, .onboarding-theme-program { background: #17123f; }
   .onboarding-theme-mission::before, .onboarding-theme-mission::after,
@@ -328,11 +338,6 @@
   .onboarding-language-select option { background: #fff; color: #17142c; }
   .onboarding-theme-mission .onboarding-progress i, .onboarding-theme-stories .onboarding-progress i, .onboarding-theme-program .onboarding-progress i { background: rgba(255,255,255,0.32); }
   .onboarding-theme-mission .onboarding-progress i.active, .onboarding-theme-stories .onboarding-progress i.active, .onboarding-theme-program .onboarding-progress i.active { background: #fff; }
-  .onboarding-program-slide { gap: 11px; }
-  .onboarding-auth-slide { gap: 22px; padding: 16px 0 32px; }
-  .onboarding-auth-panel { border-radius: 21px; padding: 15px; }
-  .results-detail-cover { min-height: 210px; }
-  .results-detail-body h1 { font-size: 26px; }
 }
 .wishes-screen { width: min(100vw, 610px); margin: 0 auto; padding: 0 6px 20px; }
 .wish-tabs { position: sticky; top: calc(48px + env(safe-area-inset-top)); z-index: 8; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: -12px 0 10px; padding: 8px 3px; background: var(--bg); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }

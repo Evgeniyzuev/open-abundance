@@ -314,13 +314,14 @@ function OnboardingApp({
   }
 
   const backdropSrc = step === "auth" || step === "email" ? null : STORY_ARTWORK[step];
+  const backdropAlt = step === "auth" || step === "email" ? null : onboardingText(onboardingContent[step].imageAlt, locale);
   const previousStep = step === "email" ? "auth" : step === "auth" ? "program" : currentIndex > 0 ? steps[currentIndex - 1] : null;
 
   return (
     <main className={`onboarding-screen onboarding-theme-${step}`}>
-      {backdropSrc ? (
-        <div className="onboarding-backdrop" aria-hidden="true">
-          <Image alt="" fill priority sizes="(max-width: 430px) 100vw, 1px" src={backdropSrc} />
+      {backdropSrc && backdropAlt ? (
+        <div className="onboarding-backdrop">
+          <Image alt={backdropAlt} fill priority sizes="(max-width: 480px) 100vw, 480px" src={backdropSrc} />
         </div>
       ) : null}
       <section className="onboarding-shell" aria-live="polite">
@@ -369,11 +370,6 @@ function OnboardingApp({
 
         {step === "mission" ? (
           <section className="onboarding-slide">
-            <OnboardingArtwork
-              alt={onboardingText(onboardingContent.mission.imageAlt, locale)}
-              priority
-              src={STORY_ARTWORK.mission}
-            />
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.mission.eyebrow, locale)}</span>
               <h1>{onboardingText(onboardingContent.mission.title, locale)}</h1>
@@ -388,10 +384,6 @@ function OnboardingApp({
 
         {step === "stories" ? (
           <section className="onboarding-slide">
-            <OnboardingArtwork
-              alt={onboardingText(onboardingContent.stories.imageAlt, locale)}
-              src={STORY_ARTWORK.stories}
-            />
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.stories.eyebrow, locale)}</span>
               <h1>{onboardingText(onboardingContent.stories.title, locale)}</h1>
@@ -406,10 +398,6 @@ function OnboardingApp({
 
         {step === "program" ? (
           <section className="onboarding-slide onboarding-program-slide">
-            <OnboardingArtwork
-              alt={onboardingText(onboardingContent.program.imageAlt, locale)}
-              src={STORY_ARTWORK.program}
-            />
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.program.eyebrow, locale)}</span>
               <h1>{onboardingText(onboardingContent.program.title, locale)}</h1>
@@ -596,15 +584,6 @@ function clearPendingEmailOtp() {
   } catch {
     // Nothing else to clear when browser storage is unavailable.
   }
-}
-
-function OnboardingArtwork({ alt, priority = false, src }: { alt: string; priority?: boolean; src: string }) {
-  return (
-    <div className="onboarding-artwork">
-      <Image alt={alt} fill priority={priority} sizes="(max-width: 600px) 100vw, 532px" src={src} />
-      <span className="onboarding-artwork-glow" aria-hidden="true" />
-    </div>
-  );
 }
 
 function FirstRewardModal({

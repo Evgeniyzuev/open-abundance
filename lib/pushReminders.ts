@@ -1,4 +1,5 @@
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
+import { isStandaloneDisplay } from "@/lib/installPing";
 import { markPromptShownToday, promptShownToday } from "@/lib/promptSchedule";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import type { AppLocale } from "@/lib/i18n";
@@ -82,7 +83,9 @@ function pushAskKey(userId: string, day: string) {
 
 export function shouldAskPushToday(userId: string): boolean {
   if (!isPushSupported() || Notification.permission !== "default") return false;
-  if (promptShownToday(userId)) return false; // another soft prompt (install the app) already took today's slot
+  // Another soft prompt (install the app) may have taken today's slot, except when the app is now open as an installed app:
+  // then ask for reminders the same day.
+  if (promptShownToday(userId) && !isStandaloneDisplay()) return false;
   const settings = getDailyReminderSettings();
   if (settings.configured && !settings.enabled) return false; // the person switched reminders off
   try {

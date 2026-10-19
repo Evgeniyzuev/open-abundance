@@ -6,12 +6,12 @@ import { InstallGuide, detectInstallPlatform } from "@/components/InstallGuide";
 import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { isStandaloneDisplay } from "@/lib/installPing";
-import { bumpPromptCount, getPromptCount, isAfterFirstDay, markPromptShownToday, promptShownToday } from "@/lib/promptSchedule";
+import { bumpPromptCount, getPromptCount, markPromptShownToday, promptShownToday } from "@/lib/promptSchedule";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 
-const FIRST_CHECK_DELAY_MS = 5_000;
-const RETRY_DELAY_MS = 8_000;
-const MAX_RETRIES = 4;
+const FIRST_CHECK_DELAY_MS = 3_000;
+const POLL_MS = 2_000;
+const MAX_POLLS = 45; // about 90 s of waiting for other dialogs (the level-up celebration) to close
 const MAX_SHOWS = 5;
 
 function isPhoneBrowser(): boolean {
@@ -21,16 +21,18 @@ function isPhoneBrowser(): boolean {
 }
 
 /**
- * On a phone, in a browser tab (not the installed app), suggests adding the app to the Home Screen: at most once a
- * day (shared with the reminders pop-up), never on the first day, at most five times. Android uses the browser's own
- * install dialog when it is offered; iPhone gets the three-step guide because it has no install dialog.
+ * On a phone, in a browser tab (not the installed app), suggests adding the app to the Home Screen right after the
+ * person reaches their first level (it waits for the level-up celebration to close): at most once a day (shared with
+ * the reminders pop-up) and at most five times. Android uses the browser's own install dialog when it is offered;
+ * iPhone gets the three-step guide because it has no install dialog.
  */
 export default function InstallAppPrompt() {
-  const { t, user } = useUserContext();
+  const { core, t, user } = useUserContext();
   const [open, setOpen] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const [platform, setPlatform] = useState<"ios" | "android">("android");
   const userId = user?.id ?? null;
+  const level = core?.level ?? 0;
 
   useEffect(() => {
     const update = () => setCanInstall(canPromptPwaInstall());
@@ -39,20 +41,18 @@ export default function InstallAppPrompt() {
   }, []);
 
   useEffect(() => {
-    if (!userId || !isPhoneBrowser() || isStandaloneDisplay()) return;
+    if (!userId || level < 1 || !isPhoneBrowser() || isStandaloneDisplay()) return;
     let cancelled = false;
     let timer: number | undefined;
-    let attempts = 0;
+    let polls = 0;
 
     const check = () => {
       if (cancelled || isStandaloneDisplay()) return;
-      if (promptShownToday(userId) || getPromptCount("install", userId) >= MAX_SHOWS || !isAfterFirstDay(userId)) return;
+      if (promptShownToday(userId) || getPromptCount("install", userId) >= MAX_SHOWS) return;
       if (document.querySelector('[role="dialog"]')) {
-        if (attempts < MAX_RETRIES) {
-          attempts += 1;
-          timer = window.setTimeout(check, RETRY_DELAY_MS);
-        }
-        return; // still busy: try again on the next visit
+        polls += 1;
+        if (polls < MAX_POLLS) timer = window.setTimeout(check, POLL_MS); // otherwise: next visit
+        return;
       }
       markPromptShownToday(userId);
       bumpPromptCount("install", userId);
@@ -65,7 +65,7 @@ export default function InstallAppPrompt() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [userId]);
+  }, [userId, level]);
 
   async function install() {
     const result = await promptPwaInstall();

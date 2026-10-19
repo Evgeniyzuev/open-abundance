@@ -6,7 +6,6 @@ function today(): string {
 }
 
 const shownKey = (userId: string) => `openAbundancePromptDay:${userId}`;
-const firstSeenKey = (userId: string) => `openAbundanceFirstSeenDay:${userId}`;
 
 export function promptShownToday(userId: string): boolean {
   try {
@@ -21,20 +20,6 @@ export function markPromptShownToday(userId: string): void {
     localStorage.setItem(shownKey(userId), today());
   } catch {
     // Nothing to record.
-  }
-}
-
-/** True from the second calendar day the person opens the app: the first visit stays free of system questions. */
-export function isAfterFirstDay(userId: string): boolean {
-  try {
-    const stored = localStorage.getItem(firstSeenKey(userId));
-    if (!stored) {
-      localStorage.setItem(firstSeenKey(userId), today());
-      return false;
-    }
-    return stored < today();
-  } catch {
-    return false;
   }
 }
 

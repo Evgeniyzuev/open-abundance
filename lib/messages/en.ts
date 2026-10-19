@@ -2693,7 +2693,11 @@ const en = {
     "comeback.label": "Welcome back",
     "comeback.title": "Counting from today",
     "comeback.wins": "Already done. Days completed: {days}, tasks finished: {finished}",
-    "comeback.start": "Start from today"
+    "comeback.start": "Start from today",
+    "push.prompt.title": "Get gentle reminders",
+    "push.prompt.body": "Allow notifications and we will send a short nudge when your next step is waiting. You can turn it off any time in the notification settings.",
+    "push.prompt.enable": "Turn on",
+    "push.prompt.later": "Not now"
 } satisfies Record<string, string>;
 
 export default en;

@@ -30,10 +30,14 @@ import {
   type PrimaryWishSummary
 } from "@/lib/wishJourney";
 import {
+  dismissPushPrompt,
   enableDailyPush,
   getDailyReminderSettings,
+  isPushSupported,
+  registerPushDevice,
   saveDailyReminderSettings,
-  syncTodayDailyReminder
+  syncTodayDailyReminder,
+  wasPushPromptDismissedRecently
 } from "@/lib/pushReminders";
 
 export type HomePlanDraft = {
@@ -124,6 +128,7 @@ export default function HomeTodayApp({
   const [dueReflectionCount, setDueReflectionCount] = useState(0);
   const [reminderSettings, setReminderSettings] = useState(getDailyReminderSettings);
   const [reminderError, setReminderError] = useState(false);
+  const [pushPromptVisible, setPushPromptVisible] = useState(false);
   const [primaryWish, setPrimaryWish] = useState<PrimaryWishSummary | null>(null);
   const [milestone, setMilestone] = useState("");
   const [milestoneDraft, setMilestoneDraft] = useState("");
@@ -299,6 +304,35 @@ export default function HomeTodayApp({
     if (!active || !reminderSettings.configured) return;
     void syncTodayDailyReminder(Boolean(user), locale, reminderSettings).catch(() => undefined);
   }, [active, locale, reminderSettings, user]);
+
+  // Push is on by default until the person turns it off. The browser only allows it after an explicit "Allow",
+  // so: where it is already allowed, link this device to the account and keep the daily reminder on; otherwise
+  // offer a one-tap prompt (a gesture is required on iPhone, and it is only available in the installed app there).
+  useEffect(() => {
+    if (!active || !user || !isPushSupported()) return;
+    if (Notification.permission === "granted") {
+      void registerPushDevice();
+      if (!reminderSettings.configured) {
+        const next = { ...reminderSettings, configured: true, enabled: true };
+        saveDailyReminderSettings(next);
+        setReminderSettings(next);
+      }
+      setPushPromptVisible(false);
+      return;
+    }
+    setPushPromptVisible(Notification.permission === "default" && !reminderSettings.configured && !wasPushPromptDismissedRecently());
+  }, [active, user, reminderSettings]);
+
+  async function acceptPushPrompt() {
+    setPushPromptVisible(false);
+    await enableDailyReminder();
+    await registerPushDevice();
+  }
+
+  function dismissPushPromptCard() {
+    dismissPushPrompt();
+    setPushPromptVisible(false);
+  }
 
   async function handleSignIn() {
     setSigningIn(true);
@@ -526,6 +560,16 @@ export default function HomeTodayApp({
                 </button>
               ) : null}
             </div>
+            {pushPromptVisible ? (
+              <div className="today-push-prompt" role="group" aria-label={t("push.prompt.title")}>
+                <strong><Bell size={15} />{t("push.prompt.title")}</strong>
+                <p>{t("push.prompt.body")}</p>
+                <span className="today-push-prompt-actions">
+                  <button className="primary-button" type="button" onClick={() => void acceptPushPrompt()}>{t("push.prompt.enable")}</button>
+                  <button className="text-button" type="button" onClick={dismissPushPromptCard}>{t("push.prompt.later")}</button>
+                </span>
+              </div>
+            ) : null}
             <div className="today-reminder-row">
               <span><Bell size={15} />{t("today.dailyReminder")}</span>
               {reminderSettings.enabled ? (

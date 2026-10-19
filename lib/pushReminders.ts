@@ -45,6 +45,49 @@ export function saveDailyReminderSettings(settings: DailyReminderSettings) {
   localStorage.setItem(DAILY_REMINDER_SETTINGS_KEY, JSON.stringify(settings));
 }
 
+export function isPushSupported(): boolean {
+  return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+/** Links this browser's push subscription to the signed-in account (no reminder is scheduled). */
+export async function registerPushDevice(): Promise<boolean> {
+  if (!isPushSupported() || Notification.permission !== "granted") return false;
+  const subscription = await getSubscription();
+  const accessToken = await getAccessToken();
+  if (!subscription || !accessToken) return false;
+  try {
+    const response = await fetch("/api/notifications/subscriptions", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ subscription: subscription.toJSON(), deviceLabel: getDeviceLabel() })
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+const PUSH_PROMPT_DISMISSED_KEY = "open-abundance:push-prompt-dismissed-at";
+const PUSH_PROMPT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function wasPushPromptDismissedRecently(): boolean {
+  try {
+    const at = Number(localStorage.getItem(PUSH_PROMPT_DISMISSED_KEY));
+    return Number.isFinite(at) && at > 0 && Date.now() - at < PUSH_PROMPT_COOLDOWN_MS;
+  } catch {
+    return false;
+  }
+}
+
+export function dismissPushPrompt(): void {
+  try {
+    localStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, String(Date.now()));
+  } catch {
+    // The prompt may simply show again next time.
+  }
+}
+
 export async function enableDailyPush(): Promise<boolean> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return false;
   const publicKey = await getVapidPublicKey();

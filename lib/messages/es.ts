@@ -1792,7 +1792,11 @@ const es: Record<string, string> = {
   "comeback.label": "Te damos la bienvenida de nuevo",
   "comeback.title": "Contando desde hoy",
   "comeback.wins": "Ya hecho. Días completados: {days}, tareas terminadas: {finished}",
-  "comeback.start": "Empezar desde hoy"
+  "comeback.start": "Empezar desde hoy",
+  "push.prompt.title": "Recordatorios suaves",
+  "push.prompt.body": "Permite las notificaciones y te enviaremos un aviso breve cuando te espere tu siguiente paso. Puedes desactivarlo cuando quieras en los ajustes de notificaciones.",
+  "push.prompt.enable": "Activar",
+  "push.prompt.later": "Ahora no"
 };
 
 export default es;

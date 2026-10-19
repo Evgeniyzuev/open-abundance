@@ -2693,7 +2693,11 @@ const ru: Record<string, string> = {
     "comeback.label": "С возвращением",
     "comeback.title": "Считаем с сегодняшнего дня",
     "comeback.wins": "Уже получилось. Выполненных дней: {days}, завершённых задач: {finished}",
-    "comeback.start": "Начать с сегодня"
+    "comeback.start": "Начать с сегодня",
+  "push.prompt.title": "Мягкие напоминания",
+  "push.prompt.body": "Разреши уведомления, и мы коротко напомним, когда тебя ждёт следующий шаг. Выключить можно в любой момент в настройках уведомлений.",
+  "push.prompt.enable": "Включить",
+  "push.prompt.later": "Не сейчас"
 };
 
 export default ru;

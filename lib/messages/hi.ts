@@ -1792,7 +1792,11 @@ const hi: Record<string, string> = {
   "comeback.label": "वापसी पर स्वागत है",
   "comeback.title": "आज से गिनती",
   "comeback.wins": "पहले ही हो चुका। पूरे दिन: {days}, पूरे हुए कार्य: {finished}",
-  "comeback.start": "आज से शुरू करें"
+  "comeback.start": "आज से शुरू करें",
+  "push.prompt.title": "हल्के रिमाइंडर",
+  "push.prompt.body": "सूचनाओं की अनुमति दें, और जब आपका अगला कदम इंतज़ार कर रहा होगा तो हम एक छोटा संदेश भेजेंगे। आप इसे कभी भी सूचना सेटिंग्स में बंद कर सकते हैं।",
+  "push.prompt.enable": "चालू करें",
+  "push.prompt.later": "अभी नहीं"
 };
 
 export default hi;

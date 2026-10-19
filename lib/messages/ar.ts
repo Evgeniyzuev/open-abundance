@@ -1792,7 +1792,11 @@ const ar: Record<string, string> = {
   "comeback.label": "أهلًا بعودتك",
   "comeback.title": "العدّ من اليوم",
   "comeback.wins": "أُنجز بالفعل. الأيام المكتملة: {days}، المهام المنتهية: {finished}",
-  "comeback.start": "ابدأ من اليوم"
+  "comeback.start": "ابدأ من اليوم",
+  "push.prompt.title": "تذكيرات لطيفة",
+  "push.prompt.body": "اسمح بالإشعارات وسنرسل لك تنبيهًا قصيرًا عندما تنتظرك خطوتك التالية. يمكنك إيقافه في أي وقت من إعدادات الإشعارات.",
+  "push.prompt.enable": "تفعيل",
+  "push.prompt.later": "ليس الآن"
 };
 
 export default ar;

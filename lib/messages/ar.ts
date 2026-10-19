@@ -1796,7 +1796,10 @@ const ar: Record<string, string> = {
   "push.prompt.title": "هل نذكّرك بالمهام؟",
   "push.prompt.body": "فعّل التذكيرات حتى لا تفوتك مكافآت مهام اليوم. يمكنك إيقافها في أي وقت من إعدادات الإشعارات.",
   "push.prompt.enable": "ذكّرني",
-  "push.prompt.later": "ليس الآن"
+  "push.prompt.later": "ليس الآن",
+  "push.setting.title": "التذكيرات",
+  "push.setting.description": "تذكيرات فورية عن المهام والمكافآت. يمكن ضبط الفئات من النشاط ← إعدادات الإشعارات.",
+  "push.setting.unsupported": "غير متاح في هذا المتصفح. على iPhone أضف التطبيق إلى الشاشة الرئيسية أولًا."
 };
 
 export default ar;

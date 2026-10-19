@@ -2697,7 +2697,10 @@ const ru: Record<string, string> = {
   "push.prompt.title": "Напомнить о заданиях?",
   "push.prompt.body": "Включи напоминания, чтобы не упускать награды за задания дня. Выключить можно в любой момент в настройках уведомлений.",
   "push.prompt.enable": "Напоминать",
-  "push.prompt.later": "Не сейчас"
+  "push.prompt.later": "Не сейчас",
+    "push.setting.title": "Напоминания",
+    "push.setting.description": "Push-напоминания о заданиях и наградах. Категории можно настроить в «Активность» → «Настройки уведомлений».",
+    "push.setting.unsupported": "В этом браузере недоступно. На iPhone сначала добавь приложение на экран «Домой»."
 };
 
 export default ru;

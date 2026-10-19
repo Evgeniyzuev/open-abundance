@@ -1796,7 +1796,10 @@ const zh: Record<string, string> = {
   "push.prompt.title": "要提醒你完成任务吗？",
   "push.prompt.body": "开启提醒，就不会错过今天任务的奖励。你可以随时在通知设置中关闭。",
   "push.prompt.enable": "提醒我",
-  "push.prompt.later": "暂不"
+  "push.prompt.later": "暂不",
+  "push.setting.title": "提醒",
+  "push.setting.description": "关于任务和奖励的推送提醒。分类可在“动态 → 通知设置”中调整。",
+  "push.setting.unsupported": "此浏览器不支持。在 iPhone 上请先把应用添加到主屏幕。"
 };
 
 export default zh;

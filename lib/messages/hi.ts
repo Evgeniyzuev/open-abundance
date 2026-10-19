@@ -1796,7 +1796,10 @@ const hi: Record<string, string> = {
   "push.prompt.title": "कार्यों की याद दिलाएँ?",
   "push.prompt.body": "रिमाइंडर चालू करें ताकि आज के कार्यों के पुरस्कार न छूटें। आप इन्हें कभी भी सूचना सेटिंग्स में बंद कर सकते हैं।",
   "push.prompt.enable": "याद दिलाएँ",
-  "push.prompt.later": "अभी नहीं"
+  "push.prompt.later": "अभी नहीं",
+  "push.setting.title": "रिमाइंडर",
+  "push.setting.description": "कार्यों और पुरस्कारों के पुश रिमाइंडर। श्रेणियाँ गतिविधि → सूचना सेटिंग्स में बदली जा सकती हैं।",
+  "push.setting.unsupported": "इस ब्राउज़र में उपलब्ध नहीं है। iPhone पर पहले ऐप को होम स्क्रीन में जोड़ें।"
 };
 
 export default hi;

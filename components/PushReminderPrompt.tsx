@@ -71,8 +71,10 @@ export default function PushReminderPrompt() {
       <span className="streak-complete-icon"><Bell size={30} aria-hidden="true" /></span>
       <h2 id="push-reminder-title">{t("push.prompt.title")}</h2>
       <p>{t("push.prompt.body")}</p>
-      <button className="primary-button" type="button" onClick={() => void accept()}>{t("push.prompt.enable")}</button>
-      <button className="text-button" type="button" onClick={() => setOpen(false)}>{t("push.prompt.later")}</button>
+      <div className="push-prompt-actions">
+        <button className="push-prompt-later" type="button" onClick={() => setOpen(false)}>{t("push.prompt.later")}</button>
+        <button className="challenge-primary-action" type="button" onClick={() => void accept()}>{t("push.prompt.enable")}</button>
+      </div>
     </Sheet>
   );
 }

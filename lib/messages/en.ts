@@ -2697,7 +2697,10 @@ const en = {
     "push.prompt.title": "Remind you about tasks?",
     "push.prompt.body": "Turn on reminders so you do not miss the rewards for today's tasks. You can turn them off any time in the notification settings.",
     "push.prompt.enable": "Remind me",
-    "push.prompt.later": "Not now"
+    "push.prompt.later": "Not now",
+    "push.setting.title": "Reminders",
+    "push.setting.description": "Push reminders about tasks and rewards. Categories can be fine-tuned in Activity → Notification settings.",
+    "push.setting.unsupported": "Not available in this browser. On iPhone, add the app to the Home Screen first."
 } satisfies Record<string, string>;
 
 export default en;

@@ -1796,7 +1796,10 @@ const es: Record<string, string> = {
   "push.prompt.title": "¿Te recordamos las tareas?",
   "push.prompt.body": "Activa los recordatorios para no perder las recompensas de las tareas de hoy. Puedes desactivarlos cuando quieras en los ajustes de notificaciones.",
   "push.prompt.enable": "Recuérdame",
-  "push.prompt.later": "Ahora no"
+  "push.prompt.later": "Ahora no",
+  "push.setting.title": "Recordatorios",
+  "push.setting.description": "Notificaciones push sobre tareas y recompensas. Las categorías se ajustan en Actividad → Ajustes de notificaciones.",
+  "push.setting.unsupported": "No disponible en este navegador. En iPhone, añade primero la app a la pantalla de inicio."
 };
 
 export default es;

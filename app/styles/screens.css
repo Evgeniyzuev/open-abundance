@@ -1624,15 +1624,18 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .blog-public .blog-author-links { justify-content: flex-start; }
 .blog-public .blog-author-header { justify-items: stretch; } .blog-public .blog-author-info, .blog-public .blog-author-links { justify-self: stretch; }
 .blog-public .blog-author-header { padding: 12px 12px 8px; }
-.guest-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: calc(44px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 12px 0; }
+.guest-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; z-index: 30; min-height: calc(88px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 16px 0; }
 .guest-bar-text { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
-.guest-bar-text strong { font-size: 0.9375rem; font-weight: 850; }
-.guest-bar-text small { overflow: hidden; color: var(--muted); font-size: 0.75rem; font-weight: 700; text-overflow: ellipsis; }
+.guest-bar-text strong { font-size: 1.125rem; font-weight: 850; }
+.guest-bar-text small { overflow: hidden; color: var(--muted); font-size: 0.875rem; font-weight: 700; text-overflow: ellipsis; }
 .guest-bar-actions { display: flex; align-items: center; gap: 6px; flex: none; }
-.guest-bar-signin, .guest-bar-join { min-height: 30px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 999px; font-size: 0.8125rem; font-weight: 850; text-decoration: none; }
+.guest-bar-signin, .guest-bar-join { min-height: 44px; display: inline-flex; align-items: center; padding: 0 16px; border-radius: 999px; font-size: 0.9375rem; font-weight: 850; text-decoration: none; }
 .guest-bar-signin { color: var(--blue); }
 .guest-bar-join { background: var(--accent-fill); color: #fff; }
-.guest-bar-spacer { height: calc(34px + env(safe-area-inset-top)); }
+.guest-bar-spacer { height: calc(78px + env(safe-area-inset-top)); }
+/* The bar stays above opened cards: they start below it. */
+body:has(.guest-bar) .post-detail-modal { padding-top: calc(88px + env(safe-area-inset-top)); }
+body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(safe-area-inset-top)); }
 .guest-bar-text { flex-direction: column; align-items: flex-start; gap: 0; line-height: 1.15; }
 .guest-bar-text small { max-width: 100%; }
 .public-tab-bar a, .public-tab-bar a:hover { text-decoration: none; }

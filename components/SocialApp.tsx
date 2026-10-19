@@ -105,7 +105,8 @@ export default function SocialApp({
   const [teamTaskCreating, setTeamTaskCreating] = useState(false);
   const [socialError, setSocialError] = useState<string | null>(null);
   const [storyWishError, setStoryWishError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"app" | "blog" | null>(null);
+  const [referralQrKind, setReferralQrKind] = useState<"app" | "blog">("app");
   const [referralQrOpen, setReferralQrOpen] = useState(false);
   const [teamRewardsOpen, setTeamRewardsOpen] = useState(false);
   const [teamRewards, setTeamRewards] = useState<TeamRewardDay[] | null>(null);
@@ -169,7 +170,7 @@ export default function SocialApp({
 
   useEffect(() => {
     setSocialError(null);
-    setCopied(false);
+    setCopied(null);
     setReferralLink(null);
     setReferralLocked(false);
     setTeamContext(null);
@@ -262,7 +263,7 @@ export default function SocialApp({
     const payload = (await response.json()) as ReferralLink & { available?: boolean; reason?: string | null; error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load referral link.");
     setReferralLocked(payload.available === false || payload.reason === "first_result_required");
-    setReferralLink(payload.available === false || !payload.code || !payload.url ? null : { code: payload.code, url: payload.url });
+    setReferralLink(payload.available === false || !payload.code || !payload.url ? null : { code: payload.code, url: payload.url, appUrl: payload.appUrl });
   }, [user]);
 
   const loadTeamContext = useCallback(async () => {
@@ -688,11 +689,11 @@ export default function SocialApp({
   const pendingIncomingConfirmations = trustConfirmations?.filter((item) => item.counterparty_user_id === user?.id && item.status === "pending").length ?? 0;
   const combinedError = error ?? socialError;
 
-  async function copyReferralLink() {
+  async function copyReferralLink(kind: "app" | "blog" = "app") {
     if (!referralLink) return;
-    await navigator.clipboard.writeText(referralLink.url);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    await navigator.clipboard.writeText(kind === "app" ? referralLink.appUrl ?? referralLink.url : referralLink.url);
+    setCopied(kind);
+    window.setTimeout(() => setCopied(null), 1600);
   }
 
   async function shareReferralLink() {
@@ -701,7 +702,7 @@ export default function SocialApp({
       await navigator.share({
         title: "Open Abundance",
         text: t("profile.referral.shareText"),
-        url: referralLink.url
+        url: referralLink.appUrl ?? referralLink.url
       });
       return;
     }
@@ -1484,7 +1485,7 @@ export default function SocialApp({
           onRequestConfirmation={(contact) => { void requestContactConfirmation(contact); }}
           onRemoveContact={(userId) => { void removeManualContact(userId); }}
           onSectionChange={setPeopleSection}
-          onInvite={() => setReferralQrOpen(true)}
+          onInvite={() => { setReferralQrKind("app"); setReferralQrOpen(true); }}
         />
       ) : null}
 
@@ -1526,7 +1527,7 @@ export default function SocialApp({
                 t={t}
                 onMessage={(userId) => { void openDirectMessage(userId); }}
                 onOpenChallenge={onOpenChallenge}
-                onOpenInvite={() => setReferralQrOpen(true)}
+                onOpenInvite={() => { setReferralQrKind("app"); setReferralQrOpen(true); }}
                 onOpenProfile={openPublicProfile}
                 canInvite={Boolean(referralLink) && !referralLocked}
               />
@@ -1672,7 +1673,7 @@ export default function SocialApp({
                 onProposeRevision={(task, changes) => { void proposeTeamTaskRevision(task, changes); }}
                 onRespondRevision={(task, revision, action) => { void respondToTeamTaskRevision(task, revision, action); }}
                 onOpenChallenge={onOpenChallenge}
-                onOpenInvite={() => setReferralQrOpen(true)}
+                onOpenInvite={() => { setReferralQrKind("app"); setReferralQrOpen(true); }}
                 onOpenProfile={openPublicProfile}
                 onMessage={(userId) => { void openDirectMessage(userId); }}
               />
@@ -1766,21 +1767,37 @@ export default function SocialApp({
           </section>
           <ReputationCard active={active} />
           <div className="referral-box referral-box-compact">
+            <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.appTitle")}</span><small>{t("profile.referral.appHint")}</small></div>
+            <div className="referral-compact-actions">
+              <button
+                className="secondary-button referral-icon-button"
+                type="button"
+                disabled={!referralLink}
+                aria-label={copied === "app" ? t("profile.referral.copied") : t("profile.referral.copy")}
+                title={copied === "app" ? t("profile.referral.copied") : t("profile.referral.copy")}
+                onClick={() => void copyReferralLink("app")}
+              >
+                {copied === "app" ? <Check size={19} /> : <Copy size={19} />}
+              </button>
+              <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => { setReferralQrKind("app"); setReferralQrOpen(true); }}><Share2 size={16} />{t("profile.referral.invite")}</button>
+            </div>
+            {referralLocked ? <small className="referral-locked-hint">{t("social.teams.inviteLocked")}</small> : null}
+          </div>
+          <div className="referral-box referral-box-compact">
             <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
             <div className="referral-compact-actions">
               <button
                 className="secondary-button referral-icon-button"
                 type="button"
                 disabled={!referralLink}
-                aria-label={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
-                title={copied ? t("profile.referral.copied") : t("profile.referral.copy")}
-                onClick={copyReferralLink}
+                aria-label={copied === "blog" ? t("profile.referral.copied") : t("profile.referral.copy")}
+                title={copied === "blog" ? t("profile.referral.copied") : t("profile.referral.copy")}
+                onClick={() => void copyReferralLink("blog")}
               >
-                {copied ? <Check size={19} /> : <Copy size={19} />}
+                {copied === "blog" ? <Check size={19} /> : <Copy size={19} />}
               </button>
-              <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => setReferralQrOpen(true)}><Share2 size={16} />{t("profile.referral.invite")}</button>
+              <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => { setReferralQrKind("blog"); setReferralQrOpen(true); }}><Share2 size={16} />{t("profile.referral.invite")}</button>
             </div>
-            {referralLocked ? <small className="referral-locked-hint">{t("social.teams.inviteLocked")}</small> : null}
           </div>
           <ReferralProgramSummary />
           <LegalDisclosure
@@ -1846,9 +1863,9 @@ export default function SocialApp({
             </button>
             <strong>{t("profile.referral.qrTitle")}</strong>
             <div className="referral-qr-code">
-              <QRCodeSVG value={referralLink.url} size={220} level="M" marginSize={2} />
+              <QRCodeSVG value={referralQrKind === "app" ? referralLink.appUrl ?? referralLink.url : referralLink.url} size={220} level="M" marginSize={2} />
             </div>
-            <p>{referralLink.url}</p>
+            <p>{referralQrKind === "app" ? referralLink.appUrl ?? referralLink.url : referralLink.url}</p>
         </Sheet>
       ) : null}
       {publicProfile ? (

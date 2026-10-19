@@ -29,13 +29,18 @@ export async function GET(request: NextRequest) {
     }
 
     const code = existingCode?.code ?? await createReferralCode(supabase, user.id);
-    // The invitation is a link to the inviter's public blog (the profile and the feed are one tap away): a newcomer can read the profile and blog right away,
+    // `url` is a link to the inviter's public blog (the profile and the feed are one tap away): a newcomer can read the profile and blog right away,
     // the code is remembered on the device, and registration later carries it.
     const { data: inviter } = await supabase.from("user_profiles").select("username").eq("user_id", user.id).maybeSingle();
     const url = new URL(inviter?.username ? `/@${inviter.username}/blog` : `/u/${user.id}/blog`, request.nextUrl.origin);
     url.searchParams.set("ref", code);
+    url.searchParams.set("utm_medium", "blog");
+    // The direct link opens the onboarding (the first screens of the app) with the same code; utm_medium tells the two kinds of link apart.
+    const appUrl = new URL("/", request.nextUrl.origin);
+    appUrl.searchParams.set("ref", code);
+    appUrl.searchParams.set("utm_medium", "invite");
 
-    return NextResponse.json({ available: true, code, url: url.toString(), reason: null }, { headers: NO_STORE_HEADERS });
+    return NextResponse.json({ available: true, code, url: url.toString(), appUrl: appUrl.toString(), reason: null }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to load referral link." },

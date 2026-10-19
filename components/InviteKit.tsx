@@ -50,9 +50,10 @@ export default function InviteKit() {
     setLoadFailed(false);
     try {
       const response = await fetchWithSupabaseAuth(`/api/referrals/me?ts=${Date.now()}`, { cache: "no-store" }, { authRequired: true });
-      const payload = (await response.json()) as { available?: boolean; url?: string | null };
-      if (!response.ok || payload.available === false || !payload.url) throw new Error("no link");
-      setLink(payload.url);
+      const payload = (await response.json()) as { available?: boolean; url?: string | null; appUrl?: string | null };
+      const inviteUrl = payload.appUrl ?? payload.url;
+      if (!response.ok || payload.available === false || !inviteUrl) throw new Error("no link");
+      setLink(inviteUrl);
     } catch {
       setLoadFailed(true);
     }

@@ -37,12 +37,13 @@ assert.equal(walletChallengeDone({ kind: "stay", days: 7 }, walletStats(base, no
 assert.equal(walletStats([dep(0, "2026-09-01T00:00:00Z")], now).hasDeposit, false, "zero amounts are ignored");
 
 // Humanity gate for accepting rewarded challenges.
-const paid = { category: "finance", core_reward_amount: 1, wallet_reward_amount: 0, difficulty_level: 1 };
+const paid = { category: "finance", core_reward_amount: 1.2, wallet_reward_amount: 0, difficulty_level: 1 };
 assert.equal(challengeNeedsHumanity(paid), true);
 assert.equal(challengeNeedsHumanity({ ...paid, category: "onboarding" }), false);
 assert.equal(challengeNeedsHumanity({ ...paid, category: "start_path" }), false);
 assert.equal(challengeNeedsHumanity({ ...paid, verification_logic: "humanity_confirmed" }), false);
-assert.equal(challengeNeedsHumanity({ ...paid, core_reward_amount: 0 }), false);
+assert.equal(challengeNeedsHumanity({ ...paid, core_reward_amount: 1 }), false, "$1 and less is open to everyone");
+assert.equal(challengeNeedsHumanity({ ...paid, core_reward_amount: 0.6, wallet_reward_amount: 0.6 }), true, "core and wallet rewards add up");
 assert.deepEqual(getChallengeAccessReasons({ ...paid, humanity_confirmed: false }, 1), ["humanity"]);
 assert.deepEqual(getChallengeAccessReasons({ ...paid, humanity_confirmed: true }, 1), []);
 assert.deepEqual(getChallengeAccessReasons(paid, 1), [], "unknown humanity never blocks");

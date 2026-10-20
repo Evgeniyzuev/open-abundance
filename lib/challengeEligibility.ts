@@ -17,11 +17,14 @@ export type ChallengeEligibilityRecord = {
 // Onboarding and the first-session path stay open to everyone; the humanity challenge itself must be acceptable.
 const HUMANITY_EXEMPT_CATEGORIES = new Set(["onboarding", "start_path"]);
 
-/** Challenges that pay a reward need a confirmed human before they can be accepted. */
+// Rewards of $1 or less are open to everyone.
+export const HUMANITY_FREE_REWARD = 1;
+
+/** Challenges that pay more than HUMANITY_FREE_REWARD need a confirmed human before they can be accepted. */
 export function challengeNeedsHumanity(challenge: Pick<ChallengeEligibilityRecord, "category" | "verification_logic" | "core_reward_amount" | "wallet_reward_amount">): boolean {
   if (challenge.verification_logic === "humanity_confirmed") return false;
   if (HUMANITY_EXEMPT_CATEGORIES.has(String(challenge.category ?? "").trim().toLowerCase())) return false;
-  return Number(challenge.core_reward_amount ?? 0) > 0 || Number(challenge.wallet_reward_amount ?? 0) > 0;
+  return Number(challenge.core_reward_amount ?? 0) + Number(challenge.wallet_reward_amount ?? 0) > HUMANITY_FREE_REWARD;
 }
 
 export function getChallengeAccessReasons(challenge: ChallengeEligibilityRecord, userLevel: number): ChallengeAccessReason[] {

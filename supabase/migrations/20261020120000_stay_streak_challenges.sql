@@ -1,5 +1,5 @@
 -- Wallet chain "Abundance stays" (docs/WALLET_RETENTION_PLAN.md, section 6):
---   first top-up -> net top-ups of $20 -> 7 / 15 / 30 / 60 days without a crypto withdrawal.
+--   first top-up -> net top-ups of $20 -> 7 / 15 / 30 / 60 / 120 / 240 days without a crypto withdrawal.
 -- Each step is a prerequisite of the next one; a streak counts from the completion of the previous step,
 -- so a finished step never pays twice. Rewards are Core and live in these rows (editable without code).
 -- Verification: app/api/challenges/check/route.ts with lib/stayStreak.ts.
@@ -62,6 +62,24 @@ insert into public.challenges (
   '{"en": "60 days in a row without a crypto withdrawal.", "ru": "60 дней подряд без вывода."}'::jsonb,
   'finance', 4, 60, 'auto', 'stay_streak_60',
   85, 'wallet_stay', 6, 'c1f4e7a0-5b2d-4c8e-9a31-7d6b8e2f1a05', 'wallet.core', 2.5, 0, true
+),
+(
+  'c1f4e7a0-5b2d-4c8e-9a31-7d6b8e2f1a07',
+  '{"en": "Abundance stays: 120 days", "ru": "Изобилие остаётся: 120 дней"}'::jsonb,
+  '{"en": "Keep your abundance in the app for 120 days without withdrawals.", "ru": "Держите изобилие в приложении 120 дней без выводов."}'::jsonb,
+  '{"en": "Same rule, counted from the previous step.", "ru": "То же правило, отсчёт с предыдущего шага."}'::jsonb,
+  '{"en": "120 days in a row without a crypto withdrawal.", "ru": "120 дней подряд без вывода."}'::jsonb,
+  'finance', 4, 120, 'auto', 'stay_streak_120',
+  86, 'wallet_stay', 7, 'c1f4e7a0-5b2d-4c8e-9a31-7d6b8e2f1a06', 'wallet.core', 3, 0, true
+),
+(
+  'c1f4e7a0-5b2d-4c8e-9a31-7d6b8e2f1a08',
+  '{"en": "Abundance stays: 240 days", "ru": "Изобилие остаётся: 240 дней"}'::jsonb,
+  '{"en": "Keep your abundance in the app for 240 days without withdrawals.", "ru": "Держите изобилие в приложении 240 дней без выводов."}'::jsonb,
+  '{"en": "Same rule, counted from the previous step.", "ru": "То же правило, отсчёт с предыдущего шага."}'::jsonb,
+  '{"en": "240 days in a row without a crypto withdrawal.", "ru": "240 дней подряд без вывода."}'::jsonb,
+  'finance', 5, 240, 'auto', 'stay_streak_240',
+  87, 'wallet_stay', 8, 'c1f4e7a0-5b2d-4c8e-9a31-7d6b8e2f1a07', 'wallet.core', 3.5, 0, true
 )
 on conflict (id) do update
 set title = excluded.title,

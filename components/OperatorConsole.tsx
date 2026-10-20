@@ -35,7 +35,7 @@ type Recommendation = {
   target_user_ids: string[];
 };
 
-const LIGHT_COLORS: Record<string, string> = { green: "#1a9b57", yellow: "#d99a00", red: "#d33a3a", unknown: "#7a7f87" };
+const LIGHT_COLORS: Record<string, string> = { green: "#1a9b57", yellow: "#d99a00", red: "#d33a3a", black: "#111111", unknown: "#7a7f87" };
 const ATTENTION_STATUSES = new Set(["manual_review", "failed"]);
 
 export default function OperatorConsole({ onClose }: { onClose: () => void }) {
@@ -111,6 +111,7 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
   }, [load, loadProposals]);
 
   const usd = (value: number | null | undefined) => (value === null || value === undefined ? "—" : `$${value.toFixed(2)}`);
+  const pct = (value: number | null | undefined) => (value === null || value === undefined ? "—" : `${(value * 100).toFixed(2)}%`);
   const ratio = (value: number | null | undefined) => (value === null || value === undefined ? "—" : value.toFixed(2));
 
   return (
@@ -142,6 +143,9 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
               <dt>{t("operator.manualReview")}</dt><dd>{report.liabilities.manualReviewCount} ({usd(report.liabilities.manualReviewTotal)})</dd>
               <dt>{t("operator.ratio")}</dt><dd>{ratio(report.coverageRatio)}</dd>
               <dt>{t("operator.stressRatio")}</dt><dd>{ratio(report.stressCoverageRatio)}</dd>
+              <dt>{t("operator.withdrawAvg", { days: report.withdrawalStats.days })}</dt><dd>{pct(report.withdrawalStats.averageShare)}</dd>
+              <dt>{t("operator.withdrawMedian", { days: report.withdrawalStats.days })}</dt><dd>{pct(report.withdrawalStats.medianShare)}</dd>
+              <dt>{t("operator.withdrawMax", { days: report.withdrawalStats.days })}</dt><dd>{pct(report.withdrawalStats.maxShare)}</dd>
             </dl>
             {report.treasury.errors.length ? <p className="challenge-error">{report.treasury.errors.join(", ")}</p> : null}
           </section>

@@ -77,6 +77,8 @@ export async function POST(request: NextRequest) {
   return json({ light: report.light, coverageRatio: report.coverageRatio, alertDue: decision.alert, digestDue: decision.digest, notified, digestSent, recipients }, 200);
 }
 
+const LIGHT_NAMES: Record<string, string> = { green: "зелёный", yellow: "жёлтый", red: "красный", black: "чёрный", unknown: "не определён" };
+
 function formatFigures(report: TreasuryCoverageReport) {
   return {
     ratio: report.coverageRatio === null ? "н/д" : report.coverageRatio.toFixed(2),
@@ -96,16 +98,15 @@ function buildAlertMessage(report: TreasuryCoverageReport): { title: string; bod
     };
   }
   return {
-    title: report.light === "red" ? "Покрытие Wallet: красный" : "Покрытие Wallet: жёлтый",
+    title: `Покрытие Wallet: ${LIGHT_NAMES[report.light] ?? report.light}`,
     body: `Резерв ${f.reserve}, обязательства ${f.liabilities}, покрытие ${f.ratio}, при падении TON на 30% ${f.stress}.`
   };
 }
 
 function buildDigestMessage(report: TreasuryCoverageReport): { title: string; body: string } {
   const f = formatFigures(report);
-  const names: Record<string, string> = { green: "зелёный", yellow: "жёлтый", red: "красный", unknown: "не определён" };
   return {
-    title: `Статус Wallet: ${names[report.light] ?? report.light}`,
+    title: `Статус Wallet: ${LIGHT_NAMES[report.light] ?? report.light}`,
     body: `Резерв ${f.reserve} (TON ${f.volatile}), обязательства ${f.liabilities}, покрытие ${f.ratio}, при падении TON на 30% ${f.stress}.`
   };
 }

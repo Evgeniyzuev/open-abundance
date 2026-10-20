@@ -4,7 +4,7 @@ import { loadTonUsdtConfig, resolveTonUsdtPriceResolution } from "@/lib/tonUsdt"
 
 type AnySupabase = { rpc: (name: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message: string } | null }> } & Record<string, any>;
 
-export type CoverageLight = "green" | "yellow" | "red" | "unknown";
+export type CoverageLight = "green" | "yellow" | "red" | "black" | "unknown";
 
 export type TreasuryCoverageReport = {
   generatedAt: string;
@@ -37,12 +37,17 @@ export type TreasuryCoverageReport = {
   /** Share of the reserve held in volatile TON, 0..1. */
   volatileShare: number | null;
   light: CoverageLight;
-  thresholds: { green: number; yellow: number };
+  thresholds: { green: number; yellow: number; red: number };
+  /** Paid withdrawals per UTC day over WITHDRAWAL_STATS_DAYS, as a share of the current Wallet balance. */
+  withdrawalStats: { days: number; totalUsd: number; averageShare: number | null; medianShare: number | null; maxShare: number | null };
 };
 
-// Green requires a safety buffer above full coverage; yellow is covered without a buffer.
-const GREEN_THRESHOLD = 1.25;
-const YELLOW_THRESHOLD = 1;
+// Only a part of the Wallet is ever withdrawn at once, so full coverage is not required:
+// green from 60%, yellow from 30%, red from 10%, black below 10%.
+const GREEN_THRESHOLD = 0.6;
+const YELLOW_THRESHOLD = 0.3;
+const RED_THRESHOLD = 0.1;
+const WITHDRAWAL_STATS_DAYS = 30;
 const TON_STRESS_DROP = 0.3;
 
 export async function buildTreasuryCoverageReport(supabase: AnySupabase): Promise<TreasuryCoverageReport> {
@@ -99,7 +104,9 @@ export async function buildTreasuryCoverageReport(supabase: AnySupabase): Promis
   const coverageRatio = totalUsd !== null && liabilityTotal > 0 ? totalUsd / liabilityTotal : totalUsd !== null ? Infinity : null;
   const light: CoverageLight = coverageRatio === null
     ? "unknown"
-    : coverageRatio >= GREEN_THRESHOLD ? "green" : coverageRatio >= YELLOW_THRESHOLD ? "yellow" : "red";
+    : coverageRatio >= GREEN_THRESHOLD ? "green" : coverageRatio >= YELLOW_THRESHOLD ? "yellow" : coverageRatio >= RED_THRESHOLD ? "red" : "black";
+
+  const withdrawalStats = await loadWithdrawalStats(supabase, walletBalanceTotal);
 
   const stressTotal = totalUsd !== null ? (tonUsd ?? 0) * (1 - TON_STRESS_DROP) + (usdtUsd ?? 0) : null;
   const stressRatio = stressTotal !== null && liabilityTotal > 0 ? stressTotal / liabilityTotal : null;
@@ -125,8 +132,35 @@ export async function buildTreasuryCoverageReport(supabase: AnySupabase): Promis
     stressCoverageRatio: stressRatio,
     volatileShare,
     light: coverageRatio === Infinity ? "green" : light,
-    thresholds: { green: GREEN_THRESHOLD, yellow: YELLOW_THRESHOLD }
+    thresholds: { green: GREEN_THRESHOLD, yellow: YELLOW_THRESHOLD, red: RED_THRESHOLD },
+    withdrawalStats
   };
+}
+
+async function loadWithdrawalStats(supabase: AnySupabase, walletBalanceTotal: number): Promise<TreasuryCoverageReport["withdrawalStats"]> {
+  const empty = { days: WITHDRAWAL_STATS_DAYS, totalUsd: 0, averageShare: null, medianShare: null, maxShare: null };
+  const since = new Date(Date.now() - WITHDRAWAL_STATS_DAYS * 24 * 60 * 60 * 1000);
+  const perDay = new Map<string, number>();
+  for (const table of ["ton_withdrawals", "ton_usdt_withdrawals"]) {
+    const { data, error } = await supabase.from(table).select("payout_wallet_amount, created_at").in("status", ["broadcast", "confirmed"]).gte("created_at", since.toISOString());
+    if (error || !Array.isArray(data)) return empty;
+    for (const row of data as Array<{ payout_wallet_amount: unknown; created_at: string }>) {
+      const day = String(row.created_at).slice(0, 10);
+      perDay.set(day, (perDay.get(day) ?? 0) + (Number(row.payout_wallet_amount) || 0));
+    }
+  }
+  // Days without withdrawals count as zero, otherwise the median would only describe busy days.
+  const amounts: number[] = [];
+  for (let i = 0; i < WITHDRAWAL_STATS_DAYS; i += 1) {
+    const day = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    amounts.push(perDay.get(day) ?? 0);
+  }
+  const totalUsd = amounts.reduce((sum, value) => sum + value, 0);
+  if (walletBalanceTotal <= 0) return { ...empty, totalUsd };
+  const shares = amounts.map((value) => value / walletBalanceTotal).sort((a, b) => a - b);
+  const mid = Math.floor(shares.length / 2);
+  const median = shares.length % 2 ? shares[mid] : (shares[mid - 1] + shares[mid]) / 2;
+  return { days: WITHDRAWAL_STATS_DAYS, totalUsd, averageShare: totalUsd / WITHDRAWAL_STATS_DAYS / walletBalanceTotal, medianShare: median, maxShare: shares[shares.length - 1] };
 }
 
 function jsonRpcEndpoint(restUrl: string): string {
@@ -161,8 +195,8 @@ export function decideTreasuryAlert(input: TreasuryAlertInput): { alert: boolean
   const age = lastNotifiedAt ? now.getTime() - lastNotifiedAt.getTime() : Infinity;
 
   let alert = false;
-  if (light === "yellow" || light === "red") {
-    alert = lastNotifiedLight !== light || (light === "red" && age >= RED_REMINDER_MS);
+  if (light === "yellow" || light === "red" || light === "black") {
+    alert = lastNotifiedLight !== light || (light !== "yellow" && age >= RED_REMINDER_MS);
   } else if (light === "unknown") {
     alert = lastNotifiedLight !== "unknown" || age >= UNKNOWN_REMINDER_MS;
   }

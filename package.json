@@ -41,6 +41,7 @@
     "test:product-links": "node --experimental-strip-types scripts/verify-product-links-contract.mjs",
     "test:public-invite": "node --experimental-strip-types scripts/verify-public-invite-contract.mjs",
     "test:day-credit": "node --experimental-strip-types scripts/verify-day-credit-contract.mjs",
+    "test:stay-streak": "node --experimental-strip-types scripts/verify-stay-streak-contract.mjs",
     "test:sales-challenges": "node --experimental-strip-types scripts/verify-sales-challenges-contract.mjs",
     "test:creator-challenges": "node --experimental-strip-types scripts/verify-creator-challenges-contract.mjs",
     "test:artifacts": "node --experimental-strip-types scripts/verify-artifacts-contract.mjs",

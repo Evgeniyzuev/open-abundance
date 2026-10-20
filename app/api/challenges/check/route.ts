@@ -7,6 +7,7 @@ import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCa
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
 import { confirmedReferralsThreshold } from "@/lib/creatorChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
+import { STAY_MIN_NET_DEPOSIT, stayStreakDays, stayStreakStats } from "@/lib/stayStreak";
 import { hasThreeSteps } from "@/lib/wishSteps";
 
 type CheckRequest = {
@@ -570,6 +571,20 @@ async function verifyChallenge(
     } catch {
       return { ok: false, reason: "Could not check the daily goal. Try again." };
     }
+  }
+
+  const stayDays = stayStreakDays(challenge.verification_logic);
+  if (stayDays) {
+    const { data, error } = await supabase
+      .from("wallet_ledger")
+      .select("operation_type,direction,amount,created_at")
+      .eq("user_id", userId)
+      .in("operation_type", ["crypto_deposit", "crypto_withdrawal"]);
+    if (error) return { ok: false, reason: "Could not check the Wallet history. Try again." };
+    const stats = stayStreakStats(data ?? [], new Date());
+    if (stats.netDeposit < STAY_MIN_NET_DEPOSIT) return { ok: false, reason: "Top up your Wallet and keep your abundance growing." };
+    if (stats.streakDays >= stayDays) return { ok: true };
+    return { ok: false, reason: `Keep your abundance in the app for ${stayDays} days without withdrawals. Days so far: ${stats.streakDays}.` };
   }
 
   if (challenge.verification_logic === "today_completion_total_30") {

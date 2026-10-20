@@ -1668,6 +1668,12 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "calculate_time_to_goal":
     case "reinvest_enabled":
     case "today_core_target_reached":
+    case "stay_streak_7":
+    case "stay_streak_15":
+    case "stay_streak_30":
+    case "stay_streak_60":
+    case "stay_streak_120":
+    case "stay_streak_240":
     case "first_wallet_to_core":
     case "first_wallet_transfer":
       return WalletCards;

@@ -1,4 +1,4 @@
-export type ChallengeAccessReason = "core_level" | "first_result" | "prerequisite";
+export type ChallengeAccessReason = "core_level" | "first_result" | "prerequisite" | "humanity";
 
 export type ChallengeEligibilityRecord = {
   id?: string;
@@ -7,7 +7,22 @@ export type ChallengeEligibilityRecord = {
   prerequisite_challenge_id?: string | null;
   prerequisite_completed?: boolean;
   user_challenge_status?: string | null;
+  category?: string | null;
+  core_reward_amount?: number | null;
+  wallet_reward_amount?: number | null;
+  /** Set by the server when it knows the viewer; undefined means "not checked" and never blocks. */
+  humanity_confirmed?: boolean;
 };
+
+// Onboarding and the first-session path stay open to everyone; the humanity challenge itself must be acceptable.
+const HUMANITY_EXEMPT_CATEGORIES = new Set(["onboarding", "start_path"]);
+
+/** Challenges that pay a reward need a confirmed human before they can be accepted. */
+export function challengeNeedsHumanity(challenge: Pick<ChallengeEligibilityRecord, "category" | "verification_logic" | "core_reward_amount" | "wallet_reward_amount">): boolean {
+  if (challenge.verification_logic === "humanity_confirmed") return false;
+  if (HUMANITY_EXEMPT_CATEGORIES.has(String(challenge.category ?? "").trim().toLowerCase())) return false;
+  return Number(challenge.core_reward_amount ?? 0) > 0 || Number(challenge.wallet_reward_amount ?? 0) > 0;
+}
 
 export function getChallengeAccessReasons(challenge: ChallengeEligibilityRecord, userLevel: number): ChallengeAccessReason[] {
   const reasons: ChallengeAccessReason[] = [];
@@ -16,6 +31,8 @@ export function getChallengeAccessReasons(challenge: ChallengeEligibilityRecord,
   if (challenge.prerequisite_completed === false) {
     reasons.push(challenge.verification_logic === "has_referral" ? "first_result" : "prerequisite");
   }
+
+  if (challenge.humanity_confirmed === false && challengeNeedsHumanity(challenge)) reasons.push("humanity");
 
   return reasons;
 }

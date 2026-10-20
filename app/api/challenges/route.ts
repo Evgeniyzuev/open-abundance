@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { canAcceptChallenge, getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { walletChallengeProgress, walletChallengeRule, walletStats, type StayLedgerRow, type WalletChallengeProgress } from "@/lib/stayStreak";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -88,11 +89,16 @@ export async function GET(request: NextRequest) {
   let prerequisiteStatuses = new Map<string, string>();
   let viewerHasFirstResult = false;
   let viewerLevel = 1;
+  let viewerHumanConfirmed: boolean | undefined;
+  let viewerLedger: StayLedgerRow[] = [];
+  const completedAt = new Map<string, Date>();
   if (viewerUserId) {
-    const [{ data: progressRows, error: progressError }, { data: snapshots, error: snapshotError }, { data: coreAccount, error: coreError }] = await Promise.all([
-      supabase.from("user_challenges").select("challenge_id,status,challenges(category)").eq("user_id", viewerUserId),
+    const [{ data: progressRows, error: progressError }, { data: snapshots, error: snapshotError }, { data: coreAccount, error: coreError }, humanity, ledger] = await Promise.all([
+      supabase.from("user_challenges").select("challenge_id,status,updated_at,reward_settled_at,challenges(category)").eq("user_id", viewerUserId),
       supabase.from("challenge_completion_snapshots").select("challenge_category").eq("user_id", viewerUserId),
-      supabase.from("core_accounts").select("level").eq("user_id", viewerUserId).maybeSingle()
+      supabase.from("core_accounts").select("level").eq("user_id", viewerUserId).maybeSingle(),
+      (supabase as any).from("humanity_verifications").select("humanity_level").eq("user_id", viewerUserId).maybeSingle(),
+      supabase.from("wallet_ledger").select("operation_type,direction,amount,created_at").eq("user_id", viewerUserId).in("operation_type", ["crypto_deposit", "crypto_withdrawal"])
     ]);
     if (progressError || snapshotError || coreError) {
       return NextResponse.json({ error: progressError?.message ?? snapshotError?.message ?? coreError?.message ?? "Failed to load challenge eligibility." }, { status: 500, headers: NO_STORE_HEADERS });
@@ -103,7 +109,16 @@ export async function GET(request: NextRequest) {
       (progressRows ?? []) as unknown as ChallengeProgressWithCategory[]
     );
     viewerLevel = Number(coreAccount?.level ?? 1);
+    // A failed humanity lookup leaves the gate open rather than locking everyone out.
+    if (!humanity.error) viewerHumanConfirmed = Number(humanity.data?.humanity_level ?? 0) >= 2;
+    viewerLedger = (ledger.data ?? []) as StayLedgerRow[];
+    for (const row of progressRows ?? []) {
+      if (String(row.status).trim().toLowerCase() !== "completed") continue;
+      const time = Date.parse(String(row.reward_settled_at ?? row.updated_at ?? ""));
+      if (Number.isFinite(time)) completedAt.set(row.challenge_id, new Date(time));
+    }
   }
+  const viewerNow = new Date();
   const challengeRows = (challenges ?? []) as unknown as ChallengeWithProgress[];
   const data = challengeRows.map((challenge) => {
     const [userChallenge] = challenge.user_challenges ?? [];
@@ -115,13 +130,21 @@ export async function GET(request: NextRequest) {
       : !challenge.prerequisite_challenge_id || prerequisiteStatuses.get(challenge.prerequisite_challenge_id) === "completed";
     const eligibility = {
       ...challenge,
-      prerequisite_completed: prerequisiteCompleted
+      prerequisite_completed: prerequisiteCompleted,
+      humanity_confirmed: viewerHumanConfirmed
     };
+    let progress: WalletChallengeProgress | null = null;
+    const walletRule = viewerUserId ? walletChallengeRule(challenge.verification_logic) : null;
+    if (walletRule && userChallenge?.status !== "completed") {
+      const since = walletRule.kind === "stay" && challenge.prerequisite_challenge_id ? completedAt.get(challenge.prerequisite_challenge_id) : undefined;
+      progress = walletChallengeProgress(walletRule, walletStats(viewerLedger, viewerNow, since));
+    }
 
     return {
       ...publicChallenge,
       user_challenge_status: userChallenge?.status ? String(userChallenge.status).trim().toLowerCase() : null,
       prerequisite_completed: prerequisiteCompleted,
+      progress,
       can_accept: canAcceptChallenge(eligibility, viewerLevel),
       access_reasons: getChallengeAccessReasons(eligibility, viewerLevel)
     };

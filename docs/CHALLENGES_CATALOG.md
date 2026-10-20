@@ -479,7 +479,7 @@ Skill challenge всегда содержит короткое обучение,
 ### Доработки API
 - `app/api/challenges/check/route.ts` — новые cases в `verifyChallenge()`:
   - `first_wallet_to_core` — реализовано через `wallet_ledger` (`wallet_core_topup` / `core_topup`);
-  - `stay_streak_{7,15,30,60,120,240}` — серия дней без `crypto_withdrawal` (`lib/stayStreak.ts`), см. [WALLET_RETENTION_PLAN.md](WALLET_RETENTION_PLAN.md);
+  - `wallet_first_deposit`, `wallet_net_deposit_20`, `stay_streak_{7,15,30,60}` — цепочка «Изобилие остаётся» по `wallet_ledger` (`lib/stayStreak.ts`), см. [WALLET_RETENTION_PLAN.md](WALLET_RETENTION_PLAN.md); принятие любого челленджа с наградой требует проверки человечности;
   - `first_wallet_transfer` — реализовано через `wallet_ledger` (`wallet_transfer` / outgoing `debit`)
   - `reinvest_enabled` — проверка `core_accounts.reinvest_percent > 0`
   - `core_growth_threshold` — проверка прироста Core от baseline челленджа

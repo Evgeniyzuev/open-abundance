@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
-import { hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { challengeNeedsHumanity, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 
 type AcceptRequest = {
   challengeId?: string;
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id,prerequisite_challenge_id,verification_logic,difficulty_level")
+    .select("id,prerequisite_challenge_id,verification_logic,difficulty_level,category,core_reward_amount,wallet_reward_amount")
     .eq("id", body.challengeId)
     .eq("is_active", true)
     .maybeSingle();
@@ -70,6 +70,14 @@ export async function POST(request: NextRequest) {
   const userLevel = Number(coreAccount?.level ?? 1);
   if (challenge.difficulty_level > userLevel) {
     return NextResponse.json({ error: `Challenge requires Core level ${challenge.difficulty_level}.` }, { status: 409 });
+  }
+
+  if (challengeNeedsHumanity(challenge)) {
+    const { data: humanity, error: humanityError } = await (supabase as any).from("humanity_verifications").select("humanity_level").eq("user_id", user.id).maybeSingle();
+    if (humanityError) return NextResponse.json({ error: humanityError.message }, { status: 500 });
+    if (Number(humanity?.humanity_level ?? 0) < 2) {
+      return NextResponse.json({ error: "Confirm that you are a human first.", code: "humanity_required" }, { status: 409 });
+    }
   }
 
   if (challenge.verification_logic === "has_referral") {

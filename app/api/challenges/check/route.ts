@@ -7,7 +7,7 @@ import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCa
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
 import { confirmedReferralsThreshold } from "@/lib/creatorChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
-import { STAY_MIN_NET_DEPOSIT, stayStreakDays, stayStreakStats } from "@/lib/stayStreak";
+import { walletChallengeDone, walletChallengeRule, walletStats } from "@/lib/stayStreak";
 import { hasThreeSteps } from "@/lib/wishSteps";
 
 type CheckRequest = {
@@ -573,18 +573,26 @@ async function verifyChallenge(
     }
   }
 
-  const stayDays = stayStreakDays(challenge.verification_logic);
-  if (stayDays) {
-    const { data, error } = await supabase
+  const walletRule = walletChallengeRule(challenge.verification_logic);
+  if (walletRule) {
+    const { data: ledger, error: ledgerError } = await supabase
       .from("wallet_ledger")
       .select("operation_type,direction,amount,created_at")
       .eq("user_id", userId)
       .in("operation_type", ["crypto_deposit", "crypto_withdrawal"]);
-    if (error) return { ok: false, reason: "Could not check the Wallet history. Try again." };
-    const stats = stayStreakStats(data ?? [], new Date());
-    if (stats.netDeposit < STAY_MIN_NET_DEPOSIT) return { ok: false, reason: "Top up your Wallet and keep your abundance growing." };
-    if (stats.streakDays >= stayDays) return { ok: true };
-    return { ok: false, reason: `Keep your abundance in the app for ${stayDays} days without withdrawals. Days so far: ${stats.streakDays}.` };
+    if (ledgerError) return { ok: false, reason: "Could not check the Wallet history. Try again." };
+    // A streak counts from the moment the previous step of the chain was completed.
+    let since: Date | null = null;
+    if (walletRule.kind === "stay" && challenge.prerequisite_challenge_id) {
+      const { data: previous } = await db.from("user_challenges").select("status,updated_at,reward_settled_at").eq("user_id", userId).eq("challenge_id", challenge.prerequisite_challenge_id).maybeSingle();
+      const doneAt = Date.parse(String(previous?.reward_settled_at ?? previous?.updated_at ?? ""));
+      if (previous?.status === "completed" && Number.isFinite(doneAt)) since = new Date(doneAt);
+    }
+    const stats = walletStats(ledger ?? [], new Date(), since);
+    if (walletChallengeDone(walletRule, stats)) return { ok: true };
+    if (walletRule.kind === "first_deposit") return { ok: false, reason: "Top up your Wallet first." };
+    if (walletRule.kind === "net_deposit") return { ok: false, reason: `Net top-ups so far: $${stats.netDeposit.toFixed(2)} of $${walletRule.amount}.` };
+    return { ok: false, reason: `Keep your abundance in the app for ${walletRule.days} days without withdrawals. Days so far: ${stats.streakDays}.` };
   }
 
   if (challenge.verification_logic === "today_completion_total_30") {

@@ -55,6 +55,7 @@ type Challenge = {
   prerequisite_completed?: boolean;
   can_accept?: boolean;
   access_reasons?: ChallengeAccessReason[];
+  progress?: { current: number; target: number; unit: "usd" | "days" } | null;
   acquisition_series?: string | null;
   acquisition_target?: number | null;
   acquisition_metric_key?: string | null;
@@ -988,7 +989,7 @@ function ChallengeRow({ challenge, children, expanded, locale, userLevel, t, onT
           <span className="challenge-row-title">{title}</span>
           <span className="challenge-row-summary">
             <span className={reward ? "challenge-row-reward" : "challenge-row-reward unknown"}>{rewardLabel}</span>
-            {state ? <span className="challenge-row-state">{state}</span> : null}
+            {state ? <span className="challenge-row-state">{state}</span> : challenge.progress ? <span className="challenge-row-state">{challenge.progress.unit === "usd" ? `${formatRoundedMoney(challenge.progress.current, locale)} / ${formatRoundedMoney(challenge.progress.target, locale)}` : t("challenges.progressDays", { current: challenge.progress.current, target: challenge.progress.target })}</span> : null}
           </span>
         </span>
       </summary>
@@ -1262,6 +1263,12 @@ function ChallengeDetailContent({
         </section>
       ) : null}
 
+      {!completed && challenge.progress ? (
+        <div className="challenge-access" aria-label={t("challenges.progress")}>
+          {challenge.progress.unit === "usd" ? `${formatRoundedMoney(challenge.progress.current, locale)} / ${formatRoundedMoney(challenge.progress.target, locale)}` : t("challenges.progressDays", { current: challenge.progress.current, target: challenge.progress.target })}
+        </div>
+      ) : null}
+
       {completed ? (
         <div className="challenge-access completed">
           <CheckCircle2 size={17} />
@@ -1271,7 +1278,7 @@ function ChallengeDetailContent({
 
       {!completed && locked ? (
         <div className="challenge-access locked">
-          {accessReasons.includes("first_result") ? t("challenges.firstResultRequired") : accessReasons.includes("prerequisite") ? t("challenges.prerequisiteRequired") : t("challenges.availableFrom", { level: challenge.difficulty_level })}
+          {accessReasons.includes("first_result") ? t("challenges.firstResultRequired") : accessReasons.includes("prerequisite") ? t("challenges.prerequisiteRequired") : accessReasons.includes("humanity") ? t("challenges.humanityRequired") : t("challenges.availableFrom", { level: challenge.difficulty_level })}
         </div>
       ) : null}
 
@@ -1637,6 +1644,7 @@ function getChallengeRowState(challenge: Challenge, userLevel: number, t: TFunct
   const accessReasons = challenge.access_reasons ?? getChallengeAccessReasons(challenge, userLevel);
   if (accessReasons.includes("first_result")) return t("challenges.firstResultRequired");
   if (accessReasons.includes("prerequisite")) return t("challenges.prerequisiteRequired");
+  if (accessReasons.includes("humanity")) return t("challenges.humanityRequired");
   if (accessReasons.includes("core_level")) return t("challenges.availableFrom", { level: challenge.difficulty_level });
   return "";
 }
@@ -1668,12 +1676,12 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "calculate_time_to_goal":
     case "reinvest_enabled":
     case "today_core_target_reached":
+    case "wallet_first_deposit":
+    case "wallet_net_deposit_20":
     case "stay_streak_7":
     case "stay_streak_15":
     case "stay_streak_30":
     case "stay_streak_60":
-    case "stay_streak_120":
-    case "stay_streak_240":
     case "first_wallet_to_core":
     case "first_wallet_transfer":
       return WalletCards;

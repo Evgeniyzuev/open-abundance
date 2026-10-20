@@ -10,6 +10,7 @@ import HumanityCard from "@/components/HumanityCard";
 import InviteKit from "@/components/InviteKit";
 import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import NicheTaskChallenge from "@/components/NicheTaskChallenge";
+import ValuesGoalsActivity from "@/components/ValuesGoalsActivity";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
@@ -1032,6 +1033,7 @@ function ChallengeDetailContent({
   const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
+  const needsValuesChallenge = challenge.verification_logic === "values_goals_defined" && accepted && !completed && !locked;
   const needsInstallPingChallenge = challenge.verification_logic === "install_ping_answered" && accepted && !completed && !locked;
   const needsCoreLawChallenge = challenge.verification_logic === "core_law_understood" && accepted && !completed && !locked;
   const needsAppTesting = challenge.verification_logic === "app_testing_feedback" && accepted && !completed && !locked;
@@ -1046,6 +1048,7 @@ function ChallengeDetailContent({
   const [attentionProofRecorded, setAttentionProofRecorded] = useState(false);
   const [coreLawPassed, setCoreLawPassed] = useState(false);
   const [nicheTaskChosen, setNicheTaskChosen] = useState(false);
+  const [valuesDone, setValuesDone] = useState(false);
   const [installPingPassed, setInstallPingPassed] = useState(false);
 
   useEffect(() => {
@@ -1053,6 +1056,7 @@ function ChallengeDetailContent({
     setAttentionProofRecorded(false);
     setCoreLawPassed(false);
     setNicheTaskChosen(false);
+    setValuesDone(false);
     setInstallPingPassed(false);
   }, [challenge.id]);
 
@@ -1071,6 +1075,12 @@ function ChallengeDetailContent({
 
     if (needsNicheChallenge && !nicheTaskChosen) {
       setCheckMessage(t("challenges.niche.required"));
+      setCheckStatus("idle");
+      return;
+    }
+
+    if (needsValuesChallenge && !valuesDone) {
+      setCheckMessage(t("challenges.values.required"));
       setCheckStatus("idle");
       return;
     }
@@ -1308,6 +1318,14 @@ function ChallengeDetailContent({
           onPassedChange={setNicheTaskChosen}
           onProof={recordNicheProof}
           t={t}
+        />
+      ) : null}
+
+      {needsValuesChallenge ? (
+        <ValuesGoalsActivity
+          locale={locale}
+          t={t}
+          onProgress={(profile) => setValuesDone(Boolean(profile.wheelSavedAt) && profile.swipeCount >= profile.challengeSwipes)}
         />
       ) : null}
 
@@ -1692,6 +1710,7 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "ai_message_sent":
       return Bot;
     case "niche_task_chosen":
+    case "values_goals_defined":
       return Compass;
     case "humanity_confirmed":
       return ShieldCheck;

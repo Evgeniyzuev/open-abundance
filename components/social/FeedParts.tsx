@@ -12,6 +12,7 @@ import { classifySwipe } from "@/lib/swipe";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import { celebrate } from "@/lib/ui/feedback";
 import FeedStoryRings from "@/components/social/FeedStoryRings";
+import { ValuesFeedCard } from "@/components/ValuesGoalsActivity";
 import ChipRow from "@/components/ui/ChipRow";
 import Skeleton from "@/components/ui/Skeleton";
 import { type FeedFilter } from "@/components/social/useFeed";
@@ -180,6 +181,7 @@ export function FeedView({
       </div>
       {hasNew ? <button className="feed-new-banner" type="button" onClick={onRefreshNew}>{t("social.feed.newStories")}</button> : null}
       <FeedStoryRings currentUserId={currentUserId} label={t("social.feed.rings")} posts={posts} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+      {filter === "all" ? <ValuesFeedCard locale={locale} t={t} /> : null}
       {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />

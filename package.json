@@ -46,6 +46,7 @@
     "test:creator-challenges": "node --experimental-strip-types scripts/verify-creator-challenges-contract.mjs",
     "test:artifacts": "node --experimental-strip-types scripts/verify-artifacts-contract.mjs",
     "test:challenge-art": "node --experimental-strip-types scripts/verify-challenge-art-contract.mjs",
+    "test:values-goals": "node --experimental-strip-types scripts/verify-values-goals-contract.mjs",
     "test:r2-media": "node --experimental-strip-types scripts/verify-r2-media-contract.mjs",
     "test:upload-image": "node --experimental-strip-types scripts/verify-upload-image-contract.mjs",
     "test:usdt-bound-scan": "node --experimental-strip-types scripts/verify-usdt-bound-scan-contract.mjs",

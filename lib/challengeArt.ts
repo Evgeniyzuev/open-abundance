@@ -30,6 +30,7 @@ export const CHALLENGE_GLYPHS: Record<string, string> = {
   "app_testing_feedback": "FlaskConical",
   "ai_message_sent": "Bot",
   "niche_task_chosen": "Compass",
+  "values_goals_defined": "Heart",
   "humanity_confirmed": "ShieldCheck",
   "referral_program": "Handshake",
   "referrals_confirmed_1": "UserCheck",

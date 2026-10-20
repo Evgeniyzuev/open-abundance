@@ -9,6 +9,7 @@ import { confirmedReferralsThreshold } from "@/lib/creatorChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
 import { walletChallengeDone, walletChallengeRule, walletStats } from "@/lib/stayStreak";
 import { hasThreeSteps } from "@/lib/wishSteps";
+import { VALUES_CHALLENGE_SWIPES, valuesChallengeDone } from "@/lib/lifeValues";
 
 type CheckRequest = {
   challengeId?: string;
@@ -411,6 +412,19 @@ async function verifyChallenge(
     if (error) return { ok: false, reason: "Could not check your Market listings. Try again." };
     if (Number(count ?? 0) > 0) return { ok: true };
     return { ok: false, reason: "Publish your first listing in Wallet → Market first." };
+  }
+
+  if (challenge.verification_logic === "values_goals_defined") {
+    const { data, error } = await db
+      .from("user_values_profiles")
+      .select("wheel_saved_at,swipe_count")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) return { ok: false, reason: "Could not check your values and goals. Try again." };
+    const state = { wheelSaved: Boolean(data?.wheel_saved_at), swipeCount: Number(data?.swipe_count ?? 0) };
+    if (valuesChallengeDone(state)) return { ok: true };
+    if (!state.wheelSaved) return { ok: false, reason: "Save your balance wheel first." };
+    return { ok: false, reason: `Swipe ${VALUES_CHALLENGE_SWIPES} goal cards: ${state.swipeCount} done so far.` };
   }
 
   if (challenge.verification_logic === "has_wish") {

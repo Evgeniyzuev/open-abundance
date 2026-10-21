@@ -821,17 +821,49 @@ function ChallengeSection({
 }
 
 function ProjectSection({ projects, emptyMessage, locale, t, onOpen }: { projects: Project[]; emptyMessage: string; locale: AppLocale; t: TFunction; onOpen: (project: Project) => void }) {
+  if (projects.length === 0) {
+    return (
+      <section className="challenge-section">
+        <div className="task-empty">{emptyMessage}</div>
+      </section>
+    );
+  }
+
+  // Projects the user already applied to come first, approved before pending, like "Accepted" in challenges.
+  const mine = projects
+    .filter((project) => project.user_application_status === "approved" || project.user_application_status === "pending")
+    .sort((a, b) => Number(b.user_application_status === "approved") - Number(a.user_application_status === "approved"));
+  const open = projects.filter((project) => !mine.includes(project));
+
+  return (
+    <>
+      {mine.length > 0 ? <ProjectGroup title={t("projects.mine")} projects={mine} locale={locale} t={t} onOpen={onOpen} /> : null}
+      {open.length > 0 ? <ProjectGroup title={t("projects.open")} projects={open} locale={locale} t={t} onOpen={onOpen} /> : null}
+    </>
+  );
+}
+
+function ProjectGroup({ title, projects, locale, t, onOpen }: { title: string; projects: Project[]; locale: AppLocale; t: TFunction; onOpen: (project: Project) => void }) {
+  const [open, setOpen] = useState(true);
+
   return (
     <section className="challenge-section">
-      {projects.length === 0 ? (
-        <div className="task-empty">{emptyMessage}</div>
-      ) : (
+      <h2 className="challenge-section-heading">
+        <button className="challenge-section-toggle" type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+          <span>{title}</span>
+          <span className="challenge-section-meta">
+            <strong>{projects.length}</strong>
+            <span aria-hidden="true" className={`challenge-section-chevron${open ? " is-open" : ""}`}>⌄</span>
+          </span>
+        </button>
+      </h2>
+      {open ? (
         <div className="challenge-list">
           {projects.map((project) => (
             <ProjectRow key={project.id} locale={locale} project={project} t={t} onOpen={() => onOpen(project)} />
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -924,16 +956,15 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
 
   return (
     <button className="challenge-row project-row" type="button" onClick={onOpen}>
-      <span className="challenge-thumb project-thumb">
-        {project.image_url ? <img alt="" src={project.image_url} loading="lazy" /> : <Rocket size={24} />}
-      </span>
+      <ChallengeVisual challenge={{ id: project.id, category: project.category, image_url: project.image_url, verification_logic: null, title: project.title }} fallbackIcon={Rocket} />
       <span className="challenge-row-body">
         <span className="challenge-row-title">{displayText(project.title, t("projects.project"), locale)}</span>
         <small>{displayText(project.description, "", locale)}</small>
         <span className="challenge-meta">
-          <span>{participantsText(project)}</span>
+          {status ? <span className={`project-status ${status}`}>{getProjectStatusLabel(status, t)}</span> : null}
+          <span><Users size={12} aria-hidden="true" />{participantsText(project)}</span>
           <span>{t("app.common.level")} {project.level}</span>
-          {status ? <span>{getProjectStatusLabel(status, t)}</span> : null}
+          {project.deadline ? <span><Clock3 size={12} aria-hidden="true" />{formatDate(project.deadline, locale)}</span> : null}
         </span>
       </span>
     </button>
@@ -945,8 +976,8 @@ function ProjectRow({ project, locale, t, onOpen }: { project: Project; locale: 
  * otherwise a drawn cover (category colour, a glyph for what the challenge asks, a glow and hue shift seeded by
  * the id, and a number badge for the numbered series). A picture hotlinked from another site is not used.
  */
-export function ChallengeVisual({ challenge, title = "" }: { challenge: Pick<Challenge, "id" | "category" | "image_url" | "verification_logic" | "title">; title?: string }) {
-  const Icon = getChallengeIcon(challenge as Challenge);
+export function ChallengeVisual({ challenge, title = "", fallbackIcon }: { challenge: Pick<Challenge, "id" | "category" | "image_url" | "verification_logic" | "title">; title?: string; fallbackIcon?: LucideIcon }) {
+  const Icon = fallbackIcon ?? getChallengeIcon(challenge as Challenge);
   const tone = getChallengeTone(challenge as Challenge);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const own = isOwnImage(challenge.image_url) ? challenge.image_url : null;
@@ -1453,9 +1484,9 @@ function ProjectDetailModal({
   return (
     <Sheet bare dismissible={false} className="challenge-modal project-modal" ariaLabel={t("projects.project")}>
         <div className="modal-header">
-          <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
+          <span aria-hidden="true" />
           <h2>{t("projects.project")}</h2>
-          <span />
+          <button className="text-button primary" type="button" onClick={onClose}>{t("app.common.close")}</button>
         </div>
 
         {project.image_url ? <img className="challenge-modal-image" alt="" src={project.image_url} /> : null}
@@ -1753,8 +1784,8 @@ function getProjectStatusLabel(status: ProjectApplicationStatus, t: TFunction): 
 }
 
 function participantsText(project: Project): string {
-  const maxParticipants = project.max_participants > 0 ? String(project.max_participants) : "∞";
-  return `${project.current_participants}/${maxParticipants}`;
+  if (project.max_participants <= 0) return String(project.current_participants);
+  return `${project.current_participants}/${project.max_participants}`;
 }
 
 function formatDate(value: string, locale: AppLocale): string {

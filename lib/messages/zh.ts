@@ -1597,6 +1597,8 @@ const zh: Record<string, string> = {
   "projects.applicationPlaceholder": "你想怎样帮忙？",
   "projects.send_application": "加入项目",
   "projects.pending": "申请已发送",
+  "projects.mine": "我的项目",
+  "projects.open": "开放项目",
   "projects.approved": "已在项目中",
   "projects.rejected": "已拒绝",
   "projects.withdrawn": "已撤回",

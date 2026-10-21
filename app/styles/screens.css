@@ -586,6 +586,11 @@
 .project-row { height: 82px; grid-template-columns: 82px minmax(0, 1fr); gap: 12px; }
 .project-row .challenge-thumb { width: 82px; height: 82px; }
 .project-row .challenge-row-body { gap: 5px; padding-inline-end: 12px; }
+.challenge-meta span svg { margin-inline-end: 4px; flex: 0 0 auto; }
+.challenge-meta span.project-status.approved { background: var(--success-soft); color: var(--green); }
+.challenge-meta span.project-status.pending { background: rgba(255,174,31,0.16); color: #b86200; }
+.challenge-meta span.project-status.rejected { background: var(--danger-soft); color: var(--danger); }
+.challenge-meta span.project-status.withdrawn { background: var(--surface-muted); color: var(--muted); }
 .project-modal .challenge-modal-body strong { color: var(--blue); }
 .project-tasks, .project-application { display: grid; gap: 9px; }
 .project-task-list { display: grid; gap: 8px; }

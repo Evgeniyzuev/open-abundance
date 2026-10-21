@@ -1597,6 +1597,8 @@ const ar: Record<string, string> = {
   "projects.applicationPlaceholder": "كيف تريد أن تساعد؟",
   "projects.send_application": "الانضمام إلى المشروع",
   "projects.pending": "تم إرسال الطلب",
+  "projects.mine": "مشاريعي",
+  "projects.open": "المشاريع المفتوحة",
   "projects.approved": "في المشروع",
   "projects.rejected": "مرفوض",
   "projects.withdrawn": "مسحوب",

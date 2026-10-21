@@ -1423,6 +1423,8 @@ const en = {
   "projects.applicationPlaceholder": "How do you want to help?",
   "projects.send_application": "Join project",
   "projects.pending": "Application sent",
+  "projects.mine": "My projects",
+  "projects.open": "Open projects",
   "projects.approved": "In project",
   "projects.rejected": "Rejected",
   "projects.withdrawn": "Withdrawn",

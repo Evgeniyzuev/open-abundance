@@ -1597,6 +1597,8 @@ const hi: Record<string, string> = {
   "projects.applicationPlaceholder": "आप कैसे मदद करना चाहते हैं?",
   "projects.send_application": "प्रोजेक्ट से जुड़ें",
   "projects.pending": "आवेदन भेजा गया",
+  "projects.mine": "मेरे प्रोजेक्ट",
+  "projects.open": "खुले प्रोजेक्ट",
   "projects.approved": "प्रोजेक्ट में",
   "projects.rejected": "अस्वीकृत",
   "projects.withdrawn": "वापस ली गई",

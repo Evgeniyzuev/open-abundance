@@ -57,6 +57,7 @@
     "test:core-items": "node --experimental-strip-types scripts/verify-core-items-contract.mjs",
     "test:business-challenges": "node --experimental-strip-types scripts/verify-business-challenges-contract.mjs",
     "test:spend-intents": "node --experimental-strip-types scripts/verify-spend-intents-contract.mjs",
+    "test:business-advisor": "node --experimental-strip-types scripts/verify-business-advisor-contract.mjs",
     "test:core-sources": "node --experimental-strip-types scripts/verify-core-sources-contract.mjs",
     "test:core-afterburn": "node --experimental-strip-types scripts/verify-core-afterburn-contract.mjs",
     "test:reality-day": "node --experimental-strip-types scripts/verify-reality-day-contract.mjs",

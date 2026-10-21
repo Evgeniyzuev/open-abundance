@@ -6,7 +6,9 @@ const nextConfig = {
     return [
       { source: "/@:username", destination: "/u/by-username/:username" },
       // The invitation link opens the person's blog first.
-      { source: "/@:username/blog", destination: "/u/by-username/:username/blog" }
+      { source: "/@:username/blog", destination: "/u/by-username/:username/blog" },
+      // The member's public workshop: their listings for guests.
+      { source: "/@:username/shop", destination: "/s/:username" }
     ];
   },
   async redirects() {

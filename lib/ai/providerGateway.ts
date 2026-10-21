@@ -156,8 +156,7 @@ export async function streamAiText({
 
   // A deep answer also starts with Groq (the larger model) while Gemini is unreliable; set AI_DEEP_PRIMARY_PROVIDER=gemini to prefer it.
   // Chat is answered by the fastest provider first (Groq starts in about half a second); the other is the fallback.
-  const primary = process.env[deep ? "AI_DEEP_PRIMARY_PROVIDER" : "AI_CHAT_PRIMARY_PROVIDER"]?.trim().toLowerCase();
-  const providers = await getAvailableProviders(preferProvider ?? (primary === "gemini" || primary === "cerebras" ? primary : "groq"));
+  const providers = await getAvailableProviders(preferProvider ?? primaryProvider(deep));
   const providerAttempts: AiProviderFailureAttempt[] = [];
   const answerTokens = deep ? Math.max(maxOutputTokens, 2_000) : maxOutputTokens;
 
@@ -200,6 +199,10 @@ export async function generateAiJson<T>({
   }
 
   throw new AiGatewayError("all_providers_failed", providerAttempts);
+}
+
+function primaryProvider(deep: boolean): AiProvider {
+  const primary = process.env[deep ? "AI_DEEP_PRIMARY_PROVIDER" : "AI_CHAT_PRIMARY_PROVIDER"]?.trim().toLowerCase(); return primary === "gemini" || primary === "cerebras" ? primary : "groq";
 }
 
 function configuredProviderKeys() {

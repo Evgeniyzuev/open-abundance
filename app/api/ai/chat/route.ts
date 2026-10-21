@@ -23,6 +23,8 @@ import type { AppLocale } from "@/lib/i18n";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { getAiUserSettings } from "@/lib/ai/userAiConnections";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { buildBusinessInstruction, wantsBusinessHelp } from "@/lib/businessAdvisor";
+import { cleanSpendCategories, demandMap } from "@/lib/spendCategories";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -119,6 +121,10 @@ export async function POST(request: NextRequest) {
     if (!sharedContext) return errorResponse("The selected material is unavailable.", 404, { code: "ai_shared_content_unavailable" });
     systemPrompt = appendSelectedContentContext(systemPrompt, sharedContext);
     await recordProductEvent({ entityId: sharedContext.postId, entityType: "feed_post", eventName: "saved_content_discussed", properties: {}, source: "server", userId: auth.user.id });
+  }
+
+  if (!followup && wantsBusinessHelp(messages)) {
+    systemPrompt += await loadBusinessInstruction(auth.supabase, auth.user.id, locale);
   }
 
   const aiSettings = await getAiUserSettings(auth.user.id);
@@ -295,6 +301,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function estimateChatInputTokens(systemPrompt: string, messages: AiConversationMessage[]): number {
   return estimateAiTokens([systemPrompt, ...messages.map((message) => message.content)].join("\n"));
+}
+
+async function loadBusinessInstruction(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedUser>>["supabase"],
+  userId: string,
+  locale: AppLocale
+): Promise<string> {
+  try {
+    const db = supabase as any;
+    const [own, community, listings, sales] = await Promise.all([
+      db.from("user_spend_intents").select("categories").eq("user_id", userId).maybeSingle(),
+      db.from("user_spend_intents").select("categories").eq("offers_consent", true).limit(20000),
+      db.from("marketplace_listings").select("id", { count: "exact", head: true }).eq("seller_user_id", userId).eq("status", "active"),
+      db.from("marketplace_deals").select("id", { count: "exact", head: true }).eq("seller_user_id", userId).eq("status", "completed")
+    ]);
+    return buildBusinessInstruction(locale === "ru" ? "ru" : "en", {
+      ownCategories: cleanSpendCategories(own.data?.categories),
+      demand: demandMap((community.data ?? []) as Array<{ categories: string[] }>),
+      activeListings: Number(listings.count ?? 0),
+      completedSales: Number(sales.count ?? 0)
+    });
+  } catch {
+    // The mode still works without the facts.
+    return buildBusinessInstruction(locale === "ru" ? "ru" : "en", { ownCategories: [], demand: [], activeListings: 0, completedSales: 0 });
+  }
 }
 
 function appendPersonalContext(basePrompt: string, context: unknown, feedback: unknown): string {

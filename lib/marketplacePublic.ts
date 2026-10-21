@@ -2,6 +2,7 @@
 // fields that are safe to show to anyone: no seller ids, contacts, deals or balances.
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { isIndexableListing, isPublicForGuests } from "@/lib/marketplaceGuestVisibility";
+import { USERNAME_PATTERN } from "@/lib/username";
 import { isUuid } from "@/lib/uuid";
 
 export type PublicListing = {
@@ -15,6 +16,7 @@ export type PublicListing = {
   fulfillmentDays: number | null;
   imageUrl: string | null;
   sellerName: string | null;
+  sellerUsername: string | null;
   sellerLevel: number | null;
   ratingCount: number;
   ratingAverage: number | null;
@@ -68,6 +70,43 @@ export async function loadPublicListings(): Promise<PublicListing[]> {
   return withSellers(db, visible);
 }
 
+export type PublicShop = {
+  username: string;
+  displayName: string;
+  level: number | null;
+  listings: PublicListing[];
+  salesCount: number;
+  ratingCount: number;
+  ratingAverage: number | null;
+  indexable: boolean;
+};
+
+/** The public workshop of a member (/@nickname/shop): their active listings that guests may see. */
+export async function loadPublicShop(username: string): Promise<PublicShop | null> {
+  const name = username.trim().toLowerCase();
+  if (!USERNAME_PATTERN.test(name)) return null;
+  const db = serviceClient();
+  if (!db) return null;
+  const { data: profile } = await db.from("user_profiles").select("user_id,username,display_name,level").eq("username", name).is("deleted_at", null).maybeSingle();
+  if (!profile) return null;
+  const { data } = await db.from("marketplace_listings").select(LISTING_FIELDS).eq("seller_user_id", profile.user_id).eq("status", "active")
+    .order("created_at", { ascending: false }).limit(PUBLIC_LIST_LIMIT);
+  const visible = ((data ?? []) as ListingRow[]).filter((row) => isPublicForGuests(row.metadata));
+  const listings = await withSellers(db, visible);
+  const ratingCount = listings.reduce((sum, item) => sum + item.ratingCount, 0);
+  const ratingSum = listings.reduce((sum, item) => sum + (item.ratingAverage ?? 0) * item.ratingCount, 0);
+  return {
+    username: profile.username,
+    displayName: profile.display_name ?? profile.username,
+    level: profile.level ?? null,
+    listings,
+    salesCount: listings.reduce((sum, item) => sum + item.salesCount, 0),
+    ratingCount,
+    ratingAverage: ratingCount > 0 ? Math.round((ratingSum / ratingCount) * 10) / 10 : null,
+    indexable: listings.some((item) => item.indexable)
+  };
+}
+
 async function withSellers(db: any, rows: ListingRow[]): Promise<PublicListing[]> {
   if (!rows.length) return [];
   const sellerIds = Array.from(new Set(rows.map((row) => row.seller_user_id)));
@@ -96,6 +135,7 @@ async function withSellers(db: any, rows: ListingRow[]): Promise<PublicListing[]
       fulfillmentDays: row.fulfillment_days,
       imageUrl: safeImageUrl(row.image_url ?? (row.artifact_id ? artifactImage.get(row.artifact_id) ?? null : null)),
       sellerName: profile?.display_name ?? profile?.username ?? null,
+      sellerUsername: profile?.username ?? null,
       sellerLevel: profile?.level ?? null,
       ratingCount,
       ratingAverage: ratingCount > 0 ? Math.round((Number(row.rating_sum ?? 0) / ratingCount) * 10) / 10 : null,

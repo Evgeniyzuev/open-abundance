@@ -76,7 +76,7 @@ export default async function PublicListingPage({ params }: { params: { listingI
             <ul>
               <li>{labels.price}: {listing.priceAmount} {listing.currencyCode}</li>
               {listing.kind !== "digital_asset" && listing.fulfillmentDays ? <li>{labels.fulfillment(listing.fulfillmentDays)}</li> : null}
-              <li>{labels.seller}: {listing.sellerName ?? "Open Abundance"}{listing.sellerLevel ? `, ${labels.level} ${listing.sellerLevel}` : ""}</li>
+              <li>{labels.seller}: {listing.sellerUsername ? <Link href={`/@${listing.sellerUsername}/shop`}>{listing.sellerName ?? listing.sellerUsername}</Link> : (listing.sellerName ?? "Open Abundance")}{listing.sellerLevel ? `, ${labels.level} ${listing.sellerLevel}` : ""}</li>
               {listing.ratingAverage !== null ? <li>{labels.rating(listing.ratingAverage, listing.ratingCount)}</li> : null}
               {listing.salesCount > 0 ? <li>{labels.sales(listing.salesCount)}</li> : null}
             </ul>

@@ -15,6 +15,7 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
 import { parseScanned } from "@/lib/qrPayload";
+import { isHiddenFromGuests, publicListingPath } from "@/lib/marketplaceGuestVisibility";
 import { isUuid } from "@/lib/uuid";
 import { startVisiblePolling } from "@/lib/visiblePolling";
 import MarketOfferHelper from "@/components/MarketOfferHelper";
@@ -77,6 +78,7 @@ export function MarketplaceEditModal({
   const [category, setCategory] = useState(listing.category ?? "");
   const [fulfillmentDays, setFulfillmentDays] = useState(String(listing.fulfillment_days ?? 7));
   const [price, setPrice] = useState(String(listing.price_amount));
+  const [hideFromGuests, setHideFromGuests] = useState(isHiddenFromGuests(listing.metadata));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const parsedPrice = parseNumber(price);
@@ -91,6 +93,7 @@ export function MarketplaceEditModal({
         category,
         description,
         fulfillmentDays: Number(fulfillmentDays),
+        hideFromGuests,
         imageUrl,
         listingKind: listing.listing_kind ?? "digital_asset",
         priceAmount: Math.round(parsedPrice * 100) / 100,
@@ -117,10 +120,24 @@ export function MarketplaceEditModal({
           <label className="finance-field"><span>{t("market.category")}</span><input value={category} maxLength={80} onChange={(event) => setCategory(event.target.value)} /></label>
           {listing.listing_kind !== "digital_asset" ? <label className="finance-field"><span>{t("market.fulfillment")}</span><select value={fulfillmentDays} onChange={(event) => setFulfillmentDays(event.target.value)}><option value="1">1</option><option value="3">3</option><option value="7">7</option><option value="14">14</option></select></label> : null}
           <label className="finance-field"><span>{t("market.price")}</span><input inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+          <GuestVisibilityToggle checked={hideFromGuests} onChange={setHideFromGuests} t={t} />
+          {!hideFromGuests && listing.status === "active" ? <small>{t("market.publicPage")}: <a href={publicListingPath(listing.id)} target="_blank" rel="noreferrer">{publicListingPath(listing.id)}</a></small> : null}
           {error ? <p className="finance-error">{error}</p> : null}
           <small>{t("market.termsVersion")}: {(listing.terms_version ?? 1) + 1}</small>
         </div>
     </Sheet>
+  );
+}
+
+function GuestVisibilityToggle({ checked, onChange, t }: { checked: boolean; onChange: (value: boolean) => void; t: TFunction }) {
+  return (
+    <div className="finance-field">
+      <label className="routine-shopping-toggle">
+        <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+        <span>{t("market.hideFromGuests")}</span>
+      </label>
+      <small>{t("market.hideFromGuestsHint")}</small>
+    </div>
   );
 }
 
@@ -147,6 +164,7 @@ export function SellItemModal({
   const [fulfillmentDays, setFulfillmentDays] = useState("7");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [hideFromGuests, setHideFromGuests] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const parsedPrice = parseNumber(price);
@@ -174,6 +192,7 @@ export function SellItemModal({
         category,
         fulfillmentDays: Number(fulfillmentDays),
         description,
+        hideFromGuests,
         imageUrl,
         priceAmount: Math.round(parsedPrice * 100) / 100,
         title
@@ -273,6 +292,7 @@ export function SellItemModal({
                   placeholder={t("market.termsPlaceholder")}
                 />
               </label>
+              <GuestVisibilityToggle checked={hideFromGuests} onChange={setHideFromGuests} t={t} />
               {error ? <p className="topup-error">{error}</p> : null}
               <div className="topup-modal-actions">
                 <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>

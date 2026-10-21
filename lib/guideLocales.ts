@@ -2,10 +2,12 @@
 // Adding a language = one guide list file + one entry here + two thin route files under app/<lang>/guide.
 import { guides, type Guide } from "@/lib/guides";
 import { guidesEn } from "@/lib/guidesEn";
+import type { AppLocale } from "@/lib/locales";
 
 export const SITE_URL = "https://open-abundance.vercel.app";
 
-export type GuideLocale = "ru" | "en";
+/** Languages that have answer pages; a subset of the app languages. */
+export type GuideLocale = Extract<AppLocale, "en" | "ru">;
 
 export type GuideLabels = {
   indexTitle: string;

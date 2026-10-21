@@ -1,9 +1,15 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL, guideIndexPath, guidePath, guidesFor, type GuideLocale } from "@/lib/guideLocales";
+import { publicListingPath } from "@/lib/marketplaceGuestVisibility";
+import { loadPublicListings } from "@/lib/marketplacePublic";
 
 const GUIDE_LOCALES: GuideLocale[] = ["en", "ru"];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const revalidate = 3600;
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Only listings that pass the quality bar (lib/marketplaceGuestVisibility.ts) are offered to search engines.
+  const listings = (await loadPublicListings()).filter((listing) => listing.indexable);
   return [
     {
       url: `${SITE_URL}/`,
@@ -22,6 +28,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
         changeFrequency: "monthly" as const,
         priority: 0.7
       }))
-    ])
+    ]),
+    ...listings.map((listing) => ({
+      url: `${SITE_URL}${publicListingPath(listing.id)}`,
+      lastModified: listing.updatedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.5
+    }))
   ];
 }

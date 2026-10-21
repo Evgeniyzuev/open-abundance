@@ -1,8 +1,10 @@
+import { revalidatePath } from "next/cache";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { withGuestVisibility } from "@/lib/marketplaceGuestVisibility";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { normalizeUuid } from "@/lib/uuid";
 
@@ -13,6 +15,7 @@ type ListingPostBody = {
   category?: unknown;
   fulfillmentDays?: unknown;
   description?: unknown;
+  hideFromGuests?: unknown;
   imageUrl?: unknown;
   priceAmount?: unknown;
   title?: unknown;
@@ -204,7 +207,8 @@ export async function POST(request: NextRequest) {
       terms_hash: hashTerms(terms),
       terms_json: terms,
       terms_version: 1,
-      title
+      title,
+      ...(body.hideFromGuests === true ? { metadata: withGuestVisibility({}, true) } : {})
     } as any;
 
     const { data: listing, error: insertError } = await supabase
@@ -212,6 +216,7 @@ export async function POST(request: NextRequest) {
       .insert(row)
       .select("*")
       .single();
+    if (!insertError) revalidatePath("/m");
 
     if (insertError) {
       if (createdArtifactId) await cleanupCreatedArtifact(supabase, createdArtifactId);

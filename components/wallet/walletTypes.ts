@@ -215,6 +215,8 @@ export type MarketplaceListingInput = {
   imageUrl?: string;
   priceAmount: number;
   title: string;
+  /** Hide the listing's public page from people without an account. */
+  hideFromGuests?: boolean;
 };
 
 export type MarketplaceDeal = {

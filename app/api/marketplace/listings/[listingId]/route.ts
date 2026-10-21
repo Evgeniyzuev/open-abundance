@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
+import { withGuestVisibility } from "@/lib/marketplaceGuestVisibility";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { isUuid } from "@/lib/uuid";
@@ -52,16 +54,20 @@ export async function PATCH(request: NextRequest, { params }: { params: { listin
     const category = typeof body.category === "undefined" ? current.category ?? null : text(body.category, 80);
     const imageUrl = normalizeUrl(body.imageUrl) ?? current.image_url ?? null;
     const fulfillmentDays = current.listing_kind === "digital_asset" ? null : normalizeFulfillmentDays(body.fulfillmentDays) ?? current.fulfillment_days ?? 7;
+    // Guest visibility is not part of the deal terms, so it does not change the terms version or hash.
+    const metadata = typeof body.hideFromGuests === "boolean" ? withGuestVisibility(current.metadata, body.hideFromGuests) : current.metadata;
     const terms = { ...(current.terms_json ?? {}), title, description, priceAmount: price, category, fulfillmentDays, version: Number(current.terms_version ?? 1) + 1 };
     const { data: listing, error: updateError } = await (supabase as any)
       .from("marketplace_listings")
-      .update({ title, description, price_amount: price, category, image_url: imageUrl, fulfillment_days: fulfillmentDays, terms_version: Number(current.terms_version ?? 1) + 1, terms_json: terms, terms_hash: hashTerms(terms) })
+      .update({ title, description, metadata, price_amount: price, category, image_url: imageUrl, fulfillment_days: fulfillmentDays, terms_version: Number(current.terms_version ?? 1) + 1, terms_json: terms, terms_hash: hashTerms(terms) })
       .eq("id", current.id)
       .eq("seller_user_id", user.id)
       .in("status", ["active", "draft"])
       .select("*")
       .single();
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    revalidatePath(`/m/${current.id}`);
+    revalidatePath("/m");
     return NextResponse.json({ listing }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json({ error: routeError instanceof Error ? routeError.message : "Failed to update listing." }, { status: 500, headers: NO_STORE_HEADERS });

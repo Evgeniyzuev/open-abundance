@@ -132,6 +132,11 @@ const GEMINI_MODEL = AI_PROVIDER_MODELS.gemini;
 const GROQ_MODEL = AI_PROVIDER_MODELS.groq;
 const GROQ_DEEP_MODEL = "openai/gpt-oss-120b";
 const CEREBRAS_MODEL = AI_PROVIDER_MODELS.cerebras;
+// Tried in order when a provider answers "model not found" (a model was renamed or retired); the first model is the
+// normal choice, the rest are spare models of the same provider. The working one is remembered until the process restarts.
+const GROQ_MODEL_CHAIN = [GROQ_MODEL, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+const GROQ_DEEP_MODEL_CHAIN = [GROQ_DEEP_MODEL, "llama-3.3-70b-versatile"];
+const CEREBRAS_MODEL_CHAIN = [CEREBRAS_MODEL, "gpt-oss-120b", "llama3.1-8b"].filter((model, index, all) => all.indexOf(model) === index);
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions";
 // Set GEMINI_DISABLE_THINKING=false to restore the model default reasoning behaviour.
@@ -357,6 +362,55 @@ async function providerFetch(provider: AiProvider, input: string, init: RequestI
   }
 }
 
+const workingModels = new Map<string, string>();
+
+function modelChain(provider: Exclude<AiProvider, "gemini">, deep: boolean): string[] {
+  if (provider === "cerebras") return CEREBRAS_MODEL_CHAIN;
+  return deep ? GROQ_DEEP_MODEL_CHAIN : GROQ_MODEL_CHAIN;
+}
+
+async function isModelNotFound(response: Response): Promise<boolean> {
+  if (response.status === 404) return true;
+  if (response.status !== 400) return false;
+  try {
+    return /model_not_found|model_decommissioned|does not exist|decommissioned/i.test(await response.clone().text());
+  } catch {
+    return false;
+  }
+}
+
+/** Sends the request with the first model of the chain that the provider still knows. */
+async function fetchWithModelFallback(
+  provider: Exclude<AiProvider, "gemini">,
+  apiKey: string,
+  deep: boolean,
+  buildBody: (model: string) => Record<string, unknown>
+): Promise<Response> {
+  const chain = modelChain(provider, deep);
+  const key = `${provider}:${deep ? "deep" : "chat"}`;
+  const remembered = workingModels.get(key);
+  const models = remembered && chain.includes(remembered) ? [remembered, ...chain.filter((model) => model !== remembered)] : chain;
+  let response: Response | null = null;
+
+  for (const model of models) {
+    response = await providerFetch(provider, provider === "cerebras" ? CEREBRAS_URL : GROQ_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(buildBody(model)),
+    });
+    if (!(await isModelNotFound(response))) {
+      if (response.ok) workingModels.set(key, model);
+      return response;
+    }
+    console.error("AI provider model is unavailable, trying the next one.", { provider, model, status: response.status });
+  }
+
+  return response as Response;
+}
+
 async function noteProviderFailure(provider: AiProvider, error: unknown): Promise<AiProviderFailureAttempt> {
   const providerError = error instanceof AiProviderRequestError ? error : null;
   const failureCode = providerError?.failureCode ?? "provider_error";
@@ -469,23 +523,15 @@ async function streamOpenAiCompatible(
   maxOutputTokens: number,
   deep = false
 ): Promise<Response> {
-  const model = provider === "cerebras" ? CEREBRAS_MODEL : deep ? GROQ_DEEP_MODEL : GROQ_MODEL;
-  const response = await providerFetch(provider, provider === "cerebras" ? CEREBRAS_URL : GROQ_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-      temperature,
-      max_tokens: maxOutputTokens,
-      // gpt-oss reasons before it answers; low effort keeps the first word fast, a deep answer reasons more.
-      ...(model.includes("gpt-oss") ? { reasoning_effort: deep ? "medium" : "low" } : {}),
-      stream: true,
-    }),
-  });
+  const response = await fetchWithModelFallback(provider, apiKey, deep, (model) => ({
+    model,
+    messages: [{ role: "system", content: systemPrompt }, ...messages],
+    temperature,
+    max_tokens: maxOutputTokens,
+    // gpt-oss reasons before it answers; low effort keeps the first word fast, a deep answer reasons more.
+    ...(model.includes("gpt-oss") ? { reasoning_effort: deep ? "medium" : "low" } : {}),
+    stream: true,
+  }));
 
   if (!response.ok) {
     throw new AiProviderRequestError(provider, response.status, `http_${response.status}`, retryAfterMs(response));
@@ -616,23 +662,16 @@ async function generateOpenAiCompatibleJson(
   temperature: number,
   maxOutputTokens: number
 ): Promise<unknown> {
-  const response = await providerFetch(provider, provider === "cerebras" ? CEREBRAS_URL : GROQ_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: provider === "cerebras" ? CEREBRAS_MODEL : GROQ_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature,
-      max_tokens: maxOutputTokens,
-      response_format: { type: "json_object" },
-    }),
-  });
+  const response = await fetchWithModelFallback(provider, apiKey, false, (model) => ({
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    temperature,
+    max_tokens: maxOutputTokens,
+    response_format: { type: "json_object" },
+  }));
 
   if (!response.ok) {
     throw new AiProviderRequestError(provider, response.status, `http_${response.status}`, retryAfterMs(response));

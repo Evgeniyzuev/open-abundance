@@ -35,6 +35,15 @@ type Recommendation = {
   target_user_ids: string[];
 };
 
+type ListingOnReview = {
+  id: string;
+  title: string;
+  description: string | null;
+  price: string;
+  sellerUserId: string;
+  flags: string[];
+};
+
 const LIGHT_COLORS: Record<string, string> = { green: "#1a9b57", yellow: "#d99a00", red: "#d33a3a", black: "#111111", unknown: "#7a7f87" };
 const ATTENTION_STATUSES = new Set(["manual_review", "failed"]);
 
@@ -48,6 +57,33 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
   const [proposalBusy, setProposalBusy] = useState(false);
   const [nudges, setNudges] = useState<Array<{ user: string; step: string }> | null>(null);
   const [nudgeBusy, setNudgeBusy] = useState(false);
+  const [listings, setListings] = useState<ListingOnReview[] | null>(null);
+  const [listingBusy, setListingBusy] = useState(false);
+
+  const loadListings = useCallback(async () => {
+    setListingBusy(true);
+    try {
+      const response = await fetchWithSupabaseAuth("/api/internal/marketplace/review", { cache: "no-store" }, { authRequired: true });
+      if (response.ok) setListings(((await response.json()) as { items: ListingOnReview[] }).items);
+    } catch {
+      // The review queue is optional; the rest of the console keeps working.
+    } finally {
+      setListingBusy(false);
+    }
+  }, []);
+
+  async function reviewListing(id: string, status: "approved" | "rejected") {
+    setListingBusy(true);
+    try {
+      await fetchWithSupabaseAuth(
+        "/api/internal/marketplace/review",
+        { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) },
+        { authRequired: true }
+      );
+    } finally {
+      await loadListings();
+    }
+  }
 
   const loadProposals = useCallback(async (generate: boolean) => {
     setProposalBusy(true);
@@ -198,6 +234,29 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
                   <span style={{ display: "flex", gap: 6, marginTop: 6 }}>
                     <button className="secondary-button" type="button" disabled={proposalBusy} onClick={() => void decide(item.id, "approved")}>{t("operator.coordinator.approve")}</button>
                     <button className="secondary-button" type="button" disabled={proposalBusy} onClick={() => void decide(item.id, "rejected")}>{t("operator.coordinator.reject")}</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section aria-label={t("operator.market.title")}>
+          <h3 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            {t("operator.market.title")}
+            <button className="secondary-button" type="button" disabled={listingBusy} onClick={() => void loadListings()}>{t("operator.market.refresh")}</button>
+          </h3>
+          {listings === null ? null : listings.length === 0 ? <p className="transfer-muted">{t("operator.market.empty")}</p> : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+              {listings.map((item) => (
+                <li key={item.id} style={{ padding: "8px 10px", borderRadius: 10, background: "rgba(0, 0, 0, 0.04)" }}>
+                  <strong>{item.title}</strong> · <span className="transfer-muted">{item.price}</span>
+                  {item.description ? <><br /><span className="transfer-muted">{item.description}</span></> : null}
+                  <br />
+                  <span className="transfer-muted">{item.flags.map((flag) => t(`market.guestReview.flag.${flag}` as never)).join(", ")} · {item.sellerUserId}</span>
+                  <span style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                    <button className="secondary-button" type="button" disabled={listingBusy} onClick={() => void reviewListing(item.id, "approved")}>{t("operator.market.approve")}</button>
+                    <button className="secondary-button" type="button" disabled={listingBusy} onClick={() => void reviewListing(item.id, "rejected")}>{t("operator.market.reject")}</button>
                   </span>
                 </li>
               ))}

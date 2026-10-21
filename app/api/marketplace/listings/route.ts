@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import { withGuestVisibility } from "@/lib/marketplaceGuestVisibility";
+import { withAutoCheck, withGuestVisibility } from "@/lib/marketplaceGuestVisibility";
+import { NEW_ACCOUNT_DAILY_LISTINGS, NEW_ACCOUNT_DAYS, checkListingText, listingFingerprint, type ListingFlag } from "@/lib/marketplaceListingCheck";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { normalizeUuid } from "@/lib/uuid";
 
@@ -147,6 +148,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Listing limit reached for your level (${listingLimit}).` }, { status: 403, headers: NO_STORE_HEADERS });
     }
 
+    const newAccountLimit = await checkNewAccountDailyLimit(supabase, user.id);
+    if (newAccountLimit) {
+      return NextResponse.json({ error: newAccountLimit }, { status: 429, headers: NO_STORE_HEADERS });
+    }
+
     if (artifactId && listingKind !== "digital_asset") {
       return NextResponse.json({ error: "Only digital asset listings can reference an artifact." }, { status: 400, headers: NO_STORE_HEADERS });
     }
@@ -192,6 +198,8 @@ export async function POST(request: NextRequest) {
     const fulfillmentDays = normalizeFulfillmentDays(body.fulfillmentDays);
     const category = normalizeText(body.category, 80);
     const terms = buildTerms({ artifact, description, priceAmount, title, listingKind, fulfillmentDays, category });
+    const flags = await listingFlags(supabase, user.id, { title, description, category });
+    const metadata = withAutoCheck(body.hideFromGuests === true ? withGuestVisibility({}, true) : {}, flags, new Date().toISOString());
 
     const row = {
       artifact_id: artifact?.id ?? null,
@@ -208,7 +216,7 @@ export async function POST(request: NextRequest) {
       terms_json: terms,
       terms_version: 1,
       title,
-      ...(body.hideFromGuests === true ? { metadata: withGuestVisibility({}, true) } : {})
+      ...(Object.keys(metadata).length ? { metadata } : {})
     } as any;
 
     const { data: listing, error: insertError } = await supabase
@@ -239,6 +247,31 @@ export async function POST(request: NextRequest) {
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
+}
+
+/** Text rules plus a duplicate check against the seller's other open listings and identical offers from anyone. */
+async function listingFlags(supabase: SupabaseClient<Database>, userId: string, text: { title: string; description: string | null; category: string | null }): Promise<ListingFlag[]> {
+  const flags = checkListingText(text);
+  const fingerprint = listingFingerprint(text);
+  const open = ["draft", "active", "reserved"];
+  const [own, sameTitle] = await Promise.all([
+    supabase.from("marketplace_listings").select("title,description").eq("seller_user_id", userId).in("status", open).limit(100),
+    supabase.from("marketplace_listings").select("title,description").ilike("title", text.title.replace(/[\\%_]/g, (char) => `\\${char}`)).in("status", open).limit(50)
+  ]);
+  const duplicate = [...(own.data ?? []), ...(sameTitle.data ?? [])].some((row) => listingFingerprint({ title: row.title, description: row.description }) === fingerprint);
+  return duplicate ? [...flags, "duplicate"] : flags;
+}
+
+async function checkNewAccountDailyLimit(supabase: SupabaseClient<Database>, userId: string): Promise<string | null> {
+  const { data: profile } = await supabase.from("user_profiles").select("created_at").eq("user_id", userId).maybeSingle();
+  const createdAt = profile?.created_at ? Date.parse(profile.created_at) : NaN;
+  if (!Number.isFinite(createdAt) || Date.now() - createdAt > NEW_ACCOUNT_DAYS * 86_400_000) return null;
+  const { count } = await supabase
+    .from("marketplace_listings")
+    .select("id", { count: "exact", head: true })
+    .eq("seller_user_id", userId)
+    .gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
+  return (count ?? 0) >= NEW_ACCOUNT_DAILY_LISTINGS ? `New accounts can open up to ${NEW_ACCOUNT_DAILY_LISTINGS} listings per day.` : null;
 }
 
 async function loadSellableArtifact(

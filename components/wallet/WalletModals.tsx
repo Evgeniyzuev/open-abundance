@@ -15,7 +15,7 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { nanoToTonAmount, tonAmountToNano } from "@/lib/tonAmount";
 import type { Tables } from "@/lib/database.types";
 import { parseScanned } from "@/lib/qrPayload";
-import { isHiddenFromGuests, publicListingPath } from "@/lib/marketplaceGuestVisibility";
+import { guestReview, isHiddenFromGuests, publicListingPath } from "@/lib/marketplaceGuestVisibility";
 import { isUuid } from "@/lib/uuid";
 import { startVisiblePolling } from "@/lib/visiblePolling";
 import MarketOfferHelper from "@/components/MarketOfferHelper";
@@ -121,12 +121,20 @@ export function MarketplaceEditModal({
           {listing.listing_kind !== "digital_asset" ? <label className="finance-field"><span>{t("market.fulfillment")}</span><select value={fulfillmentDays} onChange={(event) => setFulfillmentDays(event.target.value)}><option value="1">1</option><option value="3">3</option><option value="7">7</option><option value="14">14</option></select></label> : null}
           <label className="finance-field"><span>{t("market.price")}</span><input inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
           <GuestVisibilityToggle checked={hideFromGuests} onChange={setHideFromGuests} t={t} />
-          {!hideFromGuests && listing.status === "active" ? <small>{t("market.publicPage")}: <a href={publicListingPath(listing.id)} target="_blank" rel="noreferrer">{publicListingPath(listing.id)}</a></small> : null}
+          <GuestReviewNotice metadata={listing.metadata} t={t} />
+          {!hideFromGuests && listing.status === "active" && !["pending", "rejected"].includes(guestReview(listing.metadata)?.status ?? "") ? <small>{t("market.publicPage")}: <a href={publicListingPath(listing.id)} target="_blank" rel="noreferrer">{publicListingPath(listing.id)}</a></small> : null}
           {error ? <p className="finance-error">{error}</p> : null}
           <small>{t("market.termsVersion")}: {(listing.terms_version ?? 1) + 1}</small>
         </div>
     </Sheet>
   );
+}
+
+function GuestReviewNotice({ metadata, t }: { metadata: unknown; t: TFunction }) {
+  const review = guestReview(metadata);
+  if (!review || review.status === "approved") return null;
+  const reasons = review.flags.map((flag) => t(`market.guestReview.flag.${flag}` as never)).join(", ");
+  return <small className="finance-error">{t(review.status === "pending" ? "market.guestReview.pending" : "market.guestReview.rejected")}{reasons ? ` (${reasons})` : ""}</small>;
 }
 
 function GuestVisibilityToggle({ checked, onChange, t }: { checked: boolean; onChange: (value: boolean) => void; t: TFunction }) {

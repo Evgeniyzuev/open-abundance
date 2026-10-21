@@ -1,7 +1,7 @@
 // Server-side reads for the public marketplace pages (/m). Uses the service client, so it selects only
 // fields that are safe to show to anyone: no seller ids, contacts, deals or balances.
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
-import { isHiddenFromGuests, isIndexableListing } from "@/lib/marketplaceGuestVisibility";
+import { isIndexableListing, isPublicForGuests } from "@/lib/marketplaceGuestVisibility";
 import { isUuid } from "@/lib/uuid";
 
 export type PublicListing = {
@@ -53,7 +53,7 @@ export async function loadPublicListing(listingId: string): Promise<PublicListin
   const db = serviceClient();
   if (!db) return null;
   const { data, error } = await db.from("marketplace_listings").select(LISTING_FIELDS).eq("id", listingId).eq("status", "active").maybeSingle();
-  if (error || !data || isHiddenFromGuests(data.metadata)) return null;
+  if (error || !data || !isPublicForGuests(data.metadata)) return null;
   const [listing] = await withSellers(db, [data as ListingRow]);
   return listing ?? null;
 }
@@ -64,7 +64,7 @@ export async function loadPublicListings(): Promise<PublicListing[]> {
   const { data, error } = await db.from("marketplace_listings").select(LISTING_FIELDS).eq("status", "active")
     .order("created_at", { ascending: false }).limit(PUBLIC_LIST_LIMIT * 2);
   if (error || !data) return [];
-  const visible = (data as ListingRow[]).filter((row) => !isHiddenFromGuests(row.metadata)).slice(0, PUBLIC_LIST_LIMIT);
+  const visible = (data as ListingRow[]).filter((row) => isPublicForGuests(row.metadata)).slice(0, PUBLIC_LIST_LIMIT);
   return withSellers(db, visible);
 }
 

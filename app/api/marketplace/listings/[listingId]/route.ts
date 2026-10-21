@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { withGuestVisibility } from "@/lib/marketplaceGuestVisibility";
+import { withAutoCheck, withGuestVisibility } from "@/lib/marketplaceGuestVisibility";
+import { checkListingText } from "@/lib/marketplaceListingCheck";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { isUuid } from "@/lib/uuid";
@@ -55,7 +56,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { listin
     const imageUrl = normalizeUrl(body.imageUrl) ?? current.image_url ?? null;
     const fulfillmentDays = current.listing_kind === "digital_asset" ? null : normalizeFulfillmentDays(body.fulfillmentDays) ?? current.fulfillment_days ?? 7;
     // Guest visibility is not part of the deal terms, so it does not change the terms version or hash.
-    const metadata = typeof body.hideFromGuests === "boolean" ? withGuestVisibility(current.metadata, body.hideFromGuests) : current.metadata;
+    const visibility = typeof body.hideFromGuests === "boolean" ? withGuestVisibility(current.metadata, body.hideFromGuests) : current.metadata;
+    const textChanged = title !== current.title || description !== (current.description ?? null) || category !== (current.category ?? null);
+    const metadata = textChanged ? withAutoCheck(visibility, checkListingText({ title, description, category }), new Date().toISOString()) : visibility;
     const terms = { ...(current.terms_json ?? {}), title, description, priceAmount: price, category, fulfillmentDays, version: Number(current.terms_version ?? 1) + 1 };
     const { data: listing, error: updateError } = await (supabase as any)
       .from("marketplace_listings")

@@ -6,6 +6,7 @@ import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
 import { confirmedReferralsThreshold } from "@/lib/creatorChallenges";
+import { BUSINESS_BUYERS_TARGET, BUSINESS_REVIEWS_TARGET, distinctOthers, invitedBuyers, strangerBuyers } from "@/lib/businessChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
 import { walletChallengeDone, walletChallengeRule, walletStats } from "@/lib/stayStreak";
 import { hasThreeSteps } from "@/lib/wishSteps";
@@ -378,6 +379,88 @@ async function verifyChallenge(
     return sumCompletedSales(rows.map((row) => row.price_amount)) >= threshold
       ? { ok: true }
       : { ok: false, reason: `Your completed sales must reach $${threshold}.` };
+  }
+
+  // "Own business" track: results are read from completed Market deals, published reviews and invitations.
+  if (
+    challenge.verification_logic === "business_second_buyer" ||
+    challenge.verification_logic === "business_reviews_3" ||
+    challenge.verification_logic === "business_stranger_buyer" ||
+    challenge.verification_logic === "business_external_buyer"
+  ) {
+    const logic = challenge.verification_logic;
+    if (logic === "business_reviews_3") {
+      const { data, error } = await db
+        .from("marketplace_reviews")
+        .select("buyer_user_id")
+        .eq("seller_user_id", userId)
+        .eq("status", "published")
+        .limit(5000);
+      if (error) return { ok: false, reason: "Could not check your reviews. Try again." };
+      const reviewers = distinctOthers(((data ?? []) as Array<{ buyer_user_id: string }>).map((row) => row.buyer_user_id), userId);
+      return reviewers.length >= BUSINESS_REVIEWS_TARGET
+        ? { ok: true }
+        : { ok: false, reason: `${reviewers.length} of ${BUSINESS_REVIEWS_TARGET} different buyers have left a review.` };
+    }
+
+    const { data: deals, error: dealsError } = await db
+      .from("marketplace_deals")
+      .select("buyer_user_id")
+      .eq("seller_user_id", userId)
+      .eq("status", "completed")
+      .limit(5000);
+    if (dealsError) return { ok: false, reason: "Could not check your sales. Try again." };
+    const buyers = distinctOthers(((deals ?? []) as Array<{ buyer_user_id: string }>).map((row) => row.buyer_user_id), userId);
+    if (logic === "business_second_buyer") {
+      return buyers.length >= BUSINESS_BUYERS_TARGET
+        ? { ok: true }
+        : { ok: false, reason: `${buyers.length} of ${BUSINESS_BUYERS_TARGET} different buyers have completed a deal with you.` };
+    }
+
+    // Stranger and external buyers must be verified people (humanity level 2).
+    const confirmed: string[] = [];
+    for (let start = 0; start < buyers.length; start += 200) {
+      const { data, error } = await db
+        .from("humanity_verifications")
+        .select("user_id")
+        .in("user_id", buyers.slice(start, start + 200))
+        .gte("humanity_level", 2);
+      if (error) return { ok: false, reason: "Could not check your buyers. Try again." };
+      confirmed.push(...((data ?? []) as Array<{ user_id: string }>).map((row) => row.user_id));
+    }
+
+    const { data: outgoing, error: outError } = await db.from("referral_edges").select("referral_user_id").eq("referrer_user_id", userId).limit(5000);
+    const { data: incoming, error: inError } = await db.from("referral_edges").select("referrer_user_id").eq("referral_user_id", userId).limit(50);
+    if (outError || inError) return { ok: false, reason: "Could not check your invitations. Try again." };
+    const invited = ((outgoing ?? []) as Array<{ referral_user_id: string }>).map((row) => row.referral_user_id);
+    const inviter = ((incoming ?? []) as Array<{ referrer_user_id: string }>).map((row) => row.referrer_user_id);
+
+    if (logic === "business_external_buyer") {
+      return invitedBuyers(confirmed, invited).length > 0
+        ? { ok: true }
+        : { ok: false, reason: "A person who joined through your link and passed the humanity check must complete a purchase from you." };
+    }
+    return strangerBuyers(confirmed, [...invited, ...inviter]).length > 0
+      ? { ok: true }
+      : { ok: false, reason: "A verified buyer you did not invite must complete a purchase from you." };
+  }
+
+  // First purchase inside Open Abundance: a completed Market deal as a buyer, or a shop purchase.
+  if (challenge.verification_logic === "first_internal_purchase") {
+    const { count: dealCount, error: dealError } = await db
+      .from("marketplace_deals")
+      .select("id", { count: "exact", head: true })
+      .eq("buyer_user_id", userId)
+      .eq("status", "completed");
+    if (dealError) return { ok: false, reason: "Could not check your purchases. Try again." };
+    if (Number(dealCount ?? 0) > 0) return { ok: true };
+    const { count: shopCount, error: shopError } = await db
+      .from("wallet_ledger")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("operation_type", "system_shop_purchase");
+    if (shopError) return { ok: false, reason: "Could not check your purchases. Try again." };
+    return Number(shopCount ?? 0) > 0 ? { ok: true } : { ok: false, reason: "Buy something from a member in Wallet → Market or in the Shop first." };
   }
 
   // The first fulfilled wish: any wish of the person with the status completed.

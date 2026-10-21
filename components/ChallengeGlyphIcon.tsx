@@ -1,10 +1,10 @@
 "use client";
 
-import { BadgeCheck, Banknote, BookOpen, Bot, CalendarCheck, Coins, Compass, Crown, Dumbbell, Eye, Flag, Flame, FlaskConical, Footprints, Gift, Hand, HandHelping, Handshake, Heart, HeartHandshake, Hourglass, KeyRound, Map, Medal, Megaphone, MessageCircle, PartyPopper, PenLine, Puzzle, Repeat, Rocket, ScanSearch, Send, ShieldCheck, Smartphone, Sparkles, Sprout, Star, Store, Sun, SunDim, SunMedium, Sunrise, Target, TrendingUp, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { BadgeCheck, Banknote, BookOpen, Bot, CalendarCheck, Coins, Compass, Crown, Dumbbell, Eye, Flag, Flame, FlaskConical, Footprints, Gift, Globe, Hand, HandHelping, Handshake, Heart, HeartHandshake, Hourglass, KeyRound, Link2, Map, Medal, Megaphone, MessageCircle, MessageSquareHeart, PartyPopper, PenLine, Puzzle, Repeat, Rocket, ScanSearch, Send, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Sprout, Star, Store, Sun, SunDim, SunMedium, Sunrise, Target, TrendingUp, Trophy, UserCheck, UserPlus, Users, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 // The icons named in lib/challengeArt.ts; every name there must be listed here (checked by test:challenge-art).
-const ICONS: Record<string, LucideIcon> = { BadgeCheck, Banknote, BookOpen, Bot, CalendarCheck, Coins, Compass, Crown, Dumbbell, Eye, Flag, Flame, FlaskConical, Footprints, Gift, Hand, HandHelping, Handshake, Heart, HeartHandshake, Hourglass, KeyRound, Map, Medal, Megaphone, MessageCircle, PartyPopper, PenLine, Puzzle, Repeat, Rocket, ScanSearch, Send, ShieldCheck, Smartphone, Sparkles, Sprout, Star, Store, Sun, SunDim, SunMedium, Sunrise, Target, TrendingUp, Trophy, UserCheck, UserPlus, Users };
+const ICONS: Record<string, LucideIcon> = { BadgeCheck, Banknote, BookOpen, Bot, CalendarCheck, Coins, Compass, Crown, Dumbbell, Eye, Flag, Flame, FlaskConical, Footprints, Gift, Globe, Hand, HandHelping, Handshake, Heart, HeartHandshake, Hourglass, KeyRound, Link2, Map, Medal, Megaphone, MessageCircle, MessageSquareHeart, PartyPopper, PenLine, Puzzle, Repeat, Rocket, ScanSearch, Send, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Sprout, Star, Store, Sun, SunDim, SunMedium, Sunrise, Target, TrendingUp, Trophy, UserCheck, UserPlus, Users, UsersRound };
 
 /** The drawn icon of a challenge cover (an SVG, so it looks the same on iPhone and Android, unlike emoji). */
 export default function ChallengeGlyphIcon({ name }: { name: string }) {

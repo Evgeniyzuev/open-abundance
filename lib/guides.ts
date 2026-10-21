@@ -21,6 +21,8 @@ export type Guide = {
   sections: GuideSection[];
   faq: GuideFaq[];
   updated: string;
+  /** Slug of the same answer in Russian, for hreflang links between language versions. */
+  ruSlug?: string;
 };
 
 export const GUIDES_UPDATED = "2026-10-19";

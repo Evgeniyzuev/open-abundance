@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
-import { guides } from "@/lib/guides";
+import { SITE_URL, guideIndexPath, guidePath, guidesFor, type GuideLocale } from "@/lib/guideLocales";
 
-const SITE_URL = "https://open-abundance.vercel.app";
+const GUIDE_LOCALES: GuideLocale[] = ["en", "ru"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -10,16 +10,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 1
     },
-    {
-      url: `${SITE_URL}/guide`,
-      changeFrequency: "weekly",
-      priority: 0.8
-    },
-    ...guides.map((guide) => ({
-      url: `${SITE_URL}/guide/${guide.slug}`,
-      lastModified: guide.updated,
-      changeFrequency: "monthly" as const,
-      priority: 0.7
-    }))
+    ...GUIDE_LOCALES.flatMap((locale) => [
+      {
+        url: `${SITE_URL}${guideIndexPath(locale)}`,
+        changeFrequency: "weekly" as const,
+        priority: 0.8
+      },
+      ...guidesFor(locale).map((guide) => ({
+        url: `${SITE_URL}${guidePath(locale, guide.slug)}`,
+        lastModified: guide.updated,
+        changeFrequency: "monthly" as const,
+        priority: 0.7
+      }))
+    ])
   ];
 }

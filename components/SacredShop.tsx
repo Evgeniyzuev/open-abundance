@@ -5,7 +5,7 @@ import SacredItemIcon from "@/components/SacredItemIcon";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
-import { SACRED_ITEMS } from "@/lib/sacredItems";
+import { SACRED_ITEMS, shopCoreBonus } from "@/lib/sacredItems";
 import ConfirmPurchase from "@/components/ConfirmPurchase";
 import { pick } from "@/lib/locales";
 
@@ -55,6 +55,7 @@ export function SacredShop({ onPurchased }: { onPurchased: () => void }) {
               <strong>{pick(locale, item.title)}</strong>
               <div className="market-card-meta">
                 <span>{formatAdaptiveMoney(item.price ?? 0, locale)}</span>
+                {shopCoreBonus(item) > 0 ? <small>{t("shop.coreBonus", { amount: formatAdaptiveMoney(shopCoreBonus(item), locale) })}</small> : null}
               </div>
               <div className="market-card-actions">
                 <button className="text-button" type="button" disabled={savingKey === item.key} onClick={() => setPendingKey(item.key)}>

@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { summarizeCoreSources } from "../lib/coreSources.ts";
 
-const empty = { topup: 0, income: 0, challenges: 0, reviews: 0, referrals: 0, team: 0 };
+const empty = { topup: 0, purchases: 0, income: 0, challenges: 0, reviews: 0, referrals: 0, team: 0 };
 
 // Parts add up to the balance; shares are of the whole.
 const s = summarizeCoreSources(100, { ...empty, topup: 50, income: 10, challenges: 30, referrals: 2 });
-assert.deepEqual(s.parts.map((p) => [p.key, p.amount, p.percent]), [["topup", 50, 50], ["income", 10, 10], ["actions", 40, 40]]);
+assert.deepEqual(s.parts.map((p) => [p.key, p.amount, p.percent]), [["topup", 50, 50], ["purchases", 0, 0], ["income", 10, 10], ["actions", 40, 40]]);
+// Purchases (Garden items and the shop Core share) are their own part.
+const pu = summarizeCoreSources(60, { ...empty, topup: 20, purchases: 30, income: 10 });
+assert.deepEqual(pu.parts.map((p) => [p.key, p.amount]), [["topup", 20], ["purchases", 30], ["income", 10], ["actions", 0]]);
+
 // What no source explains goes to "other rewards", inside actions.
 assert.deepEqual(s.actions.map((p) => [p.key, p.amount]), [["challenges", 30], ["referrals", 2], ["other", 8]]);
 
@@ -17,7 +21,7 @@ assert.equal(r.parts[0].percent, 100);
 
 // Sources above the balance (should not happen) never make negative parts.
 const over = summarizeCoreSources(5, { ...empty, topup: 6 });
-assert.equal(over.parts[2].amount, 0);
+assert.equal(over.parts[3].amount, 0);
 assert.equal(over.parts[0].percent, 100);
 
 // Empty Core.
@@ -32,5 +36,6 @@ for (const table of ["wallet_ledger", "daily_core_accruals", "user_challenges", 
   assert.match(route, new RegExp(`"${table}"`));
 }
 assert.match(route, /"wallet_core_topup"/);
+assert.match(route, /"system_shop_purchase"/);
 
 console.log("core sources contract ok");

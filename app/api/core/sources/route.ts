@@ -24,7 +24,7 @@ async function sumColumn(build: (column: string) => any, column: string): Promis
   }
 }
 
-// Where the signed-in person's Core came from: top-ups, % income kept in Core, rewards for actions.
+// Where the signed-in person's Core came from: top-ups, purchases (Garden, shop), % income kept in Core, rewards for actions.
 // Same sources as /api/core/history, summed over all time. Read only.
 export async function GET(request: NextRequest) {
   try {
@@ -32,9 +32,13 @@ export async function GET(request: NextRequest) {
     if (error || !user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     const db = supabase as any;
 
-    const [account, topup, income, challenges, reviews, referrals, team] = await Promise.all([
+    const [account, topupAll, gardenPurchases, shopCore, income, challenges, reviews, referrals, team] = await Promise.all([
       db.from("core_accounts").select("balance").eq("user_id", user.id).maybeSingle(),
       sumColumn((column) => db.from("wallet_ledger").select(column).eq("user_id", user.id).eq("operation_type", "wallet_core_topup").eq("direction", "debit").order("id"), "amount"),
+      // Garden items go through wallet_core_topup too; they are counted as purchases, not as plain top-ups.
+      sumColumn((column) => db.from("wallet_ledger").select(column).eq("user_id", user.id).eq("operation_type", "wallet_core_topup").eq("direction", "debit").eq("metadata->>core_item", "true").order("id"), "amount"),
+      // The Core share a shop purchase added (a product-level bonus kept in the ledger metadata).
+      sumColumn((column) => db.from("wallet_ledger").select(`${column}:metadata->>core_bonus`).eq("user_id", user.id).eq("operation_type", "system_shop_purchase").eq("direction", "debit").order("id"), "core_bonus"),
       sumColumn((column) => db.from("daily_core_accruals").select(column).eq("user_id", user.id).order("accrual_date"), "core_amount"),
       sumColumn((column) => db.from("user_challenges").select(column).eq("user_id", user.id).eq("status", "completed").order("id"), "core_reward_amount"),
       sumColumn((column) => db.from("peer_review_answers").select(column).eq("reviewer_user_id", user.id).eq("reward_status", "paid").order("id"), "core_reward_amount"),
@@ -43,9 +47,11 @@ export async function GET(request: NextRequest) {
     ]);
     if (account.error) return NextResponse.json({ error: account.error.message }, { status: 500, headers: NO_STORE_HEADERS });
 
+    const topup = Math.max(topupAll - gardenPurchases, 0);
+    const purchases = gardenPurchases + shopCore;
     const balance = Number(account.data?.balance ?? 0);
     return NextResponse.json(
-      summarizeCoreSources(balance, { topup, income, challenges, reviews, referrals, team }),
+      summarizeCoreSources(balance, { topup, purchases, income, challenges, reviews, referrals, team }),
       { headers: NO_STORE_HEADERS }
     );
   } catch (routeError) {

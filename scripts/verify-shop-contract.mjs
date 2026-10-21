@@ -58,3 +58,12 @@ assert.match(migration, /Result must be of the next rarity\./);
 assert.match(migration, /'common', 'uncommon', 'rare', 'epic', 'legendary', 'system'/);
 
 console.log("shop contract ok");
+
+// Core share of a shop purchase: set per product, capped at half the price, rounded down to cents.
+const { shopCoreBonus } = await import("../lib/sacredItems.ts");
+assert.equal(shopCoreBonus(findSacredItem("zodiac_aries")), 0.6);
+assert.equal(shopCoreBonus(findSacredItem("element_fire")), 2.5);
+assert.equal(shopCoreBonus({ price: 10, coreShare: 0.9 }), 5);
+assert.equal(shopCoreBonus({ price: 10 }), 0);
+assert.equal(shopCoreBonus({ coreShare: 0.2 }), 0);
+console.log("shop core share ok");

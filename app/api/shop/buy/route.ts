@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import { findSacredItem } from "@/lib/sacredItems";
+import { findSacredItem, shopCoreBonus } from "@/lib/sacredItems";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,8 @@ export const fetchCache = "force-no-store";
 
 const CLIENT_ERRORS = new Set([
   "Insufficient wallet balance.",
-  "Wallet is not created yet."
+  "Wallet is not created yet.",
+  "Core is not created yet."
 ]);
 
 // Buy one collectible item from the system for $. Title, rarity and price always come from the catalog.
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
       p_rarity: item.rarity,
       p_price: item.price,
       p_metadata: { group: item.group, glyph: item.glyph, title_en: item.title.en, description_en: item.description.en },
-      p_idempotency_key: `shop:${user.id}:${clientKey}`
+      p_idempotency_key: `shop:${user.id}:${clientKey}`,
+      p_core_bonus: shopCoreBonus(item)
     });
 
     if (rpcError) {
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const row = Array.isArray(data) ? data[0] : data;
     return NextResponse.json(
-      { artifactId: row?.artifact_id ?? null, balanceAfter: row?.balance_after ?? null },
+      { artifactId: row?.artifact_id ?? null, balanceAfter: row?.balance_after ?? null, coreBonus: row?.core_bonus ?? 0 },
       { headers: NO_STORE_HEADERS }
     );
   } catch (routeError) {

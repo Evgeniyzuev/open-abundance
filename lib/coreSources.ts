@@ -2,11 +2,13 @@
 // The parts are sums of the same sources the Core history shows; whatever the history cannot attribute
 // (older settlements without a row) is counted as "other rewards", so the parts always add up to the balance.
 
-export type CoreSourceKey = "topup" | "income" | "actions";
+export type CoreSourceKey = "topup" | "purchases" | "income" | "actions";
 export type CoreActionKey = "challenges" | "reviews" | "referrals" | "team" | "other";
 
 export type CoreSourceTotals = {
   topup: number;
+  /** Garden items (their whole price) and the Core share of shop purchases. */
+  purchases: number;
   income: number;
   challenges: number;
   reviews: number;
@@ -34,6 +36,7 @@ function percentOf(amount: number, total: number): number {
 
 export function summarizeCoreSources(balance: number, totals: CoreSourceTotals): CoreSourcesSummary {
   const topup = clean(totals.topup);
+  const purchases = clean(totals.purchases);
   const income = clean(totals.income);
   const known = {
     challenges: clean(totals.challenges),
@@ -41,7 +44,7 @@ export function summarizeCoreSources(balance: number, totals: CoreSourceTotals):
     referrals: clean(totals.referrals),
     team: clean(totals.team)
   };
-  const attributed = topup + income + known.challenges + known.reviews + known.referrals + known.team;
+  const attributed = topup + purchases + income + known.challenges + known.reviews + known.referrals + known.team;
   const safeBalance = clean(balance);
   const otherRaw = safeBalance - attributed;
   const other = otherRaw >= CENT ? otherRaw : 0;
@@ -50,6 +53,7 @@ export function summarizeCoreSources(balance: number, totals: CoreSourceTotals):
 
   const parts: CoreSourcePart<CoreSourceKey>[] = [
     { key: "topup" as const, amount: topup },
+    { key: "purchases" as const, amount: purchases },
     { key: "income" as const, amount: income },
     { key: "actions" as const, amount: actionsAmount }
   ].map((part) => ({ ...part, percent: percentOf(part.amount, total) }));

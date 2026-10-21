@@ -540,6 +540,7 @@
 .core-sources-track { fill: none; stroke: var(--surface-muted); stroke-width: 14; }
 .core-sources-slice { fill: none; stroke-width: 14; transform: rotate(-90deg); transform-origin: 50px 50px; }
 .core-sources-slice.tone-topup { stroke: #3b82f6; }
+.core-sources-slice.tone-purchases { stroke: #a855f7; }
 .core-sources-slice.tone-income { stroke: #16a34a; }
 .core-sources-slice.tone-actions { stroke: #f59e0b; }
 .core-sources-total-label { fill: var(--muted); font-size: 9px; text-anchor: middle; }
@@ -555,6 +556,7 @@
 .core-sources-actions li { grid-template-columns: 1fr auto auto; }
 .core-sources-dot { width: 10px; height: 10px; border-radius: 50%; }
 .core-sources-dot.tone-topup { background: #3b82f6; }
+.core-sources-dot.tone-purchases { background: #a855f7; }
 .core-sources-dot.tone-income { background: #16a34a; }
 .core-sources-dot.tone-actions { background: #f59e0b; }
 .core-sources-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

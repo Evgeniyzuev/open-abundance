@@ -12,19 +12,22 @@ export type SacredItem = {
   glyph: string;
   rarity: SacredItemRarity;
   price?: number;
+  /** Share of the price the buyer gets as Core on the first purchase from the system, set per product from its economics (0 to 0.5). */
+  coreShare?: number;
   title: { ru: string; en: string };
   description: { ru: string; en: string };
 };
 
 type Row = [key: string, glyph: string, ru: string, en: string];
 
-function build(group: SacredItem["group"], rarity: SacredItemRarity, label: { ru: string; en: string }, rows: Row[], price?: number): SacredItem[] {
+function build(group: SacredItem["group"], rarity: SacredItemRarity, label: { ru: string; en: string }, rows: Row[], price?: number, coreShare?: number): SacredItem[] {
   return rows.map(([key, glyph, ru, en]) => ({
     key: `${group}_${key}`,
     group,
     glyph,
     rarity,
     price,
+    coreShare,
     title: { ru: `${glyph} ${ru}`, en: `${glyph} ${en}` },
     description: { ru: `${label.ru}: ${ru}.`, en: `${label.en}: ${en}.` }
   }));
@@ -44,13 +47,13 @@ export const SACRED_ITEMS: SacredItem[] = [
     ["capricorn", "♑", "Козерог", "Capricorn"],
     ["aquarius", "♒", "Водолей", "Aquarius"],
     ["pisces", "♓", "Рыбы", "Pisces"]
-  ], 3),
+  ], 3, 0.2),
   ...build("element", "uncommon", { ru: "Стихия", en: "Element" }, [
     ["fire", "✹", "Огонь", "Fire"],
     ["water", "≈", "Вода", "Water"],
     ["earth", "⛰", "Земля", "Earth"],
     ["air", "☁", "Воздух", "Air"]
-  ], 10),
+  ], 10, 0.25),
   ...build("stone", "rare", { ru: "Духовный камень", en: "Spirit stone" }, [
     ["amethyst", "◆", "Аметист", "Amethyst"],
     ["quartz", "◇", "Горный хрусталь", "Rock crystal"],
@@ -78,4 +81,10 @@ export function findSacredItem(key: unknown): SacredItem | null {
 export function nextSacredRarity(rarity: string): SacredItemRarity | null {
   const index = SACRED_RARITIES.indexOf(rarity as SacredItemRarity);
   return index >= 0 && index < SACRED_RARITIES.length - 1 ? SACRED_RARITIES[index + 1] : null;
+}
+
+/** Core the buyer gets for a purchase from the system: the catalog share of the price, rounded down to cents. */
+export function shopCoreBonus(item: Pick<SacredItem, "price" | "coreShare">): number {
+  const share = Math.min(Math.max(item.coreShare ?? 0, 0), 0.5);
+  return Math.floor((item.price ?? 0) * share * 100) / 100;
 }

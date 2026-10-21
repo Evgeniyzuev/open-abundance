@@ -10,6 +10,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
 import { ExchangeOffers, MutualBalanceCard } from "@/components/MarketExchange";
 import { SacredShop } from "@/components/SacredShop";
+import SpendIntentCard from "@/components/SpendIntentCard";
 import ConfirmPurchase from "@/components/ConfirmPurchase";
 import type { CalculatorMode, TargetKind, TermUnit, TFunction, MarketplaceListing, MarketplaceDeal, EconomyPeriodType, EconomyMetricRow } from "@/components/wallet/walletTypes";
 import { buildComparisonSeries, linePath, xForDay, yForValue, formatIndexTick, formatIndexValue, formatAnnualReturn, formatChartTick, formatPercentCompact, sellerName, artifactInitial, parseNumber, clamp, unitLabel, formatDuration, formatTargetDate } from "@/components/wallet/walletHelpers";
@@ -603,6 +604,7 @@ export function MarketplacePanel({
       </div>
       <MutualBalanceCard refreshKey={exchangeRefreshKey + deals.length} />
       <SacredShop onPurchased={() => onExchangeChanged?.()} />
+      <SpendIntentCard />
       {error ? <p className="finance-error">{error}</p> : null}
       {loading && listings.length === 0 ? <FinanceState title={t("app.common.loading")} description={t("market.loading")} /> : null}
       {!loading && listings.length === 0 ? <FinanceState title={t("market.emptyTitle")} description={canCreate ? t("market.emptyWithItems") : t("market.limitReached")} /> : null}

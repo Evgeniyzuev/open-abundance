@@ -47,13 +47,13 @@ export const SACRED_ITEMS: SacredItem[] = [
     ["capricorn", "♑", "Козерог", "Capricorn"],
     ["aquarius", "♒", "Водолей", "Aquarius"],
     ["pisces", "♓", "Рыбы", "Pisces"]
-  ], 3, 0.2),
+  ], 3),
   ...build("element", "uncommon", { ru: "Стихия", en: "Element" }, [
     ["fire", "✹", "Огонь", "Fire"],
     ["water", "≈", "Вода", "Water"],
     ["earth", "⛰", "Земля", "Earth"],
     ["air", "☁", "Воздух", "Air"]
-  ], 10, 0.25),
+  ], 10),
   ...build("stone", "rare", { ru: "Духовный камень", en: "Spirit stone" }, [
     ["amethyst", "◆", "Аметист", "Amethyst"],
     ["quartz", "◇", "Горный хрусталь", "Rock crystal"],

@@ -1509,6 +1509,20 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .task-repeat-button { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--accent-soft); color: var(--blue); }
 .task-forever-delete-button { align-self: center; justify-self: center; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--danger-soft); color: var(--danger); }
 .danger-icon-button { color: var(--danger); }
+.task-done-button { width: 40px; height: 40px; }
+.task-suggested-add { align-self: center; justify-self: center; min-height: 40px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); color: var(--blue); font-size: 0.8125rem; font-weight: 850; }
+.task-panel.suggested { grid-template-columns: minmax(0, 1fr) auto; }
+.task-done-spacer { width: 40px; height: 40px; }
+.task-panel { grid-template-columns: minmax(0, 1fr) 54px; }
+.tasks-more-menu { position: relative; }
+.tasks-more-menu summary { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; color: var(--blue); cursor: pointer; list-style: none; }
+.tasks-more-menu summary::-webkit-details-marker { display: none; }
+.tasks-more-menu > div { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.task-detail-more { display: grid; gap: 8px; }
+.task-detail-more > summary { min-height: 44px; display: flex; align-items: center; color: var(--blue); font-weight: 700; cursor: pointer; }
+.task-delete-link { min-height: 44px; margin-top: 8px; align-self: center; background: transparent; color: var(--danger); font-size: 0.9375rem; font-weight: 700; text-align: center; }
+.task-undo-bar { position: sticky; bottom: 76px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 12px; padding: 10px 14px; background: var(--text); color: var(--surface); box-shadow: 0 10px 28px rgba(25,25,35,0.24); }
+.task-undo-bar button { min-height: 44px; padding: 0 8px; background: transparent; color: inherit; font-weight: 850; text-decoration: underline; }
 .task-archive-screen { min-height: calc(100vh - 182px); }
 .task-archive-topbar { position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 62px; padding: 6px 0; background: rgba(242, 242, 247, 0.84); backdrop-filter: blur(18px); }
 .task-archive-topbar h1 { margin: 0; font-size: 21px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

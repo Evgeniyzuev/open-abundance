@@ -273,6 +273,14 @@ export async function deleteTask(id: string): Promise<void> {
   );
 }
 
+export async function restoreTask(id: string): Promise<void> {
+  const task = await getTask(id);
+  if (!task?.deleted) return;
+  await withStore<IDBValidKey>(TASKS_STORE, "readwrite", (store) =>
+    store.put({ ...task, deleted: false, updatedAt: new Date().toISOString(), syncStatus: "local" })
+  );
+}
+
 export async function purgeTask(id: string): Promise<void> {
   const completions = await getTaskCompletions();
   await withStore<undefined>(TASKS_STORE, "readwrite", (store) => store.delete(id));

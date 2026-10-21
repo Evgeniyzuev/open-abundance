@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckSquare, ChevronLeft, ChevronRight, ImagePlus, Link, Plus, Repeat2, Trash2 } from "lucide-react";
+import { CheckSquare, ChevronLeft, ChevronRight, ImagePlus, Link, MoreHorizontal, Plus, Repeat2, Trash2 } from "lucide-react";
 import {
   completeTask,
   completeTaskDay,
@@ -12,6 +12,7 @@ import {
   appendTaskSubtasks,
   postponeTask,
   purgeTask,
+  restoreTask,
   saveTask,
   setTaskReminder,
   TASKS_CHANGED_EVENT,
@@ -112,6 +113,8 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
   const [streakDecisionTask, setStreakDecisionTask] = useState<TaskItem | null>(null);
   const [nextHookTask, setNextHookTask] = useState<TaskItem | null>(null);
   const [clock, setClock] = useState(() => Date.now());
+  const [undoTaskId, setUndoTaskId] = useState<string | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
   const localLoadRequestRef = useRef(0);
 
@@ -351,12 +354,38 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
     await refreshTasks();
   }
 
+  // Deleting only moves the task to the archive, so an undo bar replaces the blocking confirm dialog.
   async function removeTask(task: TaskItem) {
-    const confirmed = window.confirm(t("tasks.deleteConfirm", { title: task.title }));
-    if (!confirmed) return;
     await deleteTask(task.id);
     setSelectedTaskId(null);
     await refreshTasks();
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    setUndoTaskId(task.id);
+    undoTimerRef.current = window.setTimeout(() => setUndoTaskId(null), 6000);
+  }
+
+  async function undoRemoveTask() {
+    if (!undoTaskId) return;
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    const id = undoTaskId;
+    setUndoTaskId(null);
+    await restoreTask(id);
+    await refreshTasks();
+  }
+
+  useEffect(() => () => {
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+  }, []);
+
+  function addSuggested(tpl: (typeof PRACTICE_TEMPLATES)[number]) {
+    const title = t(tpl.titleKey as MessageKey);
+    setForm({
+      ...emptyTaskForm,
+      title: `${tpl.emoji} ${title}`,
+      description: t(tpl.descKey as MessageKey),
+      startDate: todayKey()
+    });
+    setModalOpen(true);
   }
 
   async function removeTaskForever(task: TaskItem) {
@@ -371,7 +400,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
     <section className="tasks-screen">
       <header className="tasks-header">
         <div>
-          <span>Checks</span>
+          <span>{t("app.nav.checks")}</span>
           <h1>{t("tasks.title")}</h1>
         </div>
         <button className="tasks-add-button" type="button" aria-label={t("tasks.newTask")} onClick={openNewTaskModal}>
@@ -383,10 +412,15 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
       {localDataStatus === "ready" ? <BackupReminder records={tasks} /> : null}
 
       <div className="tasks-ai-actions">
-        {todayTasks.length >= 2 ? <button className="text-button" type="button" onClick={() => setDecisionOpen(true)}>{t("decision.title")}</button> : null}
         <button className="text-button" type="button" onClick={() => setRoutineOpen(true)}>{t("routine.title")}</button>
         <button className="text-button" type="button" onClick={() => setRecapOpen(true)}>{t("weekRecap.title")}</button>
-        <button className="text-button" type="button" disabled={activeCalendarTaskCount(tasks) === 0} onClick={() => void exportToCalendar(tasks)}>{t("tasks.calendar.export")}</button>
+        <details className="tasks-more-menu">
+          <summary aria-label={t("tasks.menuLabel")}><MoreHorizontal size={20} /></summary>
+          <div>
+            {todayTasks.length >= 2 ? <button className="text-button" type="button" onClick={() => setDecisionOpen(true)}>{t("decision.title")}</button> : null}
+            <button className="text-button" type="button" disabled={activeCalendarTaskCount(tasks) === 0} onClick={() => void exportToCalendar(tasks)}>{t("tasks.calendar.export")}</button>
+          </div>
+        </details>
       </div>
 
       {dueReminderTasks.length > 0 ? (
@@ -408,7 +442,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
           ) : (
             <div className="task-panel-list">
               {todayTasks.map((task) => (
-                <TaskPanel key={task.id} task={task} completions={completions} today={today} onMarkToday={() => markToday(task)} onOpen={() => setSelectedTaskId(task.id)} onRepeat={() => repeatTask(task)} />
+                <TaskPanel key={task.id} task={task} completions={completions} today={today} onMarkToday={() => markToday(task)} onOpen={() => setSelectedTaskId(task.id)} />
               ))}
             </div>
           )
@@ -434,7 +468,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
           ) : (
             <div className="task-panel-list">
               {otherTasks.map((task) => (
-                <TaskPanel key={task.id} task={task} completions={completions} today={today} onMarkToday={() => markToday(task)} onOpen={() => setSelectedTaskId(task.id)} onRepeat={() => repeatTask(task)} />
+                <TaskPanel key={task.id} task={task} completions={completions} today={today} onMarkToday={() => markToday(task)} onOpen={() => setSelectedTaskId(task.id)} />
               ))}
             </div>
           )
@@ -445,7 +479,6 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
       <section className="task-section">
         <button className="task-section-toggle" type="button" onClick={() => setSuggestedExpanded((value) => !value)}>
           <span>{t("tasks.suggested")}</span>
-          <strong>{PRACTICE_TEMPLATES.length}</strong>
         </button>
         {suggestedExpanded ? (
           <div className="task-panel-list">
@@ -454,30 +487,15 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
               const desc = t(tpl.descKey as MessageKey);
               return (
                 <article className="task-panel suggested" key={tpl.id}>
-                  <button className="task-panel-main" type="button">
+                  <button className="task-panel-main" type="button" onClick={() => addSuggested(tpl)}>
                     <span className="task-thumb"><span className="suggested-emoji">{tpl.emoji}</span></span>
                     <span className="task-panel-body">
-                      <span className="task-panel-title">
-                        {tpl.emoji} {title}
-                      </span>
+                      <span className="task-panel-title">{title}</span>
                       <small>{desc}</small>
                     </span>
                   </button>
                   <div className="task-panel-actions">
-                    <button
-                      className="task-done-button"
-                      type="button"
-                      onClick={() => {
-                        const todayDate = todayKey();
-                        setForm({
-                          ...emptyTaskForm,
-                          title: `${tpl.emoji} ${title}`,
-                          description: desc,
-                          startDate: todayDate
-                        });
-                        setModalOpen(true);
-                      }}
-                    >
+                    <button className="task-suggested-add" type="button" onClick={() => addSuggested(tpl)}>
                       {t("tasks.suggestedAdd")}
                     </button>
                   </div>
@@ -516,6 +534,12 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
       </section>
 
       {calendarError ? <p className="step-suggest-note" role="status">{t("tasks.calendar.error")}</p> : null}
+      {undoTaskId ? (
+        <div className="task-undo-bar" role="status">
+          <span>{t("tasks.deletedNotice")}</span>
+          <button type="button" onClick={() => void undoRemoveTask()}>{t("tasks.undo")}</button>
+        </div>
+      ) : null}
       {decisionOpen ? (
         <DecisionModal
           initialOptions={todayTasks.slice(0, 4).map((task) => ({ text: task.title, taskId: task.id }))}
@@ -534,6 +558,7 @@ export default function TasksApp({ createRequest, onCreateRequestHandled, openTa
           today={today}
           onClose={() => setSelectedTaskId(null)}
           onDelete={() => removeTask(selectedTask)}
+          onRepeat={() => repeatTask(selectedTask)}
           onDone={() => markToday(selectedTask)}
           onChanged={refreshTasks}
           onChangeReminder={(remindAt) => changeReminder(selectedTask, remindAt)}
@@ -559,10 +584,9 @@ type TaskPanelProps = {
   today: string;
   onMarkToday: () => void;
   onOpen: () => void;
-  onRepeat: () => void;
 };
 
-function TaskPanel({ task, completions, today, onMarkToday, onOpen, onRepeat }: TaskPanelProps) {
+function TaskPanel({ task, completions, today, onMarkToday, onOpen }: TaskPanelProps) {
   const { t } = useUserContext();
   const progress = getProgress(task, completions, t);
   const doneToday = isCompletedOn(task.id, today, completions);
@@ -587,14 +611,11 @@ function TaskPanel({ task, completions, today, onMarkToday, onOpen, onRepeat }: 
         </span>
       </button>
       <div className="task-panel-actions">
-        <button className="task-repeat-button" type="button" aria-label={t("tasks.repeatTask")} onClick={onRepeat}>
-          <Repeat2 size={17} />
-        </button>
         {isDueOn(task, today) ? (
-          <button className={doneToday ? "task-done-button done" : "task-done-button"} type="button" disabled={doneToday} onClick={(event) => { celebrate(event.currentTarget, "reward"); onMarkToday(); }}>
+          <button className={doneToday ? "task-done-button done" : "task-done-button"} type="button" aria-label={doneToday ? t("tasks.doneToday") : t("tasks.doneAction")} disabled={doneToday} onClick={(event) => { celebrate(event.currentTarget, "reward"); onMarkToday(); }}>
             {doneToday ? "\u2713" : ""}
           </button>
-        ) : null}
+        ) : <span className="task-done-spacer" aria-hidden="true" />}
       </div>
     </article>
   );
@@ -811,6 +832,7 @@ type TaskDetailModalProps = {
   today: string;
   onClose: () => void;
   onDelete: () => void;
+  onRepeat: () => void;
   onDone: () => void;
   onChanged: () => Promise<void>;
   onChangeReminder: (remindAt: Date | null) => Promise<void>;
@@ -818,7 +840,7 @@ type TaskDetailModalProps = {
   onExportCalendar: () => Promise<void>;
 };
 
-function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, onDone, onChanged, onChangeReminder, onPostpone, onExportCalendar }: TaskDetailModalProps) {
+function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, onRepeat, onDone, onChanged, onChangeReminder, onPostpone, onExportCalendar }: TaskDetailModalProps) {
   const { t } = useUserContext();
   const image = task.thumbnailDataUrl || task.imageUrl;
   const doneToday = isCompletedOn(task.id, today, completions);
@@ -839,9 +861,9 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
   return (
     <Sheet bare ariaLabel={t("tasks.task")} onClose={onClose} className="task-detail-modal">
         <div className="modal-header">
-          <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
+          <span aria-hidden="true" />
           <h2>{t("tasks.task")}</h2>
-          <button className="text-button primary danger-icon-button" type="button" aria-label={t("tasks.deleteTask")} onClick={onDelete}><Trash2 size={18} /></button>
+          <button className="text-button primary" type="button" onClick={onClose}>{t("app.common.close")}</button>
         </div>
         {image ? <img className="task-detail-image" alt="" src={image} /> : null}
         <div className="task-detail-body">
@@ -880,24 +902,31 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
             <TaskStepSuggester title={task.title} description={task.description} existingSteps={task.subtasks} onAccept={addSteps} />
           ) : null}
           {!task.completed && !task.deleted ? (
-            <div className="task-detail-tools">
-              <FocusTimer />
-              <button className="text-button" type="button" onClick={() => void onExportCalendar()}>{t("tasks.calendar.export")}</button>
-            </div>
-          ) : null}
-          {task.schedule.type === "once" && !task.completed && !task.deleted ? (
-            <details className="task-reminder-quick">
-              <summary>{task.remindAt ? t("tasks.remind.set", { time: new Date(task.remindAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }) : t("tasks.remind.menu")}</summary>
-              <div>
-                <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("hour"))}>{t("tasks.remind.hour")}</button>
-                <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("evening"))}>{t("tasks.remind.evening")}</button>
-                <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("tomorrow"))}>{t("tasks.remind.tomorrow")}</button>
-                <button className="secondary-button" type="button" onClick={() => void onPostpone()}>{t("tasks.postpone")}</button>
-                {task.remindAt ? <button className="text-button" type="button" onClick={() => void onChangeReminder(null)}>{t("tasks.remind.clear")}</button> : null}
+            <details className="task-detail-more">
+              <summary>{t("tasks.more")}</summary>
+              <div className="task-detail-tools">
+                <FocusTimer />
+                <button className="text-button" type="button" onClick={() => void onExportCalendar()}>{t("tasks.calendar.export")}</button>
+                <button className="text-button" type="button" onClick={onRepeat}>{t("tasks.repeatTask")}</button>
               </div>
+              {task.schedule.type === "once" ? (
+                <details className="task-reminder-quick">
+                  <summary>{task.remindAt ? t("tasks.remind.set", { time: new Date(task.remindAt).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }) : t("tasks.remind.menu")}</summary>
+                  <div>
+                    <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("hour"))}>{t("tasks.remind.hour")}</button>
+                    <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("evening"))}>{t("tasks.remind.evening")}</button>
+                    <button className="secondary-button" type="button" onClick={() => void onChangeReminder(getQuickReminderTime("tomorrow"))}>{t("tasks.remind.tomorrow")}</button>
+                    <button className="secondary-button" type="button" onClick={() => void onPostpone()}>{t("tasks.postpone")}</button>
+                    {task.remindAt ? <button className="text-button" type="button" onClick={() => void onChangeReminder(null)}>{t("tasks.remind.clear")}</button> : null}
+                  </div>
+                </details>
+              ) : null}
             </details>
           ) : null}
           <TaskMonthCalendar task={task} completions={completions} locale={locale} today={today} />
+          {!task.deleted ? (
+            <button className="task-delete-link" type="button" onClick={onDelete}>{t("tasks.deleteTask")}</button>
+          ) : null}
         </div>
     </Sheet>
   );

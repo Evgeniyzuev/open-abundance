@@ -372,3 +372,9 @@
 - Bing Webmaster Tools: импорт из Search Console, отправка sitemap, ключ IndexNow (влияет на ChatGPT search и Copilot).
 - Яндекс Вебмастер: подтвердить, отправить sitemap, «Переезд сайта».
 - Обновить ссылки в профилях соцсетей, Telegram, GitHub README, outreach-текстах (`/mnt/project-files/outreach/`).
+
+---
+
+## 11. Статус и ручные шаги (2026-10-21)
+
+Сделано в коде: `Organization`/`WebSite`/`WebApplication` на главной, `llms-full.txt`, файл ключа и скрипт IndexNow (`scripts/indexnow-submit.mjs`), коды подтверждения поисковиков через переменные окружения `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION`, `YANDEX_SITE_VERIFICATION`. Шаги для владельца (Search Console, Bing, Яндекс, IndexNow, внешние ссылки, проверка через 2–4 недели): [SEARCH_SETUP_STEPS.md](SEARCH_SETUP_STEPS.md).

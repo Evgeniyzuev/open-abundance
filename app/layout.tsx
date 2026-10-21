@@ -30,6 +30,12 @@ export const metadata: Metadata = {
     title: siteTitle,
     description: siteDescription
   },
+  // Search console ownership codes come from Vercel environment variables (see docs/SEARCH_SETUP_STEPS.md); unset ones are omitted.
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.YANDEX_SITE_VERIFICATION ? { yandex: process.env.YANDEX_SITE_VERIFICATION } : {}),
+    ...(process.env.BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } } : {})
+  },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icons/twenty-levels-app-icon-512.png",

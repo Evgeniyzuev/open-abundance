@@ -6,7 +6,7 @@ export const AI_CHAT_RATE_LIMIT = 6;
 export const AI_CHAT_RATE_WINDOW_SECONDS = 60;
 export const AI_CHAT_MAX_CONCURRENT = 1;
 
-export type AiProviderName = "gemini" | "groq";
+export type AiProviderName = "gemini" | "groq" | "cerebras";
 export type AiUsageProvider = AiProviderName | "openrouter";
 
 export type AiQuotaReservation = {

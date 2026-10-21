@@ -123,12 +123,17 @@ export const AI_PROVIDER_MODELS: Record<AiProvider, string> = {
   // Google maintains this moving alias as its latest Flash model. Set
   // GEMINI_MODEL to a pinned model ID when a deployment needs a fixed version.
   gemini: process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest",
-  groq: "openai/gpt-oss-20b"
+  groq: "openai/gpt-oss-20b",
+  // Cerebras free tier (no training on prompts, large daily token allowance). Override with CEREBRAS_MODEL.
+  cerebras: process.env.CEREBRAS_MODEL?.trim() || "gpt-oss-120b"
 };
 
 const GEMINI_MODEL = AI_PROVIDER_MODELS.gemini;
 const GROQ_MODEL = AI_PROVIDER_MODELS.groq;
 const GROQ_DEEP_MODEL = "openai/gpt-oss-120b";
+const CEREBRAS_MODEL = AI_PROVIDER_MODELS.cerebras;
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions";
 // Set GEMINI_DISABLE_THINKING=false to restore the model default reasoning behaviour.
 const GEMINI_DISABLE_THINKING = process.env.GEMINI_DISABLE_THINKING?.trim().toLowerCase() !== "false";
 
@@ -151,7 +156,8 @@ export async function streamAiText({
 
   // A deep answer also starts with Groq (the larger model) while Gemini is unreliable; set AI_DEEP_PRIMARY_PROVIDER=gemini to prefer it.
   // Chat is answered by the fastest provider first (Groq starts in about half a second); the other is the fallback.
-  const providers = await getAvailableProviders(preferProvider ?? (process.env[deep ? "AI_DEEP_PRIMARY_PROVIDER" : "AI_CHAT_PRIMARY_PROVIDER"]?.trim().toLowerCase() === "gemini" ? "gemini" : "groq"));
+  const primary = process.env[deep ? "AI_DEEP_PRIMARY_PROVIDER" : "AI_CHAT_PRIMARY_PROVIDER"]?.trim().toLowerCase();
+  const providers = await getAvailableProviders(preferProvider ?? (primary === "gemini" || primary === "cerebras" ? primary : "groq"));
   const providerAttempts: AiProviderFailureAttempt[] = [];
   const answerTokens = deep ? Math.max(maxOutputTokens, 2_000) : maxOutputTokens;
 
@@ -159,7 +165,7 @@ export async function streamAiText({
     try {
       const response = provider === "gemini"
         ? await streamGemini(apiKey, systemPrompt, messages, temperature, answerTokens, deep)
-        : await streamGroq(apiKey, systemPrompt, messages, temperature, answerTokens, deep);
+        : await streamOpenAiCompatible(provider, apiKey, systemPrompt, messages, temperature, answerTokens, deep);
       await markAiProviderSuccess(provider);
       return response;
     } catch (error) {
@@ -184,7 +190,7 @@ export async function generateAiJson<T>({
     try {
       const rawValue = provider === "gemini"
         ? await generateGeminiJson(apiKey, systemPrompt, userPrompt, temperature, maxOutputTokens)
-        : await generateGroqJson(apiKey, systemPrompt, userPrompt, temperature, maxOutputTokens);
+        : await generateOpenAiCompatibleJson(provider, apiKey, systemPrompt, userPrompt, temperature, maxOutputTokens);
       const value = validate(rawValue);
       await markAiProviderSuccess(provider);
       return { value, provider };
@@ -200,14 +206,16 @@ function configuredProviderKeys() {
   return {
     geminiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     groqKey: process.env.GROQ_API_KEY,
+    cerebrasKey: process.env.CEREBRAS_API_KEY,
   };
 }
 
 async function getAvailableProviders(prefer?: AiProvider): Promise<Array<{ provider: AiProvider; apiKey: string }>> {
-  const { geminiKey, groqKey } = configuredProviderKeys();
+  const { geminiKey, groqKey, cerebrasKey } = configuredProviderKeys();
   const configured = [
     geminiKey ? { provider: "gemini" as const, apiKey: geminiKey } : null,
-    groqKey ? { provider: "groq" as const, apiKey: groqKey } : null
+    groqKey ? { provider: "groq" as const, apiKey: groqKey } : null,
+    cerebrasKey ? { provider: "cerebras" as const, apiKey: cerebrasKey } : null
   ].filter((item): item is { provider: AiProvider; apiKey: string } => Boolean(item));
 
   if (!configured.length) throw new AiGatewayError("not_configured");
@@ -333,7 +341,7 @@ const DEEP_STREAM_HEADER_TIMEOUT_MS = 12_000;
  * over to the next one instead of holding the chat until the runtime limit.
  * The timer is cleared once headers arrive, so streaming bodies are unaffected.
  */
-async function providerFetch(provider: "gemini" | "groq", input: string, init: RequestInit, timeoutOverrideMs?: number): Promise<Response> {
+async function providerFetch(provider: AiProvider, input: string, init: RequestInit, timeoutOverrideMs?: number): Promise<Response> {
   const controller = new AbortController();
   const timeoutMs = timeoutOverrideMs ?? (input.includes(":streamGenerateContent") ? STREAM_HEADER_TIMEOUT_MS : PROVIDER_HEADER_TIMEOUT_MS);
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -449,7 +457,8 @@ async function streamGemini(
   return streamedTextResponse(stream, "gemini");
 }
 
-async function streamGroq(
+async function streamOpenAiCompatible(
+  provider: Exclude<AiProvider, "gemini">,
   apiKey: string,
   systemPrompt: string,
   messages: AiConversationMessage[],
@@ -457,28 +466,29 @@ async function streamGroq(
   maxOutputTokens: number,
   deep = false
 ): Promise<Response> {
-  const response = await providerFetch("groq", "https://api.groq.com/openai/v1/chat/completions", {
+  const model = provider === "cerebras" ? CEREBRAS_MODEL : deep ? GROQ_DEEP_MODEL : GROQ_MODEL;
+  const response = await providerFetch(provider, provider === "cerebras" ? CEREBRAS_URL : GROQ_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: deep ? GROQ_DEEP_MODEL : GROQ_MODEL,
+      model,
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       temperature,
       max_tokens: maxOutputTokens,
       // gpt-oss reasons before it answers; low effort keeps the first word fast, a deep answer reasons more.
-      reasoning_effort: deep ? "medium" : "low",
+      ...(model.includes("gpt-oss") ? { reasoning_effort: deep ? "medium" : "low" } : {}),
       stream: true,
     }),
   });
 
   if (!response.ok) {
-    throw new AiProviderRequestError("groq", response.status, `http_${response.status}`, retryAfterMs(response));
+    throw new AiProviderRequestError(provider, response.status, `http_${response.status}`, retryAfterMs(response));
   }
   if (!response.body) {
-    throw new AiProviderRequestError("groq", null, "empty_response");
+    throw new AiProviderRequestError(provider, null, "empty_response");
   }
 
   const reader = response.body.getReader();
@@ -512,7 +522,7 @@ async function streamGroq(
     },
   });
 
-  return streamedTextResponse(stream, "groq");
+  return streamedTextResponse(stream, provider);
 }
 
 function streamedTextResponse(stream: ReadableStream, provider: AiResponseProvider): Response {
@@ -595,21 +605,22 @@ async function generateGeminiJson(
   return parseJson(payload.candidates?.[0]?.content?.parts?.[0]?.text);
 }
 
-async function generateGroqJson(
+async function generateOpenAiCompatibleJson(
+  provider: Exclude<AiProvider, "gemini">,
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
   temperature: number,
   maxOutputTokens: number
 ): Promise<unknown> {
-  const response = await providerFetch("groq", "https://api.groq.com/openai/v1/chat/completions", {
+  const response = await providerFetch(provider, provider === "cerebras" ? CEREBRAS_URL : GROQ_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: provider === "cerebras" ? CEREBRAS_MODEL : GROQ_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -621,7 +632,7 @@ async function generateGroqJson(
   });
 
   if (!response.ok) {
-    throw new AiProviderRequestError("groq", response.status, `http_${response.status}`, retryAfterMs(response));
+    throw new AiProviderRequestError(provider, response.status, `http_${response.status}`, retryAfterMs(response));
   }
 
   const payload = (await response.json()) as {

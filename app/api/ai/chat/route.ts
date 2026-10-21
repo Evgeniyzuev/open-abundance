@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
       if (!sawData) await refundCharged(auth.user!.id, quotaCharged, capability);
       const failureCode = "stream_read_error";
       console.error("AI chat response stream failed.", { requestId, provider, model, failureCode });
-      if (provider === "gemini" || provider === "groq") await markAiProviderFailure(provider, failureCode);
+      if (provider === "gemini" || provider === "groq" || provider === "cerebras") await markAiProviderFailure(provider, failureCode);
       await markAiUsageEventStreamFailed(requestId, provider, model, Date.now() - startedAt);
     });
   } catch (error) {
@@ -365,7 +365,7 @@ function appendSelectedContentContext(basePrompt: string, content: { cardTitle: 
 }
 
 function readProvider(value: string | null): AiResponseProvider | undefined {
-  return value === "gemini" || value === "groq" || value === "openrouter" ? value : undefined;
+  return value === "gemini" || value === "groq" || value === "cerebras" || value === "openrouter" ? value : undefined;
 }
 
 function releaseWhenStreamEnds(

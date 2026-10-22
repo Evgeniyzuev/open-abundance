@@ -1,6 +1,8 @@
 // "Business" mode of Nova: honest help for a person who wants to start a small business inside Open Abundance.
-// Pure helpers (no imports, tested directly by node). The route adds only facts the person already owns or
+// Pure helpers (no runtime imports, tested directly by node). The route adds only facts the person already owns or
 // counts that are safe to show everyone (the demand map shows categories from five people).
+
+import type { AppLocale } from "@/lib/locales";
 
 export type BusinessFacts = {
   /** Categories of spending the person is ready to move into Open Abundance. */
@@ -18,7 +20,7 @@ export function wantsBusinessHelp(messages: Array<{ role: string; content: strin
   return messages.filter((message) => message.role === "user").slice(-3).some((message) => BUSINESS_WORDS.test(message.content));
 }
 
-export function buildBusinessInstruction(locale: "ru" | "en", facts: BusinessFacts): string {
+export function buildBusinessInstruction(locale: AppLocale, facts: BusinessFacts): string {
   const demand = facts.demand.slice(0, 6).map((item) => `${item.category} (${item.people})`).join(", ") || "none yet";
   const own = facts.ownCategories.join(", ") || "not chosen";
   return `

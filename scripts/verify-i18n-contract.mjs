@@ -74,7 +74,9 @@ for (const [language, full] of [["en", en], ["ru", ruFull]]) {
   const block = cardSource.slice(start, cardSource.indexOf("\n  }", start));
   const small = parseKeys(block);
   assert.ok(small.size >= 10, `card ${language} dictionary is parsed`);
-  for (const [key, value] of small) assert.equal(value, full.get(key), `card ${language}/${key} equals the full dictionary`);
+  // The full dictionaries may spell non-ASCII characters as \uXXXX escapes, so compare the decoded texts.
+  const decode = (raw) => { try { return JSON.parse(`"${raw}"`); } catch { return raw; } };
+  for (const [key, value] of small) assert.equal(decode(value), decode(full.get(key) ?? ""), `card ${language}/${key} equals the full dictionary`);
 }
 
 // Right-to-left: Arabic is registered as rtl, and styles use logical properties (centering with left: 50% is the only allowed physical offset).

@@ -215,6 +215,8 @@ const es: Record<string, string> = {
   "wishes.completionPrompt.title": "¿Deseo cumplido?",
   "wishes.completionPrompt.description": "{name} cumplió el deseo “{title}”. ¿Publicarlo en el feed?",
   "wishes.completionPrompt.visibility": "La publicación y el título del deseo serán visibles para todos.",
+  "wishes.completionPrompt.storyLabel": "¿Qué cambió para ti? (opcional)",
+  "wishes.completionPrompt.storyPlaceholder": "Cómo ayudó Open Abundance, cómo era antes y cómo es después.",
   "wishes.completeAndPublish": "Cumplido y publicar",
   "wishes.completeOnly": "Cumplido sin publicar",
   "wishes.archiveAction": "Archivar",

@@ -26,6 +26,7 @@ assert.equal(story.levelNow, 4);
 assert.equal(story.turnover, 17.5);
 assert.equal(story.hasTurnover, true);
 assert.equal(story.challenges, 2);
+assert.deepEqual(story.changes, []);
 // A private wish counts, its title stays hidden.
 assert.equal(story.wishesCount, 2);
 assert.deepEqual(story.wishes, ["Научиться плавать"]);
@@ -43,3 +44,14 @@ const ranked = rankGrowthStories([hidden, story]);
 assert.equal(ranked[0].userId, "a");
 
 console.log("growth stories contract ok");
+
+const { normalizeCompletionStory, withCompletionStory, completionStoryFromBody, WISH_COMPLETION_STORY_MAX } = await import("../lib/growthStories.ts");
+assert.equal(normalizeCompletionStory("   "), null);
+assert.equal(normalizeCompletionStory(42), null);
+assert.equal(normalizeCompletionStory("a\r\n\r\n\r\n\r\nb"), "a\n\nb");
+assert.equal(normalizeCompletionStory("x".repeat(WISH_COMPLETION_STORY_MAX + 50)).length, WISH_COMPLETION_STORY_MAX);
+const postBody = withCompletionStory("Исполнил желание «Плавать».", "Раньше боялся воды, теперь плаваю 1 км.");
+assert.equal(completionStoryFromBody(postBody), "Раньше боялся воды, теперь плаваю 1 км.");
+assert.equal(withCompletionStory("Fulfilled.", null), "Fulfilled.");
+assert.equal(completionStoryFromBody("Fulfilled."), null);
+console.log("completion story contract ok");

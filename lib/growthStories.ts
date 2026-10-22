@@ -26,6 +26,8 @@ export type GrowthStory = StoryAuthor & {
   wishesCount: number;
   firstDate: string;
   lastDate: string;
+  // "What changed for me" from the author's published wish posts, newest first.
+  changes: string[];
 };
 
 export type StoryWins = { date: string; challenges: number; wishes: Array<string | null> };
@@ -53,7 +55,8 @@ export function buildGrowthStory(author: StoryAuthor, days: RealityDay[], wins: 
     wishes: wishes.filter((title): title is string => Boolean(title)),
     wishesCount: wishes.length,
     firstDate: recent[0].date,
-    lastDate: recent.at(-1)!.date
+    lastDate: recent.at(-1)!.date,
+    changes: []
   };
 }
 
@@ -90,4 +93,24 @@ function wishTitle(item: unknown): string | null {
     return typeof first === "string" ? first.trim() : null;
   }
   return null;
+}
+
+// The author's own words about a fulfilled wish ("what changed for me"), kept short for cards and videos.
+export const WISH_COMPLETION_STORY_MAX = 600;
+
+export function normalizeCompletionStory(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.replace(/\r\n?/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return text ? text.slice(0, WISH_COMPLETION_STORY_MAX).trim() : null;
+}
+
+export function withCompletionStory(body: string, story: string | null): string {
+  return story ? `${body}\n\n${story}` : body;
+}
+
+/** The story part of a published wish_completed post: everything after the system first line. */
+export function completionStoryFromBody(body: string | null): string | null {
+  if (!body) return null;
+  const split = body.indexOf("\n\n");
+  return split < 0 ? null : normalizeCompletionStory(body.slice(split + 2));
 }

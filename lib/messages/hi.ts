@@ -215,6 +215,8 @@ const hi: Record<string, string> = {
   "wishes.completionPrompt.title": "इच्छा पूरी हुई?",
   "wishes.completionPrompt.description": "{name} ने इच्छा “{title}” पूरी की। क्या इसे फ़ीड में प्रकाशित करें?",
   "wishes.completionPrompt.visibility": "पोस्ट और इच्छा का शीर्षक सभी को दिखेगा।",
+  "wishes.completionPrompt.storyLabel": "आपके लिए क्या बदला? (वैकल्पिक)",
+  "wishes.completionPrompt.storyPlaceholder": "Open Abundance ने कैसे मदद की, पहले कैसा था और अब कैसा है।",
   "wishes.completeAndPublish": "पूरी हुई और प्रकाशित करें",
   "wishes.completeOnly": "पूरी हुई, प्रकाशित न करें",
   "wishes.archiveAction": "संग्रह में रखें",

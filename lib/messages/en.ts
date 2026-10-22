@@ -1395,6 +1395,8 @@ const en = {
   "wishes.completionPrompt.title": "Wish fulfilled?",
   "wishes.completionPrompt.description": "{name} fulfilled the wish \u201c{title}\u201d. Publish this to the feed?",
   "wishes.completionPrompt.visibility": "The post and the wish title will be visible to everyone.",
+  "wishes.completionPrompt.storyLabel": "What changed for you? (optional)",
+  "wishes.completionPrompt.storyPlaceholder": "How Open Abundance helped, what it was like before and after.",
   "wishes.completeAndPublish": "Done and publish",
   "wishes.completeOnly": "Done without posting",
   "wishes.archiveAction": "Archive",

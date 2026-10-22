@@ -1709,3 +1709,5 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .values-feed-open { border-radius: var(--radius-pill); padding: 6px 12px; background: var(--accent-soft); color: var(--accent-fill); font-size: 0.82rem; font-weight: 900; }
 @media (prefers-reduced-motion: reduce) { .values-card { transition: none; } }
 .public-listing-image { width: 100%; max-height: 420px; object-fit: cover; border-radius: 16px; }
+.wish-completion-story { width: 100%; text-align: start; }
+.wish-completion-story textarea { min-height: 88px; }

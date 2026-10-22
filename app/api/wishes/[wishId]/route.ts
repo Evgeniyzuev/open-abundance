@@ -4,6 +4,7 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { publishWishCompletionToFeed, publishWishToFeed } from "@/lib/serverWishFeed";
 import { normalizeLocale, type AppLocale } from "@/lib/locales";
+import { normalizeCompletionStory } from "@/lib/growthStories";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,6 +15,7 @@ type WishStatus = "active" | "completed" | "archived";
 type WishVisibility = "private" | "public" | "team" | "contacts";
 
 type WishPatchBody = {
+  completionStory?: unknown;
   title?: unknown;
   description?: unknown;
   category?: unknown;
@@ -121,7 +123,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { wishId
     if (shouldPublishCompletion) {
       const completionLocale = normalizeLocale(body.completionPostLocale ?? body.completion_post_locale);
       try {
-        publishResult = await publishWishCompletionToFeed(supabase, user.id, data, completionLocale);
+        publishResult = await publishWishCompletionToFeed(supabase, user.id, data, completionLocale, normalizeCompletionStory(body.completionStory));
       } catch {
         completionNotice = completionLocale === "ru"
           ? "\u0416\u0435\u043b\u0430\u043d\u0438\u0435 \u0438\u0441\u043f\u043e\u043b\u043d\u0435\u043d\u043e, \u043d\u043e \u043f\u043e\u0441\u0442 \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u0442\u044c."

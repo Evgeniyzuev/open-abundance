@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables, TablesInsert } from "@/lib/database.types";
 import type { AppLocale } from "@/lib/locales";
+import { withCompletionStory } from "@/lib/growthStories";
 
 type FeedPostRow = Tables<"feed_posts">;
 type WishRow = Tables<"wishes">;
@@ -125,7 +126,8 @@ export async function publishWishCompletionToFeed(
   supabase: SupabaseClient<Database>,
   userId: string,
   wish: WishRow,
-  locale: AppLocale
+  locale: AppLocale,
+  story: string | null = null
 ): Promise<WishFeedPublishResult> {
   if (wish.owner_user_id !== userId || wish.deleted_at !== null || wish.status !== "completed") {
     return {
@@ -140,6 +142,7 @@ export async function publishWishCompletionToFeed(
   const body = locale === "ru"
     ? `\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u043b \u0436\u0435\u043b\u0430\u043d\u0438\u0435 \u00ab${wish.title}\u00bb.`
     : `Fulfilled the wish \u201c${wish.title}\u201d.`;
+  const postBody = withCompletionStory(body, story);
   const { data: existingPost, error: existingError } = await supabase
     .from("feed_posts")
     .select("*")
@@ -155,7 +158,7 @@ export async function publishWishCompletionToFeed(
     .from("feed_posts")
     .insert({
       author_user_id: userId,
-      body,
+      body: postBody,
       post_type: "wish_completed",
       published_at: null,
       source_key: sourceKey,

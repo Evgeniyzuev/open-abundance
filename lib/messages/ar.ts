@@ -215,6 +215,8 @@ const ar: Record<string, string> = {
   "wishes.completionPrompt.title": "هل تحققت الأمنية؟",
   "wishes.completionPrompt.description": "حقق {name} الأمنية “{title}”. هل تريد نشر ذلك في الموجز؟",
   "wishes.completionPrompt.visibility": "سيكون المنشور وعنوان الأمنية ظاهرين للجميع.",
+  "wishes.completionPrompt.storyLabel": "ما الذي تغيّر بالنسبة لك؟ (اختياري)",
+  "wishes.completionPrompt.storyPlaceholder": "كيف ساعدك Open Abundance، وكيف كان الأمر قبل وبعد.",
   "wishes.completeAndPublish": "تحققت ونشر",
   "wishes.completeOnly": "تحققت دون نشر",
   "wishes.archiveAction": "أرشفة",

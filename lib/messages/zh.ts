@@ -215,6 +215,8 @@ const zh: Record<string, string> = {
   "wishes.completionPrompt.title": "愿望实现了吗？",
   "wishes.completionPrompt.description": "{name} 实现了愿望“{title}”。要发布到动态吗？",
   "wishes.completionPrompt.visibility": "帖子和愿望标题将对所有人可见。",
+  "wishes.completionPrompt.storyLabel": "对你来说有什么改变？（可选）",
+  "wishes.completionPrompt.storyPlaceholder": "Open Abundance 如何帮助了你，之前和之后有什么不同。",
   "wishes.completeAndPublish": "已实现并发布",
   "wishes.completeOnly": "已实现，不发布",
   "wishes.archiveAction": "归档",

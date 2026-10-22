@@ -2,7 +2,7 @@
 // published as public reality posts and their public blocks: no balances, contacts or private wishes.
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { addDays, buildRealityDays, type RealityDayRow } from "@/lib/realityTimeline";
-import { buildGrowthStory, rankGrowthStories, readStoryWins, STORY_WINDOW_DAYS, type GrowthStory, type StoryWins } from "@/lib/growthStories";
+import { buildGrowthStory, completionStoryFromBody, rankGrowthStories, readStoryWins, STORY_WINDOW_DAYS, type GrowthStory, type StoryWins } from "@/lib/growthStories";
 
 const POST_LIMIT = 3000;
 const CHUNK = 200;
@@ -79,7 +79,33 @@ export async function loadGrowthStories(today = new Date().toISOString().slice(0
     }, days, wins, today);
     if (story) stories.push(story);
   }
-  return rankGrowthStories(stories);
+  const ranked = rankGrowthStories(stories);
+  await attachChanges(db, ranked, since);
+  return ranked;
+}
+
+const CHANGES_PER_AUTHOR = 2;
+
+async function attachChanges(db: any, stories: GrowthStory[], since: string): Promise<void> {
+  if (!stories.length) return;
+  const { data, error } = await db
+    .from("feed_posts")
+    .select("author_user_id,body,created_at")
+    .eq("post_type", "wish_completed")
+    .eq("status", "published")
+    .eq("visibility", "public")
+    .is("deleted_at", null)
+    .in("author_user_id", stories.map((story) => story.userId))
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(POST_LIMIT);
+  if (error) return;
+  const byAuthor = new Map(stories.map((story) => [story.userId, story]));
+  for (const post of (data ?? []) as Array<{ author_user_id: string; body: string | null }>) {
+    const story = byAuthor.get(post.author_user_id);
+    const change = completionStoryFromBody(post.body);
+    if (story && change && story.changes.length < CHANGES_PER_AUTHOR) story.changes.push(change);
+  }
 }
 
 async function selectChunked(db: any, table: string, fields: string, column: string, ids: string[], refine?: (query: any) => any): Promise<any[]> {

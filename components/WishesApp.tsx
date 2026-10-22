@@ -26,6 +26,7 @@ import WishWoopSheet from "@/components/WishWoopSheet";
 import { saveTask } from "@/lib/tasksStore";
 import { todayKey } from "@/lib/taskSchedule";
 import { pick } from "@/lib/locales";
+import { WISH_COMPLETION_STORY_MAX } from "@/lib/growthStories";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -242,10 +243,11 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
     if (primaryWish?.id === wish.id && nextStatus !== "active" && user) storePrimaryWish(user.id, null);
   }
 
-  async function completeWish(wish: Wish, publishToFeed: boolean) {
+  async function completeWish(wish: Wish, publishToFeed: boolean, story: string) {
     setErrorMessage(null);
     const { notice, wish: updatedWish } = await sendWishRequest(`/api/wishes/${wish.id}`, "PATCH", {
       completionPostLocale: locale,
+      completionStory: publishToFeed ? story : undefined,
       publishCompletionToFeed: publishToFeed,
       status: "completed"
     });
@@ -426,7 +428,7 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
           displayName={profileDisplayName(profile, t("profile.guest"))}
           wish={completingWish}
           onClose={() => setCompletingWish(null)}
-          onComplete={(publishToFeed) => completeWish(completingWish, publishToFeed)}
+          onComplete={(publishToFeed, story) => completeWish(completingWish, publishToFeed, story)}
         />
       ) : null}
 
@@ -668,18 +670,19 @@ function WishCompletionModal({
 }: {
   displayName: string;
   onClose: () => void;
-  onComplete: (publishToFeed: boolean) => Promise<void>;
+  onComplete: (publishToFeed: boolean, story: string) => Promise<void>;
   wish: Wish;
 }) {
   const { t } = useUserContext();
   const [error, setError] = useState<string | null>(null);
+  const [story, setStory] = useState("");
   const [savingAction, setSavingAction] = useState<"publish" | "only" | null>(null);
 
   async function handleComplete(publishToFeed: boolean) {
     setSavingAction(publishToFeed ? "publish" : "only");
     setError(null);
     try {
-      await onComplete(publishToFeed);
+      await onComplete(publishToFeed, story);
     } catch (completeError) {
       setError(completeError instanceof Error ? completeError.message : t("wishes.error"));
       setSavingAction(null);
@@ -695,6 +698,11 @@ function WishCompletionModal({
         <h2>{t("wishes.completionPrompt.title")}</h2>
         <p>{t("wishes.completionPrompt.description", { name: displayName, title: wish.title })}</p>
         <small>{t("wishes.completionPrompt.visibility")}</small>
+        {/* The author's own words next to the system numbers: the base of "growth stories" (/stories). */}
+        <label className="finance-field wish-completion-story">
+          <span>{t("wishes.completionPrompt.storyLabel")}</span>
+          <textarea value={story} maxLength={WISH_COMPLETION_STORY_MAX} placeholder={t("wishes.completionPrompt.storyPlaceholder")} disabled={savingAction !== null} onChange={(event) => setStory(event.target.value)} />
+        </label>
         {error ? <p className="finance-error inline">{error}</p> : null}
         <div className="wish-completion-actions">
           <button className="task-done-primary-button" type="button" disabled={savingAction !== null} onClick={() => void handleComplete(true)}>

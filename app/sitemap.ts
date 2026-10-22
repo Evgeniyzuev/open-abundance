@@ -16,6 +16,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 1
     },
+    {
+      url: `${SITE_URL}/stories`,
+      changeFrequency: "daily",
+      priority: 0.7
+    },
     ...GUIDE_LOCALES.flatMap((locale) => [
       {
         url: `${SITE_URL}${guideIndexPath(locale)}`,

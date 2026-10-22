@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { setDeferredPwaInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwaInstall";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { flushPendingReminders } from "@/lib/pushReminders";
 
 const APP_UPDATE_CHECK_INTERVAL_MS = 30 * 1000;
@@ -14,7 +15,10 @@ export default function ServiceWorkerRegister() {
       event.preventDefault();
       setDeferredPwaInstallPrompt(event as BeforeInstallPromptEvent);
     };
-    const handleAppInstalled = () => setDeferredPwaInstallPrompt(null);
+    const handleAppInstalled = () => {
+      setDeferredPwaInstallPrompt(null);
+      void trackClientEvent("pwa_installed", {});
+    };
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
 

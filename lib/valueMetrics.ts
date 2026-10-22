@@ -34,7 +34,7 @@ export const VALUE_EVENTS = [
 ] as const;
 
 /** Viewing without acting; many of these with no value event on the same day is a doomscroll signal. */
-export const PASSIVE_EVENTS = ["app_open", "feed_post_impression", "feed_post_opened", "week_recap_opened", "growth_map_opened"] as const;
+export const PASSIVE_EVENTS = ["app_open", "feed_post_impression", "feed_post_opened", "week_recap_opened", "growth_map_opened", "soft_prompt_shown", "soft_prompt_action", "pwa_installed"] as const;
 
 export const PASSIVE_ONLY_IMPRESSIONS = 20;
 

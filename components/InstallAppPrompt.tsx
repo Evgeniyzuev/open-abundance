@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { InstallGuide, detectInstallPlatform } from "@/components/InstallGuide";
 import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { isStandaloneDisplay } from "@/lib/installPing";
 import { bumpPromptCount, getPromptCount, markPromptShownToday, promptShownToday } from "@/lib/promptSchedule";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
@@ -56,8 +57,10 @@ export default function InstallAppPrompt() {
       }
       markPromptShownToday(userId);
       bumpPromptCount("install", userId);
-      setPlatform(detectInstallPlatform());
+      const shownPlatform = detectInstallPlatform();
+      setPlatform(shownPlatform);
       setOpen(true);
+      void trackClientEvent("soft_prompt_shown", { kind: "install", platform: shownPlatform, system_dialog: canPromptPwaInstall() });
     };
 
     timer = window.setTimeout(check, FIRST_CHECK_DELAY_MS);
@@ -67,8 +70,14 @@ export default function InstallAppPrompt() {
     };
   }, [userId, level]);
 
+  function dismiss(action: "later" | "got_it") {
+    void trackClientEvent("soft_prompt_action", { kind: "install", platform, action });
+    setOpen(false);
+  }
+
   async function install() {
     const result = await promptPwaInstall();
+    void trackClientEvent("soft_prompt_action", { kind: "install", platform, action: result === "accepted" ? "install_accepted" : result === "dismissed" ? "install_dismissed" : "install_unavailable" });
     if (result !== "unavailable") setOpen(false);
   }
 
@@ -77,7 +86,7 @@ export default function InstallAppPrompt() {
   const androidInstallDialog = platform === "android" && canInstall;
 
   return (
-    <Sheet bare className="small challenge-complete-modal" titleId="install-app-title" onClose={() => setOpen(false)}>
+    <Sheet bare className="small challenge-complete-modal" titleId="install-app-title" onClose={() => dismiss("later")}>
       <span className="streak-complete-icon"><Smartphone size={30} aria-hidden="true" /></span>
       <h2 id="install-app-title">{t("install.prompt.title")}</h2>
       <p>{t("install.prompt.body")}</p>
@@ -85,11 +94,11 @@ export default function InstallAppPrompt() {
         <InstallGuide installPromptAvailable={false} isDesktop={false} platform={platform} t={t} onInstall={() => undefined} onPlatformChange={setPlatform} />
       )}
       <div className="push-prompt-actions">
-        <button className="push-prompt-later" type="button" onClick={() => setOpen(false)}>{t("push.prompt.later")}</button>
+        <button className="push-prompt-later" type="button" onClick={() => dismiss("later")}>{t("push.prompt.later")}</button>
         {androidInstallDialog ? (
           <button className="challenge-primary-action" type="button" onClick={() => void install()}>{t("install.prompt.install")}</button>
         ) : (
-          <button className="challenge-primary-action" type="button" onClick={() => setOpen(false)}>{t("install.prompt.gotIt")}</button>
+          <button className="challenge-primary-action" type="button" onClick={() => dismiss("got_it")}>{t("install.prompt.gotIt")}</button>
         )}
       </div>
     </Sheet>

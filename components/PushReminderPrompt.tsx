@@ -3,7 +3,9 @@
 import { Bell } from "lucide-react";
 import { useEffect, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { useUserContext } from "@/components/UserProvider";
+import { isStandaloneDisplay } from "@/lib/installPing";
 import {
   enableDailyPush,
   getDailyReminderSettings,
@@ -45,6 +47,7 @@ export default function PushReminderPrompt() {
       if (document.querySelector('[role="dialog"]')) return; // still busy: try again on the next visit
       markPushAskedToday(userId);
       setOpen(true);
+      void trackClientEvent("soft_prompt_shown", { kind: "reminders", standalone: isStandaloneDisplay() });
     };
 
     timer = window.setTimeout(check, FIRST_CHECK_DELAY_MS);
@@ -54,9 +57,15 @@ export default function PushReminderPrompt() {
     };
   }, [userId]);
 
+  function later() {
+    void trackClientEvent("soft_prompt_action", { kind: "reminders", action: "later" });
+    setOpen(false);
+  }
+
   async function accept() {
     setOpen(false);
     const enabled = await enableDailyPush().catch(() => false);
+    void trackClientEvent("soft_prompt_action", { kind: "reminders", action: enabled ? "permission_granted" : "permission_not_granted" });
     if (!enabled) return;
     const next = { ...getDailyReminderSettings(), configured: true, enabled: true };
     saveDailyReminderSettings(next);
@@ -67,12 +76,12 @@ export default function PushReminderPrompt() {
   if (!open) return null;
 
   return (
-    <Sheet bare className="small challenge-complete-modal" titleId="push-reminder-title" onClose={() => setOpen(false)}>
+    <Sheet bare className="small challenge-complete-modal" titleId="push-reminder-title" onClose={later}>
       <span className="streak-complete-icon"><Bell size={30} aria-hidden="true" /></span>
       <h2 id="push-reminder-title">{t("push.prompt.title")}</h2>
       <p>{t("push.prompt.body")}</p>
       <div className="push-prompt-actions">
-        <button className="push-prompt-later" type="button" onClick={() => setOpen(false)}>{t("push.prompt.later")}</button>
+        <button className="push-prompt-later" type="button" onClick={later}>{t("push.prompt.later")}</button>
         <button className="challenge-primary-action" type="button" onClick={() => void accept()}>{t("push.prompt.enable")}</button>
       </div>
     </Sheet>

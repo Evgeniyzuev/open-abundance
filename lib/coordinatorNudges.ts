@@ -4,9 +4,12 @@ import { buildTelegramNudge, sendTelegramMessage } from "@/lib/telegramBot";
 import {
   NUDGE_EVENT_TYPE,
   nudgeIdempotencyKey,
+  isNudgeSendTime,
+  nudgeOutcomes,
   parseNudgeKey,
   planNudges,
-  type NudgeHistory
+  type NudgeHistory,
+  type NudgeOutcomes
 } from "@/lib/coordinatorNextStep";
 
 type AnyDb = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
@@ -21,6 +24,8 @@ export type NudgeRunSummary = {
   failed: number;
   telegramSent: number;
   telegramSkipped: number;
+  /** Per step: nudged people and how many did the step afterwards. */
+  outcomes: NudgeOutcomes;
 };
 
 /**
@@ -40,9 +45,11 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
   if (error) throw new Error(error.message);
 
   const history = new Map<string, NudgeHistory>();
+  const sentBefore: Array<{ userId: string; step: string }> = [];
   for (const row of pastEvents ?? []) {
     const parsed = parseNudgeKey(String(row.idempotency_key));
     if (!parsed) continue;
+    sentBefore.push({ userId: parsed.userId, step: parsed.step });
     const at = Date.parse(row.created_at);
     const entry = history.get(parsed.userId) ?? { lastAt: 0, steps: new Set<string>(), count: 0 };
     entry.lastAt = Math.max(entry.lastAt, at);
@@ -51,7 +58,11 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
     history.set(parsed.userId, entry);
   }
 
-  const planned = planNudges(participants, history, now, MAX_PER_RUN);
+  // Plan wider than one run, then keep the people for whom it is daytime now: the job runs every hour and picks up
+  // the others when their morning comes. Pacing in planNudges still guarantees one push per step and person.
+  const candidates = planNudges(participants, history, now, MAX_PER_RUN * 8);
+  const timezones = await loadTimezones(db, candidates.map((item) => item.userId));
+  const planned = candidates.filter((item) => isNudgeSendTime(timezones.get(item.userId), now)).slice(0, MAX_PER_RUN);
   const summary: NudgeRunSummary = {
     dryRun: options.dryRun,
     participants: participants.length,
@@ -59,7 +70,8 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
     sent: 0,
     failed: 0,
     telegramSent: 0,
-    telegramSkipped: 0
+    telegramSkipped: 0,
+    outcomes: nudgeOutcomes(participants, sentBefore)
   };
   const botToken = process.env.TELEGRAM_BOT_TOKEN ?? null;
   if (options.dryRun) return summary;
@@ -119,3 +131,18 @@ async function sendNudgeToTelegram(
     return "skipped";
   }
 }
+
+/** Saved browser time zones; empty (everyone on the default window) until the column exists and people have opened the app. */
+async function loadTimezones(db: AnyDb, userIds: string[]): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (userIds.length === 0) return result;
+  try {
+    const { data, error } = await db.from("user_profiles").select("user_id,timezone").in("user_id", userIds);
+    if (error) return result;
+    for (const row of data ?? []) if (row.timezone) result.set(row.user_id, String(row.timezone));
+  } catch {
+    // Treated as "no time zone known".
+  }
+  return result;
+}
+

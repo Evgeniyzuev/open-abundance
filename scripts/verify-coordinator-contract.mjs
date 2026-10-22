@@ -220,6 +220,24 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
   const nudgeSql = read("supabase/migrations/20261018120000_coordinator_nudges_cron.sql");
   assert.ok(nudgeSql.includes("'open-abundance-coordinator-nudges-daily'") && nudgeSql.includes("/api/internal/coordinator/nudges"));
 
+  // When to send: daytime in the person's time zone, a fallback UTC window without one, and results per step.
+  const { isNudgeSendTime, nudgeOutcomes } = await import("../lib/coordinatorNextStep.ts");
+  const at = (iso) => Date.parse(iso);
+  assert.equal(isNudgeSendTime("Europe/Moscow", at("2026-10-22T09:00:00Z")), true, "12:00 in Moscow is daytime");
+  assert.equal(isNudgeSendTime("Asia/Shanghai", at("2026-10-22T15:00:00Z")), false, "23:00 in Shanghai is night");
+  assert.equal(isNudgeSendTime("Not/AZone", at("2026-10-22T15:00:00Z")), true, "an unknown zone uses the UTC window");
+  assert.equal(isNudgeSendTime(null, at("2026-10-22T15:00:00Z")), true);
+  assert.equal(isNudgeSendTime(null, at("2026-10-22T03:00:00Z")), false);
+  const outcomePeople = [
+    { id: "a", wishes: 1, calculatorUsed: false, challengesAccepted: 0, challengesCompleted: 0, referralsInvited: 0 },
+    { id: "b", wishes: 0, calculatorUsed: false, challengesAccepted: 0, challengesCompleted: 0, referralsInvited: 0 }
+  ];
+  assert.deepEqual(nudgeOutcomes(outcomePeople, [{ userId: "a", step: "wish" }, { userId: "b", step: "wish" }]), { wish: { sent: 2, done: 1 } });
+  const nudgesSource = read("lib/coordinatorNudges.ts");
+  assert.ok(nudgesSource.includes("isNudgeSendTime") && nudgesSource.includes("loadTimezones"), "the sender respects the person's time zone");
+  const tzMigration = read("supabase/migrations/20261022160000_profile_timezone_nudges_hourly.sql");
+  assert.ok(tzMigration.includes("add column if not exists timezone") && tzMigration.includes("open-abundance-coordinator-nudges-hourly"));
+
   // Telegram channel: Russian only for ru, a Mini App button on the same deep link, only where there is no web push.
   const { buildTelegramNudge } = await import("../lib/telegramBot.ts");
   const copy = { ru: { title: "Заголовок", body: "Текст" }, en: { title: "Title", body: "Body" } };

@@ -123,3 +123,55 @@ export function parseNudgeKey(key: string): { step: string; userId: string } | n
   const match = /^coach-next-step:([a-z_]+):([0-9a-f-]{36})$/.exec(key);
   return match ? { step: match[1], userId: match[2] } : null;
 }
+
+// --- When to send -----------------------------------------------------------------------------------
+
+/** Local hours (inclusive start, exclusive end) in which a nudge may be sent. */
+export const NUDGE_WINDOW_START_HOUR = 10;
+export const NUDGE_WINDOW_END_HOUR = 19;
+
+/**
+ * True when it is daytime for the person. `timezone` is an IANA name saved from their browser; without a valid one
+ * the window falls back to 13:00-17:00 UTC (early evening for most of the pilot).
+ */
+export function isNudgeSendTime(timezone: string | null | undefined, now: number): boolean {
+  if (timezone) {
+    try {
+      const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone: timezone }).format(new Date(now)));
+      return hour >= NUDGE_WINDOW_START_HOUR && hour < NUDGE_WINDOW_END_HOUR;
+    } catch {
+      // An unknown time zone name: use the default window below.
+    }
+  }
+  const utcHour = new Date(now).getUTCHours();
+  return utcHour >= 13 && utcHour < 17;
+}
+
+// --- Results ----------------------------------------------------------------------------------------
+
+export type NudgeOutcomes = Record<string, { sent: number; done: number }>;
+
+function stepDone(participant: ParticipantRecord, step: string): boolean {
+  if (step === "wish") return participant.wishes > 0;
+  if (step === "calculator") return participant.calculatorUsed;
+  if (step === "accept_challenge") return participant.challengesAccepted > 0;
+  if (step === "finish_challenge") return participant.challengesCompleted > 0;
+  if (step === "invite") return participant.referralsInvited > 0;
+  return false;
+}
+
+/**
+ * Per step: how many people were nudged and how many of them have done that step since. A person is nudged for a step
+ * only while it is not done, so "done now" means "done after the nudge". Pure; the coordinator shows it to the operator.
+ */
+export function nudgeOutcomes(participants: ParticipantRecord[], sent: Array<{ userId: string; step: string }>): NudgeOutcomes {
+  const byId = new Map(participants.map((participant) => [participant.id, participant]));
+  const result: NudgeOutcomes = {};
+  for (const { userId, step } of sent) {
+    const entry = (result[step] ??= { sent: 0, done: 0 });
+    entry.sent += 1;
+    const participant = byId.get(userId);
+    if (participant && stepDone(participant, step)) entry.done += 1;
+  }
+  return result;
+}

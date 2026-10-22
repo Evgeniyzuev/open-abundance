@@ -219,6 +219,16 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
   assert.ok(sender.includes("nudgeIdempotencyKey"), "one push per step and person");
   const nudgeSql = read("supabase/migrations/20261018120000_coordinator_nudges_cron.sql");
   assert.ok(nudgeSql.includes("'open-abundance-coordinator-nudges-daily'") && nudgeSql.includes("/api/internal/coordinator/nudges"));
+
+  // Telegram channel: Russian only for ru, a Mini App button on the same deep link, only where there is no web push.
+  const { buildTelegramNudge } = await import("../lib/telegramBot.ts");
+  const copy = { ru: { title: "Заголовок", body: "Текст" }, en: { title: "Title", body: "Body" } };
+  const ruMessage = buildTelegramNudge(copy, "ru", "/?view=goals.desires", "https://example.test/");
+  assert.equal(ruMessage?.text, "Заголовок\n\nТекст");
+  assert.equal(ruMessage?.url, "https://example.test/?view=goals.desires");
+  assert.equal(buildTelegramNudge(copy, "es", "/?view=wallet.core", "https://example.test")?.text, "Title\n\nBody", "other languages read English");
+  assert.equal(buildTelegramNudge(copy, "en", "//evil.test", "https://example.test"), null, "deep links stay on the site");
+  assert.ok(sender.includes("push_subscriptions") && sender.includes("push_enabled === false"), "Telegram only without web push and when reminders are on");
 }
 
 console.log("coordinator contract ok");

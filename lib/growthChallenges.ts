@@ -28,3 +28,14 @@ export function countWithinDays(timestamps: Array<string | null | undefined>, da
     return !Number.isNaN(time) && time >= from && time <= now;
   }).length;
 }
+
+/** True when some top-up happened at or after the first wish that has a target amount (a top-up "for a wish"). */
+export function topUpAfterWish(wishCreatedAts: Array<string | null | undefined>, topUpAts: Array<string | null | undefined>): boolean {
+  const wishTimes = wishCreatedAts.map((v) => (v ? Date.parse(v) : NaN)).filter((t) => !Number.isNaN(t));
+  if (wishTimes.length === 0) return false;
+  const first = Math.min(...wishTimes);
+  return topUpAts.some((v) => {
+    const t = v ? Date.parse(v) : NaN;
+    return !Number.isNaN(t) && t >= first;
+  });
+}

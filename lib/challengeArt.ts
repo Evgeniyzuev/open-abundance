@@ -51,6 +51,7 @@ export const CHALLENGE_GLYPHS: Record<string, string> = {
   "first_internal_purchase": "ShoppingBag",
   "growth_core_topup_3months": "CalendarCheck",
   "growth_spend_shift": "Repeat",
+  "growth_wish_topup": "Target",
   "sales_total_10": "Banknote",
   "sales_total_100": "Coins",
   "sales_total_1000": "Trophy",

@@ -25,6 +25,15 @@ insert into public.challenges (
   '{"ru": "Выбраны категории трат и завершены три покупки внутри за последние 60 дней.", "en": "Spending categories are chosen and three internal purchases were completed in the last 60 days."}'::jsonb,
   'marketplace', 3, 60, 'auto', 'growth_spend_shift',
   61, 'growth', 2, null, 'wallet.market', 1, 0, true
+,
+(
+  'd4e7a1b2-9c35-4f68-b210-7a3c5e8f1d03',
+  '{"ru": "Пополнение под желание", "en": "Top up Core for a wish"}'::jsonb,
+  '{"ru": "Задайте желанию сумму и пополните Core: цель становится ближе.", "en": "Give a wish a target amount and top up Core: the goal gets closer."}'::jsonb,
+  '{"ru": "Урок: желание с суммой превращается в план, а Core растёт и работает на него каждый день. Выберите желание, задайте цель и пополните Core на сумму, которую можете себе позволить.\n1. Откройте желание и укажите целевую сумму.\n2. Пополните Core из Wallet.\n3. Нажмите «Проверить выполнение».", "en": "Lesson: a wish with an amount becomes a plan, and Core grows and works for it every day. Pick a wish, set a target and top up Core by an amount you can afford.\n1. Open the wish and set a target amount.\n2. Top up Core from Wallet.\n3. Press Check completion."}'::jsonb,
+  '{"ru": "Есть желание с целевой суммой и пополнение Core после его создания.", "en": "A wish with a target amount exists and Core was topped up after it was created."}'::jsonb,
+  'finance', 2, 60, 'auto', 'growth_wish_topup',
+  62, 'growth', 3, null, 'wallet.core', 1, 0, true
 )
 on conflict (id) do update
 set title = excluded.title,

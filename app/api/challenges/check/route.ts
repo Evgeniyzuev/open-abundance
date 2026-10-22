@@ -7,7 +7,7 @@ import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCa
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
 import { confirmedReferralsThreshold } from "@/lib/creatorChallenges";
 import { BUSINESS_BUYERS_TARGET, BUSINESS_REVIEWS_TARGET, distinctOthers, invitedBuyers, strangerBuyers } from "@/lib/businessChallenges";
-import { GROWTH_TOPUP_MONTHS_TARGET, SPEND_SHIFT_PURCHASES_TARGET, SPEND_SHIFT_WINDOW_DAYS, countWithinDays, distinctMonths } from "@/lib/growthChallenges";
+import { GROWTH_TOPUP_MONTHS_TARGET, SPEND_SHIFT_PURCHASES_TARGET, SPEND_SHIFT_WINDOW_DAYS, countWithinDays, distinctMonths, topUpAfterWish } from "@/lib/growthChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
 import { walletChallengeDone, walletChallengeRule, walletStats } from "@/lib/stayStreak";
 import { hasThreeSteps } from "@/lib/wishSteps";
@@ -477,6 +477,33 @@ async function verifyChallenge(
     return months >= GROWTH_TOPUP_MONTHS_TARGET
       ? { ok: true }
       : { ok: false, reason: `Core was topped up in ${months} of ${GROWTH_TOPUP_MONTHS_TARGET} different months.` };
+  }
+
+  // Growth track: a Core top-up made for a wish (the wish has a target amount and the top-up came after it).
+  if (challenge.verification_logic === "growth_wish_topup") {
+    const { data: wishes, error: wishError } = await db
+      .from("wishes")
+      .select("created_at")
+      .eq("owner_user_id", userId)
+      .is("deleted_at", null)
+      .not("target_amount", "is", null)
+      .gt("target_amount", 0)
+      .limit(500);
+    if (wishError) return { ok: false, reason: "Could not check your wishes. Try again." };
+    if (!wishes || wishes.length === 0) return { ok: false, reason: "Add a wish with a target amount first." };
+    const { data: topUps, error: topUpError } = await db
+      .from("wallet_ledger")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("operation_type", "wallet_core_topup")
+      .limit(5000);
+    if (topUpError) return { ok: false, reason: "Could not check your top-ups. Try again." };
+    return topUpAfterWish(
+      (wishes as Array<{ created_at: string }>).map((row) => row.created_at),
+      ((topUps ?? []) as Array<{ created_at: string }>).map((row) => row.created_at)
+    )
+      ? { ok: true }
+      : { ok: false, reason: "Top up Core from Wallet after adding a wish with a target amount." };
   }
 
   // Growth track: the person marked spending to move inside and made three internal purchases in 60 days.

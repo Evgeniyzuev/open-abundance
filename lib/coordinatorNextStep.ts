@@ -1,4 +1,5 @@
 import type { ParticipantRecord } from "@/lib/coordinatorAnalysis";
+import type { Localized } from "@/lib/locales";
 
 /**
  * Pure rules for the "next step" push. No I/O so a deterministic Node test can check them
@@ -16,7 +17,8 @@ export type NextStepCopy = { title: string; body: string };
 export type NextStep = {
   key: NextStepKey;
   deepLink: string;
-  copy: { ru: NextStepCopy; en: NextStepCopy };
+  /** English is required; a language without text reads English. */
+  copy: Localized<NextStepCopy>;
 };
 
 const DAY_MS = 86_400_000;
@@ -34,7 +36,11 @@ export const NEXT_STEPS: Record<NextStepKey, NextStep> = {
     deepLink: "/?view=goals.desires",
     copy: {
       ru: { title: "Запишите одно желание", body: "Откройте «Желания» и добавьте то, чего хотите. Хватит одной строки. От желания зависят все следующие шаги." },
-      en: { title: "Write down one wish", body: "Open Wishes and add something you want. One line is enough. Every next step builds on it." }
+      en: { title: "Write down one wish", body: "Open Wishes and add something you want. One line is enough. Every next step builds on it." },
+      es: { title: "Anota un deseo", body: "Abre Deseos y añade algo que quieras. Basta una línea. Todos los pasos siguientes parten de ahí." },
+      zh: { title: "写下一个愿望", body: "打开“愿望”，添加你想要的东西，一句话就够了。之后的每一步都以它为基础。" },
+      hi: { title: "एक इच्छा लिखें", body: "“इच्छाएँ” खोलें और कुछ ऐसा जोड़ें जो आप चाहते हैं। एक पंक्ति काफ़ी है। आगे का हर कदम इसी पर टिका है।" },
+      ar: { title: "اكتب أمنية واحدة", body: "افتح «الأمنيات» وأضف شيئًا تريده. يكفي سطر واحد. كل خطوة تالية تبنى عليها." }
     }
   },
   calculator: {
@@ -42,7 +48,11 @@ export const NEXT_STEPS: Record<NextStepKey, NextStep> = {
     deepLink: "/?view=wallet.core",
     copy: {
       ru: { title: "Узнайте срок до своей цели", body: "Откройте «Рост» → Core, выберите режим и посмотрите, за сколько вырастет ваш Core. Это займёт минуту." },
-      en: { title: "See how long your goal takes", body: "Open Growth → Core, pick a mode and see how fast your Core grows. It takes a minute." }
+      en: { title: "See how long your goal takes", body: "Open Growth → Core, pick a mode and see how fast your Core grows. It takes a minute." },
+      es: { title: "Descubre cuánto falta para tu meta", body: "Abre Crecimiento → Core, elige un modo y mira a qué ritmo crece tu Core. Lleva un minuto." },
+      zh: { title: "看看距离目标还要多久", body: "打开“成长”→ Core，选择一种模式，看看你的 Core 增长有多快。只需一分钟。" },
+      hi: { title: "जानें लक्ष्य में कितना समय लगेगा", body: "“विकास” → Core खोलें, एक मोड चुनें और देखें कि आपका Core कितनी तेज़ी से बढ़ता है। इसमें एक मिनट लगता है।" },
+      ar: { title: "اعرف كم يستغرق هدفك", body: "افتح «النمو» ← Core، واختر وضعًا وانظر بأي سرعة ينمو Core لديك. يستغرق ذلك دقيقة." }
     }
   },
   accept_challenge: {
@@ -50,7 +60,11 @@ export const NEXT_STEPS: Record<NextStepKey, NextStep> = {
     deepLink: "/?view=challenges",
     copy: {
       ru: { title: "Возьмите первый челлендж", body: "Откройте «Челленджи» и выберите самый простой. Первый выполненный челлендж приносит первый Core." },
-      en: { title: "Take your first challenge", body: "Open Challenges and pick the easiest one. Your first finished challenge brings your first Core." }
+      en: { title: "Take your first challenge", body: "Open Challenges and pick the easiest one. Your first finished challenge brings your first Core." },
+      es: { title: "Acepta tu primer reto", body: "Abre Retos y elige el más sencillo. Tu primer reto completado te trae tu primer Core." },
+      zh: { title: "接受你的第一个挑战", body: "打开“挑战”，选一个最简单的。完成的第一个挑战会带来你的第一份 Core。" },
+      hi: { title: "अपनी पहली चुनौती लें", body: "“चुनौतियाँ” खोलें और सबसे आसान चुनें। आपकी पहली पूरी की गई चुनौती आपको पहला Core दिलाती है।" },
+      ar: { title: "اقبل أول تحدٍّ لك", body: "افتح «التحديات» واختر أسهلها. أول تحدٍّ تكمله يمنحك أول Core." }
     }
   },
   finish_challenge: {
@@ -58,7 +72,11 @@ export const NEXT_STEPS: Record<NextStepKey, NextStep> = {
     deepLink: "/?view=challenges",
     copy: {
       ru: { title: "Доведите челлендж до конца", body: "Вы уже взяли челлендж. Откройте его, сделайте шаг и отметьте результат." },
-      en: { title: "Finish your challenge", body: "You already took a challenge. Open it, do one step and mark the result." }
+      en: { title: "Finish your challenge", body: "You already took a challenge. Open it, do one step and mark the result." },
+      es: { title: "Termina tu reto", body: "Ya aceptaste un reto. Ábrelo, da un paso y marca el resultado." },
+      zh: { title: "把挑战完成", body: "你已经接受了一个挑战。打开它，迈出一步，并标记结果。" },
+      hi: { title: "अपनी चुनौती पूरी करें", body: "आप पहले ही एक चुनौती ले चुके हैं। उसे खोलें, एक कदम उठाएँ और नतीजा चिह्नित करें।" },
+      ar: { title: "أكمل تحدّيك", body: "لقد قبلت تحدّيًا بالفعل. افتحه، وخذ خطوة واحدة، وسجّل النتيجة." }
     }
   },
   invite: {
@@ -66,7 +84,11 @@ export const NEXT_STEPS: Record<NextStepKey, NextStep> = {
     deepLink: "/?view=people.profile",
     copy: {
       ru: { title: "Позовите одного знакомого", body: "В профиле есть ваша ссылка-приглашение. Отправьте её человеку, которому приложение может пригодиться." },
-      en: { title: "Invite one person you know", body: "Your invitation link is in your profile. Send it to someone the app could help." }
+      en: { title: "Invite one person you know", body: "Your invitation link is in your profile. Send it to someone the app could help." },
+      es: { title: "Invita a una persona que conozcas", body: "Tu enlace de invitación está en tu perfil. Envíaselo a alguien a quien la app pueda ayudar." },
+      zh: { title: "邀请一位你认识的人", body: "你的邀请链接在个人资料里。把它发给一位这个应用能帮到的人。" },
+      hi: { title: "किसी परिचित को आमंत्रित करें", body: "आपका आमंत्रण लिंक आपकी प्रोफ़ाइल में है। इसे किसी ऐसे व्यक्ति को भेजें जिसकी यह ऐप मदद कर सके।" },
+      ar: { title: "ادعُ شخصًا تعرفه", body: "رابط دعوتك موجود في ملفك الشخصي. أرسله إلى شخص قد يساعده التطبيق." }
     }
   }
 };

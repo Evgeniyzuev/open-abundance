@@ -204,7 +204,7 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
   assert.equal(planNudges([person({ id: "x1" }), person({ id: "x2" })], new Map(), NOW, 1).length, 1, "per-run limit");
 
   for (const step of Object.values(NEXT_STEPS)) {
-    for (const lang of ["ru", "en"]) {
+    for (const lang of ["ru", "en", "es", "zh", "hi", "ar"]) {
       assert.ok(step.copy[lang].title.length > 0 && step.copy[lang].title.length <= 160, `${step.key} ${lang} title length`);
       assert.ok(step.copy[lang].body.length > 0 && step.copy[lang].body.length <= 500, `${step.key} ${lang} body length`);
     }
@@ -238,13 +238,19 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
   const tzMigration = read("supabase/migrations/20261022160000_profile_timezone_nudges_hourly.sql");
   assert.ok(tzMigration.includes("add column if not exists timezone") && tzMigration.includes("open-abundance-coordinator-nudges-hourly"));
 
+  const textsMigration = read("supabase/migrations/20261022170000_push_text_languages.sql");
+  assert.ok(textsMigration.includes("in ('ru', 'es', 'zh', 'hi', 'ar')") && textsMigration.includes("metadata->'copy'->'en'->>'title'"), "push text language comes from the profile with an English fallback");
+
   // Telegram channel: Russian only for ru, a Mini App button on the same deep link, only where there is no web push.
   const { buildTelegramNudge } = await import("../lib/telegramBot.ts");
   const copy = { ru: { title: "Заголовок", body: "Текст" }, en: { title: "Title", body: "Body" } };
   const ruMessage = buildTelegramNudge(copy, "ru", "/?view=goals.desires", "https://example.test/");
   assert.equal(ruMessage?.text, "Заголовок\n\nТекст");
   assert.equal(ruMessage?.url, "https://example.test/?view=goals.desires");
-  assert.equal(buildTelegramNudge(copy, "es", "/?view=wallet.core", "https://example.test")?.text, "Title\n\nBody", "other languages read English");
+  assert.equal(buildTelegramNudge(copy, "hi", "/?view=wallet.core", "https://example.test")?.text, "Title\n\nBody", "a language without text reads English");
+  const withEs = buildTelegramNudge({ ...copy, es: { title: "Titulo", body: "Cuerpo" } }, "es", "/?view=wallet.core", "https://example.test");
+  assert.equal(withEs?.text, "Titulo\n\nCuerpo");
+  assert.equal(withEs?.buttonText, "Abrir");
   assert.equal(buildTelegramNudge(copy, "en", "//evil.test", "https://example.test"), null, "deep links stay on the site");
   assert.ok(sender.includes("push_subscriptions") && sender.includes("push_enabled === false"), "Telegram only without web push and when reminders are on");
 }

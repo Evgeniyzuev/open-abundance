@@ -9,21 +9,21 @@ export type TelegramNudgeMessage = {
   url: string;
 };
 
-const BUTTON_TEXT = { ru: "Открыть", en: "Open" } as const;
+const BUTTON_TEXT: Record<string, string> = { en: "Open", ru: "Открыть", es: "Abrir", zh: "打开", hi: "खोलें", ar: "فتح" };
 
-/** Text, button and Mini App link for one coordinator nudge. Russian when the person's language is Russian, else English. */
+/** Text, button and Mini App link for one coordinator nudge, in the person's language when the copy has it, else English. */
 export function buildTelegramNudge(
-  copy: { ru?: TelegramNudgeCopy; en: TelegramNudgeCopy },
+  copy: { en: TelegramNudgeCopy } & Partial<Record<string, TelegramNudgeCopy>>,
   locale: string,
   deepLink: string,
   siteUrl: string
 ): TelegramNudgeMessage | null {
   if (!deepLink.startsWith("/") || deepLink.startsWith("//")) return null;
-  const language = locale === "ru" && copy.ru ? "ru" : "en";
-  const chosen = language === "ru" ? copy.ru! : copy.en;
+  const language = copy[locale] ? locale : "en";
+  const chosen = copy[language] ?? copy.en;
   return {
     text: `${chosen.title}\n\n${chosen.body}`,
-    buttonText: BUTTON_TEXT[language],
+    buttonText: BUTTON_TEXT[language] ?? BUTTON_TEXT.en,
     url: `${siteUrl.replace(/\/+$/, "")}${deepLink}`
   };
 }

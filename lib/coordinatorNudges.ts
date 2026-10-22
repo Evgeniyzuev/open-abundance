@@ -112,7 +112,7 @@ async function sendNudgeToTelegram(
   db: AnyDb,
   botToken: string,
   userId: string,
-  step: { deepLink: string; copy: { ru?: { title: string; body: string }; en: { title: string; body: string } } }
+  step: { deepLink: string; copy: { en: { title: string; body: string } } & Partial<Record<string, { title: string; body: string }>> }
 ): Promise<"sent" | "skipped"> {
   try {
     const [mapping, devices, preference, profile] = await Promise.all([

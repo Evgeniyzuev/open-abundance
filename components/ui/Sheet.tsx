@@ -86,7 +86,10 @@ export default function Sheet({
     };
   }, [canDismiss, fullscreen]);
 
+  // The standard close button (top right, as on feed posts) is shown for every full-screen sheet, bare or not.
   const showChrome = !bare && canDismiss;
+  // (Not for forms: their header already has its own Cancel and Done.)
+  const showClose = canDismiss && ((fullscreen && as !== "form") || !bare);
 
   return (
     <div className={`modal-backdrop${fullscreen ? " sheet-fullscreen-backdrop" : ""}`} role="presentation" onClick={canDismiss ? onClose : undefined}>
@@ -104,7 +107,7 @@ export default function Sheet({
           role: "dialog",
           tabIndex: -1
         },
-        showChrome ? (
+        showChrome && !fullscreen ? (
           <div
             aria-hidden="true"
             className="sheet-grabber"
@@ -116,7 +119,7 @@ export default function Sheet({
             }}
           />
         ) : null,
-        showChrome ? <button className="modal-close" key="close" type="button" aria-label={closeLabel} onClick={onClose}><X size={18} /></button> : null,
+        showClose ? <button className="modal-close" key="close" type="button" aria-label={closeLabel} onClick={onClose}><X size={18} /></button> : null,
         !bare && title ? <div className="modal-header" key="header"><h2 id={titleId}>{title}</h2></div> : null,
         children
       )}

@@ -1827,7 +1827,8 @@ const zh: Record<string, string> = {
   "appTesting.installStep.android.menu": "打开 Chrome 菜单",
   "appTesting.installStep.android.install": "选择“安装应用”",
   "appTesting.installStep.android.open": "确认并打开图标",
-  "appTesting.installNow": "安装应用"
+  "appTesting.installNow": "安装应用",
+  "wishes.fromValues": "来自“价值观与目标” · {count}"
 };
 
 export default zh;

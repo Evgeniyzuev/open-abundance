@@ -28,6 +28,6 @@
 @media (max-width: 600px) {
   .modal-backdrop { padding: 8px 8px max(8px, env(safe-area-inset-bottom)); }
   .modal-sheet, .modal-sheet.small { width: 100%; max-width: none; }
-  .modal-sheet:not(.post-detail-modal) { max-height: calc(var(--vv-height, 100dvh) - 16px); overflow-y: auto; }
+  .modal-sheet:not(.post-detail-modal):not(.sheet-fullscreen) { max-height: calc(var(--vv-height, 100dvh) - 16px); overflow-y: auto; }
   .task-modal { max-height: calc(var(--vv-height, 100dvh) - 16px); }
 }

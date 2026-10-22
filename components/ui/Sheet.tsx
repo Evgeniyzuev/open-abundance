@@ -9,6 +9,7 @@ const openSheets: symbol[] = [];
 /**
  * Shared modal: bottom sheet on phones, centred card on wide screens.
  * Handles Escape, backdrop tap, swipe-down on the grabber, focus move/return and scroll lock.
+ * `fullscreen` makes it a full-screen page (same as the post detail view), good for long content.
  * `bare` leaves the header to the children (Cancel/Done style forms); `as="form"` renders the sheet as a form.
  */
 export default function Sheet({
@@ -19,6 +20,7 @@ export default function Sheet({
   className = "",
   closeLabel = "",
   dismissible = true,
+  fullscreen = false,
   style,
   title,
   titleId,
@@ -32,6 +34,8 @@ export default function Sheet({
   className?: string;
   closeLabel?: string;
   dismissible?: boolean;
+  /** Fills the screen like the post detail view: no half-height sheet, and the page behind cannot be dragged. */
+  fullscreen?: boolean;
   style?: CSSProperties;
   title?: ReactNode;
   titleId?: string;
@@ -69,14 +73,14 @@ export default function Sheet({
   const showChrome = !bare && canDismiss;
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={canDismiss ? onClose : undefined}>
+    <div className={`modal-backdrop${fullscreen ? " sheet-fullscreen-backdrop" : ""}`} role="presentation" onClick={canDismiss ? onClose : undefined}>
       {createElement(
         as,
         {
           "aria-label": titleId ? undefined : ariaLabel,
           "aria-labelledby": titleId,
           "aria-modal": "true",
-          className: `modal-sheet ${className}`.trim(),
+          className: `modal-sheet${fullscreen ? " sheet-fullscreen" : ""} ${className}`.trim(),
           style,
           onClick: (event: { stopPropagation: () => void }) => event.stopPropagation(),
           onSubmit,

@@ -15,6 +15,8 @@ export type ValuesProfile = {
   wheel: Wheel | null;
   wheelSavedAt: string | null;
   decisions: Record<string, SwipeDecision>;
+  /** Wishes created from "I want" swipes. */
+  wishIds?: string[];
   swipeCount: number;
   challengeSwipes: number;
 };
@@ -315,7 +317,7 @@ export function ValuesFeedCard({ locale, t, compact = false }: { locale: AppLoca
         <span className="values-feed-open">{t("values.feed.open")}</span>
       </button>
       {open ? (
-        <Sheet className="values-sheet" closeLabel={t("app.common.close")} title={t("values.sheetTitle")} titleId="values-sheet-title" onClose={() => setOpen(false)}>
+        <Sheet fullscreen className="values-sheet" closeLabel={t("app.common.close")} title={t("values.sheetTitle")} titleId="values-sheet-title" onClose={() => setOpen(false)}>
           <ValuesGoalsActivity locale={locale} t={t} />
         </Sheet>
       ) : null}

@@ -2814,7 +2814,8 @@ const en = {
     "install.prompt.title": "Open it as an app?",
     "install.prompt.body": "Add Open Abundance to your Home Screen: it opens faster, feels like a normal app and can remind you so you do not miss rewards.",
     "install.prompt.install": "Install",
-    "install.prompt.gotIt": "Got it"
+    "install.prompt.gotIt": "Got it",
+    "wishes.fromValues": "From Values and goals · {count}"
 } satisfies Record<string, string>;
 
 export default en;

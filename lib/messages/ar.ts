@@ -1827,7 +1827,8 @@ const ar: Record<string, string> = {
   "appTesting.installStep.android.menu": "افتح قائمة Chrome",
   "appTesting.installStep.android.install": "اختر «تثبيت التطبيق»",
   "appTesting.installStep.android.open": "أكّد وافتح الأيقونة",
-  "appTesting.installNow": "تثبيت التطبيق"
+  "appTesting.installNow": "تثبيت التطبيق",
+  "wishes.fromValues": "من القيم والأهداف · {count}"
 };
 
 export default ar;

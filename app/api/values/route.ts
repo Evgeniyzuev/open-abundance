@@ -125,6 +125,8 @@ function toPayload(row: ValuesRow | null) {
     wheel: row?.wheel ?? null,
     wheelSavedAt: row?.wheel_saved_at ?? null,
     decisions: Object.fromEntries(Object.entries(swipes).map(([key, value]) => [key, value.d])),
+    // Wishes that came from "I want" swipes, so Wishes can keep them apart from the ones the person wrote.
+    wishIds: Object.values(swipes).filter((value) => value.d === "want" && value.wishId).map((value) => value.wishId as string),
     swipeCount: row?.swipe_count ?? 0,
     challengeSwipes: VALUES_CHALLENGE_SWIPES
   };

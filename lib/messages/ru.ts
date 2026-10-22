@@ -2814,7 +2814,8 @@ const ru: Record<string, string> = {
     "install.prompt.title": "Открывать как приложение?",
     "install.prompt.body": "Добавь Open Abundance на экран «Домой»: так он открывается быстрее, работает как обычное приложение и может напоминать, чтобы ты не упускал награды.",
     "install.prompt.install": "Установить",
-    "install.prompt.gotIt": "Понятно"
+    "install.prompt.gotIt": "Понятно",
+    "wishes.fromValues": "Из «Ценностей и целей» · {count}"
 };
 
 export default ru;

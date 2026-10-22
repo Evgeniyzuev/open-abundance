@@ -1827,7 +1827,8 @@ const hi: Record<string, string> = {
   "appTesting.installStep.android.menu": "Chrome मेनू खोलें",
   "appTesting.installStep.android.install": "ऐप इंस्टॉल करें चुनें",
   "appTesting.installStep.android.open": "पुष्टि करें और आइकन खोलें",
-  "appTesting.installNow": "ऐप इंस्टॉल करें"
+  "appTesting.installNow": "ऐप इंस्टॉल करें",
+  "wishes.fromValues": "मूल्य और लक्ष्य से · {count}"
 };
 
 export default hi;

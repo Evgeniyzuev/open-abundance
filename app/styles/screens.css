@@ -1376,6 +1376,12 @@
 .verified-draft-note { display: grid; gap: 7px; border: 1px solid rgba(8,116,93,0.22); border-radius: 12px; padding: 10px; background: rgba(8,116,93,0.05); }
 .verified-draft-note > small { color: var(--muted); font-size: 0.75rem; line-height: 1.35; }
 .modal-backdrop.post-detail-backdrop { place-items: stretch; padding: 0; background: var(--surface); backdrop-filter: none; }
+/* Full-screen sheet (same idea as the post detail view): fills the screen, scrolls inside, nothing behind can move. */
+.modal-backdrop.sheet-fullscreen-backdrop { place-items: stretch center; padding: 0; overflow: hidden; overscroll-behavior: none; touch-action: none; background: var(--surface); backdrop-filter: none; }
+.modal-sheet.sheet-fullscreen { position: relative; display: grid; align-content: start; width: min(100%, 720px); max-width: none; height: 100dvh; max-height: none; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; border-radius: 0; padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom)); box-shadow: none; }
+.modal-sheet.sheet-fullscreen > .sheet-grabber { display: none; }
+.modal-sheet.sheet-fullscreen > .modal-close { position: fixed; z-index: 2; top: max(12px, env(safe-area-inset-top)); inset-inline-end: max(12px, env(safe-area-inset-right)); }
+.modal-sheet.sheet-fullscreen.wish-modal { padding: 0 0 max(18px, env(safe-area-inset-bottom)); }
 .modal-sheet.post-detail-modal { position: relative; width: 100%; max-width: none; height: 100dvh; max-height: none; display: block; overflow-y: auto; overscroll-behavior: contain; border-radius: 0; padding: 0 0 env(safe-area-inset-bottom); box-shadow: none; }
 .post-detail-modal > .modal-close { position: fixed; z-index: 2; top: max(12px, env(safe-area-inset-top)); inset-inline-end: max(12px, env(safe-area-inset-right)); border: 1px solid rgba(255,255,255,0.68); background: rgba(24,24,32,0.58); color: white; box-shadow: 0 6px 20px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
 .post-detail-modal > .feed-post-media { width: min(100%, 900px); margin: 0 auto; border-radius: 0; background: var(--surface-muted); }

@@ -1827,7 +1827,8 @@ const es: Record<string, string> = {
   "appTesting.installStep.android.menu": "Abre el menú de Chrome",
   "appTesting.installStep.android.install": "Elige Instalar app",
   "appTesting.installStep.android.open": "Confirma y abre el icono",
-  "appTesting.installNow": "Instalar la app"
+  "appTesting.installNow": "Instalar la app",
+  "wishes.fromValues": "De Valores y metas · {count}"
 };
 
 export default es;

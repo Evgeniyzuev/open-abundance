@@ -2,6 +2,7 @@
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { Archive, Check, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
@@ -127,6 +128,26 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
   const lastFocusNonceRef = useRef(0);
 
   const myWishes = useMemo(() => wishes.filter((wish) => wish.status !== "completed"), [wishes]);
+
+  // Wishes added by "I want" swipes in Values and goals go into their own collapsible list, so the person's own wishes stay first.
+  const [valuesWishIds, setValuesWishIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetchWithSupabaseAuth("/api/values", { cache: "no-store" }, { authRequired: true });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { profile?: { wishIds?: string[] } };
+        if (!cancelled) setValuesWishIds(new Set(payload.profile?.wishIds ?? []));
+      } catch {
+        // Without the list everything simply stays in one grid.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, wishes.length]);
+  const valuesWishes = useMemo(() => myWishes.filter((wish) => valuesWishIds.has(wish.id) && primaryWish?.id !== wish.id), [myWishes, valuesWishIds, primaryWish]);
+  const ownWishes = useMemo(() => myWishes.filter((wish) => !valuesWishes.includes(wish)), [myWishes, valuesWishes]);
   const completedWishes = useMemo(() => wishes.filter((wish) => wish.status === "completed"), [wishes]);
 
   useEffect(() => {
@@ -369,12 +390,12 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
           {activeTab === "mine" || activeTab === "recommended" ? <ValuesFeedCard compact locale={locale} t={t} /> : null}
 
           {activeTab === "mine" ? (
-            <WishSection id="wish-panel-mine" labelledBy="wish-tab-mine" emptyText={t("wishes.emptyMine")} itemsCount={myWishes.length}>
+            <WishSection id="wish-panel-mine" labelledBy="wish-tab-mine" emptyText={t("wishes.emptyMine")} itemsCount={ownWishes.length}>
               <button className="wish-tile wish-add-tile" type="button" onClick={openWishCreation}>
                 <Plus size={28} />
                 <span>{t("wishes.add")}</span>
               </button>
-              {myWishes.map((wish) => (
+              {ownWishes.map((wish) => (
                 <WishTile
                   key={wish.id}
                   title={wish.title}
@@ -387,6 +408,22 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
             </WishSection>
           ) : null}
 
+          {activeTab === "mine" && valuesWishes.length > 0 ? (
+            <details className="help-profile values-wishes">
+              <summary>{t("wishes.fromValues", { count: valuesWishes.length })}</summary>
+              <div className="wish-grid">
+                {valuesWishes.map((wish) => (
+                  <WishTile
+                    key={wish.id}
+                    title={wish.title}
+                    imageUrl={wish.image_url}
+                    badge={wish.status === "archived" ? t("wishes.status.archived") : visibilityLabel(wish.visibility, t)}
+                    onClick={() => setSelectedWish({ type: "wish", wish })}
+                  />
+                ))}
+              </div>
+            </details>
+          ) : null}
           {activeTab === "mine" ? <WishProducts /> : null}
           {activeTab === "mine" ? <HelpProfileCard /> : null}
 
@@ -525,7 +562,7 @@ function FirstWishGuideModal({
       : option ? pick(locale, option.title) : t("wishes.guide.title");
 
   return (
-    <Sheet bare className="wish-modal" ariaLabel={t("wishes.guide.title")} onClose={onClose}>
+    <Sheet bare fullscreen className="wish-modal" ariaLabel={t("wishes.guide.title")} onClose={onClose}>
         <div className="modal-header">
           <button
             className="text-button"
@@ -771,7 +808,7 @@ function WishDetailModal({
   }
 
   return (
-    <Sheet bare className="wish-modal" ariaLabel={title} onClose={onClose}>
+    <Sheet bare fullscreen className="wish-modal" ariaLabel={title} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
           <h2>{title}</h2>
@@ -903,7 +940,7 @@ function WishFormModal({
   }
 
   return (
-    <Sheet as="form" bare className="wish-form-modal" ariaLabel={title} onSubmit={handleSubmit} onClose={onClose}>
+    <Sheet as="form" bare fullscreen className="wish-form-modal" ariaLabel={title} onSubmit={handleSubmit} onClose={onClose}>
         <div className="modal-header">
           <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
           <h2>{title}</h2>

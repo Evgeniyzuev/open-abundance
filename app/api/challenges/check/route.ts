@@ -621,11 +621,12 @@ async function verifyChallenge(
       return { ok: false, reason: "Could not check your profile. Try again." };
     }
 
-    if (wordCount(data?.bio) >= 20) {
+    // Any text counts: the check is that the bio is filled in, not how long it is.
+    if (hasText(data?.bio)) {
       return { ok: true };
     }
 
-    return { ok: false, reason: "Add a short profile bio with your skills, interests, and experience first." };
+    return { ok: false, reason: "Add a short profile bio about your skills, interests, or experience first." };
   }
 
   if (challenge.verification_logic === "skill_profile_completed") {
@@ -638,7 +639,7 @@ async function verifyChallenge(
       return { ok: false, reason: "Could not check your skill profile. Try again." };
     }
 
-    if (wordCount(profileResult.data?.bio) >= 20 && (linksResult.data ?? []).length > 0) {
+    if (hasText(profileResult.data?.bio) && (linksResult.data ?? []).length > 0) {
       return { ok: true };
     }
 
@@ -1086,8 +1087,8 @@ function hasProof(value: unknown, proofKey: string): boolean {
   return isRecord(value) && value[proofKey] === true;
 }
 
-function wordCount(value: string | null | undefined): number {
-  return (value ?? "").trim().split(/\s+/).filter(Boolean).length;
+function hasText(value: string | null | undefined): boolean {
+  return (value ?? "").trim().length > 0;
 }
 
 function isUuid(value: string): boolean {

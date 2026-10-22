@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import ChunkErrorReload from "@/components/ChunkErrorReload";
+import TelegramMiniApp from "@/components/TelegramMiniApp";
 import ViewportVars from "@/components/ViewportVars";
 import "./globals.css";
 
@@ -114,6 +115,7 @@ export default function RootLayout({
       <body>
         {children}
         <ChunkErrorReload />
+        <TelegramMiniApp />
         <ViewportVars />
         <SpeedInsights />
       </body>

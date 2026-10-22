@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { telegramMiniAppLink } from "@/lib/telegramMiniAppLink";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,10 @@ export async function GET(request: NextRequest) {
     appUrl.searchParams.set("ref", code);
     appUrl.searchParams.set("utm_medium", "invite");
 
-    return NextResponse.json({ available: true, code, url: url.toString(), appUrl: appUrl.toString(), reason: null }, { headers: NO_STORE_HEADERS });
+    // The same invitation as a Telegram Mini App link (t.me/<bot>/<app>?startapp=<code>), when the bot is set up.
+    const telegramUrl = telegramMiniAppLink(process.env.TELEGRAM_MINI_APP_URL, code);
+
+    return NextResponse.json({ available: true, code, url: url.toString(), appUrl: appUrl.toString(), telegramUrl, reason: null }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to load referral link." },

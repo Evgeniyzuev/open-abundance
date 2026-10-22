@@ -56,3 +56,21 @@ function cleanValue(value: unknown): string | undefined {
   const normalized = value.trim();
   return normalized ? normalized.slice(0, 100) : undefined;
 }
+
+/** Same as captureAcquisitionContext, for an entry that is not described by the URL (the Telegram Mini App). */
+export function rememberAcquisitionSource(source: string, medium?: string, campaign?: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = readAcquisitionContext();
+    const existingSource = existing.source !== "direct" ? existing.source : undefined;
+    const next: AcquisitionContext = {
+      source: existingSource ?? cleanValue(source) ?? "direct",
+      medium: existing.medium ?? cleanValue(medium),
+      campaign: existing.campaign ?? cleanValue(campaign),
+      cohortId: existing.cohortId
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Attribution is best-effort and must never block onboarding.
+  }
+}

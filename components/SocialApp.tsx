@@ -105,7 +105,7 @@ export default function SocialApp({
   const [teamTaskCreating, setTeamTaskCreating] = useState(false);
   const [socialError, setSocialError] = useState<string | null>(null);
   const [storyWishError, setStoryWishError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<"app" | "blog" | null>(null);
+  const [copied, setCopied] = useState<"app" | "blog" | "telegram" | null>(null);
   const [referralQrKind, setReferralQrKind] = useState<"app" | "blog">("app");
   const [referralQrOpen, setReferralQrOpen] = useState(false);
   const [teamRewardsOpen, setTeamRewardsOpen] = useState(false);
@@ -689,9 +689,10 @@ export default function SocialApp({
   const pendingIncomingConfirmations = trustConfirmations?.filter((item) => item.counterparty_user_id === user?.id && item.status === "pending").length ?? 0;
   const combinedError = error ?? socialError;
 
-  async function copyReferralLink(kind: "app" | "blog" = "app") {
+  async function copyReferralLink(kind: "app" | "blog" | "telegram" = "app") {
     if (!referralLink) return;
-    await navigator.clipboard.writeText(kind === "app" ? referralLink.appUrl ?? referralLink.url : referralLink.url);
+    const link = kind === "telegram" ? referralLink.telegramUrl : kind === "app" ? referralLink.appUrl : null;
+    await navigator.clipboard.writeText(link ?? referralLink.url);
     setCopied(kind);
     window.setTimeout(() => setCopied(null), 1600);
   }
@@ -1799,6 +1800,22 @@ export default function SocialApp({
               <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => { setReferralQrKind("blog"); setReferralQrOpen(true); }}><Share2 size={16} />{t("profile.referral.invite")}</button>
             </div>
           </div>
+          {referralLink?.telegramUrl ? (
+            <div className="referral-box referral-box-compact">
+              <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.telegramTitle")}</span><small>{t("profile.referral.telegramHint")}</small></div>
+              <div className="referral-compact-actions">
+                <button
+                  className="secondary-button referral-icon-button"
+                  type="button"
+                  aria-label={copied === "telegram" ? t("profile.referral.copied") : t("profile.referral.copy")}
+                  title={copied === "telegram" ? t("profile.referral.copied") : t("profile.referral.copy")}
+                  onClick={() => void copyReferralLink("telegram")}
+                >
+                  {copied === "telegram" ? <Check size={19} /> : <Copy size={19} />}
+                </button>
+              </div>
+            </div>
+          ) : null}
           <ReferralProgramSummary />
           <LegalDisclosure
             contact={t("legal.contact")}

@@ -870,6 +870,8 @@ const es: Record<string, string> = {
   "profile.language.en": "Inglés",
   "profile.referral.title": "Mi blog",
   "profile.referral.copy": "Copiar",
+  "profile.referral.telegramTitle": "Enlace para Telegram",
+  "profile.referral.telegramHint": "Abre la app dentro de Telegram, entrada con un toque.",
   "profile.referral.copied": "Copiado",
   "profile.referral.share": "Compartir",
   "profile.referral.shareText": "Únete a mí en Open Abundance",

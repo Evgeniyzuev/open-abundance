@@ -870,6 +870,8 @@ const zh: Record<string, string> = {
   "profile.language.en": "英语",
   "profile.referral.title": "我的博客",
   "profile.referral.copy": "复制",
+  "profile.referral.telegramTitle": "Telegram 链接",
+  "profile.referral.telegramHint": "直接在 Telegram 中打开应用，一键登录。",
   "profile.referral.copied": "已复制",
   "profile.referral.share": "分享",
   "profile.referral.shareText": "和我一起加入 Open Abundance",

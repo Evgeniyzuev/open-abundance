@@ -132,6 +132,8 @@ const en = {
   "profile.appearance.color.teal": "Teal",
   "profile.referral.title": "My blog",
   "profile.referral.copy": "Copy",
+  "profile.referral.telegramTitle": "Telegram link",
+  "profile.referral.telegramHint": "Opens the app right inside Telegram, sign-in in one tap.",
   "profile.referral.copied": "Copied",
   "profile.referral.share": "Share",
   "profile.referral.shareText": "Join me in Open Abundance",

@@ -132,6 +132,8 @@ const ru: Record<string, string> = {
   "profile.appearance.color.teal": "Бирюзовый",
   "profile.referral.title": "Мой блог",
   "profile.referral.copy": "Скопировать",
+  "profile.referral.telegramTitle": "\u0421\u0441\u044b\u043b\u043a\u0430 \u0434\u043b\u044f Telegram",
+  "profile.referral.telegramHint": "\u041e\u0442\u043a\u0440\u044b\u0432\u0430\u0435\u0442 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u043f\u0440\u044f\u043c\u043e \u0432 Telegram, \u0432\u0445\u043e\u0434 \u0432 \u043e\u0434\u043d\u043e \u043a\u0430\u0441\u0430\u043d\u0438\u0435.",
   "profile.referral.copied": "Скопировано",
   "profile.referral.share": "Поделиться",
   "profile.referral.shareText": "Присоединяйся ко мне в Open Abundance",

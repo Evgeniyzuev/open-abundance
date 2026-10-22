@@ -870,6 +870,8 @@ const hi: Record<string, string> = {
   "profile.language.en": "अंग्रेज़ी",
   "profile.referral.title": "मेरा ब्लॉग",
   "profile.referral.copy": "कॉपी करें",
+  "profile.referral.telegramTitle": "Telegram लिंक",
+  "profile.referral.telegramHint": "ऐप सीधे Telegram में खुलता है, एक टैप में लॉगिन।",
   "profile.referral.copied": "कॉपी हो गया",
   "profile.referral.share": "साझा करें",
   "profile.referral.shareText": "मेरे साथ Open Abundance से जुड़ें",

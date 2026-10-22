@@ -20,12 +20,12 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "Content-Security-Policy", value: "base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'" },
+          // Telegram Web (web.telegram.org) shows Mini Apps in a frame; every other site may not frame the app.
+          { key: "Content-Security-Policy", value: "base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://web.telegram.org; object-src 'none'" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Strict-Transport-Security", value: "max-age=31536000" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" }
+          { key: "X-Content-Type-Options", value: "nosniff" }
         ]
       },
       {

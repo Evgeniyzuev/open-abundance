@@ -57,13 +57,24 @@ export async function attachTelegram(supabase: Db, telegramUser: TelegramUser, t
   return { ok: true };
 }
 
-/** Nothing to lose: no Core or Wallet balance and no wishes. */
+/**
+ * Nothing to lose: no Wallet balance, no wishes, and nothing beyond the sign-up starter (its Core reward and its
+ * completed challenge). The starter is given to every new account, so without it counted here a person who tapped
+ * "continue as ..." by mistake could never link the account they already have.
+ */
 async function isEmptyAccount(supabase: Db, userId: string): Promise<boolean> {
-  const [core, wallet, wishes] = await Promise.all([
+  const [core, wallet, wishes, signup, challenges] = await Promise.all([
     supabase.from("core_accounts").select("balance").eq("user_id", userId).maybeSingle(),
     supabase.from("wallet_accounts").select("balance").eq("user_id", userId).maybeSingle(),
-    supabase.from("wishes").select("id", { count: "exact", head: true }).eq("owner_user_id", userId).is("deleted_at", null)
+    supabase.from("wishes").select("id", { count: "exact", head: true }).eq("owner_user_id", userId).is("deleted_at", null),
+    supabase.from("challenges").select("id,core_reward_amount").eq("verification_logic", "signup").order("sort_order", { ascending: true }).limit(1).maybeSingle(),
+    supabase.from("user_challenges").select("challenge_id").eq("user_id", userId)
   ]);
-  if (core.error || wallet.error || wishes.error) return false;
-  return Number(core.data?.balance ?? 0) === 0 && Number(wallet.data?.balance ?? 0) === 0 && (wishes.count ?? 0) === 0;
+  if (core.error || wallet.error || wishes.error || signup.error || challenges.error) return false;
+  const starterCore = Number(signup.data?.core_reward_amount ?? 0);
+  const onlyStarterChallenge = (challenges.data ?? []).every((row) => row.challenge_id === signup.data?.id);
+  return Number(core.data?.balance ?? 0) <= starterCore
+    && Number(wallet.data?.balance ?? 0) === 0
+    && (wishes.count ?? 0) === 0
+    && onlyStarterChallenge;
 }

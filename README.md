@@ -50,3 +50,7 @@ pnpm test:e2e
 `pnpm exec tsc --noEmit` updates the tracked `tsconfig.tsbuildinfo`; restore that verification-only change afterward. The e2e smoke suite (`tests/e2e/app-smoke.spec.ts`) matches the current guest onboarding flow and passes within the 30-second budget. It needs `NEXT_PUBLIC_SUPABASE_ANON_KEY` set (any value works, because the tests mock Supabase).
 
 For development conventions, UTF-8 handling, IndexedDB rules and frontend verification requirements, read [docs/DEVELOPMENT_RULES.md](docs/DEVELOPMENT_RULES.md).
+
+## License
+
+Open Abundance source code is licensed under [GNU AGPL-3.0](LICENSE). Contributions are accepted under the same license with a DCO sign-off; see [CONTRIBUTING.md](CONTRIBUTING.md).

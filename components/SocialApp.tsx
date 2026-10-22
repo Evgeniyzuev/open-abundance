@@ -26,6 +26,7 @@ import { readAttentionSettings, storeAttentionSettings, type AttentionSettings }
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import SkillPassportApp from "@/components/SkillPassportApp";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
+import AddLoginEmail from "@/components/social/AddLoginEmail";
 import ReminderToggle from "@/components/ReminderToggle";
 import { LOCALES } from "@/lib/locales";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -1837,6 +1838,7 @@ export default function SocialApp({
               </div>
             </div>
           ) : null}
+          <AddLoginEmail />
           <ReferralProgramSummary />
           <LegalDisclosure
             contact={t("legal.contact")}

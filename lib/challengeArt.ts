@@ -49,6 +49,8 @@ export const CHALLENGE_GLYPHS: Record<string, string> = {
   "business_stranger_buyer": "Globe",
   "business_external_buyer": "Link2",
   "first_internal_purchase": "ShoppingBag",
+  "growth_core_topup_3months": "CalendarCheck",
+  "growth_spend_shift": "Repeat",
   "sales_total_10": "Banknote",
   "sales_total_100": "Coins",
   "sales_total_1000": "Trophy",

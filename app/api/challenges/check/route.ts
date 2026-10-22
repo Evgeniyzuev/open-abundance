@@ -7,6 +7,7 @@ import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCa
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
 import { confirmedReferralsThreshold } from "@/lib/creatorChallenges";
 import { BUSINESS_BUYERS_TARGET, BUSINESS_REVIEWS_TARGET, distinctOthers, invitedBuyers, strangerBuyers } from "@/lib/businessChallenges";
+import { GROWTH_TOPUP_MONTHS_TARGET, SPEND_SHIFT_PURCHASES_TARGET, SPEND_SHIFT_WINDOW_DAYS, countWithinDays, distinctMonths } from "@/lib/growthChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
 import { walletChallengeDone, walletChallengeRule, walletStats } from "@/lib/stayStreak";
 import { hasThreeSteps } from "@/lib/wishSteps";
@@ -461,6 +462,58 @@ async function verifyChallenge(
       .eq("operation_type", "system_shop_purchase");
     if (shopError) return { ok: false, reason: "Could not check your purchases. Try again." };
     return Number(shopCount ?? 0) > 0 ? { ok: true } : { ok: false, reason: "Buy something from a member in Wallet → Market or in the Shop first." };
+  }
+
+  // Growth track (GROW-001): top-ups in three different months.
+  if (challenge.verification_logic === "growth_core_topup_3months") {
+    const { data, error } = await db
+      .from("wallet_ledger")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("operation_type", "wallet_core_topup")
+      .limit(5000);
+    if (error) return { ok: false, reason: "Could not check your top-ups. Try again." };
+    const months = distinctMonths(((data ?? []) as Array<{ created_at: string }>).map((row) => row.created_at));
+    return months >= GROWTH_TOPUP_MONTHS_TARGET
+      ? { ok: true }
+      : { ok: false, reason: `Core was topped up in ${months} of ${GROWTH_TOPUP_MONTHS_TARGET} different months.` };
+  }
+
+  // Growth track: the person marked spending to move inside and made three internal purchases in 60 days.
+  if (challenge.verification_logic === "growth_spend_shift") {
+    const { data: intent, error: intentError } = await db
+      .from("user_spend_intents")
+      .select("categories")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (intentError) return { ok: false, reason: "Could not check your spending choices. Try again." };
+    const categories = (intent as { categories?: string[] } | null)?.categories ?? [];
+    if (categories.length === 0) return { ok: false, reason: "Choose which regular spending you want to move into Open Abundance first." };
+    const since = new Date(Date.now() - SPEND_SHIFT_WINDOW_DAYS * 86_400_000).toISOString();
+    const { data: deals, error: dealsError } = await db
+      .from("marketplace_deals")
+      .select("created_at")
+      .eq("buyer_user_id", userId)
+      .eq("status", "completed")
+      .gte("created_at", since)
+      .limit(500);
+    if (dealsError) return { ok: false, reason: "Could not check your purchases. Try again." };
+    const { data: shop, error: shopError } = await db
+      .from("wallet_ledger")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("operation_type", "system_shop_purchase")
+      .gte("created_at", since)
+      .limit(500);
+    if (shopError) return { ok: false, reason: "Could not check your purchases. Try again." };
+    const stamps = [
+      ...((deals ?? []) as Array<{ created_at: string }>).map((row) => row.created_at),
+      ...((shop ?? []) as Array<{ created_at: string }>).map((row) => row.created_at),
+    ];
+    const purchases = countWithinDays(stamps, SPEND_SHIFT_WINDOW_DAYS, Date.now());
+    return purchases >= SPEND_SHIFT_PURCHASES_TARGET
+      ? { ok: true }
+      : { ok: false, reason: `${purchases} of ${SPEND_SHIFT_PURCHASES_TARGET} purchases inside Open Abundance in the last ${SPEND_SHIFT_WINDOW_DAYS} days.` };
   }
 
   // The first fulfilled wish: any wish of the person with the status completed.

@@ -263,7 +263,7 @@ export default function SocialApp({
     const payload = (await response.json()) as ReferralLink & { available?: boolean; reason?: string | null; error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load referral link.");
     setReferralLocked(payload.available === false || payload.reason === "first_result_required");
-    setReferralLink(payload.available === false || !payload.code || !payload.url ? null : { code: payload.code, url: payload.url, appUrl: payload.appUrl });
+    setReferralLink(payload.available === false || !payload.code || !payload.url ? null : { code: payload.code, url: payload.url, appUrl: payload.appUrl, telegramUrl: payload.telegramUrl ?? null });
   }, [user]);
 
   const loadTeamContext = useCallback(async () => {
@@ -695,6 +695,19 @@ export default function SocialApp({
     await navigator.clipboard.writeText(link ?? referralLink.url);
     setCopied(kind);
     window.setTimeout(() => setCopied(null), 1600);
+  }
+
+  // One-time link that points the person's Telegram at this account (app/api/auth/telegram/link).
+  async function linkTelegram() {
+    try {
+      const session = await getAccessToken();
+      const response = await fetch("/api/auth/telegram/link", { method: "POST", cache: "no-store", headers: { Authorization: `Bearer ${session}` } });
+      const payload = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !payload.url) throw new Error(payload.error ?? "link");
+      window.location.href = payload.url;
+    } catch {
+      setSocialError(t("profile.telegramLink.error"));
+    }
   }
 
   async function shareReferralLink() {
@@ -1813,6 +1826,14 @@ export default function SocialApp({
                 >
                   {copied === "telegram" ? <Check size={19} /> : <Copy size={19} />}
                 </button>
+              </div>
+            </div>
+          ) : null}
+          {referralLink?.telegramUrl && !user?.email?.endsWith("@telegram.open-abundance.app") ? (
+            <div className="referral-box referral-box-compact">
+              <div className="referral-box-copy"><span><Link size={15} />{t("profile.telegramLink.title")}</span><small>{t("profile.telegramLink.hint")}</small></div>
+              <div className="referral-compact-actions">
+                <button className="secondary-button" type="button" onClick={() => void linkTelegram()}>{t("profile.telegramLink.action")}</button>
               </div>
             </div>
           ) : null}

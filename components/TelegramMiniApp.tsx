@@ -6,6 +6,8 @@ import { capturePendingReferral, isValidReferralCode } from "@/lib/guestIdentity
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 const TELEGRAM_SCRIPT = "https://telegram.org/js/telegram-web-app.js";
+// Start parameter of a one-time "link Telegram to my account" link from the profile (lib/telegramInitData.ts).
+const LINK_PREFIX = "lnk_";
 
 type TelegramWebApp = { initData?: string; ready?: () => void; expand?: () => void };
 
@@ -26,8 +28,9 @@ export default function TelegramMiniApp() {
       webApp?.expand?.();
       const initData = webApp?.initData || launch.initData;
 
-      rememberAcquisitionSource("telegram", "mini_app", launch.startParam ?? undefined);
-      if (launch.startParam && isValidReferralCode(launch.startParam)) {
+      const linking = Boolean(launch.startParam?.startsWith(LINK_PREFIX));
+      if (!linking) rememberAcquisitionSource("telegram", "mini_app", launch.startParam ?? undefined);
+      if (!linking && launch.startParam && isValidReferralCode(launch.startParam)) {
         // Before sign-in: the registration claim on SIGNED_IN picks the referral up.
         await capturePendingReferral(launch.startParam, "/tg").catch(() => undefined);
       }
@@ -35,15 +38,18 @@ export default function TelegramMiniApp() {
       try {
         const supabase = getBrowserSupabaseClient();
         const { data: { session } } = await supabase.auth.getSession();
-        if (session || cancelled || !initData) return;
+        // A link always signs in again: the Mini App may hold a session of a separate Telegram account.
+        if ((session && !linking) || cancelled || !initData) return;
         const response = await fetch("/api/auth/telegram", {
           method: "POST",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ initData })
         });
-        const payload = await response.json() as { tokenHash?: string; error?: string };
+        const payload = await response.json() as { tokenHash?: string; error?: string; code?: string };
+        if (linking && !response.ok) window.alert(linkErrorText(payload.code));
         if (!response.ok || !payload.tokenHash || cancelled) return;
+        if (session) await supabase.auth.signOut({ scope: "local" });
         await supabase.auth.verifyOtp({ token_hash: payload.tokenHash, type: "magiclink" });
       } catch (signInError) {
         // The app still works as a guest; sign-in by Google or email stays available.
@@ -79,4 +85,20 @@ function loadTelegramScript(): Promise<TelegramWebApp | null> {
     document.head.appendChild(script);
     window.setTimeout(() => resolve(current()), 4000);
   });
+}
+
+// Shown outside the app's dictionaries (this component runs before the user context): Russian or English.
+function linkErrorText(code: string | undefined): string {
+  const ru = typeof navigator !== "undefined" && /^ru\b/i.test(navigator.language);
+  if (code === "telegram_account_has_data") {
+    return ru
+      ? "У этого Telegram уже есть свой аккаунт Open Abundance с данными. Аккаунты не объединяются автоматически, напишите нам через «Контакты»."
+      : "This Telegram already has its own Open Abundance account with data. Accounts are not merged automatically; write to us via Contact.";
+  }
+  if (code === "telegram_linked_elsewhere") {
+    return ru ? "Этот Telegram уже привязан к другому аккаунту." : "This Telegram is already linked to another account.";
+  }
+  return ru
+    ? "Не удалось привязать Telegram. Ссылка действует 30 минут: создайте новую в профиле."
+    : "Could not link Telegram. The link works for 30 minutes: make a new one in your profile.";
 }

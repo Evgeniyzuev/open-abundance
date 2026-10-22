@@ -1377,8 +1377,9 @@
 .verified-draft-note > small { color: var(--muted); font-size: 0.75rem; line-height: 1.35; }
 .modal-backdrop.post-detail-backdrop { place-items: stretch; padding: 0; background: var(--surface); backdrop-filter: none; }
 /* Full-screen sheet (same idea as the post detail view): fills the screen, scrolls inside, nothing behind can move. */
-.modal-backdrop.sheet-fullscreen-backdrop { place-items: stretch center; padding: 0; overflow: hidden; overscroll-behavior: none; touch-action: none; background: var(--surface); backdrop-filter: none; }
+.modal-backdrop.sheet-fullscreen-backdrop { top: 0; bottom: 0; height: 100dvh; place-items: stretch center; padding: 0; overflow: hidden; overscroll-behavior: none; touch-action: none; background: var(--surface); backdrop-filter: none; }
 .modal-sheet.sheet-fullscreen { position: relative; display: grid; align-content: start; width: min(100%, 720px); max-width: none; height: 100dvh; max-height: none; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; border-radius: 0; padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom)); box-shadow: none; }
+html:has(.sheet-fullscreen) { overscroll-behavior: none; }
 .modal-sheet.sheet-fullscreen > .sheet-grabber { display: none; }
 .modal-sheet.sheet-fullscreen > .modal-close { position: fixed; z-index: 2; top: max(12px, env(safe-area-inset-top)); inset-inline-end: max(12px, env(safe-area-inset-right)); }
 .modal-sheet.sheet-fullscreen.wish-modal { padding: 0 0 max(18px, env(safe-area-inset-bottom)); }
@@ -1693,7 +1694,7 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .values-sphere input[type="range"] { width: 100%; accent-color: var(--blue); }
 .values-sphere input[type="range"].want { accent-color: var(--green); }
 .values-criteria { width: 100%; min-height: var(--control-md); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px 10px; background: var(--surface-soft); color: var(--text); font-size: 1rem; }
-.values-card { position: relative; display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 260px; border-radius: var(--radius-lg); padding: 22px 18px; background: var(--surface); box-shadow: var(--shadow-soft); text-align: center; touch-action: pan-y; user-select: none; cursor: grab; transition: transform 160ms ease; }
+.values-card { position: relative; display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 260px; border-radius: var(--radius-lg); padding: 22px 18px; background: var(--surface); box-shadow: var(--shadow-soft); text-align: center; touch-action: none; user-select: none; cursor: grab; transition: transform 160ms ease; }
 .values-card:active { cursor: grabbing; transition: none; }
 .values-card-emoji { font-size: 3.4rem; line-height: 1; }
 .values-card strong { color: var(--text); font-size: 1.25rem; line-height: 1.2; }

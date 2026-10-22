@@ -51,8 +51,18 @@ export default function Sheet({
 
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+    const previous = { position: body.style.position, top: body.style.top, width: body.style.width };
+    const scrollY = window.scrollY;
+    body.style.overflow = "hidden";
+    // iOS ignores overflow: hidden on the page behind. A fullscreen sheet pins the page in place so a drag on the sheet can
+    // never scroll it or shift the visible viewport (which used to drag the whole sheet away from the screen).
+    if (fullscreen) {
+      body.style.position = "fixed";
+      body.style.top = `${-scrollY}px`;
+      body.style.width = "100%";
+    }
     // Keep focus on a field the content already focused (autoFocus); otherwise focus the dialog itself.
     if (sheetRef.current && !sheetRef.current.contains(document.activeElement)) sheetRef.current.focus();
 
@@ -65,10 +75,16 @@ export default function Sheet({
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       openSheets.splice(openSheets.indexOf(token), 1);
-      document.body.style.overflow = previousOverflow;
+      body.style.overflow = previousOverflow;
+      if (fullscreen) {
+        body.style.position = previous.position;
+        body.style.top = previous.top;
+        body.style.width = previous.width;
+        window.scrollTo(0, scrollY);
+      }
       previouslyFocused?.focus?.();
     };
-  }, [canDismiss]);
+  }, [canDismiss, fullscreen]);
 
   const showChrome = !bare && canDismiss;
 

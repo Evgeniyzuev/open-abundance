@@ -25,7 +25,7 @@ insert into public.challenges (
   '{"ru": "Выбраны категории трат и завершены три покупки внутри за последние 60 дней.", "en": "Spending categories are chosen and three internal purchases were completed in the last 60 days."}'::jsonb,
   'marketplace', 3, 60, 'auto', 'growth_spend_shift',
   61, 'growth', 2, null, 'wallet.market', 1, 0, true
-,
+),
 (
   'd4e7a1b2-9c35-4f68-b210-7a3c5e8f1d03',
   '{"ru": "Пополнение под желание", "en": "Top up Core for a wish"}'::jsonb,

@@ -124,6 +124,7 @@ export function FeedView({
       // Layout choice is a convenience only.
     }
   }
+  const [visibleCount, setVisibleCount] = useState(0);
   const loadMoreRef = useRef<HTMLButtonElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
   const autoLoadedAtRef = useRef(-1);
@@ -143,17 +144,18 @@ export function FeedView({
     return () => observer.disconnect();
   }, [hasMore, loadingMore, posts.length]);
 
-  // Make sure the first screen can show three full rows: while fewer than 9 posts are loaded and more exist, fetch the next page
+  // Make sure the first screen can show three full rows. Count the tiles that are really shown (topics the person muted
+  // with "Not for me" are hidden on the device), and while fewer than 9 are shown and more exist, fetch the next page
   // (a few attempts per filter, so a failing request cannot loop).
   const fillAttemptsRef = useRef({ filter, count: 0 });
   useEffect(() => {
-    if (!hasMore || loading || loadingMore || posts.length >= MIN_FIRST_SCREEN_POSTS) return;
+    if (!hasMore || loading || loadingMore || posts.length === 0 || visibleCount >= MIN_FIRST_SCREEN_POSTS) return;
     if (fillAttemptsRef.current.filter !== filter) fillAttemptsRef.current = { filter, count: 0 };
-    if (fillAttemptsRef.current.count >= 3) return;
+    if (fillAttemptsRef.current.count >= 6) return;
     fillAttemptsRef.current.count += 1;
-    // A big page: the server hides some posts per viewer, so a normal page can add very few visible ones.
+    // A big page: the server hides some posts per viewer and the device hides muted topics, so a normal page can add very few.
     onLoadMoreRef.current(FILL_PAGE_SIZE);
-  }, [filter, hasMore, loading, loadingMore, posts.length]);
+  }, [filter, hasMore, loading, loadingMore, posts.length, visibleCount]);
 
   return (
     <section className="feed-layout">
@@ -191,6 +193,7 @@ export function FeedView({
         emptyText={t("social.feed.empty")}
         failed={failed}
         hasMore={hasMore}
+        onVisibleCountChange={setVisibleCount}
         layout={layout}
         loading={loading || (!feedPayload && !failed)}
         locale={locale}
@@ -352,6 +355,7 @@ export function PostList(props: {
   hasMore?: boolean;
   layout?: "grid" | "reels";
   loading: boolean;
+  onVisibleCountChange?: (count: number) => void;
   locale: AppLocale;
   posts: FeedPost[];
   saving?: boolean;
@@ -384,7 +388,7 @@ export function PostList(props: {
   }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} hasMore={hasMore} layout={layout} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} hasMore={hasMore} layout={layout} onVisibleCountChange={props.onVisibleCountChange} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({

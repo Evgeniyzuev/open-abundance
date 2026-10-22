@@ -28,9 +28,11 @@ type FeedPostGalleryProps = {
   showAuthor?: boolean;
   layout?: "grid" | "reels";
   hasMore?: boolean;
+  /** Reports how many tiles are actually shown (muted topics and the incomplete last row are not counted). */
+  onVisibleCountChange?: (count: number) => void;
 };
 
-export default function FeedPostGallery({ addingStoryWishKey, currentUserId = null, emptyText, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, layout = "grid", hasMore = false, t, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
+export default function FeedPostGallery({ addingStoryWishKey, currentUserId = null, emptyText, evidenceLabels, fallbackTitle, onAddStoryWish, posts, showAuthor = true, layout = "grid", hasMore = false, onVisibleCountChange, t, wishActionLabel = "I want this too", onOpen }: FeedPostGalleryProps) {
   const [preferences, setPreferences] = useState<FeedPreferenceState>(emptyFeedPreferenceState);
 
   useEffect(() => {
@@ -45,6 +47,11 @@ export default function FeedPostGallery({ addingStoryWishKey, currentUserId = nu
   const remainder = layout === "grid" ? allVisiblePosts.length % GRID_COLUMNS : 0;
   const visiblePosts = hasMore && remainder && allVisiblePosts.length > remainder ? allVisiblePosts.slice(0, allVisiblePosts.length - remainder) : allVisiblePosts;
   const fillerCount = !hasMore && remainder ? GRID_COLUMNS - remainder : 0;
+
+  const visibleCount = visiblePosts.length;
+  useEffect(() => {
+    onVisibleCountChange?.(visibleCount);
+  }, [onVisibleCountChange, visibleCount]);
 
   if (!visiblePosts.length) return <p className="feed-empty">{emptyText ?? fallbackTitle}</p>;
 

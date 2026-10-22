@@ -366,6 +366,8 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
             </WishSection>
           ) : null}
 
+          {activeTab === "mine" || activeTab === "recommended" ? <ValuesFeedCard compact locale={locale} t={t} /> : null}
+
           {activeTab === "mine" ? (
             <WishSection id="wish-panel-mine" labelledBy="wish-tab-mine" emptyText={t("wishes.emptyMine")} itemsCount={myWishes.length}>
               <button className="wish-tile wish-add-tile" type="button" onClick={openWishCreation}>
@@ -385,7 +387,6 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
             </WishSection>
           ) : null}
 
-          {activeTab === "mine" ? <ValuesFeedCard locale={locale} t={t} /> : null}
           {activeTab === "mine" ? <WishProducts /> : null}
           {activeTab === "mine" ? <HelpProfileCard /> : null}
 

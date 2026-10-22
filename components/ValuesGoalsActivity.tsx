@@ -301,11 +301,11 @@ function CardsStep({ locale, profile, t, onProfile }: { locale: AppLocale; profi
 }
 
 /** The entry in the feed: a short card that opens the activity in a sheet. */
-export function ValuesFeedCard({ locale, t }: { locale: AppLocale; t: TFunction }) {
+export function ValuesFeedCard({ locale, t, compact = false }: { locale: AppLocale; t: TFunction; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button className="values-feed-card" type="button" onClick={() => setOpen(true)}>
+      <button className={`values-feed-card${compact ? " compact" : ""}`} type="button" onClick={() => setOpen(true)}>
         <span className="values-feed-emoji" aria-hidden="true">🧭</span>
         <span className="values-feed-copy">
           <small>{t("values.feed.eyebrow")}</small>

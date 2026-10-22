@@ -14,6 +14,8 @@ import { deleteTask, getAllTasks, getTaskCompletions, rescheduleOnceTask, type T
 import { cancelActionReminder, scheduleActionReminder } from "@/lib/pushReminders";
 import { celebrate } from "@/lib/ui/feedback";
 import { computeWeekRecap, findOverdueTasks, hasWeekActivity, type WeekRecap } from "@/lib/weekRecap";
+import { creditDays, dayCreditStats, nextGoalStep, type CreditDay, type DayRow } from "@/lib/dayCredit";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type WeekRecapModalProps = {
   onClose: () => void;
@@ -26,9 +28,25 @@ export default function WeekRecapModal({ onClose }: WeekRecapModalProps) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const [overdue, setOverdue] = useState<TaskItem[]>([]);
+  const [goal, setGoal] = useState<{ days: CreditDay[]; stats: ReturnType<typeof dayCreditStats>; next: ReturnType<typeof nextGoalStep> } | null>(null);
+
+  // The daily goal of the week comes from the server (Today keeps it there); without a session the block is simply absent.
+  async function loadGoal(today: string) {
+    try {
+      const response = await fetchWithSupabaseAuth(`/api/today/week?today=${today}`, { cache: "no-store" }, { authRequired: true });
+      if (!response.ok) return;
+      const rows = ((await response.json()) as { rows?: DayRow[] }).rows ?? [];
+      const days = creditDays(rows, today);
+      const stats = dayCreditStats(rows, today);
+      setGoal({ days, stats, next: nextGoalStep(days[6].credit, stats) });
+    } catch {
+      // The recap works without the goal block.
+    }
+  }
 
   async function load() {
     const today = todayKey();
+    void loadGoal(today);
     try {
       const [tasks, completions, notes] = await Promise.all([getAllTasks(), getTaskCompletions(), getNotes()]);
       setRecap(computeWeekRecap({ today, tasks, completions, notes }));
@@ -104,6 +122,21 @@ export default function WeekRecapModal({ onClose }: WeekRecapModalProps) {
               {recap.mornings > 0 ? <div><dt>{t("weekRecap.mornings")}</dt><dd>{recap.mornings}</dd></div> : null}
               {recap.contexts > 0 ? <div><dt>{t("weekRecap.contexts")}</dt><dd>{recap.contexts}</dd></div> : null}
             </dl>
+            {goal ? (
+              <section className="week-goal" aria-label={t("weekRecap.goal.title")}>
+                <h3>{t("weekRecap.goal.title")}</h3>
+                <div className="week-goal-days" role="img" aria-label={t("weekRecap.goal.title")}>
+                  {goal.days.map((day) => (
+                    <span key={day.date} className={`week-goal-day ${day.credit}`} title={day.date}><small>{weekdayShort(day.date, locale)}</small></span>
+                  ))}
+                </div>
+                <p className="week-goal-legend">{t("weekRecap.goal.legend")}</p>
+                <p>{t("weekRecap.goal.summary", { streak: goal.stats.countedStreak, full: goal.stats.fullTotal })}</p>
+                <p><strong>{t(goal.next.today === "done" ? "weekRecap.goal.doneToday" : goal.next.today === "full" ? "weekRecap.goal.fullToday" : "weekRecap.goal.halfToday")}</strong>
+                  {goal.next.streakTarget !== null ? ` ${t("weekRecap.goal.nextStreak", { days: goal.next.streakRemaining, target: goal.next.streakTarget })}` : ""}
+                  {goal.next.fullRemaining > 0 ? ` ${t("weekRecap.goal.nextFull", { days: goal.next.fullRemaining })}` : ""}</p>
+              </section>
+            ) : null}
             <p>{recap.activeDays === 0 ? t("weekRecap.quietWeek") : recap.bestRun >= 3 ? t("weekRecap.run", { days: recap.bestRun }) : t("weekRecap.movement")}</p>
             {recap.contexts >= MANY_CONTEXTS ? <p>{t("weekRecap.manyContexts")}</p> : null}
             {overdue.length > 0 ? (

@@ -1,4 +1,15 @@
 {
-  "regions": ["fra1"],
-  "crons": [{ "path": "/api/internal/media/r2-housekeeping", "schedule": "0 4 * * *" }]
+  "regions": [
+    "fra1"
+  ],
+  "crons": [
+    {
+      "path": "/api/internal/media/r2-housekeeping",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/internal/economy/daily",
+      "schedule": "0 5 * * *"
+    }
+  ]
 }

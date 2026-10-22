@@ -55,3 +55,36 @@ export function dailyGoalRule(logic: string | null | undefined): { kind: "counte
   if (!Number.isSafeInteger(days) || days <= 0) return null;
   return { kind: match[1] === "half_streak" ? "counted_streak" : "full_total", days };
 }
+
+export type CreditDay = { date: string; credit: DayCredit };
+
+/** The seven local days ending today, oldest first, each with how much of that day's target counted. */
+export function creditDays(rows: DayRow[], today: string): CreditDay[] {
+  const credit = new Map(rows.map((row) => [row.local_date, dayCredit(row)]));
+  const days: string[] = [today];
+  for (let index = 1; index < 7; index += 1) days.unshift(previousDate(days[0]));
+  return days.map((date) => ({ date, credit: credit.get(date) ?? "none" }));
+}
+
+/** The streak steps of the daily goal chain and the full-day bonus: 3 and 7 days at 50%, seven full days. */
+export const HALF_STREAK_STEPS = [3, 7];
+export const FULL_DAYS_STEP = 7;
+
+export type GoalNextStep = {
+  /** What today still needs: reach half, reach the full target, or nothing (come back tomorrow). */
+  today: "half" | "full" | "done";
+  /** The next streak step and how many more days at 50% it needs; null when every step is reached. */
+  streakTarget: number | null;
+  streakRemaining: number;
+  fullRemaining: number;
+};
+
+export function nextGoalStep(todayCredit: DayCredit, stats: DayCreditStats): GoalNextStep {
+  const streakTarget = HALF_STREAK_STEPS.find((step) => stats.countedStreak < step) ?? null;
+  return {
+    today: todayCredit === "full" ? "done" : todayCredit === "counted" ? "full" : "half",
+    streakTarget,
+    streakRemaining: streakTarget === null ? 0 : streakTarget - stats.countedStreak,
+    fullRemaining: Math.max(0, FULL_DAYS_STEP - stats.fullTotal)
+  };
+}

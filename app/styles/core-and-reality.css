@@ -629,3 +629,14 @@
 .home-comeback-card h2 { margin: 0; }
 .home-comeback-card p { margin: 0; color: var(--muted); }
 .home-comeback-card ul { margin: 0; padding-inline-start: 18px; display: grid; gap: 2px; }
+
+.week-goal { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: var(--surface-muted); }
+.week-goal h3, .week-goal p { margin: 0; }
+.week-goal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.week-goal-day { display: grid; place-items: end center; min-height: 40px; padding-bottom: 3px; border-radius: 10px; border: 1px dashed var(--line); background: transparent; }
+.week-goal-day small { font-size: 0.6875rem; color: var(--muted); font-weight: 800; }
+.week-goal-day.kept { border: none; background: color-mix(in srgb, var(--accent-fill) 22%, transparent); }
+.week-goal-day.counted { border: none; background: color-mix(in srgb, var(--accent-fill) 55%, transparent); }
+.week-goal-day.full { border: none; background: var(--accent-fill); }
+.week-goal-day.counted small, .week-goal-day.full small { color: #fff; }
+.week-goal-legend { color: var(--muted); font-size: 0.75rem; line-height: 1.3; }

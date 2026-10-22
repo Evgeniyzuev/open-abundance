@@ -6,6 +6,7 @@ import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import type { TreasuryCoverageReport } from "@/lib/treasuryCoverage";
+import type { EconomyReport } from "@/lib/economyReport";
 
 type WithdrawalRow = {
   id: string;
@@ -59,6 +60,7 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
   const [nudgeBusy, setNudgeBusy] = useState(false);
   const [listings, setListings] = useState<ListingOnReview[] | null>(null);
   const [listingBusy, setListingBusy] = useState(false);
+  const [economy, setEconomy] = useState<EconomyReport | null>(null);
 
   const loadListings = useCallback(async () => {
     setListingBusy(true);
@@ -123,6 +125,15 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const loadEconomy = useCallback(async () => {
+    try {
+      const response = await fetchWithSupabaseAuth("/api/internal/economy/daily", { cache: "no-store" }, { authRequired: true });
+      if (response.ok) setEconomy((await response.json()) as EconomyReport);
+    } catch {
+      // The economy report is optional; the treasury panel keeps working without it.
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -144,7 +155,8 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void load();
     void loadProposals(false);
-  }, [load, loadProposals]);
+    void loadEconomy();
+  }, [load, loadProposals, loadEconomy]);
 
   const usd = (value: number | null | undefined) => (value === null || value === undefined ? "—" : `$${value.toFixed(2)}`);
   const pct = (value: number | null | undefined) => (value === null || value === undefined ? "—" : `${(value * 100).toFixed(2)}%`);
@@ -184,6 +196,37 @@ export default function OperatorConsole({ onClose }: { onClose: () => void }) {
               <dt>{t("operator.withdrawMax", { days: report.withdrawalStats.days })}</dt><dd>{pct(report.withdrawalStats.maxShare)}</dd>
             </dl>
             {report.treasury.errors.length ? <p className="challenge-error">{report.treasury.errors.join(", ")}</p> : null}
+          </section>
+        ) : null}
+
+        {economy ? (
+          <section aria-label={t("operator.economy.title")}>
+            <h3>{t("operator.economy.title")}</h3>
+            <dl style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 12px", margin: 0 }}>
+              <dt />
+              <dd><strong>{t("operator.economy.day")}</strong></dd>
+              <dd><strong>{t("operator.economy.week")}</strong></dd>
+              <dt>{t("operator.economy.rewards")}</dt><dd>{usd(economy.day.rewardsTotal)}</dd><dd>{usd(economy.week.rewardsTotal)}</dd>
+              <dt>{t("operator.economy.coreWallet")}</dt><dd>{usd(economy.day.rewardsCore)} / {usd(economy.day.rewardsWallet)}</dd><dd>{usd(economy.week.rewardsCore)} / {usd(economy.week.rewardsWallet)}</dd>
+              <dt>{t("operator.economy.active")}</dt><dd>{economy.day.activeUsers}</dd><dd>{economy.week.activeUsers}</dd>
+              <dt>{t("operator.economy.newUsers")}</dt><dd>{economy.day.newUsers}</dd><dd>{economy.week.newUsers}</dd>
+              <dt>{t("operator.economy.newReferred")}</dt><dd>{economy.day.newReferred}</dd><dd>{economy.week.newReferred}</dd>
+              <dt>{t("operator.economy.costPerReferred")}</dt><dd>{usd(economy.day.costPerReferred)}</dd><dd>{usd(economy.week.costPerReferred)}</dd>
+              <dt>{t("operator.economy.perActive")}</dt><dd>{usd(economy.day.rewardPerActiveUser)}</dd><dd>{usd(economy.week.rewardPerActiveUser)}</dd>
+              <dt>{t("operator.economy.earned1")}</dt><dd>{pct(economy.day.earnedAtLeast1)}</dd><dd>{pct(economy.week.earnedAtLeast1)}</dd>
+              <dt>{t("operator.economy.earned10")}</dt><dd>{pct(economy.day.earnedAtLeast10)}</dd><dd>{pct(economy.week.earnedAtLeast10)}</dd>
+            </dl>
+            {economy.week.top.length ? <p className="transfer-muted">{t("operator.economy.top")}: {economy.week.top.map((item) => `${item.title} ×${item.count} (${usd(item.total)})`).join(", ")}</p> : null}
+            <p className="transfer-muted">{t("operator.economy.sales", { count: economy.salesChecked, flagged: economy.suspiciousSales.length })}</p>
+            {economy.suspiciousSales.length ? (
+              <ul style={{ margin: 0, paddingInlineStart: 18 }}>
+                {economy.suspiciousSales.slice(0, 8).map((flag) => (
+                  <li key={`${flag.kind}-${flag.sellerId}-${flag.buyerId}`} className="transfer-muted">
+                    {t(`operator.economy.flag.${flag.kind}` as never)} · {flag.sellerId.slice(0, 8)} → {flag.buyerId.slice(0, 8)} · ×{flag.deals} · {usd(flag.total)}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </section>
         ) : null}
 

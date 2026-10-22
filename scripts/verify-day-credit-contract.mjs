@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dayCredit, dayCreditStats, dailyGoalRule } from "../lib/dayCredit.ts";
+import { creditDays, dayCredit, dayCreditStats, dailyGoalRule, nextGoalStep } from "../lib/dayCredit.ts";
+
+// Reads a source file for the wiring checks.
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const row = (local_date, progress_core, target_core = 10, status = "accepted") => ({ local_date, status, progress_core, target_core });
 
@@ -32,8 +35,20 @@ assert.equal(dailyGoalRule("daily_goal_half_streak_0"), null);
 assert.equal(dailyGoalRule("daily_goal_x_3"), null);
 assert.equal(dailyGoalRule(null), null);
 
+// Weekly recap: seven days ending today, what each counted for, and what is left to the next step.
+const week = creditDays([row("2026-10-22", 5), row("2026-10-21", 10), row("2026-10-20", 2), row("2026-10-18", 9)], "2026-10-22");
+assert.deepEqual(week.map((day) => day.date), ["2026-10-16", "2026-10-17", "2026-10-18", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22"]);
+assert.deepEqual(week.map((day) => day.credit), ["none", "none", "counted", "none", "kept", "full", "counted"]);
+const weekStats = dayCreditStats([row("2026-10-22", 5), row("2026-10-21", 10), row("2026-10-20", 8)], "2026-10-22");
+assert.deepEqual(nextGoalStep("counted", weekStats), { today: "full", streakTarget: 7, streakRemaining: 4, fullRemaining: 6 }, "3 days in a row are reached, 7 is next, one full day is done");
+assert.deepEqual(nextGoalStep("none", dayCreditStats([], "2026-10-22")), { today: "half", streakTarget: 3, streakRemaining: 3, fullRemaining: 7 });
+assert.equal(nextGoalStep("full", { keptStreak: 9, countedStreak: 9, countedTotal: 9, fullTotal: 9 }).streakTarget, null, "every streak step reached");
+assert.equal(nextGoalStep("full", { keptStreak: 9, countedStreak: 9, countedTotal: 9, fullTotal: 9 }).today, "done");
+const modal = read("components/WeekRecapModal.tsx");
+assert.ok(modal.includes("/api/today/week?today=") && modal.includes("week-goal") && read("app/api/today/week/route.ts").includes('.eq("user_id", user.id)'), "the recap shows the daily goal of the person's own days");
+for (const key of ["weekRecap.goal.title", "weekRecap.goal.legend", "weekRecap.goal.summary", "weekRecap.goal.halfToday", "weekRecap.goal.fullToday", "weekRecap.goal.doneToday", "weekRecap.goal.nextStreak", "weekRecap.goal.nextFull"]) assert.ok(read("lib/messages/en.ts").includes(`"${key}"`) && read("lib/messages/ru.ts").includes(`"${key}"`), `${key} exists in both languages`);
+
 // Today screen: the server sends the credit, the screen shows it, and every text exists in both languages.
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const server = read("lib/serverToday.ts");
 assert.ok(server.includes("dayCreditStats(datesResult.data") && server.includes("credit: { ...streaks.credit, today: dayCredit(today) }"), "the Today payload carries the credit");
 assert.ok(/select\("local_date,status,progress_core,target_core"\)/.test(server), "the streak query reads the progress of each day");

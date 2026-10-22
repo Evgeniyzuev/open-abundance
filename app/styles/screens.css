@@ -1468,6 +1468,8 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
 .modal-sheet.small { max-width: 430px; }
 .modal-header { display: grid; grid-template-columns: 76px minmax(0, 1fr) 76px; align-items: center; gap: 8px; }
 .modal-header h2 { margin: 0; text-align: center; font-size: 1.0625rem; }
+/* A title with no side buttons spans the whole header (it used to be squeezed into the first 76 px column). */
+.modal-header > h2:only-child { grid-column: 1 / -1; padding-inline: 44px; }
 .text-button { background: transparent; color: var(--blue); font-weight: 700; }
 .text-button.primary { justify-self: end; }
 .modal-sheet input, .modal-sheet textarea, .modal-sheet select { width: 100%; border: 1px solid var(--line); border-radius: 12px; outline: 0; padding: 12px 13px; background: var(--surface-soft); color: var(--text); }

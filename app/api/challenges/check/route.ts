@@ -621,12 +621,11 @@ async function verifyChallenge(
       return { ok: false, reason: "Could not check your profile. Try again." };
     }
 
-    // Any text counts: the check is that the bio is filled in, not how long it is.
-    if (hasText(data?.bio)) {
+    if (wordCount(data?.bio) >= MIN_BIO_WORDS) {
       return { ok: true };
     }
 
-    return { ok: false, reason: "Add a short profile bio about your skills, interests, or experience first." };
+    return { ok: false, reason: `Write at least ${MIN_BIO_WORDS} words in your profile bio about your skills, interests, or experience first.` };
   }
 
   if (challenge.verification_logic === "skill_profile_completed") {
@@ -639,11 +638,11 @@ async function verifyChallenge(
       return { ok: false, reason: "Could not check your skill profile. Try again." };
     }
 
-    if (hasText(profileResult.data?.bio) && (linksResult.data ?? []).length > 0) {
+    if (wordCount(profileResult.data?.bio) >= MIN_BIO_WORDS && (linksResult.data ?? []).length > 0) {
       return { ok: true };
     }
 
-    return { ok: false, reason: "Add a profile bio and at least one public or private proof link first." };
+    return { ok: false, reason: `Write at least ${MIN_BIO_WORDS} words in your profile bio and add at least one public or private proof link first.` };
   }
 
   if (challenge.verification_logic === "wish_steps_created") {
@@ -1087,9 +1086,12 @@ function hasProof(value: unknown, proofKey: string): boolean {
   return isRecord(value) && value[proofKey] === true;
 }
 
-function hasText(value: string | null | undefined): boolean {
-  return (value ?? "").trim().length > 0;
+/** Words in a text; the bio can be edited later, so the challenge only asks for a short real description. */
+function wordCount(value: string | null | undefined): number {
+  return (value ?? "").trim().split(/\s+/).filter(Boolean).length;
 }
+
+const MIN_BIO_WORDS = 5;
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);

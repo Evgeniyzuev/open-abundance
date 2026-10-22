@@ -18,6 +18,17 @@ import {
   type DailySetCardKind,
   type DailySetState
 } from "@/lib/dailySet";
+import {
+  COMBO_STREAK_STORAGE_KEY,
+  currentComboStreak,
+  freshComboStreak,
+  isComboCollected,
+  isRiddleAnswer,
+  recordCombo,
+  restoreComboStreak,
+  riddleOfDay,
+  type ComboStreak
+} from "@/lib/dailyCombo";
 import { saveNote } from "@/lib/notesStore";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { getNextStep, isCompletedOn, isDueOn, todayKey } from "@/lib/taskSchedule";
@@ -34,6 +45,7 @@ type DailySetCardProps = {
 
 const TITLE_KEYS: Record<DailySetCardKind, MessageKey> = {
   task: "dailySet.task.title",
+  riddle: "dailySet.riddle.title",
   adventure: "dailySet.adventure.title",
   challenge: "dailySet.challenge.title",
   question: "dailySet.question.title",
@@ -51,6 +63,9 @@ export default function DailySetCard({ active, challenge, onOpenTask, onOpenChal
   const [task, setTask] = useState<TaskItem | null>(null);
   const [answer, setAnswer] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [riddleAnswer, setRiddleAnswer] = useState("");
+  const [riddleWrong, setRiddleWrong] = useState(false);
+  const [comboStreak, setComboStreak] = useState<ComboStreak>(freshComboStreak);
   const cardRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -58,6 +73,11 @@ export default function DailySetCard({ active, challenge, onOpenTask, onOpenChal
       setState(restoreDailySetState(JSON.parse(window.localStorage.getItem(DAILY_SET_STORAGE_KEY) ?? "null"), day));
     } catch {
       setState(freshDailySetState(day));
+    }
+    try {
+      setComboStreak(restoreComboStreak(JSON.parse(window.localStorage.getItem(COMBO_STREAK_STORAGE_KEY) ?? "null")));
+    } catch {
+      setComboStreak(freshComboStreak());
     }
   }, [day]);
 
@@ -82,6 +102,10 @@ export default function DailySetCard({ active, challenge, onOpenTask, onOpenChal
   const kind = setCards[state.index];
   const adventureKey = `adventure.${pickDailyIndex(day, ADVENTURE_COUNT)}` as MessageKey;
   const questionKey = `question.${pickDailyIndex(day, QUESTION_COUNT, 7)}` as MessageKey;
+  // One riddle for everyone on a UTC day, so authors can talk about the same one.
+  const riddle = riddleOfDay(new Date().toISOString().slice(0, 10));
+  const riddleKey = `riddle.${riddle}` as MessageKey;
+  const comboDone = isComboCollected(state.acted);
 
   function persist(next: DailySetState) {
     setState(next);
@@ -97,6 +121,16 @@ export default function DailySetCard({ active, challenge, onOpenTask, onOpenChal
     const next = recordDailySetStep(state, kind, outcome, setCards);
     persist(next);
     trackProductEvent(outcome === "action" ? "daily_set_action" : "daily_set_skipped", { kind });
+    if (!isComboCollected(state.acted) && isComboCollected(next.acted)) {
+      const nextStreak = recordCombo(comboStreak, day);
+      setComboStreak(nextStreak);
+      try {
+        window.localStorage.setItem(COMBO_STREAK_STORAGE_KEY, JSON.stringify(nextStreak));
+      } catch {
+        // The streak lives for this screen only when storage is unavailable.
+      }
+      trackProductEvent("daily_combo_completed", { streak: nextStreak.streak });
+    }
     if (outcome === "action") celebrate(cardRef.current);
     if (isDailySetFinished(next, setCards)) {
       trackProductEvent("daily_set_completed", { actions: next.actions, skips: next.skips, cards: setCards.length });
@@ -108,6 +142,15 @@ export default function DailySetCard({ active, challenge, onOpenTask, onOpenChal
     if (kind === "task") {
       step("action");
       if (task) onOpenTask(task.id);
+    } else if (kind === "riddle") {
+      if (!riddleAnswer.trim()) return;
+      if (!isRiddleAnswer(riddle, riddleAnswer)) {
+        setRiddleWrong(true);
+        return;
+      }
+      setRiddleAnswer("");
+      setRiddleWrong(false);
+      step("action");
     } else if (kind === "adventure") {
       await saveTask({ id: crypto.randomUUID(), title: t(adventureKey), description: "", schedule: { type: "once", date: day }, syncStatus: "local" });
       step("action");
@@ -141,6 +184,9 @@ export default function DailySetCard({ active, challenge, onOpenTask, onOpenChal
         <span className="home-card-label">{t("dailySet.title")}</span>
         <h2>{t("dailySet.summary.title")}</h2>
         <p>{t("dailySet.summary.counts", { actions: state.actions, skips: state.skips })}</p>
+        <p className={comboDone ? undefined : "daily-set-muted"}>
+          {comboDone ? t("dailySet.combo.collected", { days: currentComboStreak(comboStreak, day) }) : t("dailySet.combo.missing")}
+        </p>
         <p className="daily-set-muted">{t("dailySet.summary.enough")}</p>
         <button className="text-button" type="button" onClick={() => setSummaryOpen(false)}>{t("app.common.close")}</button>
       </section>
@@ -165,6 +211,21 @@ export default function DailySetCard({ active, challenge, onOpenTask, onOpenChal
         </>
       ) : null}
       {kind === "task" && !task ? <h2>{t("dailySet.task.done")}</h2> : null}
+      {kind === "riddle" ? (
+        <>
+          <h2>{t(riddleKey)}</h2>
+          <input
+            className="daily-set-answer"
+            aria-label={t(riddleKey)}
+            placeholder={t("dailySet.riddle.placeholder")}
+            maxLength={60}
+            value={riddleAnswer}
+            onChange={(event) => { setRiddleAnswer(event.target.value); setRiddleWrong(false); }}
+            onKeyDown={(event) => { if (event.key === "Enter") void act(); }}
+          />
+          {riddleWrong ? <p className="daily-set-muted" role="status">{t("dailySet.riddle.wrong", { hint: t(`${riddleKey}.hint` as MessageKey) })}</p> : null}
+        </>
+      ) : null}
       {kind === "adventure" ? <h2>{t(adventureKey)}</h2> : null}
       {kind === "challenge" && challenge ? <h2>{challenge.title}</h2> : null}
       {kind === "question" ? (
@@ -175,7 +236,7 @@ export default function DailySetCard({ active, challenge, onOpenTask, onOpenChal
       ) : null}
       {kind === "stories" ? <h2>{t("dailySet.stories.body")}</h2> : null}
       <div className="daily-set-actions">
-        <button className="challenge-primary-action home-primary-action" type="button" disabled={kind === "question" && !answer.trim()} onClick={() => void act()}>
+        <button className="challenge-primary-action home-primary-action" type="button" disabled={(kind === "question" && !answer.trim()) || (kind === "riddle" && !riddleAnswer.trim())} onClick={() => void act()}>
           {t(`dailySet.${kind}.action` as MessageKey)}<ArrowRight size={17} />
         </button>
         <button className="text-button" type="button" onClick={() => step("skip")}>{t("dailySet.skip")}</button>

@@ -5,7 +5,7 @@ export const ADVENTURE_COUNT = 12;
 export const QUESTION_COUNT = 10;
 export const DAILY_SET_STORAGE_KEY = "open-abundance:daily-set:v1";
 
-export type DailySetCardKind = "task" | "adventure" | "challenge" | "question" | "stories";
+export type DailySetCardKind = "task" | "riddle" | "adventure" | "challenge" | "question" | "stories";
 
 export type DailySetState = {
   day: string;
@@ -18,13 +18,14 @@ export type DailySetState = {
   cards: DailySetCardKind[];
 };
 
-const CARD_KINDS: DailySetCardKind[] = ["task", "adventure", "challenge", "question", "stories"];
+const CARD_KINDS: DailySetCardKind[] = ["task", "riddle", "adventure", "challenge", "question", "stories"];
 
 /** Card order for today; cards without data are left out so the set never shows an empty card. */
 export function buildDailySet(input: { hasTask: boolean; hasChallenge: boolean }): DailySetCardKind[] {
   const cards: DailySetCardKind[] = [];
   if (input.hasTask) cards.push("task");
-  cards.push("adventure");
+  // The riddle of the day is the same for everyone (lib/dailyCombo.ts): the shared part of the combo.
+  cards.push("riddle", "adventure");
   if (input.hasChallenge) cards.push("challenge");
   cards.push("question", "stories");
   return cards;

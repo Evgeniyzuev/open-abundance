@@ -13,8 +13,8 @@ import {
 } from "../lib/dailySet.ts";
 
 // The set is short and never shows a card without data.
-assert.deepEqual(buildDailySet({ hasTask: true, hasChallenge: true }), ["task", "adventure", "challenge", "question", "stories"]);
-assert.deepEqual(buildDailySet({ hasTask: false, hasChallenge: false }), ["adventure", "question", "stories"]);
+assert.deepEqual(buildDailySet({ hasTask: true, hasChallenge: true }), ["task", "riddle", "adventure", "challenge", "question", "stories"]);
+assert.deepEqual(buildDailySet({ hasTask: false, hasChallenge: false }), ["riddle", "adventure", "question", "stories"]);
 
 // Same day, same pick; picks stay inside the catalog.
 assert.equal(pickDailyIndex("2026-10-13", ADVENTURE_COUNT), pickDailyIndex("2026-10-13", ADVENTURE_COUNT));
@@ -33,10 +33,11 @@ const built = buildDailySet({ hasTask: true, hasChallenge: false });
 let state = recordDailySetStep(freshDailySetState(day), "task", "action", built);
 assert.deepEqual(state.cards, built);
 assert.deepEqual(activeDailySetCards(state, buildDailySet({ hasTask: false, hasChallenge: true })), built, "finishing the task does not reshuffle the set");
+state = recordDailySetStep(state, "riddle", "action");
 state = recordDailySetStep(state, "adventure", "skip");
 state = recordDailySetStep(state, "question", "action");
 state = recordDailySetStep(state, "question", "action");
-assert.equal(state.actions, 2, "acting twice on the same kind counts once");
+assert.equal(state.actions, 3, "acting twice on the same kind counts once");
 assert.equal(state.skips, 1);
 assert.equal(isDailySetFinished(state, state.cards), true, "the set has an end");
 assert.deepEqual(restoreDailySetState(JSON.parse(JSON.stringify(state)), day), state, "progress survives a reload");

@@ -22,7 +22,7 @@ export type ValuesProfile = {
 const SWIPE_DISTANCE = 90;
 
 /**
- * "Values and goals": the life balance wheel and the goal cards. Repeatable; lives in the feed and inside the
+ * "Values and goals": the life balance wheel and the goal cards. Repeatable; lives in Wishes (My) and inside the
  * challenge. Swipes are sent one after another so the server row is never written by two requests at once.
  */
 export default function ValuesGoalsActivity({ locale, t, onProgress }: { locale: AppLocale; t: TFunction; onProgress?: (profile: ValuesProfile) => void }) {

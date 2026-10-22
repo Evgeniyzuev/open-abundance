@@ -22,6 +22,7 @@ import {
 import { PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 import ProtectedImage from "@/components/ProtectedImage";
 import TaskStepSuggester from "@/components/TaskStepSuggester";
+import { ValuesFeedCard } from "@/components/ValuesGoalsActivity";
 import WishWoopSheet from "@/components/WishWoopSheet";
 import { saveTask } from "@/lib/tasksStore";
 import { todayKey } from "@/lib/taskSchedule";
@@ -384,6 +385,7 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
             </WishSection>
           ) : null}
 
+          {activeTab === "mine" ? <ValuesFeedCard locale={locale} t={t} /> : null}
           {activeTab === "mine" ? <WishProducts /> : null}
           {activeTab === "mine" ? <HelpProfileCard /> : null}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Smartphone, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
+import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, CircleHelp, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Smartphone, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
@@ -15,6 +15,7 @@ import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/
 import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
+import ChallengesExplainer from "@/components/ChallengesExplainer";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
@@ -23,7 +24,9 @@ import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { playUiSound } from "@/lib/ui/sound";
 import ChallengeGlyphIcon from "@/components/ChallengeGlyphIcon";
 import { artSeed, challengeBadge, challengeCover, challengeGlyph, isOwnImage } from "@/lib/challengeArt";
-import { parseChallengeRewardAmount } from "@/lib/challengePresentation";
+import { parseChallengeRewardAmount, splitChallengeInstructions } from "@/lib/challengePresentation";
+import type { ChallengeCheckReasonCode } from "@/lib/challengeCheckReasons";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
 
@@ -115,6 +118,7 @@ type CheckChallengeResponse = {
   core?: CoreAccount | null;
   wallet?: WalletAccount | null;
   message?: string;
+  reasonCode?: ChallengeCheckReasonCode;
   coreRewardAmount?: number;
   walletRewardAmount?: number;
   rewardClaimed?: boolean;
@@ -155,6 +159,31 @@ type TodayPayload = {
 };
 
 const DEFAULT_USER_LEVEL = 1;
+const EXPLAINER_SEEN_KEY = "oa-challenges-explainer-seen.v1";
+const EXPLAINER_DELAY_MS = 700;
+const SECTION_TABS = new Set(["home", "goals", "wallet", "people"]);
+
+function readExplainerSeen(): boolean {
+  try {
+    return window.localStorage.getItem(EXPLAINER_SEEN_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
+
+function markExplainerSeen() {
+  try {
+    window.localStorage.setItem(EXPLAINER_SEEN_KEY, "1");
+  } catch {
+    // Storage is unavailable: the explainer stays reachable from the (?) button.
+  }
+}
+
+/** "wallet.core" → the screen the "Open section" button leads to; challenges themselves have no target. */
+function parseActionView(view: string | null): { main: string; sub?: string } | null {
+  const [main, sub] = (view ?? "").split(".");
+  return SECTION_TABS.has(main) ? { main, sub: sub || undefined } : null;
+}
 const VISIBLE_REFRESH_COOLDOWN_MS = 30_000;
 const COMPOUND_QUIZ_PASS_SCORE = 4;
 const COMPOUND_QUIZ_QUESTIONS: ChallengeQuizQuestion[] = [
@@ -233,6 +262,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   const [isProjectsRefreshing, setIsProjectsRefreshing] = useState(false);
   const [todayChecking, setTodayChecking] = useState(false);
   const [todayMessage, setTodayMessage] = useState<string | null>(null);
+  const [explainerOpen, setExplainerOpen] = useState(false);
   const { user, profile, core, locale, applyServerData, t } = useUserContext();
   const loadRequestIdRef = useRef(0);
   const projectLoadRequestIdRef = useRef(0);
@@ -609,6 +639,29 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setSelectedProject((project) => project && project.id === projectId ? updateProject(project) : project);
   }
 
+  // The explainer opens by itself on the first visit to the challenges tab, then only from the (?) button.
+  useEffect(() => {
+    if (!active || activeTab !== "challenges" || readExplainerSeen()) return;
+    const timer = window.setTimeout(() => {
+      if (document.querySelector('[role="dialog"]')) return;
+      markExplainerSeen();
+      setExplainerOpen(true);
+      void trackClientEvent("soft_prompt_shown", { kind: "challenges_explainer", trigger: "first_visit" });
+    }, EXPLAINER_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [active, activeTab]);
+
+  function openExplainer() {
+    markExplainerSeen();
+    setExplainerOpen(true);
+    void trackClientEvent("soft_prompt_shown", { kind: "challenges_explainer", trigger: "help" });
+  }
+
+  function closeExplainer() {
+    setExplainerOpen(false);
+    void trackClientEvent("soft_prompt_action", { kind: "challenges_explainer", action: "dismiss" });
+  }
+
   function renderChallenge(challenge: Challenge) {
     const expanded = expandedChallengeId === challenge.id;
     return (
@@ -650,8 +703,16 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           {activeTab === "challenges" ? t("challenges.title") : t("projects.title")}
           {activeTab === "challenges" && challengesUnread ? <i aria-label={t("app.nav.newActivity")} className="unread-dot" role="img" /> : null}
         </h1>
-        {(activeTab === "challenges" ? isRefreshing : isProjectsRefreshing) ? <small>{t("wishes.refreshing")}</small> : null}
+        <span className="challenges-header-actions">
+          {(activeTab === "challenges" ? isRefreshing : isProjectsRefreshing) ? <small>{t("wishes.refreshing")}</small> : null}
+          {activeTab === "challenges" ? (
+            <button className="challenges-help-button" type="button" aria-label={t("challenges.help")} title={t("challenges.help")} onClick={openExplainer}>
+              <CircleHelp size={20} aria-hidden="true" />
+            </button>
+          ) : null}
+        </span>
       </header>
+      {explainerOpen ? <ChallengesExplainer t={t} onClose={closeExplainer} /> : null}
 
       {activeTab === "challenges" ? (
         <>
@@ -1077,6 +1138,9 @@ function ChallengeDetailContent({
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
   const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
+  const [checkReason, setCheckReason] = useState<ChallengeCheckReasonCode | null>(null);
+  const sectionTarget = parseActionView(challenge.action_view);
+  const instructionParts = splitChallengeInstructions(displayText(challenge.instructions, "", locale));
   const [compoundQuizPassed, setCompoundQuizPassed] = useState(false);
   const [attentionProofRecorded, setAttentionProofRecorded] = useState(false);
   const [coreLawPassed, setCoreLawPassed] = useState(false);
@@ -1132,6 +1196,7 @@ function ChallengeDetailContent({
 
     setCheckStatus("loading");
     setCheckMessage(null);
+    setCheckReason(null);
     try {
       const response = await fetchWithSupabaseAuth("/api/challenges/check", {
         method: "POST",
@@ -1147,7 +1212,10 @@ function ChallengeDetailContent({
       }
 
       if (!payload.completed) {
-        setCheckMessage(payload.message ?? t("challenges.checkPending"));
+        // English keeps the detailed server reason; other languages get the translated message for its code.
+        const reasonCode = payload.reasonCode ?? null;
+        setCheckReason(reasonCode);
+        setCheckMessage(reasonCode && (locale !== "en" || !payload.message) ? t(`challenges.reason.${reasonCode}` as MessageKey) : payload.message ?? t("challenges.checkPending"));
         setCheckStatus("idle");
         return;
       }
@@ -1292,17 +1360,29 @@ function ChallengeDetailContent({
         ) : null}
       </div>
 
-      {displayText(challenge.requirements, "", locale) ? (
+      {instructionParts.why ? (
         <section>
-          <h4>{t("challenges.requirements")}</h4>
-          <p>{displayText(challenge.requirements, "", locale)}</p>
+          <h4>{t("challenges.why")}</h4>
+          <p>{instructionParts.why}</p>
         </section>
       ) : null}
 
-      {displayText(challenge.instructions, "", locale) ? (
+      {instructionParts.steps.length > 0 || instructionParts.note ? (
         <section>
-          <h4>{t("challenges.instructions")}</h4>
-          <p>{displayText(challenge.instructions, "", locale)}</p>
+          <h4>{instructionParts.steps.length > 0 ? t("challenges.steps") : t("challenges.instructions")}</h4>
+          {instructionParts.steps.length > 0 ? (
+            <ol className="challenge-steps">
+              {instructionParts.steps.map((step, index) => <li key={index}>{step}</li>)}
+            </ol>
+          ) : null}
+          {instructionParts.note ? <p>{instructionParts.note}</p> : null}
+        </section>
+      ) : null}
+
+      {displayText(challenge.requirements, "", locale) ? (
+        <section>
+          <h4>{t("challenges.acceptance")}</h4>
+          <p>{displayText(challenge.requirements, "", locale)}</p>
         </section>
       ) : null}
 
@@ -1432,6 +1512,11 @@ function ChallengeDetailContent({
       ) : null}
 
       {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" || giveUpStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
+      {checkReason === "not_done_yet" && sectionTarget ? (
+        <button className="challenge-secondary-action" type="button" onClick={() => window.dispatchEvent(new CustomEvent("oa:open-tab", { detail: sectionTarget }))}>
+          {t("challenges.openSection")}
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -47,6 +47,7 @@
     "test:market-listing-check": "node --experimental-strip-types scripts/verify-market-listing-check-contract.mjs",
     "test:creator-challenges": "node --experimental-strip-types scripts/verify-creator-challenges-contract.mjs",
     "test:growth-stories": "node --experimental-strip-types scripts/verify-growth-stories-contract.mjs",
+    "test:challenge-cards": "node --experimental-strip-types scripts/verify-challenge-cards-contract.mjs",
     "test:telegram-init-data": "node --experimental-strip-types scripts/verify-telegram-init-data-contract.mjs",
     "test:artifacts": "node --experimental-strip-types scripts/verify-artifacts-contract.mjs",
     "test:challenge-art": "node --experimental-strip-types scripts/verify-challenge-art-contract.mjs",

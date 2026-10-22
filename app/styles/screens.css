@@ -383,6 +383,20 @@
 .challenges-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 4px 14px; }
 .challenges-header h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .challenges-header small { color: var(--muted); font-size: 0.75rem; font-weight: 800; }
+.challenges-header-actions { display: inline-flex; align-items: center; gap: 8px; }
+.challenges-help-button { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--surface-muted); color: var(--muted); }
+.challenges-help-button:hover { color: var(--text); }
+.challenges-explainer-steps, .challenges-explainer-benefits { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.challenges-explainer-steps li, .challenges-explainer-benefits li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.challenges-explainer-steps b { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--blue); color: white; font-size: 0.875rem; }
+.challenges-explainer-benefits { padding-top: 14px; border-top: 1px solid var(--line); }
+.challenges-explainer-benefits svg { margin: 2px auto 0; color: var(--blue); }
+.challenges-explainer-steps span, .challenges-explainer-benefits span { display: grid; gap: 2px; color: var(--muted); font-size: 0.9375rem; line-height: 1.35; }
+.challenges-explainer-steps strong, .challenges-explainer-benefits strong { color: var(--text); font-size: 1rem; }
+.challenges-explainer-faq { border-top: 1px solid var(--line); padding-top: 12px; }
+.challenges-explainer-faq summary { cursor: pointer; font-weight: 800; }
+.challenges-explainer-faq p { margin: 8px 0 0; color: var(--muted); font-size: 0.9375rem; line-height: 1.4; }
+.challenges-explainer .challenge-primary-action { width: 100%; }
 .challenge-section { display: grid; gap: 8px; margin: 0 0 16px; }
 .challenge-section h2 { margin: 0 4px; color: var(--muted); font-size: 0.8125rem; font-weight: 900; text-transform: uppercase; }
 .challenge-section-heading { min-width: 0; }
@@ -475,6 +489,7 @@
 .challenge-modal-body h3 { margin: 2px 0 8px; font-size: 25px; line-height: 1.1; }
 .challenge-modal-body h4 { margin: 0 0 6px; font-size: 0.9375rem; }
 .challenge-modal-body p { margin: 0; color: var(--text); font-size: 1rem; line-height: 1.38; white-space: pre-wrap; }
+.challenge-steps { display: grid; gap: 6px; margin: 0; padding-inline-start: 22px; font-size: 1rem; line-height: 1.38; }
 .section-title-with-dot, .home-card-label-with-dot { display: inline-flex; align-items: center; gap: 7px; }
 .unread-dot { display: inline-block; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 999px; background: var(--danger); }
 .challenge-field { display: grid; gap: 8px; border-radius: 10px; padding: 11px; background: var(--surface-soft); color: var(--text); }

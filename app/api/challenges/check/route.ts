@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { classifyChallengeCheckReason } from "@/lib/challengeCheckReasons";
 import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
@@ -135,7 +136,8 @@ export async function POST(request: NextRequest) {
       challengeId: challenge.id,
       status: "accepted",
       completed: false,
-      message: verification.reason
+      message: verification.reason,
+      reasonCode: classifyChallengeCheckReason(verification.reason)
     });
   }
 

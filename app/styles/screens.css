@@ -1729,3 +1729,6 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .tg-entry-card h2 { margin: 0; font-size: 1.5rem; }
 .tg-entry-card p { margin: 0; color: var(--muted); line-height: 1.4; }
 .tg-entry-card .challenge-primary-action, .tg-entry-card .secondary-button { width: 100%; justify-content: center; }
+.guest-bar-text { flex: 1 1 auto; min-width: 0; }
+.guest-bar-text strong, .guest-bar-text small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.guest-bar-signin, .guest-bar-join { padding: 0 10px; font-size: 0.75rem; }

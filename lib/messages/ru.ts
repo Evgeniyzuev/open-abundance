@@ -2091,6 +2091,7 @@ const ru: Record<string, string> = {
   "social.follow.signInToFollow": "Войти, чтобы подписаться",
   "public.join.title": "Open Abundance",
   "public.join.invited": "\u0412\u044b \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u044b",
+  "public.join.invitedBy": "\u041f\u0440\u0438\u0433\u043b\u0430\u0441\u0438\u043b(\u0430): {name}",
   "public.join.cta": "\u041f\u0440\u0438\u0441\u043e\u0435\u0434\u0438\u043d\u0438\u0442\u044c\u0441\u044f",
   "social.blog.bioMore": "\u0435\u0449\u0451",
   "social.blog.bioLess": "\u0441\u0432\u0435\u0440\u043d\u0443\u0442\u044c",

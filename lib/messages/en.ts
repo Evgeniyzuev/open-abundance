@@ -2091,6 +2091,7 @@ const en = {
   "social.follow.signInToFollow": "Sign in to follow",
   "public.join.title": "Open Abundance",
   "public.join.invited": "You are invited",
+  "public.join.invitedBy": "Invited by {name}",
   "public.join.cta": "Join",
   "social.blog.bioMore": "more",
   "social.blog.bioLess": "less",

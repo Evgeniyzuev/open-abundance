@@ -42,4 +42,14 @@ const feed = read("app/api/social/feed/route.ts");
 assert.ok(feed.includes('const guestFeed = scope === "feed" && !user && category !== "following" && !postType;') && feed.includes("!guestFeed"), "guests may read the public feed, not the personal views");
 assert.ok(["wishPostIds, publicView ? null : viewerId", "...(publicView ? { snapshot_id: null } : {})", 'publicView ? "" : viewerId'].every((part) => feed.includes(part)), "the guest feed hides what only a signed-in viewer may see");
 assert.ok(read("components/PublicFeedPage.tsx").includes("No session is sent on purpose"), "the public feed page never sends a session");
+// The guest bar names the inviter (public name only, empty answer for unknown codes); links to pages carry a preview picture.
+const inviter = read("app/api/referrals/inviter/route.ts");
+assert.ok(inviter.includes('.eq("is_active", true)') && inviter.includes("personName(profile") && inviter.includes("NextResponse.json({}"), "the inviter lookup gives only the public name and nothing for unknown codes");
+assert.ok(panel.includes("/api/referrals/inviter?code=") && panel.includes("public.join.invitedBy"), "the guest bar shows who invited");
+const og = read("app/api/og/profile/[userId]/route.tsx");
+assert.ok(og.includes("width: 1200") && og.includes("height: 630") && og.includes('.select("display_name,username,avatar_url,level")'), "the preview picture is 1200x630 and reads only public name, nickname, avatar and level");
+const meta = read("lib/profileMetadata.ts");
+assert.ok(meta.includes("/api/og/profile/${userId}") && meta.includes("summary_large_image") && meta.includes("canonical"), "the metadata points at the picture and its own canonical address");
+assert.ok(read("app/u/[userId]/page.tsx").includes('profileLinkMetadata(params.userId, "profile")') && read("app/u/[userId]/blog/page.tsx").includes('profileLinkMetadata(params.userId, "blog")'), "profile and blog pages use the preview metadata");
+for (const key of ["public.join.invitedBy"]) assert.ok(read("lib/messages/en.ts").includes(`"${key}"`) && read("lib/messages/ru.ts").includes(`"${key}"`), `${key} exists in both languages`);
 console.log("Public invitation and history links contract verified.");

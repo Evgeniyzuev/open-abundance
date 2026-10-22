@@ -5,10 +5,11 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { isSharedContentId } from "@/lib/sharedContentAccess";
+import { profileLinkMetadata } from "@/lib/profileMetadata";
 
 // A shared reality day gets its own link preview: the day card image.
-export async function generateMetadata({ searchParams }: { searchParams?: { post?: string } }): Promise<Metadata> {
-  if (!isSharedContentId(searchParams?.post)) return {};
+export async function generateMetadata({ params, searchParams }: { params: { userId: string }; searchParams?: { post?: string } }): Promise<Metadata> {
+  if (!isSharedContentId(searchParams?.post)) return profileLinkMetadata(params.userId, "blog");
   const { data: post } = await createServiceSupabaseClient()
     .from("feed_posts")
     .select("id,post_type,status,visibility,deleted_at")

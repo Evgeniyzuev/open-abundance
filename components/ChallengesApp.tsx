@@ -751,7 +751,9 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           {projectStatus === "loading" && !hasProjects ? <ChallengeState title={t("app.common.loading")} description={t("projects.loading.description")} /> : null}
           {projectStatus === "offline" && !hasProjects ? <ChallengeState title={t("app.common.offline")} description={t("projects.offline.description")} /> : null}
 
-          <ProjectSection projects={projects} emptyMessage={t("projects.no_projects")} locale={locale} t={t} onOpen={(project) => setSelectedProject(project)} />
+          {projectStatus === "loading" && !hasProjects ? null : (
+            <ProjectSection projects={projects} emptyMessage={t("projects.no_projects")} locale={locale} t={t} onOpen={(project) => setSelectedProject(project)} />
+          )}
         </>
       )}
 
@@ -1493,7 +1495,7 @@ function ProjectDetailModal({
 
         <div className="challenge-modal-body">
           <div>
-            <strong>{project.category}</strong>
+            <strong>{formatProjectCategory(project.category)}</strong>
             <h3>{displayText(project.title, t("projects.project"), locale)}</h3>
             <p>{displayText(project.description, "", locale)}</p>
           </div>
@@ -1781,6 +1783,12 @@ function getProjectStatusLabel(status: ProjectApplicationStatus, t: TFunction): 
   if (status === "rejected") return t("projects.rejected");
   if (status === "withdrawn") return t("projects.withdrawn");
   return t("projects.pending");
+}
+
+// Categories are free text from the catalog (snake_case), so show them as a plain phrase.
+function formatProjectCategory(category: string): string {
+  const words = category.replace(/[_-]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
 }
 
 function participantsText(project: Project): string {

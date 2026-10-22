@@ -602,6 +602,7 @@ const ru: Record<string, string> = {
   "reputation.updated": "Обновлено {date}",
   "reputation.pending": "Первый расчёт будет сегодня ночью.",
   "reality.card.coreTile": "Рост Core",
+  "reality.card.verified": "\u041f\u043e\u0441\u0447\u0438\u0442\u0430\u043d\u043e \u0441\u0438\u0441\u0442\u0435\u043c\u043e\u0439 \u00b7 \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c {url}",
   "share.networks": "Поделиться в сетях",
   "share.copyLink": "Скопировать ссылку",
   "share.copied": "Скопировано",

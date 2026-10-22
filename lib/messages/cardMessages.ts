@@ -13,6 +13,7 @@ export const CARD_MESSAGES = {
     "reality.card.kicker.day": "Growth reality",
     "reality.card.follow": "Follow my growth",
     "reality.card.coreTile": "Core growth",
+    "reality.card.verified": "Counted by the system · check {url}",
     "social.post.level": "LVL",
     "social.post.turnover": "Turnover",
     "social.post.wins": "Wins"
@@ -28,6 +29,7 @@ export const CARD_MESSAGES = {
     "reality.card.kicker.day": "Реалити роста",
     "reality.card.follow": "Следи за моим ростом",
     "reality.card.coreTile": "Рост Core",
+    "reality.card.verified": "Посчитано системой · проверить {url}",
     "social.post.level": "LVL",
     "social.post.turnover": "Оборот",
     "social.post.wins": "Победы"

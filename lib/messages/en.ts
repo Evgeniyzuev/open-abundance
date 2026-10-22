@@ -602,6 +602,7 @@ const en = {
   "reputation.updated": "Updated {date}",
   "reputation.pending": "The first calculation runs tonight.",
   "reality.card.coreTile": "Core growth",
+  "reality.card.verified": "Counted by the system \u00b7 check {url}",
   "share.networks": "Share to networks",
   "share.copyLink": "Copy link",
   "share.copied": "Copied",

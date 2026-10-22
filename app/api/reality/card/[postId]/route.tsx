@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 const SIZES = { post: { width: 1080, height: 1350 }, story: { width: 1080, height: 1920 } } as const;
 const SITE = "https://open-abundance.vercel.app";
+const SITE_HOST = SITE.replace(/^https:\/\//, "");
 
 const fonts = Promise.all([
   fetch(new URL("../fonts/inter-latin-400-normal.woff", import.meta.url)).then((response) => response.arrayBuffer()),
@@ -20,7 +21,7 @@ const fonts = Promise.all([
 ]);
 
 type Translate = (key: CardMessageKey, values?: Record<string, string | number>) => string;
-type CardData = { name: string; avatar: string | null; cover: string | null; date: string; dayNumber: number; caption: string | null; blocks: CardBlock[] };
+type CardData = { name: string; verifyPath: string; avatar: string | null; cover: string | null; date: string; dayNumber: number; caption: string | null; blocks: CardBlock[] };
 
 // Image of a published public reality day: 4:5 for posts (?format=post), 9:16 for stories (?format=story).
 // One headline (the most interesting fact of the day), up to three non-zero numbers, "Day N" and a follow line.
@@ -92,7 +93,16 @@ export async function GET(request: Request, { params }: { params: { postId: stri
               ))}
             </div>
           ) : null}
-          <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 26, opacity: 0.7 }}>{`${t("reality.card.dayN", { n: data.dayNumber })} · ${formatDate(data.date, locale)}`}</div>
+          {/* Where a viewer of the video checks that the numbers come from the system, not from the author. */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12, fontSize: 26 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, opacity: 0.85 }}>
+              <svg width="30" height="30" viewBox="0 0 30 30">
+                <path d="M5 16 L12 23 L25 8" stroke="#7ee2a8" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div style={{ display: "flex" }}>{t("reality.card.verified", { url: `${SITE_HOST}${data.verifyPath}` })}</div>
+            </div>
+            <div style={{ display: "flex", alignSelf: "flex-end", opacity: 0.7 }}>{`${t("reality.card.dayN", { n: data.dayNumber })} · ${formatDate(data.date, locale)}`}</div>
+          </div>
         </div>
       </div>
     ),
@@ -147,6 +157,7 @@ async function loadCard(postId: string): Promise<CardData | null> {
   const profile = profileResult.data;
   return {
     name: profile?.display_name || (profile?.username ? `@${profile.username}` : "Open Abundance"),
+    verifyPath: profile?.username ? `/@${profile.username}` : "/stories",
     avatar: profile?.avatar_url ?? null,
     cover,
     date: snapshotResult.data?.source_date ?? (post.published_at ?? post.created_at).slice(0, 10),
@@ -182,7 +193,7 @@ function clip(value: string, max: number): string {
 
 // Local design review only (never in production): ?demo=level|challenge|turnover|quiet
 function demoCard(kind: string): CardData {
-  const base = { name: "Евгений", avatar: null, cover: `${SITE}/feed/system-events/daily-progress.png`, date: "2026-10-13", dayNumber: 12, caption: null as string | null };
+  const base = { name: "Евгений", verifyPath: "/@evgen", avatar: null, cover: `${SITE}/feed/system-events/daily-progress.png`, date: "2026-10-13", dayNumber: 12, caption: null as string | null };
   if (kind === "level") return { ...base, cover: `${SITE}/feed/system-events/level-up.png`, blocks: [{ block_key: "level", value: { levelBefore: 4, levelAfter: 5 } }, { block_key: "turnover", value: { amount: 0 } }, { block_key: "total_core_growth", value: { amount: 0.021 } }] };
   if (kind === "challenge") return { ...base, caption: "Первое объявление на Market — оказалось проще, чем думал.", cover: `${SITE}/feed/system-events/challenge-completed.png`, blocks: [{ block_key: "level", value: { levelBefore: 5, levelAfter: 5 } }, { block_key: "wins", value: { count: 2, challenges: [{ id: "a", title: { ru: "Первое объявление на Market", en: "First Market listing" } }], wishes: [] } }, { block_key: "turnover", value: { amount: 120 } }] };
   if (kind === "turnover") return { ...base, blocks: [{ block_key: "level", value: { levelBefore: 6, levelAfter: 6 } }, { block_key: "turnover", value: { amount: 1250 } }, { block_key: "wins", value: { count: 0, challenges: [], wishes: [] } }, { block_key: "total_core_growth", value: { amount: 3.4 } }] };

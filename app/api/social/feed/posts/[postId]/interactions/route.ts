@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { VOTE_RANKED_POST_IDS, rankComments } from "@/lib/aiEssay";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Tables } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { notifyMentions } from "@/lib/serverMentions";
-import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { createServiceSupabaseClient, getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-type InteractionAction = "like" | "unlike" | "comment" | "repost";
+type InteractionAction = "like" | "unlike" | "comment" | "repost" | "vote_comment";
 type CommentRow = Tables<"feed_post_comments">;
 
 export async function GET(request: NextRequest, { params }: { params: { postId: string } }) {
@@ -89,6 +90,27 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
           if (insertedComment?.id) await notifyMentions(supabase, { text: commentBody, authorId: user.id, postId: post.id, sourceKey: `comment:${insertedComment.id}` });
         }
       }
+    }
+
+    // Up/down vote on a comment (value 1, -1, or 0 to take the vote back). Not on your own comment.
+    if (action === "vote_comment") {
+      const commentId = typeof body.commentId === "string" ? body.commentId : "";
+      const value = body.value === 1 || body.value === -1 ? body.value : 0;
+      const service = createServiceSupabaseClient() as any;
+      const { data: comment, error: commentError } = await service
+        .from("feed_post_comments")
+        .select("id,user_id")
+        .eq("id", commentId)
+        .eq("post_id", post.id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (commentError) return NextResponse.json({ error: commentError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      if (!comment) return NextResponse.json({ error: "Comment not found." }, { status: 404, headers: NO_STORE_HEADERS });
+      if (comment.user_id === user.id) return NextResponse.json({ error: "You cannot vote on your own comment." }, { status: 400, headers: NO_STORE_HEADERS });
+      const { error: voteError } = value === 0
+        ? await service.from("feed_comment_votes").delete().eq("comment_id", comment.id).eq("user_id", user.id)
+        : await service.from("feed_comment_votes").upsert({ comment_id: comment.id, user_id: user.id, value, updated_at: new Date().toISOString() }, { onConflict: "comment_id,user_id" });
+      if (voteError) return NextResponse.json({ error: voteError.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
     if (action === "repost") {
@@ -180,13 +202,32 @@ async function loadInteractions(
   if (profilesError) throw profilesError;
   const profileById = new Map((profiles ?? []).map((profile) => [profile.user_id, profile]));
 
+  // Comment votes; before the votes migration is applied every comment simply scores 0.
+  const scoreById = new Map<string, number>();
+  const viewerVoteById = new Map<string, number>();
+  if (commentRows.length) {
+    const { data: votes } = await (createServiceSupabaseClient() as any)
+      .from("feed_comment_votes")
+      .select("comment_id,user_id,value")
+      .in("comment_id", commentRows.map((comment) => comment.id));
+    for (const vote of votes ?? []) {
+      scoreById.set(vote.comment_id, (scoreById.get(vote.comment_id) ?? 0) + Number(vote.value));
+      if (vote.user_id === userId) viewerVoteById.set(vote.comment_id, Number(vote.value));
+    }
+  }
+  const scoredComments = commentRows.map((comment) => ({
+    ...comment,
+    author: profileById.get(comment.user_id) ?? null,
+    score: scoreById.get(comment.id) ?? 0,
+    viewerVote: viewerVoteById.get(comment.id) ?? 0,
+    own: comment.user_id === userId
+  }));
+
   return {
     likeCount: likes.count ?? 0,
     liked: Boolean(viewerLike.data),
-    comments: commentRows.map((comment) => ({
-      ...comment,
-      author: profileById.get(comment.user_id) ?? null
-    }))
+    voteRanked: VOTE_RANKED_POST_IDS.has(postId),
+    comments: VOTE_RANKED_POST_IDS.has(postId) ? rankComments(scoredComments) : scoredComments
   };
 }
 
@@ -200,7 +241,7 @@ async function readJsonBody(request: NextRequest): Promise<Record<string, unknow
 }
 
 function normalizeAction(value: unknown): InteractionAction | null {
-  return value === "like" || value === "unlike" || value === "comment" || value === "repost" ? value : null;
+  return value === "like" || value === "unlike" || value === "comment" || value === "repost" || value === "vote_comment" ? value : null;
 }
 
 function normalizeIdempotencyKey(value: unknown): string | null {

@@ -1372,6 +1372,10 @@
 .feed-comment-list strong { overflow: hidden; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
 .feed-comment-list p { grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; color: var(--text); font-size: 0.8rem; line-height: 1.25; white-space: pre-wrap; }
 .feed-comment-list time { color: var(--muted); font-size: 0.65rem; }
+.feed-comment-votes { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 0.75rem; font-weight: 800; }
+.feed-comment-votes button { display: grid; place-items: center; width: 32px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
+.feed-comment-votes button[aria-pressed="true"] { border-color: var(--blue); color: var(--blue); }
+.feed-comment-votes button:disabled { opacity: 0.45; }
 .feed-share-package { display: grid; gap: 7px; border-radius: 10px; padding: 9px; background: var(--accent-soft); }
 .feed-share-package strong { color: var(--blue); font-size: 0.8rem; }
 .feed-share-package label { display: grid; gap: 4px; color: var(--muted); font-size: 0.7rem; font-weight: 850; }

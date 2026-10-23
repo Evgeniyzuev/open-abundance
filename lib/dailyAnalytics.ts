@@ -71,6 +71,7 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "challenges", select: "id,title,track_key,category,verification_type,core_reward_amount,wallet_reward_amount,is_active" },
   { table: "user_challenges", select: "user_id,challenge_id,status,created_at,updated_at", cap: 50_000 },
   { table: "challenge_feedback_submissions", select: "user_id,status,overall_rating,submitted_at" },
+  { table: "challenge_essay_submissions", select: "status,score,submitted_at,reviewed_at" },
   { table: "peer_review_answers", select: "status,created_at,submitted_at", since: "created_at" },
   { table: "referral_edges", select: "referrer_user_id,referral_user_id,claimed_at,source" },
   { table: "humanity_verifications", select: "user_id,humanity_level,verified_at" },
@@ -498,6 +499,13 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
     ["Застряли (взято, нет движения 3+ дня)", metrics.challenges_stalled],
     ["Очередь взаимной проверки: предложено / принято / сдано", `${peer.filter((row) => row.status === "offered").length} / ${peer.filter((row) => row.status === "accepted").length} / ${peer.filter((row) => row.status === "submitted").length}`],
     ["Неудачных автопроверок (события *check_failed*)", checkFailures],
+    ["Ответов на проверке ИИ / вернули на доработку / оценено (ср. %)", (() => {
+      const essays = t.challenge_essay_submissions ?? [];
+      const scored = essays.filter((row) => row.status === "scored");
+      metrics.essays_pending = essays.filter((row) => row.status === "submitted").length;
+      const mean = scored.length ? Math.round(scored.reduce((sum, row) => sum + num(row.score), 0) / scored.length) : null;
+      return `${metrics.essays_pending} / ${essays.filter((row) => row.status === "needs_work").length} / ${scored.length}${mean === null ? "" : ` (${mean}%)`}`;
+    })()],
     ["Отзывов о челленджах (оценка)", `${(t.challenge_feedback_submissions ?? []).filter((row) => row.status === "submitted").length} (ср. ${(() => {
       const ratings = (t.challenge_feedback_submissions ?? []).map((row) => num(row.overall_rating)).filter(Boolean);
       return ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "—";

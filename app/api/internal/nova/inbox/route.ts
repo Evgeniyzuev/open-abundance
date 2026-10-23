@@ -1,7 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { analyticsSalt, pseudonymize } from "@/lib/dailyAnalytics";
-import { isGrowthOperator } from "@/lib/growthOperator";
+import { authorizeClaudeOrOperator } from "@/lib/claudeActionsAuth";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import {
   NOVA_INBOX_COOLDOWN_MS,
@@ -11,7 +10,7 @@ import {
   normalizeInboxBody,
   planInboxSend
 } from "@/lib/novaInbox";
-import { createServiceSupabaseClient, getAuthenticatedUser } from "@/lib/serverSupabase";
+import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,18 +25,13 @@ const PUSH_TITLE: Record<string, string> = { ru: "Нова написала ва
  *
  * Puts one personal message from Nova into each recipient's inbox and sends a push that opens the Nova chat.
  * Recipients are pseudonyms from the daily analytics report (`u_…`); a signed-in operator may also pass user ids.
- * Callers: a growth operator, or Claude with NOVA_INBOX_TOKEN after the operator approved the text and the group.
+ * Callers: a growth operator, or Claude with CLAUDE_ACTIONS_TOKEN after the operator approved the text and the group.
  * Limits: up to NOVA_INBOX_MAX_RECIPIENTS people per call and one message per person every 3 days.
  */
 export async function POST(request: NextRequest) {
-  const expected = process.env.NOVA_INBOX_TOKEN?.trim();
-  const provided = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
-  const byToken = Boolean(expected && expected.length >= 32 && safeEqual(provided, expected));
-  if (!byToken) {
-    const { user, error } = await getAuthenticatedUser(request);
-    if (!user) return json({ error: error ?? "Unauthorized." }, 401);
-    if (!isGrowthOperator(user.id)) return json({ error: "Not found." }, 404);
-  }
+  const auth = await authorizeClaudeOrOperator(request);
+  if (!auth.ok) return json({ error: auth.error }, auth.status);
+  const byToken = auth.byToken;
 
   const payload = await request.json().catch(() => null) as { recipients?: unknown; body?: unknown; reason?: unknown; dryRun?: unknown } | null;
   const body = normalizeInboxBody(payload?.body);
@@ -107,12 +101,6 @@ export async function POST(request: NextRequest) {
     sent.push(recipient);
   }
   return json({ sent, failed, skipped: plan.skipped }, 200);
-}
-
-function safeEqual(left: string, right: string): boolean {
-  const a = Buffer.from(left);
-  const b = Buffer.from(right);
-  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 function json(body: unknown, status: number) {

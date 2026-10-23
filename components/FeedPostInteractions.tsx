@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, MessageCircle, Repeat2, Send, Share2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Heart, MessageCircle, Repeat2, Send, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import MentionText from "@/components/MentionText";
 import { trackClientEvent } from "@/lib/clientAnalytics";
@@ -12,6 +12,9 @@ type InteractionComment = {
   id: string;
   body: string;
   created_at: string;
+  score?: number;
+  viewerVote?: number;
+  own?: boolean;
   author: {
     display_name: string | null;
     username: string | null;
@@ -61,7 +64,7 @@ export default function FeedPostInteractions({
     return () => { active = false; };
   }, [canInteract, post.id, t]);
 
-  async function runAction(action: "like" | "unlike" | "comment" | "repost", body?: string) {
+  async function runAction(action: "like" | "unlike" | "comment" | "repost" | "vote_comment", body?: string, vote?: { commentId: string; value: number }) {
     if (!canInteract || saving) return;
     setSaving(true);
     setError(null);
@@ -74,7 +77,7 @@ export default function FeedPostInteractions({
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(action === "comment" ? { "Idempotency-Key": crypto.randomUUID() } : {})
         },
-        body: JSON.stringify({ action, body })
+        body: JSON.stringify({ action, body, ...(vote ?? {}) })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? t("social.feed.interactionError"));
@@ -173,6 +176,17 @@ export default function FeedPostInteractions({
               <strong>{comment.author?.display_name ?? (comment.author?.username ? `@${comment.author.username}` : t("social.feed.comment"))}{comment.author?.display_name && comment.author?.username ? <small className="profile-handle"> @{comment.author.username}</small> : null}</strong>
               <p><MentionText text={comment.body} /></p>
               <time dateTime={comment.created_at}>{formatCommentDate(comment.created_at, locale)}</time>
+              {typeof comment.score === "number" ? (
+                <div className="feed-comment-votes">
+                  <button type="button" disabled={saving || comment.own} aria-pressed={comment.viewerVote === 1} aria-label="+1" onClick={() => void runAction("vote_comment", undefined, { commentId: comment.id, value: comment.viewerVote === 1 ? 0 : 1 })}>
+                    <ChevronUp size={16} aria-hidden />
+                  </button>
+                  <span>{comment.score}</span>
+                  <button type="button" disabled={saving || comment.own} aria-pressed={comment.viewerVote === -1} aria-label="-1" onClick={() => void runAction("vote_comment", undefined, { commentId: comment.id, value: comment.viewerVote === -1 ? 0 : -1 })}>
+                    <ChevronDown size={16} aria-hidden />
+                  </button>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>

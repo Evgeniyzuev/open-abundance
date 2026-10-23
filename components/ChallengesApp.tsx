@@ -11,6 +11,7 @@ import InviteKit from "@/components/InviteKit";
 import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import NicheTaskChallenge from "@/components/NicheTaskChallenge";
 import ValuesGoalsActivity from "@/components/ValuesGoalsActivity";
+import AiEssayChallenge from "@/components/AiEssayChallenge";
 import AppTestingSurvey, { type AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
@@ -1133,6 +1134,8 @@ function ChallengeDetailContent({
   const needsAppTesting = challenge.verification_logic === "app_testing_feedback" && accepted && !completed && !locked;
   const needsAcquisition = challenge.verification_logic === "acquisition_publications_milestone" || challenge.verification_logic?.startsWith("acquisition_metric_") === true;
   const needsPeerReviews = challenge.verification_logic === "peer_reviews";
+  // Scored by the AI reviewer, so there is no "Check completion" button; the card shows the answer form and the review.
+  const needsAiEssay = challenge.verification_logic === "ai_essay_review";
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -1474,6 +1477,15 @@ function ChallengeDetailContent({
         <PeerReviewsPanel challenge={challenge} locale={locale} />
       ) : null}
 
+      {needsAiEssay && (accepted || completed) && !locked ? (
+        <AiEssayChallenge
+          locale={locale}
+          reward={{ coreAmount: challenge.core_reward_amount, walletAmount: challenge.wallet_reward_amount }}
+          t={t}
+          onRefresh={onRefreshUserData}
+        />
+      ) : null}
+
       {needsAppTesting ? (
         <AppTestingSurvey
           author={author}
@@ -1487,7 +1499,7 @@ function ChallengeDetailContent({
         />
       ) : null}
 
-      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && challenge.verification_logic !== "referral_program" ? (
+      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && !needsAiEssay && challenge.verification_logic !== "referral_program" ? (
         <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
           {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
         </button>

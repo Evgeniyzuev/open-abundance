@@ -12,3 +12,6 @@ test-results
 playwright-report
 vercel
 .vercel
+
+# Daily analytics output (personal data, never commit)
+reports/

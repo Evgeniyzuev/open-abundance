@@ -9,6 +9,8 @@ export type AiLocalMessage = {
   failed?: "retry" | "final";
   /** Nova's second look at an earlier answer, added later in the same chat. */
   followup?: boolean;
+  /** A personal message from the "Inbox from Nova" (server id), shown with its own label. */
+  inboxId?: string;
 };
 
 export type AiMemoryKind = "goal" | "interest" | "preference" | "reaction" | "feeling";

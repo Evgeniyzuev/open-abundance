@@ -260,6 +260,47 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     return () => window.clearTimeout(timeoutId);
   }, [activeChat, isRestoring, locale, persistableMessages, userId]);
 
+  // "Inbox from Nova": personal messages written for this person are added to the chat as Nova's messages,
+  // saved on the device first and only then marked delivered (the server deletes them a day later).
+  const messagesRef = useRef(messages);
+  const activeChatRef = useRef(activeChat);
+  useEffect(() => { messagesRef.current = messages; activeChatRef.current = activeChat; }, [messages, activeChat]);
+  const inboxCheckedAtRef = useRef(0);
+  useEffect(() => {
+    if (!userId || isRestoring || !active || Date.now() - inboxCheckedAtRef.current < 60_000) return;
+    inboxCheckedAtRef.current = Date.now();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await getBrowserSupabaseClient().auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        // Once saved on the device the message is shown and acknowledged even if this effect re-ran meanwhile.
+        const response = await fetch("/api/nova/inbox", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json() as { messages?: Array<{ id: string; body: string }> };
+        const known = new Set(messagesRef.current.map((message) => message.inboxId).filter(Boolean));
+        const fresh: ChatMessage[] = (payload.messages ?? [])
+          .filter((item) => item.id && item.body && !known.has(item.id))
+          .map((item) => ({ role: "assistant", content: item.body, inboxId: item.id }));
+        if (cancelled || fresh.length === 0) return;
+        const chat = activeChatRef.current ?? createDraftChat(userId);
+        const nextMessages = [...messagesRef.current.filter((message) => message.content.trim() && !message.failed), ...fresh];
+        await saveChat({ ...chat, userId, title: getChatTitle(nextMessages, locale), messages: nextMessages, updatedAt: new Date().toISOString() });
+        setActiveChat((current) => current ?? chat);
+        setMessages((current) => [...current, ...fresh.filter((item) => !current.some((message) => message.inboxId === item.inboxId))]);
+        await fetch("/api/nova/inbox", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: fresh.map((item) => item.inboxId) })
+        });
+      } catch (error) {
+        console.warn("Nova inbox check failed.", error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [active, isRestoring, locale, userId]);
+
   const recordAiChallengeProgress = useCallback(async () => {
     try {
       const supabase = getBrowserSupabaseClient();
@@ -974,6 +1015,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
               ) : null}
               <div className="ai-msg-content">
                 {message.followup ? <small className="ai-followup-label">{t("ai.chat.followupLabel")}</small> : null}
+                {message.inboxId ? <small className="ai-followup-label">{t("ai.chat.inboxLabel")}</small> : null}
                 <div className={message.failed ? "ai-msg-bubble ai-msg-failed" : "ai-msg-bubble"}>
                   {message.role === "assistant" ? plainChatText(message.content) : message.content}
                   {message.role === "assistant" && message.content === "" && isLoading ? <span className="ai-typing" role="status" aria-label={t("ai.chat.typing")}><i /><i /><i />{isDeep ? <small>{t("ai.chat.typingDeep")}</small> : attempt > 1 ? <small>{t("ai.chat.attempt", { attempt, max: MAX_CHAT_ATTEMPTS })}</small> : null}</span> : null}

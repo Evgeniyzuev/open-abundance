@@ -2803,6 +2803,7 @@ const ru: Record<string, string> = {
     "scan.unknown": "Этот код не подходит для перевода.",
 
     "ai.chat.followupLabel": "Нова добавляет",
+    "ai.chat.inboxLabel": "Нова написала вам",
     "ai.chat.deep": "Подумать глубже",
     "ai.chat.deepHint": "Вопрос непростой. Можно подумать глубже, это займёт 2 сообщения из лимита.",
     "ai.chat.deepTitle": "Более обдуманный ответ, 2 сообщения из лимита",

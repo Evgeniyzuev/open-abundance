@@ -1167,6 +1167,7 @@ const hi: Record<string, string> = {
   "ai.chat.attempt": "Nova उत्तर दे रही है, प्रयास {max} में से {attempt}…",
   "ai.chat.retry": "फिर कोशिश करें",
   "ai.chat.followupLabel": "Nova जोड़ती है",
+  "ai.chat.inboxLabel": "Nova ने आपको लिखा",
   "ai.chat.deep": "गहराई से सोचें",
   "ai.chat.deepHint": "यह एक बड़ा प्रश्न लगता है। मैं इसे और ध्यान से सोच सकती हूँ; इसमें आपकी सीमा के 2 संदेश लगते हैं।",
   "ai.chat.deepTitle": "एक अधिक सोचा-समझा उत्तर, आपकी सीमा के 2 संदेश",

@@ -1167,6 +1167,7 @@ const zh: Record<string, string> = {
   "ai.chat.attempt": "Nova 正在回答，第 {attempt}/{max} 次尝试…",
   "ai.chat.retry": "再试一次",
   "ai.chat.followupLabel": "Nova 补充",
+  "ai.chat.inboxLabel": "Nova 给你留言",
   "ai.chat.deep": "深入思考",
   "ai.chat.deepHint": "这看起来是个大问题。我可以更仔细地思考；这会占用你额度中的 2 条消息。",
   "ai.chat.deepTitle": "更深思熟虑的回答，占用额度 2 条消息",

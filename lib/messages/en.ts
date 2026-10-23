@@ -2803,6 +2803,7 @@ const en = {
     "scan.unknown": "This code cannot be used for a transfer.",
 
     "ai.chat.followupLabel": "Nova adds",
+    "ai.chat.inboxLabel": "Nova wrote to you",
     "ai.chat.deep": "Think deeper",
     "ai.chat.deepHint": "This looks like a big question. I can think it through more carefully; it uses 2 messages of your limit.",
     "ai.chat.deepTitle": "A more considered answer, 2 messages of your limit",

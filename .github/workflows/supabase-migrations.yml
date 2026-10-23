@@ -1,0 +1,87 @@
+# Applies new Supabase migrations to production after the owner approves the run.
+# Plan job: lists the migration files in the push (no secrets). Apply job: waits for approval on the
+# "production" environment, then runs `supabase db push` through the IPv4 session pooler with retries.
+# Setup and recovery: docs/DAILY_ANALYTICS.md, section "Полный цикл".
+name: Supabase migrations
+
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/migrations/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-migrations
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: List migrations in this push
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          {
+            echo "## Migrations to apply"
+            if [ -n "$BEFORE" ] && git cat-file -e "$BEFORE" 2>/dev/null; then
+              files=$(git diff --name-only --diff-filter=AM "$BEFORE" "$GITHUB_SHA" -- supabase/migrations)
+            else
+              files=""
+              echo "Manual run: every local migration the database does not have yet will be applied."
+            fi
+            for file in $files; do
+              echo ""
+              echo "### \`$file\`"
+              echo '```sql'
+              head -n 60 "$file"
+              echo '```'
+            done
+            echo ""
+            echo "Approve the **apply** job to run them on production."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Required reviewers on this environment make the run wait for the owner's approval.
+    environment: production
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Check secret
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Add SUPABASE_DB_URL (session pooler URL, port 5432) to the production environment secrets."
+            exit 1
+          fi
+      - name: Apply with retries
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3 4; do
+            if supabase db push --db-url "$SUPABASE_DB_URL" --yes 2>&1 | tee push.log; then
+              exit 0
+            fi
+            if grep -qiE "syntax error|already exists|does not exist|violates|permission denied|insert before the last migration" push.log; then
+              echo "::error::The migration itself failed; retrying will not help."
+              exit 1
+            fi
+            sleep $((attempt * 15))
+          done
+          exit 1
+      - name: Remote migration history
+        if: always()
+        run: |
+          { echo "## Remote migration history (last 15)"; echo '```'; supabase migration list --db-url "$SUPABASE_DB_URL" | tail -n 15; echo '```'; } >> "$GITHUB_STEP_SUMMARY" || true

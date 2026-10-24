@@ -21,6 +21,7 @@ import BackupReminder from "@/components/BackupReminder";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { takeQuickAction } from "@/lib/quickAction";
+import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
 
 type LocalDataStatus = "loading" | "slow" | "ready" | "error";
 /** "inbox" is the built-in list that cannot be deleted: every note without a list of its own lives there. */
@@ -62,6 +63,11 @@ export default function NotesApp() {
   const [aiHint, setAiHint] = useState(false);
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
   const localLoadRequestRef = useRef(0);
+  // An open list and search are history layers, like the note page: Back returns to My lists, not to another tab.
+  const closeView = useHistoryLayer(view !== null, () => setView(null));
+  const closeSearch = useHistoryLayer(searchOpen, () => { setSearchOpen(false); setQuery(""); });
+  const listSwipe = useEdgeSwipeBack(closeView);
+  const searchSwipe = useEdgeSwipeBack(closeSearch);
 
   const refreshData = useCallback(async () => {
     const [storedNotes, storedLists] = await Promise.all([getNotes(), getLists()]);
@@ -152,22 +158,22 @@ export default function NotesApp() {
       {localDataStatus === "ready" ? <BackupReminder records={notes} /> : null}
 
       {searchOpen ? (
-        <div className="notes-search-screen">
+        <div className="notes-search-screen" {...searchSwipe}>
           <div className="notes-search-bar">
             <label>
               <Search size={18} aria-hidden="true" />
               <input autoFocus type="search" aria-label={t("app.common.search")} placeholder={t("app.common.search")} value={query} onChange={(event) => setQuery(event.target.value)} />
             </label>
-            <button className="text-button" type="button" onClick={() => { setSearchOpen(false); setQuery(""); }}>{t("app.common.cancel")}</button>
+            <button className="text-button" type="button" onClick={closeSearch}>{t("app.common.cancel")}</button>
           </div>
           {query.trim() ? (
             <NoteRows notes={searchResults} lists={lists} locale={locale} emptyKey="notes.searchEmpty" onComplete={completeNote} onOpen={(note) => setNoteTarget({ id: note.id, isNew: false })} onAi={() => setAiHint(true)} />
           ) : null}
         </div>
       ) : view ? (
-        <section className="notes-list-screen">
+        <section className="notes-list-screen" {...listSwipe}>
           <header className="notes-list-topbar">
-            <button className="notes-back" type="button" onClick={() => setView(null)}>
+            <button className="notes-back" type="button" onClick={closeView}>
               <ChevronLeft size={24} aria-hidden="true" />
               <span>{t("notes.lists")}</span>
             </button>
@@ -323,7 +329,6 @@ function NoteDetail({ note, target, lists, locale, onAi, onClose }: {
   const [body, setBody] = useState(note?.body ?? "");
   const [listId, setListId] = useState(note?.listId ?? target.listId ?? "");
   const [reminders, setReminders] = useState<string[]>(note?.reminders ?? []);
-  const [reminderDraft, setReminderDraft] = useState("");
   const closingRef = useRef(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -359,12 +364,6 @@ function NoteDetail({ note, target, lists, locale, onAi, onClose }: {
     await onClose();
   }
 
-  function addReminder() {
-    if (!reminderDraft) return;
-    setReminders((current) => [...new Set([...current, new Date(reminderDraft).toISOString()])].sort());
-    setReminderDraft("");
-  }
-
   return (
     <Sheet bare fullscreen className="notes-detail" ariaLabel={target.isNew ? t("notes.newNote") : t("notes.note")} closeLabel={t("app.common.close")} onClose={() => void close()}>
       <div className="notes-detail-body">
@@ -380,22 +379,7 @@ function NoteDetail({ note, target, lists, locale, onAi, onClose }: {
               {lists.map((list) => <option key={list.id} value={list.id}>{list.icon} {list.title}</option>)}
             </select>
           </label>
-          <div className="notes-detail-field stacked">
-            <span>{t("notes.reminder")}</span>
-            <div className="notes-detail-date">
-              <input type="datetime-local" aria-label={t("notes.reminder")} value={reminderDraft} onChange={(event) => setReminderDraft(event.target.value)} />
-              <button className="text-button" type="button" disabled={!reminderDraft} onClick={addReminder}>{t("notes.addDate")}</button>
-            </div>
-          </div>
-          {reminders.length > 0 ? (
-            <div className="notes-detail-chips">
-              {reminders.map((reminder) => (
-                <button className="chip" key={reminder} type="button" onClick={() => setReminders((current) => current.filter((value) => value !== reminder))}>
-                  {formatReminder(reminder, locale)} <X size={12} aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <ReminderPicker reminders={reminders} locale={locale} onChange={setReminders} />
         </div>
 
         <button className="notes-detail-ai" type="button" onClick={onAi}>
@@ -412,6 +396,74 @@ function NoteDetail({ note, target, lists, locale, onAi, onClose }: {
       </div>
     </Sheet>
   );
+}
+
+type ReminderPreset = "today" | "tomorrow" | "nextWeek";
+
+/** One reminder per note, set like on iPhone: a quick choice, or a date and a time that apply at once. */
+function ReminderPicker({ reminders, locale, onChange }: { reminders: string[]; locale: AppLocale; onChange: (value: string[]) => void }) {
+  const { t } = useUserContext();
+  const current = reminders[0];
+  const [picking, setPicking] = useState(false);
+  const parts = toLocalParts(current ?? presetReminder("tomorrow"));
+
+  function setFromParts(date: string, time: string) {
+    if (!date) return;
+    const value = new Date(`${date}T${time || "09:00"}`);
+    if (!Number.isNaN(value.getTime())) onChange([value.toISOString()]);
+  }
+
+  return (
+    <div className="notes-detail-field stacked">
+      <span>{t("notes.reminder")}</span>
+      {current ? (
+        <div className="notes-reminder-current">
+          <strong>{formatReminder(current, locale)}</strong>
+          <button className="notes-icon-button" type="button" aria-label={t("notes.when.clear")} onClick={() => { onChange([]); setPicking(false); }}><X size={16} aria-hidden="true" /></button>
+        </div>
+      ) : null}
+      <div className="notes-reminder-presets">
+        {(["today", "tomorrow", "nextWeek"] as const).map((preset) => (
+          <button key={preset} type="button" onClick={() => { onChange([presetReminder(preset)]); setPicking(false); }}>{t(`notes.when.${preset}`)}</button>
+        ))}
+        <button type="button" className={picking ? "active" : ""} aria-expanded={picking} onClick={() => setPicking((value) => !value)}>{t("notes.when.pick")}</button>
+      </div>
+      {picking ? (
+        <div className="notes-reminder-inputs">
+          <label>
+            <span>{t("notes.when.date")}</span>
+            <input type="date" value={current ? parts.date : ""} onChange={(event) => setFromParts(event.target.value, parts.time)} />
+          </label>
+          <label>
+            <span>{t("notes.when.time")}</span>
+            <input type="time" value={current ? parts.time : ""} onChange={(event) => setFromParts(current ? parts.date : toLocalParts(presetReminder("today")).date, event.target.value)} />
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function presetReminder(preset: ReminderPreset, now = new Date()): string {
+  const value = new Date(now);
+  if (preset === "today") {
+    // Evening today, or the next full hour when the evening has already started.
+    if (now.getHours() < 17) value.setHours(18, 0, 0, 0);
+    else value.setHours(now.getHours() + 1, 0, 0, 0);
+  } else {
+    value.setDate(value.getDate() + (preset === "tomorrow" ? 1 : 7));
+    value.setHours(9, 0, 0, 0);
+  }
+  return value.toISOString();
+}
+
+function toLocalParts(iso: string): { date: string; time: string } {
+  const value = new Date(iso);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return {
+    date: `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
+    time: `${pad(value.getHours())}:${pad(value.getMinutes())}`
+  };
 }
 
 function ListModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (form: typeof emptyListForm) => void }) {

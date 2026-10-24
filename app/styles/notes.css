@@ -66,15 +66,17 @@
 .notes-detail-field { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; min-height: 50px; padding: 4px 14px; }
 .notes-detail-field + .notes-detail-field { border-top: 1px solid var(--line); }
 .notes-detail-field > span { font-size: 1rem; }
-.modal-sheet .notes-detail-field select, .modal-sheet .notes-detail-date input { justify-self: end; width: auto; max-width: 100%; padding: 6px 8px; border: 0; background: transparent; color: var(--blue); text-align: end; }
-.notes-detail-date { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
-.notes-detail-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 12px; }
-.notes-detail-chips .chip { display: inline-flex; align-items: center; gap: 4px; }
+.modal-sheet .notes-detail-field select { justify-self: end; width: auto; max-width: 100%; padding: 6px 8px; border: 0; background: transparent; color: var(--blue); text-align: end; }
 .notes-detail-ai, .notes-detail-delete { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 14px; border-radius: 14px; font-size: 1rem; font-weight: 700; }
 .notes-detail-ai { margin-top: 6px; background: var(--purple-soft); color: var(--purple-text); }
 .notes-detail-delete { background: var(--danger-soft); color: var(--danger); }
 .notes-detail-field.stacked { grid-template-columns: 1fr; gap: 4px; padding-block: 10px; }
-.notes-detail-field.stacked .notes-detail-date { justify-content: space-between; }
-.modal-sheet .notes-detail-field.stacked .notes-detail-date input { justify-self: start; padding-inline: 0; text-align: start; }
 .notes-detail-body > .media-help, .notes-detail-body > button.media-url-help { justify-self: start; }
-.notes-detail-date .text-button { white-space: nowrap; }
+.notes-reminder-current { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--blue); }
+.notes-reminder-current strong { font-size: 1rem; font-weight: 700; }
+.notes-reminder-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.notes-reminder-presets button { min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: 0.9375rem; }
+.notes-reminder-presets button.active { border-color: var(--accent-fill); background: var(--accent-soft); color: var(--blue); }
+.notes-reminder-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.notes-reminder-inputs label { display: grid; gap: 4px; color: var(--muted); font-size: 0.8125rem; }
+.modal-sheet .notes-reminder-inputs input { min-height: 42px; padding: 8px 10px; font-size: 1rem; }

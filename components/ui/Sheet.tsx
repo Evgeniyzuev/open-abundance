@@ -1,14 +1,11 @@
 "use client";
 
 import { X } from "lucide-react";
-import { createElement, useEffect, useRef, type CSSProperties, type FormEventHandler, type ReactNode, type TouchEvent as ReactTouchEvent } from "react";
+import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
+import { createElement, useEffect, useRef, type CSSProperties, type FormEventHandler, type ReactNode } from "react";
 
 // Open sheets, topmost last: Escape closes only the topmost one.
 const openSheets: symbol[] = [];
-// Marker on the history entry a full-screen sheet adds, so the system Back gesture closes the sheet, not the screen.
-const SHEET_HISTORY_KEY = "openAbundanceSheet";
-const EDGE_SWIPE_START = 28;
-const EDGE_SWIPE_DISTANCE = 80;
 
 /**
  * Shared modal: bottom sheet on phones, centred card on wide screens.
@@ -53,26 +50,14 @@ export default function Sheet({
   const canDismiss = dismissible && Boolean(onClose);
   const onCloseRef = useRef(onClose);
   const dragStartY = useRef<number | null>(null);
-  const edgeStart = useRef<{ x: number; y: number } | null>(null);
   onCloseRef.current = onClose;
 
-  useEffect(() => {
-    if (!fullscreen || !canDismiss) return;
-    const token = `${Date.now()}-${Math.random()}`;
-    window.history.pushState({ ...(window.history.state ?? {}), [SHEET_HISTORY_KEY]: token }, "", window.location.href);
-    function onPopState() {
-      if ((window.history.state as Record<string, unknown> | null)?.[SHEET_HISTORY_KEY] !== token) onCloseRef.current?.();
-    }
-    window.addEventListener("popstate", onPopState);
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-      // Closed by the cross, Escape or the app itself: drop the entry this sheet added, so Back is not wasted later.
-      // Checked a tick later, so a sheet that remounts at once (React strict mode) keeps its new entry.
-      window.setTimeout(() => {
-        if ((window.history.state as Record<string, unknown> | null)?.[SHEET_HISTORY_KEY] === token) window.history.back();
-      }, 0);
-    };
-  }, [canDismiss, fullscreen]);
+  // A full-screen sheet is a history layer: Back closes it, and every in-app close goes through history too.
+  const requestCloseRef = useRef<(() => void) | undefined>(undefined);
+  const closeLayer = useHistoryLayer(fullscreen && canDismiss, () => onCloseRef.current?.());
+  const requestClose = fullscreen && canDismiss ? closeLayer : onClose;
+  requestCloseRef.current = requestClose;
+  const edgeSwipe = useEdgeSwipeBack(closeLayer);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -94,7 +79,7 @@ export default function Sheet({
     const token = Symbol("sheet");
     openSheets.push(token);
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && canDismiss && openSheets[openSheets.length - 1] === token) onCloseRef.current?.();
+      if (event.key === "Escape" && canDismiss && openSheets[openSheets.length - 1] === token) requestCloseRef.current?.();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => {
@@ -117,7 +102,7 @@ export default function Sheet({
   const showClose = canDismiss && ((fullscreen && as !== "form") || !bare);
 
   return (
-    <div className={`modal-backdrop${fullscreen ? " sheet-fullscreen-backdrop" : ""}`} role="presentation" onClick={canDismiss ? onClose : undefined}>
+    <div className={`modal-backdrop${fullscreen ? " sheet-fullscreen-backdrop" : ""}`} role="presentation" onClick={canDismiss ? requestClose : undefined}>
       {createElement(
         as,
         {
@@ -128,21 +113,7 @@ export default function Sheet({
           style,
           onClick: (event: { stopPropagation: () => void }) => event.stopPropagation(),
           onSubmit,
-          ...(fullscreen && canDismiss ? {
-            onTouchStart: (event: ReactTouchEvent) => {
-              const touch = event.touches[0];
-              const fromLeft = document.dir === "rtl" ? window.innerWidth - touch.clientX : touch.clientX;
-              edgeStart.current = fromLeft <= EDGE_SWIPE_START ? { x: touch.clientX, y: touch.clientY } : null;
-            },
-            onTouchEnd: (event: ReactTouchEvent) => {
-              const start = edgeStart.current;
-              edgeStart.current = null;
-              if (!start) return;
-              const touch = event.changedTouches[0];
-              const dx = (touch.clientX - start.x) * (document.dir === "rtl" ? -1 : 1);
-              if (dx > EDGE_SWIPE_DISTANCE && Math.abs(touch.clientY - start.y) < dx / 2) onCloseRef.current?.();
-            }
-          } : {}),
+          ...(fullscreen && canDismiss ? edgeSwipe : {}),
           ref: sheetRef,
           role: "dialog",
           tabIndex: -1
@@ -159,7 +130,7 @@ export default function Sheet({
             }}
           />
         ) : null,
-        showClose ? <button className="modal-close" key="close" type="button" aria-label={closeLabel} onClick={onClose}><X size={18} /></button> : null,
+        showClose ? <button className="modal-close" key="close" type="button" aria-label={closeLabel} onClick={requestClose}><X size={18} /></button> : null,
         !bare && title ? <div className="modal-header" key="header"><h2 id={titleId}>{title}</h2></div> : null,
         children
       )}

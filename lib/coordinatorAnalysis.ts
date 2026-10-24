@@ -40,6 +40,8 @@ export type ParticipantRecord = {
   /** Answers to "did this move your wish forward": helped | not_yet | not_relevant. */
   outcomeAnswers: string[];
   checkinAnswer: string | null;
+  /** Last time the person opened the app (within the loaded event window), or null. */
+  lastActiveAt?: string | null;
 };
 
 // --- Distribution and inequality ----------------------------------------------------------------

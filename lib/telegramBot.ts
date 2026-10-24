@@ -1,7 +1,7 @@
 // Messages from the Open Abundance bot to a person's Telegram. Pure message building plus one small sender, so the
 // coordinator can reach people who live in the Mini App (web push does not exist there). No imports: tested by node.
 
-export type TelegramNudgeCopy = { title: string; body: string };
+export type TelegramNudgeCopy = { title: string; body: string; button?: string };
 
 export type TelegramNudgeMessage = {
   text: string;
@@ -9,11 +9,20 @@ export type TelegramNudgeMessage = {
   url: string;
   /** "url" opens a plain link (e.g. a t.me Mini App link); default "web_app" launches the site as a Mini App. */
   openAs?: "web_app" | "url";
+  /** true when `text` is Telegram HTML (bold title); every other part of it must already be escaped. */
+  html?: boolean;
 };
+
+export function escapeTelegramHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 const BUTTON_TEXT: Record<string, string> = { en: "Open", ru: "Открыть", es: "Abrir", zh: "打开", hi: "खोलें", ar: "فتح" };
 
-/** Text, button and Mini App link for one coordinator nudge, in the person's language when the copy has it, else English. */
+/**
+ * Text (bold title, then the body), button and Mini App link for one coordinator nudge, in the person's language when
+ * the copy has it, else English.
+ */
 export function buildTelegramNudge(
   copy: { en: TelegramNudgeCopy } & Partial<Record<string, TelegramNudgeCopy>>,
   locale: string,
@@ -24,9 +33,10 @@ export function buildTelegramNudge(
   const language = copy[locale] ? locale : "en";
   const chosen = copy[language] ?? copy.en;
   return {
-    text: `${chosen.title}\n\n${chosen.body}`,
-    buttonText: BUTTON_TEXT[language] ?? BUTTON_TEXT.en,
-    url: `${siteUrl.replace(/\/+$/, "")}${deepLink}`
+    text: `<b>${escapeTelegramHtml(chosen.title)}</b>\n\n${escapeTelegramHtml(chosen.body)}`,
+    buttonText: chosen.button || (BUTTON_TEXT[language] ?? BUTTON_TEXT.en),
+    url: `${siteUrl.replace(/\/+$/, "")}${deepLink}`,
+    html: true
   };
 }
 
@@ -44,6 +54,7 @@ export async function sendTelegramMessage(botToken: string, chatId: number | str
       body: JSON.stringify({
         chat_id: chatId,
         text: message.text,
+        ...(message.html ? { parse_mode: "HTML" } : {}),
         disable_web_page_preview: true,
         reply_markup: { inline_keyboard: [[message.openAs === "url" ? { text: message.buttonText, url: message.url } : { text: message.buttonText, web_app: { url: message.url } }]] }
       })

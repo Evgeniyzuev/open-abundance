@@ -189,24 +189,80 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
   assert.equal(nextStepFor(person({ id: "f", wishes: 1, calculatorUsed: true, challengesAccepted: 1, challengesCompleted: 1 }), NOW).key, "invite");
   assert.equal(nextStepFor(person({ id: "g", wishes: 1, calculatorUsed: true, challengesAccepted: 1, challengesCompleted: 1, referralsInvited: 1 }), NOW), null, "nothing left to ask");
 
-  const key = nudgeIdempotencyKey("wish", "0a55a540-1111-2222-3333-444455556666");
-  assert.deepEqual(parseNudgeKey(key), { step: "wish", userId: "0a55a540-1111-2222-3333-444455556666" });
+  const uid = "0a55a540-1111-2222-3333-444455556666";
+  const key = nudgeIdempotencyKey("wish", uid, NOW);
+  assert.equal(key, `coach-next-step:wish:${uid}:2026-10-20`, "one key per step, person and day");
+  assert.deepEqual(parseNudgeKey(key), { step: "wish", userId: uid });
+  assert.deepEqual(parseNudgeKey(`coach-next-step:wish:${uid}`), { step: "wish", userId: uid }, "older keys without a day still count");
   assert.equal(parseNudgeKey("p2p-action:x"), null);
+
+  // Daily message: Core balance first, then basic steps, then tasks for today; one a day; quiet when ignored.
+  const { chooseNudge, NUDGE_PAUSE_AFTER, NUDGE_STEP_GAP_MS } = await import("../lib/coordinatorNextStep.ts");
+  const H = 3_600_000;
+  const tasks = { count: 3, amount: 4, challengeIds: ["x", "y", "z"] };
+  const ctx = (overrides = {}) => ({ tasks, lastActiveAt: NOW - H, ...overrides });
+  const sent = (...items) => ({ sends: items.map(([step, hoursAgo]) => ({ step, at: NOW - hoursAgo * H })) });
+  const rich = person({ id: "r", coreBalance: 3.5 });
+  assert.equal(chooseNudge(rich, undefined, ctx(), NOW).key, "core", "the first message is the Core balance");
+  assert.equal(chooseNudge(person({ id: "z", coreBalance: 0 }), undefined, ctx(), NOW).key, "wish", "no Core message with an empty Core");
+  assert.equal(chooseNudge(rich, sent(["core", 30]), ctx(), NOW).key, "wish", "then the first basic step");
+  assert.equal(chooseNudge(rich, sent(["core", 10]), ctx(), NOW), null, "at most one message a day");
+  assert.equal(chooseNudge(rich, sent(["core", 60], ["wish", 30]), ctx({ lastActiveAt: null }), NOW).key, "tasks", "never the same step two days in a row");
+  assert.equal(chooseNudge(rich, sent(["core", 200], ["wish", 100]), ctx(), NOW).key, "wish", "a step is asked again days later");
+  assert.equal(chooseNudge(rich, sent(["core", 300], ["wish", 200], ["tasks", 100], ["wish", 30]), ctx(), NOW).key, "tasks", "a step is asked at most twice");
+  assert.equal(chooseNudge(rich, sent(["core", 300], ["wish", 30 + NUDGE_STEP_GAP_MS / H - 40]), ctx(), NOW).key, "tasks", "and not twice within a few days");
+  const ignored = sent(...Array.from({ length: NUDGE_PAUSE_AFTER }, (_, i) => ["tasks", 30 + i * 24]));
+  assert.equal(chooseNudge(rich, ignored, ctx({ lastActiveAt: NOW - 1000 * H }), NOW), null, "quiet after messages the person did not open the app for");
+  assert.equal(chooseNudge(rich, ignored, ctx({ lastActiveAt: NOW - 2 * H }), NOW)?.key, "core", "back to messages once they come back");
+  const allDone = person({ id: "d", wishes: 1, calculatorUsed: true, challengesAccepted: 1, challengesCompleted: 1, referralsInvited: 1 });
+  assert.equal(chooseNudge(allDone, sent(["core", 30]), ctx(), NOW).key, "tasks");
+  assert.equal(chooseNudge(allDone, sent(["core", 30]), ctx({ tasks: { count: 0, amount: 0, challengeIds: [] } }), NOW), null, "nothing to say, no message");
 
   const people = [person({ id: "p1" }), person({ id: "p2" }), person({ id: "p3" }), person({ id: "p4" })];
   const history = new Map([
-    ["p2", { lastAt: NOW - NUDGE_COOLDOWN_MS - 1000, steps: new Set(["wish"]), count: 1 }],
-    ["p3", { lastAt: NOW - 1000, steps: new Set(["calculator"]), count: 1 }],
-    ["p4", { lastAt: NOW - NUDGE_COOLDOWN_MS - 1000, steps: new Set(["a", "b", "c", "d"]), count: NUDGE_MAX_PER_PERSON }]
+    ["p2", sent(["wish", 30], ["calculator", 60])],
+    ["p3", sent(["calculator", 2])],
+    ["p4", { sends: Array.from({ length: NUDGE_MAX_PER_PERSON }, (_, i) => ({ step: "tasks", at: NOW - (i + 30) * 24 * H })) }]
   ]);
-  const planned = planNudges(people, history, NOW, 10);
-  assert.deepEqual(planned.map((item) => item.userId), ["p1"], "repeat step, cooldown and lifetime cap all hold people back");
+  const planned = planNudges(people, history, NOW, 10, () => ctx({ tasks: null, lastActiveAt: NOW - H }));
+  assert.deepEqual(planned.map((item) => [item.userId, item.step.key]), [["p1", "core"], ["p2", "core"]], "cooldown and lifetime cap hold people back");
+  assert.ok(NUDGE_COOLDOWN_MS < 24 * H && NUDGE_COOLDOWN_MS >= 18 * H, "about one a day");
   assert.equal(planNudges([person({ id: "x1" }), person({ id: "x2" })], new Map(), NOW, 1).length, 1, "per-run limit");
+
+  // Tasks for today: quick, unfinished, first step of a track, prerequisites met, up to $10 together.
+  const { pickTodayTasks, fillNudgeCopy, tasksPhrase, formatUsd } = await import("../lib/coordinatorNextStep.ts");
+  const ch = (id, sortOrder, coreReward, extra = {}) => ({ id, sortOrder, coreReward, walletReward: 0, verificationLogic: "has_wish", trackKey: null, trackStep: null, prerequisiteId: null, rewardMode: "guaranteed", competitionClosesAt: null, ...extra });
+  const catalog = [
+    ch("a", 1, 1), ch("b", 2, 2), ch("t1", 3, 1, { trackKey: "path", trackStep: 1 }), ch("t2", 4, 1, { trackKey: "path", trackStep: 2 }),
+    ch("sale", 5, 1, { verificationLogic: "first_sale" }), ch("pre", 6, 1, { prerequisiteId: "zz" }), ch("zero", 7, 0),
+    ch("comp", 8, 1, { rewardMode: "top_n" }), ch("big", 9, 4, { walletReward: 1 }), ch("c", 10, 1)
+  ];
+  assert.deepEqual(pickTodayTasks(catalog, new Set()), { count: 5, amount: 10, challengeIds: ["a", "b", "t1", "big", "c"] });
+  assert.deepEqual(pickTodayTasks(catalog, new Set(["a", "t1", "big"])).challengeIds, ["b", "t2", "c"], "the next track step opens after the first");
+  assert.equal(pickTodayTasks(catalog, new Set(catalog.map((item) => item.id))).count, 0);
+
+  assert.equal(tasksPhrase("ru", 1), "1 задание");
+  assert.equal(tasksPhrase("ru", 3), "3 задания");
+  assert.equal(tasksPhrase("ru", 5), "5 заданий");
+  assert.equal(tasksPhrase("ru", 12), "12 заданий");
+  assert.equal(tasksPhrase("en", 1), "1 task");
+  assert.equal(formatUsd(3.456), "$3.46");
+  assert.equal(formatUsd(4), "$4");
+  const coreCopy = fillNudgeCopy(NEXT_STEPS.core.copy, { name: "Аня", core: 12.5, tasks: null });
+  assert.equal(coreCopy.ru.title, "Аня, у тебя есть $12.50 в Core");
+  assert.equal(coreCopy.ru.button, "Узнать подробнее");
+  assert.equal(coreCopy.en.title, "Аня, you have $12.50 in Core");
+  const taskCopy = fillNudgeCopy(NEXT_STEPS.tasks.copy, { name: null, core: 0, tasks: { count: 3, amount: 4, challengeIds: [] } });
+  assert.equal(taskCopy.ru.title, "На сегодня для тебя 3 задания", "without a name the sentence starts with a capital");
+  assert.equal(taskCopy.ru.body, "Вместе это до +$4. Первое займёт пару минут.");
+  assert.equal(taskCopy.ru.button, "Посмотреть задания");
+  assert.equal(fillNudgeCopy(NEXT_STEPS.core.copy, { name: null, core: 1, tasks: null }).zh.title, "你的 Core 里有 $1");
 
   for (const step of Object.values(NEXT_STEPS)) {
     for (const lang of ["ru", "en", "es", "zh", "hi", "ar"]) {
       assert.ok(step.copy[lang].title.length > 0 && step.copy[lang].title.length <= 160, `${step.key} ${lang} title length`);
       assert.ok(step.copy[lang].body.length > 0 && step.copy[lang].body.length <= 500, `${step.key} ${lang} body length`);
+      assert.ok(step.copy[lang].button.length > 0 && step.copy[lang].button.length <= 30, `${step.key} ${lang} button`);
     }
     assert.ok(step.deepLink.startsWith("/?view="), `${step.key} deep link opens a screen`);
   }
@@ -216,7 +272,8 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
   assert.ok(route.includes("TON_SCANNER_SECRET") && route.includes("isGrowthOperator"), "cron secret or operator only");
   const sender = read("lib/coordinatorNudges.ts");
   assert.ok(sender.includes('p_category: "reminders"'), "users can mute through the reminders preference");
-  assert.ok(sender.includes("nudgeIdempotencyKey"), "one push per step and person");
+  assert.ok(sender.includes("nudgeIdempotencyKey(step.key, userId, now)"), "one message per step, person and day");
+  assert.ok(sender.includes("fillNudgeCopy") && sender.includes("DAY2_EVENT"), "copy is personal and the day-2 message counts as today's message");
   const nudgeSql = read("supabase/migrations/20261018120000_coordinator_nudges_cron.sql");
   assert.ok(nudgeSql.includes("'open-abundance-coordinator-nudges-daily'") && nudgeSql.includes("/api/internal/coordinator/nudges"));
 
@@ -232,25 +289,33 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
     { id: "a", wishes: 1, calculatorUsed: false, challengesAccepted: 0, challengesCompleted: 0, referralsInvited: 0 },
     { id: "b", wishes: 0, calculatorUsed: false, challengesAccepted: 0, challengesCompleted: 0, referralsInvited: 0 }
   ];
-  assert.deepEqual(nudgeOutcomes(outcomePeople, [{ userId: "a", step: "wish" }, { userId: "b", step: "wish" }]), { wish: { sent: 2, done: 1 } });
+  assert.deepEqual(nudgeOutcomes(outcomePeople, [{ userId: "a", step: "wish" }, { userId: "b", step: "wish" }]), { wish: { sent: 2, done: 1, opened: 0 } });
+  assert.deepEqual(
+    nudgeOutcomes([{ ...outcomePeople[0], lastActiveAt: "2026-10-21T00:00:00Z" }], [{ userId: "a", step: "tasks", at: at("2026-10-20T00:00:00Z") }]),
+    { tasks: { sent: 1, done: 0, opened: 1 } },
+    "opened the app after the message"
+  );
   const nudgesSource = read("lib/coordinatorNudges.ts");
-  assert.ok(nudgesSource.includes("isNudgeSendTime") && nudgesSource.includes("loadTimezones"), "the sender respects the person's time zone");
+  assert.ok(nudgesSource.includes("isNudgeSendTime") && nudgesSource.includes("loadProfiles"), "the sender respects the person's time zone");
   const tzMigration = read("supabase/migrations/20261022160000_profile_timezone_nudges_hourly.sql");
   assert.ok(tzMigration.includes("add column if not exists timezone") && tzMigration.includes("open-abundance-coordinator-nudges-hourly"));
 
   const textsMigration = read("supabase/migrations/20261022170000_push_text_languages.sql");
   assert.ok(textsMigration.includes("in ('ru', 'es', 'zh', 'hi', 'ar')") && textsMigration.includes("metadata->'copy'->'en'->>'title'"), "push text language comes from the profile with an English fallback");
 
-  // Telegram channel: Russian only for ru, a Mini App button on the same deep link, only where there is no web push.
+  // Telegram channel: bold title, the step's own button, a Mini App button on the same deep link, only without web push.
   const { buildTelegramNudge } = await import("../lib/telegramBot.ts");
-  const copy = { ru: { title: "Заголовок", body: "Текст" }, en: { title: "Title", body: "Body" } };
+  const copy = { ru: { title: "Аня <3", body: "Текст & ещё", button: "Узнать подробнее" }, en: { title: "Title", body: "Body" } };
   const ruMessage = buildTelegramNudge(copy, "ru", "/?view=goals.desires", "https://example.test/");
-  assert.equal(ruMessage?.text, "Заголовок\n\nТекст");
+  assert.equal(ruMessage?.text, "<b>Аня &lt;3</b>\n\nТекст &amp; ещё", "HTML bold title, names and text escaped");
+  assert.equal(ruMessage?.html, true);
+  assert.equal(ruMessage?.buttonText, "Узнать подробнее");
   assert.equal(ruMessage?.url, "https://example.test/?view=goals.desires");
-  assert.equal(buildTelegramNudge(copy, "hi", "/?view=wallet.core", "https://example.test")?.text, "Title\n\nBody", "a language without text reads English");
+  assert.equal(buildTelegramNudge(copy, "hi", "/?view=wallet.core", "https://example.test")?.text, "<b>Title</b>\n\nBody", "a language without text reads English");
   const withEs = buildTelegramNudge({ ...copy, es: { title: "Titulo", body: "Cuerpo" } }, "es", "/?view=wallet.core", "https://example.test");
-  assert.equal(withEs?.text, "Titulo\n\nCuerpo");
-  assert.equal(withEs?.buttonText, "Abrir");
+  assert.equal(withEs?.text, "<b>Titulo</b>\n\nCuerpo");
+  assert.equal(withEs?.buttonText, "Abrir", "without a step button the generic one");
+  assert.ok(read("lib/telegramBot.ts").includes('parse_mode: "HTML"'));
   assert.equal(buildTelegramNudge(copy, "en", "//evil.test", "https://example.test"), null, "deep links stay on the site");
   assert.ok(sender.includes("push_subscriptions") && sender.includes("push_enabled === false"), "Telegram only without web push and when reminders are on");
 }

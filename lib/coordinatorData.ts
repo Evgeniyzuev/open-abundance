@@ -89,12 +89,13 @@ export async function loadParticipantRecords(db: AnyDb, now = Date.now()): Promi
     outcomes: string[];
     checkin: string | null;
     activeDates: Set<string>;
+    lastOpenAt: string | null;
   };
   const byUser = new Map<string, EventAggregate>();
   const aggregate = (userId: string) => {
     let value = byUser.get(userId);
     if (!value) {
-      value = { stories: new Set(), calculator: false, shares: 0, outcomes: [], checkin: null, activeDates: new Set() };
+      value = { stories: new Set(), calculator: false, shares: 0, outcomes: [], checkin: null, activeDates: new Set(), lastOpenAt: null };
       byUser.set(userId, value);
     }
     return value;
@@ -102,7 +103,10 @@ export async function loadParticipantRecords(db: AnyDb, now = Date.now()): Promi
   for (const event of events.data ?? []) {
     const entry = aggregate(event.user_id);
     const props = event.properties && typeof event.properties === "object" ? event.properties : {};
-    if (event.event_name === "app_open") entry.activeDates.add(String(event.occurred_at).slice(0, 10));
+    if (event.event_name === "app_open") {
+      entry.activeDates.add(String(event.occurred_at).slice(0, 10));
+      entry.lastOpenAt = String(event.occurred_at);
+    }
     else if (event.event_name === "feed_post_impression") entry.stories.add(String(props.post_id ?? event.occurred_at));
     else if (event.event_name === "core_calculator_mode_selected") entry.calculator = true;
     else if (event.event_name === "feed_post_shared_external") entry.shares += 1;
@@ -139,7 +143,8 @@ export async function loadParticipantRecords(db: AnyDb, now = Date.now()): Promi
       referralsInvited: referralCounts.get(id) ?? 0,
       helpProfile: help.get(id) ?? null,
       outcomeAnswers: activity?.outcomes ?? [],
-      checkinAnswer: activity?.checkin ?? null
+      checkinAnswer: activity?.checkin ?? null,
+      lastActiveAt: activity?.lastOpenAt ?? null
     };
   });
 

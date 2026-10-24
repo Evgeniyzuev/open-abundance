@@ -1,7 +1,7 @@
 // Daily analytics: one Markdown summary plus detail files, for the operator and Claude to read and decide on.
 // Read-only: it never writes to the database, contacts people or pays anyone.
 //   pnpm analytics:daily --fixtures      # made-up data, no keys needed
-//   pnpm analytics:daily                 # live: service key from .env (db), else ANALYTICS_READ_TOKEN (api)
+//   pnpm analytics:daily                 # live: service key from .env (db), else through the app (api)
 //   pnpm analytics:daily --source=api    # through /api/internal/analytics/daily, no database key on this machine
 // Options: --out=<dir> (default reports/analytics), --min-group=<n>, --quiet (do not print the summary).
 // Output: <out>/<YYYY-MM-DD>/summary.md, metrics.json, details/*.json. Keys and ids are never printed.
@@ -26,24 +26,17 @@ if (existsSync(envFile)) {
 }
 
 const supabaseUrl = env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL;
-const source = args.fixtures ? "fixtures" : args.source || (env.SUPABASE_SERVICE_ROLE_KEY && supabaseUrl ? "db" : env.ANALYTICS_READ_TOKEN ? "api" : null);
-if (!source) {
-  console.error([
-    "No data source. Choose one:",
-    "  --fixtures                       made-up data, for a dry run",
-    "  SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env    direct read (on the owner's computer)",
-    "  ANALYTICS_READ_TOKEN (+ ANALYTICS_URL)              read through the app, no database key here"
-  ].join("\n"));
-  process.exit(1);
-}
+// Without a database key the report is read through the app. The token comes from ANALYTICS_READ_TOKEN /
+// CLAUDE_ACTIONS_TOKEN, or a cloud session's network secret adds it to the request on the way out.
+const source = args.fixtures ? "fixtures" : args.source || (env.SUPABASE_SERVICE_ROLE_KEY && supabaseUrl ? "db" : "api");
 const minGroup = args["min-group"] ? Number(args["min-group"]) : undefined;
 
 let report;
 if (source === "api") {
   const base = (env.ANALYTICS_URL || "https://open-abundance.vercel.app").replace(/\/$/, "");
-  if (!env.ANALYTICS_READ_TOKEN) throw new Error("ANALYTICS_READ_TOKEN is missing");
+  const token = env.ANALYTICS_READ_TOKEN || env.CLAUDE_ACTIONS_TOKEN;
   const response = await fetch(`${base}/api/internal/analytics/daily${minGroup ? `?minGroup=${minGroup}` : ""}`, {
-    headers: { authorization: `Bearer ${env.ANALYTICS_READ_TOKEN}` }
+    headers: token ? { authorization: `Bearer ${token}` } : {}
   });
   if (!response.ok) throw new Error(`${base} answered ${response.status}: ${(await response.text()).slice(0, 200)}`);
   report = await response.json();

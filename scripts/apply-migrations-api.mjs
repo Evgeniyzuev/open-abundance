@@ -2,7 +2,8 @@
 // Postgres connection is not possible. Same bookkeeping as `supabase db push`: supabase_migrations.schema_migrations.
 //   pnpm db:apply            # list pending migrations, change nothing
 //   pnpm db:apply --apply    # apply them one by one, each in its own transaction, stop at the first error
-// Needs SUPABASE_ACCESS_TOKEN (personal access token) in the environment or .env; the token is never printed.
+// Needs SUPABASE_ACCESS_TOKEN (personal access token) in .env, or a network secret for api.supabase.com in a cloud
+// session; the token is never printed.
 // A migration older than the newest applied one is listed but not applied unless --include-all is passed.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 
@@ -18,13 +19,14 @@ if (existsSync(envFile)) {
 const token = env.SUPABASE_ACCESS_TOKEN;
 const config = readFileSync(new URL("../supabase/config.toml", import.meta.url), "utf8");
 const projectRef = env.SUPABASE_PROJECT_REF || config.match(/^project_id\s*=\s*"([^"]+)"/m)?.[1];
-if (!token || !projectRef) throw new Error("SUPABASE_ACCESS_TOKEN (and a project ref) is required.");
+if (!projectRef) throw new Error("Project ref is missing (supabase/config.toml or SUPABASE_PROJECT_REF).");
 
 async function query(sql) {
   for (let attempt = 1; attempt <= 4; attempt += 1) {
     const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      // Without a local token a cloud session's network secret for api.supabase.com adds it on the way out.
+      headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), "content-type": "application/json" },
       body: JSON.stringify({ query: sql })
     });
     const text = await response.text();

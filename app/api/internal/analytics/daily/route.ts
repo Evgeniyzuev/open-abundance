@@ -19,9 +19,11 @@ export const maxDuration = 60;
  * Read-only; groups of personal attributes are never smaller than MIN_GROUP.
  */
 export async function GET(request: NextRequest) {
-  const expected = process.env.ANALYTICS_READ_TOKEN?.trim();
+  // The read-only token, or the actions token (a cloud session's network secret can hold one token per host).
   const provided = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
-  const byToken = Boolean(expected && expected.length >= 32 && safeEqual(provided, expected));
+  const byToken = [process.env.ANALYTICS_READ_TOKEN, process.env.CLAUDE_ACTIONS_TOKEN]
+    .map((value) => value?.trim())
+    .some((expected) => Boolean(expected && expected.length >= 32 && safeEqual(provided, expected)));
   if (!byToken) {
     const { user, error } = await getAuthenticatedUser(request);
     if (!user) return json({ error: error ?? "Unauthorized." }, 401);

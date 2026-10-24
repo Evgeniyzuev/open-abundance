@@ -127,9 +127,10 @@
 Настройка (один раз):
 
 1. Supabase → аватар → Account preferences → **Access Tokens** → Generate new token, назвать например `claude-migrations`. Токен даёт полный доступ к вашим проектам Supabase, поэтому храните его только в секретах окружения и отзовите, если окружение больше не нужно.
-2. Claude, настройки проекта → Cloud environment → шестерёнка у окружения:
-   - **Network access**: уровень Limited, в Allowed domains добавить `api.supabase.com` (миграции), `open-abundance.vercel.app` (аналитика и действия) и `bsikxrsguwketlloflgi.supabase.co`. Галочку «Allow package managers» оставить.
-   - **Секреты / переменные окружения**: `SUPABASE_ACCESS_TOKEN` (из шага 1), `ANALYTICS_READ_TOKEN`, `CLAUDE_ACTIONS_TOKEN`. Те же два токена добавить в Vercel → Settings → Environment Variables и сделать Redeploy.
+2. Claude, настройки проекта → Среда:
+   - **Сетевые секреты** (Добавить): хост `api.supabase.com` — токен из шага 1; хост `open-abundance.vercel.app` — `CLAUDE_ACTIONS_TOKEN`. Прокси сам подставляет токен в запросы к этому хосту, Claude его не видит, поэтому скрипты работают без токена в переменных. Один токен на хост: `CLAUDE_ACTIONS_TOKEN` открывает и сводку аналитики, и действия.
+   - **Network access**: «Облачная среда» → шестерёнка у выбранной среды (Default) → уровень Limited, в Allowed domains добавить `api.supabase.com` и `open-abundance.vercel.app`, галочку «Allow package managers» оставить.
+   - В Vercel → Settings → Environment Variables добавить `CLAUDE_ACTIONS_TOKEN` (и при желании `ANALYTICS_READ_TOKEN` для чтения с других устройств), затем Redeploy.
 3. Начать новую сессию: окружение подхватывается при старте.
 
 Порядок работы: Claude показывает `pnpm db:apply` (список) и SQL в треде, вы пишете «применяй», Claude запускает `pnpm db:apply --apply` и проверяет таблицы. Это быстрее workflow, но подтверждение здесь — ваше сообщение в треде, а не кнопка GitHub.

@@ -97,6 +97,7 @@
     "test:engaging-ui": "node scripts/verify-engaging-interface.mjs",
     "test:uuid": "node scripts/verify-uuid-contract.mjs",
     "test:humanity": "node scripts/verify-humanity-contract.mjs",
+    "db:apply": "node scripts/apply-migrations-api.mjs",
     "db:link": "pnpm dlx supabase link --project-ref bsikxrsguwketlloflgi",
     "db:pull": "pnpm dlx supabase db pull",
     "db:push": "pnpm dlx supabase db push",

@@ -120,6 +120,20 @@
 
 Если миграция с более ранней датой не применена, а более поздние уже в базе, `db push` откажется её применять. Такой случай Claude разбирает отдельно и не обходит его флагом `--include-all` без вашего согласия.
 
+### Вариант без GitHub: Claude применяет миграции сам из облачной сессии
+
+Прямое подключение к Postgres из облачной сессии не проходит, сеть там пускает только HTTPS. Поэтому `pnpm db:apply` (`scripts/apply-migrations-api.mjs`) применяет миграции через Supabase Management API. Учёт тот же, что у `supabase db push`: таблица `supabase_migrations.schema_migrations`. Без флага скрипт только показывает список, с `--apply` применяет по одной, каждую в своей транзакции, и останавливается на первой ошибке. Миграцию старше последней применённой он без `--include-all` не трогает.
+
+Настройка (один раз):
+
+1. Supabase → аватар → Account preferences → **Access Tokens** → Generate new token, назвать например `claude-migrations`. Токен даёт полный доступ к вашим проектам Supabase, поэтому храните его только в секретах окружения и отзовите, если окружение больше не нужно.
+2. Claude, настройки проекта → Cloud environment → шестерёнка у окружения:
+   - **Network access**: уровень Limited, в Allowed domains добавить `api.supabase.com` (миграции), `open-abundance.vercel.app` (аналитика и действия) и `bsikxrsguwketlloflgi.supabase.co`. Галочку «Allow package managers» оставить.
+   - **Секреты / переменные окружения**: `SUPABASE_ACCESS_TOKEN` (из шага 1), `ANALYTICS_READ_TOKEN`, `CLAUDE_ACTIONS_TOKEN`. Те же два токена добавить в Vercel → Settings → Environment Variables и сделать Redeploy.
+3. Начать новую сессию: окружение подхватывается при старте.
+
+Порядок работы: Claude показывает `pnpm db:apply` (список) и SQL в треде, вы пишете «применяй», Claude запускает `pnpm db:apply --apply` и проверяет таблицы. Это быстрее workflow, но подтверждение здесь — ваше сообщение в треде, а не кнопка GitHub.
+
 ## 6. Порядок на каждый день
 
 1. `pnpm analytics:daily` (или `--source=api`).

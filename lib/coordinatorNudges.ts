@@ -1,6 +1,7 @@
 import { loadParticipantRecords } from "@/lib/coordinatorData";
 import { SITE_URL } from "@/lib/guideLocales";
 import { buildTelegramNudge, sendTelegramMessage } from "@/lib/telegramBot";
+import { DAY2_DEFAULT_LINK, DAY2_EVENT, day2Message, planDay2, type Day2Candidate } from "@/lib/telegramDay2";
 import {
   NUDGE_EVENT_TYPE,
   nudgeIdempotencyKey,
@@ -146,3 +147,52 @@ async function loadTimezones(db: AnyDb, userIds: string[]): Promise<Map<string, 
   return result;
 }
 
+
+export type Day2RunSummary = { candidates: number; sent: number; blocked: number; failed: number; dryRun: boolean };
+
+/**
+ * Second-day bot message for people with a linked Telegram account, on by default (TELEGRAM_DAY2_ENABLED=0 turns it
+ * off). Runs with the hourly coordinator job; each person gets it once, recorded as a product event.
+ */
+export async function runTelegramDay2(db: AnyDb, options: { dryRun: boolean; now?: number }): Promise<Day2RunSummary> {
+  const now = options.now ?? Date.now();
+  const summary: Day2RunSummary = { candidates: 0, sent: 0, blocked: 0, failed: 0, dryRun: options.dryRun };
+  const botToken = process.env.TELEGRAM_BOT_TOKEN ?? null;
+  if (!botToken && !options.dryRun) return summary;
+
+  const since = new Date(now - 72 * 3_600_000).toISOString();
+  const { data: profiles, error } = await db.from("user_profiles").select("user_id,created_at,timezone,default_locale").gte("created_at", since).is("deleted_at", null);
+  if (error) throw new Error(error.message);
+  const ids = (profiles ?? []).map((row: any) => row.user_id);
+  if (ids.length === 0) return summary;
+
+  const [accounts, sentEvents, preferences] = await Promise.all([
+    db.from("telegram_accounts").select("user_id,telegram_id").in("user_id", ids),
+    db.from("product_events").select("user_id").eq("event_name", DAY2_EVENT).in("user_id", ids),
+    db.from("notification_preferences").select("user_id,push_enabled").eq("category", "reminders").in("user_id", ids)
+  ]);
+  if (accounts.error) throw new Error(accounts.error.message);
+  const telegramByUser = new Map((accounts.data ?? []).map((row: any) => [row.user_id, row.telegram_id]));
+  const candidates: Day2Candidate[] = (profiles ?? [])
+    .filter((row: any) => telegramByUser.has(row.user_id))
+    .map((row: any) => ({ userId: row.user_id, telegramId: telegramByUser.get(row.user_id), registeredAt: row.created_at, timezone: row.timezone ?? null, locale: row.default_locale ?? null }));
+  const alreadySent = new Set<string>((sentEvents.data ?? []).map((row: any) => row.user_id));
+  const remindersOff = new Set<string>((preferences.data ?? []).filter((row: any) => row.push_enabled === false).map((row: any) => row.user_id));
+  const planned = planDay2(candidates, alreadySent, remindersOff, (timezone, at) => isNudgeSendTime(timezone, at), now);
+  summary.candidates = planned.length;
+  if (options.dryRun || !botToken) return summary;
+
+  const link = process.env.TELEGRAM_DAY2_LINK?.trim() || DAY2_DEFAULT_LINK;
+  for (const person of planned.slice(0, MAX_PER_RUN)) {
+    const result = await sendTelegramMessage(botToken, person.telegramId, { ...day2Message(person.locale, link), openAs: "url" });
+    if (result.ok) summary.sent += 1;
+    else if (result.blocked) summary.blocked += 1;
+    else {
+      summary.failed += 1;
+      continue;
+    }
+    // Recorded also when the bot is blocked: the person never started the bot, retrying every hour would not help.
+    await db.from("product_events").insert({ event_name: DAY2_EVENT, user_id: person.userId, source: "server", properties: { delivered: result.ok } });
+  }
+  return summary;
+}

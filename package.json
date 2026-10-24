@@ -9,6 +9,7 @@
     "lint": "next lint",
     "analytics:daily": "node --experimental-strip-types scripts/daily-analytics.mjs",
     "essay:review": "node --experimental-strip-types scripts/ai-essay-review.mjs",
+    "test:telegram-day2": "node --experimental-strip-types scripts/verify-telegram-day2-contract.mjs",
     "test:ai-essay": "node --experimental-strip-types scripts/verify-ai-essay-contract.mjs",
     "test:nova-inbox": "node --experimental-strip-types scripts/verify-nova-inbox-contract.mjs",
     "test:daily-analytics": "node --experimental-strip-types scripts/verify-daily-analytics-contract.mjs",

@@ -7,6 +7,8 @@ export type TelegramNudgeMessage = {
   text: string;
   buttonText: string;
   url: string;
+  /** "url" opens a plain link (e.g. a t.me Mini App link); default "web_app" launches the site as a Mini App. */
+  openAs?: "web_app" | "url";
 };
 
 const BUTTON_TEXT: Record<string, string> = { en: "Open", ru: "Открыть", es: "Abrir", zh: "打开", hi: "खोलें", ar: "فتح" };
@@ -43,7 +45,7 @@ export async function sendTelegramMessage(botToken: string, chatId: number | str
         chat_id: chatId,
         text: message.text,
         disable_web_page_preview: true,
-        reply_markup: { inline_keyboard: [[{ text: message.buttonText, web_app: { url: message.url } }]] }
+        reply_markup: { inline_keyboard: [[message.openAs === "url" ? { text: message.buttonText, url: message.url } : { text: message.buttonText, web_app: { url: message.url } }]] }
       })
     });
     if (response.ok) return { ok: true };

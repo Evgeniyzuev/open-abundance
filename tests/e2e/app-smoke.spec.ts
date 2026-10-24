@@ -343,3 +343,44 @@ test("authenticated user sees former Core path cards in the standard available l
   await expect(page.getByText("Reach Today Core Target", { exact: true })).toBeVisible();
   await expect(page.getByText("Publish Your First Result", { exact: true })).toBeVisible();
 });
+
+test("a challenge opens as a full-screen card that Back closes without leaving Challenges", async ({ page }) => {
+  await prepareAuthenticatedApp(page);
+  await page.addInitScript(() => window.localStorage.setItem("oa-challenges-explainer-seen.v1", "1"));
+  await page.route("**/api/challenges?**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        authenticated: true,
+        viewerUserId: TEST_USER_ID,
+        challenges: [{
+          id: "full-screen-card",
+          title: { en: "Choose Your Main Wish" },
+          description: { en: "Pick one wish to work on." },
+          instructions: { en: "" },
+          requirements: { en: "" },
+          reward_label: null,
+          category: "onboarding",
+          difficulty_level: 1,
+          duration_days: 1,
+          image_url: null,
+          verification_type: "auto",
+          verification_logic: null,
+          sort_order: 1,
+          track_key: null,
+          track_step: null,
+          action_view: null,
+          user_challenge_status: null
+        }]
+      })
+    });
+  });
+  await page.goto("/?view=challenges");
+
+  await page.getByText("Choose Your Main Wish", { exact: true }).click();
+  const card = page.getByRole("dialog", { name: "Choose Your Main Wish" });
+  await expect(card).toBeVisible();
+  await page.goBack();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByText("Choose Your Main Wish", { exact: true })).toBeVisible();
+});

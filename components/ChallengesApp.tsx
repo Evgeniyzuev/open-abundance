@@ -960,7 +960,8 @@ function TodayChallengeCard({
   const percent = target > 0 ? Math.min(100, Math.round((progress / target) * 100)) : 100;
 
   return (
-    <details className={complete ? "challenge-disclosure completed" : "challenge-disclosure"} open={expanded}>
+    <>
+    <details className={complete ? "challenge-disclosure completed" : "challenge-disclosure"} open={false}>
       <summary className="challenge-row today-challenge-row" onClick={(event) => { event.preventDefault(); onToggle(); }}>
         <span className={`challenge-thumb challenge-visual-gold today-challenge-art${artFailed ? " challenge-art-fallback" : " challenge-art-object"}`} aria-hidden="true">
           {artFailed
@@ -977,6 +978,9 @@ function TodayChallengeCard({
           </span>
         </span>
       </summary>
+    </details>
+    {expanded ? (
+      <Sheet bare fullscreen className="challenge-detail-sheet" ariaLabel={t("today.title")} closeLabel={t("app.common.close")} onClose={onToggle}>
       <div className="today-challenge-card">
         <div className="today-challenge-head">
           <span>
@@ -1011,7 +1015,9 @@ function TodayChallengeCard({
           {complete ? t("today.completed") : checking ? t("challenges.checking") : t("today.check")}
         </button>
       </div>
-    </details>
+      </Sheet>
+    ) : null}
+    </>
   );
 }
 
@@ -1064,10 +1070,6 @@ export function ChallengeVisual({ challenge, title = "", fallbackIcon }: { chall
 }
 
 function ChallengeRow({ challenge, children, expanded, locale, userLevel, t, onToggle }: { challenge: Challenge; children: ReactNode; expanded: boolean; locale: AppLocale; userLevel: number; t: TFunction; onToggle: () => void }) {
-  const [openedOnce, setOpenedOnce] = useState(expanded);
-  useEffect(() => {
-    if (expanded) setOpenedOnce(true);
-  }, [expanded]);
   const accepted = isActiveChallenge(challenge);
   const completed = challenge.user_challenge_status === "completed";
   const accessReasons = challenge.access_reasons ?? getChallengeAccessReasons(challenge, userLevel);
@@ -1078,7 +1080,8 @@ function ChallengeRow({ challenge, children, expanded, locale, userLevel, t, onT
   const state = getChallengeRowState(challenge, userLevel, t);
 
   return (
-    <details className="challenge-disclosure" id={`challenge-${challenge.id}`} open={expanded}>
+    <>
+    <details className="challenge-disclosure" id={`challenge-${challenge.id}`} open={false}>
       <summary aria-label={[title, rewardLabel, state].filter(Boolean).join(". ")} className={locked ? "challenge-row locked" : "challenge-row"} onClick={(event) => { event.preventDefault(); onToggle(); }}>
         <ChallengeVisual challenge={challenge} title={title} />
         <span className="challenge-row-body">
@@ -1089,8 +1092,20 @@ function ChallengeRow({ challenge, children, expanded, locale, userLevel, t, onT
           </span>
         </span>
       </summary>
-      {expanded || openedOnce ? children : null}
     </details>
+    {expanded ? (
+      <Sheet bare fullscreen className="challenge-detail-sheet" ariaLabel={title} closeLabel={t("app.common.close")} onClose={onToggle}>
+        <header className="challenge-detail-head">
+          <ChallengeVisual challenge={challenge} title={title} />
+          <span>
+            <h2>{title}</h2>
+            <span className={reward ? "challenge-row-reward" : "challenge-row-reward unknown"}>{rewardLabel}</span>
+          </span>
+        </header>
+        {children}
+      </Sheet>
+    ) : null}
+    </>
   );
 }
 

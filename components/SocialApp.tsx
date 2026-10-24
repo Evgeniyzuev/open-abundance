@@ -1909,10 +1909,7 @@ export default function SocialApp({
         </Sheet>
       ) : null}
       {publicProfile ? (
-        <Sheet bare className="public-profile-modal" ariaLabel={t("profile.public.title")} onClose={() => setPublicProfile(null)}>
-            <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={() => setPublicProfile(null)}>
-              <X size={18} />
-            </button>
+        <Sheet bare fullscreen className="public-profile-modal" ariaLabel={t("profile.public.title")} closeLabel={t("app.common.close")} onClose={() => setPublicProfile(null)}>
             <div className="profile-avatar">
               {publicProfile.profile.avatar_url ? <img alt="" src={publicProfile.profile.avatar_url} style={{ objectPosition: publicProfile.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={34} />}
             </div>

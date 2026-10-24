@@ -80,3 +80,11 @@
 .notes-reminder-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .notes-reminder-inputs label { display: grid; gap: 4px; color: var(--muted); font-size: 0.8125rem; }
 .modal-sheet .notes-reminder-inputs input { min-height: 42px; padding: 8px 10px; font-size: 1rem; }
+
+/* Challenge card opened full screen (same element as notes, posts and wishes). */
+.modal-sheet.sheet-fullscreen.challenge-detail-sheet { padding-top: calc(16px + env(safe-area-inset-top)); }
+.challenge-detail-head { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 14px; margin-bottom: 14px; padding-inline-end: 52px; }
+.challenge-detail-head .challenge-thumb { width: 72px; height: 72px; border-radius: 18px; }
+.challenge-detail-head > span { display: grid; justify-items: start; gap: 6px; min-width: 0; }
+.challenge-detail-head h2 { margin: 0; color: var(--text); font-size: 1.5rem; font-weight: 800; letter-spacing: 0; line-height: 1.15; text-transform: none; overflow-wrap: anywhere; }
+.challenge-detail-sheet .challenge-inline-detail, .challenge-detail-sheet .today-challenge-card { border-radius: 16px; }

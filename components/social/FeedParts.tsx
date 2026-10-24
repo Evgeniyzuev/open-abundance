@@ -9,6 +9,7 @@ import FeedPostGallery, { getFeedPostCover } from "@/components/FeedPostGallery"
 import FeedPostInteractions from "@/components/FeedPostInteractions";
 import { canUseFeedSignals, FeedPostSignalButtons, recordFeedSwipeSignal } from "@/components/FeedPostSignals";
 import { classifySwipe } from "@/lib/swipe";
+import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import { celebrate } from "@/lib/ui/feedback";
 import FeedStoryRings from "@/components/social/FeedStoryRings";
@@ -598,6 +599,9 @@ export function PostDetailModal({
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const sheetRef = useRef<HTMLElement>(null);
+  // Same as every full-screen card: Back and a swipe from the left edge close it, the cross stays.
+  const closeLayer = useHistoryLayer(true, onClose);
+  const edgeSwipe = useEdgeSwipeBack(closeLayer);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const [swipeNotice, setSwipeNotice] = useState<string | null>(null);
   const [sequenceEnded, setSequenceEnded] = useState(false);
@@ -661,7 +665,7 @@ export function PostDetailModal({
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") closeLayer();
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
       if (event.key === "ArrowRight") sequenceMoveRef.current?.(1);
@@ -675,10 +679,10 @@ export function PostDetailModal({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose]);
+  }, [closeLayer]);
 
   return (
-    <div className="modal-backdrop post-detail-backdrop" role="presentation" onClick={onClose}>
+    <div className="modal-backdrop post-detail-backdrop" role="presentation" onClick={closeLayer}>
       <section
         ref={sheetRef}
         className={`modal-sheet post-detail-modal${hasDetailCover ? " has-media" : ""}${sequence ? " has-sequence" : ""}`}
@@ -686,8 +690,11 @@ export function PostDetailModal({
         aria-modal="true"
         aria-label={t("social.post.detail")}
         onClick={(event) => event.stopPropagation()}
+        {...edgeSwipe}
         onPointerDown={(event) => {
           if (!sequence || event.pointerType === "mouse") return;
+          // A swipe from the edge is Back, not a move to the next story.
+          if (event.clientX <= 28 || event.clientX >= window.innerWidth - 4) return;
           if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable='true']")) return;
           swipeStartRef.current = { x: event.clientX, y: event.clientY };
         }}
@@ -700,7 +707,7 @@ export function PostDetailModal({
         }}
         onPointerCancel={() => { swipeStartRef.current = null; }}
       >
-        <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={onClose}>
+        <button className="modal-close" type="button" aria-label={t("app.common.close")} onClick={closeLayer}>
           <X size={18} />
         </button>
         {sequence && sequence.index >= 0 ? (
@@ -713,7 +720,7 @@ export function PostDetailModal({
         {sequenceEnded ? (
           <div className="post-sequence-end" role="status">
             <strong>{t("social.feed.sequenceEnd")}</strong>
-            <button className="secondary-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
+            <button className="secondary-button" type="button" onClick={closeLayer}>{t("app.common.close")}</button>
           </div>
         ) : null}
         {swipeNotice ? <p className="post-swipe-notice" role="status">{swipeNotice}</p> : null}

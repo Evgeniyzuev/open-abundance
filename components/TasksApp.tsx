@@ -859,12 +859,7 @@ function TaskDetailModal({ task, completions, locale, today, onClose, onDelete, 
   }
 
   return (
-    <Sheet bare ariaLabel={t("tasks.task")} onClose={onClose} className="task-detail-modal">
-        <div className="modal-header">
-          <span aria-hidden="true" />
-          <h2>{t("tasks.task")}</h2>
-          <button className="text-button primary" type="button" onClick={onClose}>{t("app.common.close")}</button>
-        </div>
+    <Sheet bare fullscreen ariaLabel={t("tasks.task")} closeLabel={t("app.common.close")} onClose={onClose} className="task-detail-modal">
         {image ? <img className="task-detail-image" alt="" src={image} /> : null}
         <div className="task-detail-body">
           <h3>{task.title}</h3>

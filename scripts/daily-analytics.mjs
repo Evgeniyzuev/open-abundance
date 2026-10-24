@@ -3,13 +3,16 @@
 //   pnpm analytics:daily --fixtures      # made-up data, no keys needed
 //   pnpm analytics:daily                 # live: service key from .env (db), else through the app (api)
 //   pnpm analytics:daily --source=api    # through /api/internal/analytics/daily, no database key on this machine
+//   pnpm analytics:daily --source=mgmt   # read-only SQL through the Supabase Management API (cloud session fallback)
 // Options: --out=<dir> (default reports/analytics), --min-group=<n>, --quiet (do not print the summary).
 // Output: <out>/<YYYY-MM-DD>/summary.md, metrics.json, details/*.json. Keys and ids are never printed.
+import "./lib/envProxy.mjs";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { DELTAS_PLACEHOLDER, analyticsSalt, buildDailyReport, loadAnalyticsSnapshot, renderDeltas } from "../lib/dailyAnalytics.ts";
 import { buildFixtureSnapshot } from "./fixtures/daily-analytics-fixture.mjs";
+import { createMgmtDb } from "./lib/mgmtDb.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
   const [key, value] = arg.replace(/^--/, "").split("=");
@@ -43,12 +46,19 @@ if (source === "api") {
 } else {
   let snapshot;
   if (source === "fixtures") snapshot = buildFixtureSnapshot();
-  else {
+  else if (source === "mgmt") {
+    // Read-only SQL through the Supabase Management API; the token comes from .env or a network secret.
+    const config = readFileSync(new URL("../supabase/config.toml", import.meta.url), "utf8");
+    const projectRef = env.SUPABASE_PROJECT_REF || config.match(/^project_id\s*=\s*"([^"]+)"/m)?.[1];
+    snapshot = await loadAnalyticsSnapshot(createMgmtDb({ projectRef, token: env.SUPABASE_ACCESS_TOKEN }));
+  } else {
     if (!supabaseUrl || !env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing in .env");
     const db = createClient(supabaseUrl, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
     snapshot = await loadAnalyticsSnapshot(db);
   }
-  const salt = source === "fixtures" ? "fixtures" : analyticsSalt(env);
+  // Without the service key (mgmt) pseudonyms use their own salt and do not match the app's; use --source=api
+  // when the report's pseudonyms will be passed to the Nova inbox.
+  const salt = source === "fixtures" ? "fixtures" : analyticsSalt(env) ?? `mgmt:${env.ANALYTICS_PSEUDONYM_SALT ?? "local"}`;
   report = buildDailyReport(snapshot, { salt, minGroup });
 }
 

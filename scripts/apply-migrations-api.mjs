@@ -5,6 +5,7 @@
 // Needs SUPABASE_ACCESS_TOKEN (personal access token) in .env, or a network secret for api.supabase.com in a cloud
 // session; the token is never printed.
 // A migration older than the newest applied one is listed but not applied unless --include-all is passed.
+import "./lib/envProxy.mjs";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 const args = new Set(process.argv.slice(2));

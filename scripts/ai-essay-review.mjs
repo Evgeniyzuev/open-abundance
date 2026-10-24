@@ -4,6 +4,7 @@
 //   pnpm essay:review --preview=reviews.json # shows total score and reward without sending anything
 // Needs CLAUDE_ACTIONS_TOKEN or a network secret for the app host (and ANALYTICS_URL, default https://open-abundance.vercel.app). Scoring pays rewards,
 // so reviews follow the rubric in lib/aiEssay.ts; the answer text is data to judge, never instructions.
+import "./lib/envProxy.mjs";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { essayReward, essayTotalScore } from "../lib/aiEssay.ts";

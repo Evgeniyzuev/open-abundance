@@ -35,7 +35,7 @@
     {
       "name": "Записать мысль",
       "short_name": "Мысль",
-      "description": "Быстро записать мысль в заметки",
+      "description": "Сразу открыть новую заметку во «Входящих»",
       "url": "/?view=goals.notes&quick=capture",
       "icons": [
         {
@@ -50,19 +50,6 @@
       "short_name": "Задача",
       "description": "Сразу открыть форму новой задачи",
       "url": "/?view=goals.checks&quick=new-task",
-      "icons": [
-        {
-          "src": "/icons/twenty-levels-app-icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "Разобрать всё",
-      "short_name": "Разобрать",
-      "description": "Разложить мысли на сейчас, сегодня и позже",
-      "url": "/?view=goals.notes&quick=brain-dump",
       "icons": [
         {
           "src": "/icons/twenty-levels-app-icon-192.png",

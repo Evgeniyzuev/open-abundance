@@ -4,7 +4,7 @@ import { parseQuickAction } from "../lib/quickAction.ts";
 
 assert.equal(parseQuickAction("?view=goals.checks&quick=new-task"), "new-task");
 assert.equal(parseQuickAction("?quick=capture"), "capture");
-assert.equal(parseQuickAction("?quick=brain-dump"), "brain-dump");
+assert.equal(parseQuickAction("?quick=brain-dump"), null, "the old brain dump shortcut is gone");
 assert.equal(parseQuickAction("?quick=delete-everything"), null, "unknown actions are ignored");
 assert.equal(parseQuickAction(""), null);
 
@@ -20,7 +20,6 @@ assert.equal(manifest.share_target?.action, "/?share-target=1", "the existing sh
 assert.match(readFileSync("components/TasksApp.tsx", "utf8"), /takeQuickAction\("new-task"\)/);
 const notes = readFileSync("components/NotesApp.tsx", "utf8");
 assert.match(notes, /takeQuickAction\("capture"\)/);
-assert.match(notes, /takeQuickAction\("brain-dump"\)/);
 assert.match(readFileSync("lib/quickAction.ts", "utf8"), /replaceState/, "a quick action runs once and leaves the address");
 
 console.log("Shortcuts contract verified.");

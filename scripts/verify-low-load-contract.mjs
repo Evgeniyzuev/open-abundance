@@ -71,16 +71,13 @@ assert.match(readFileSync("lib/clientAnalytics.ts", "utf8"), /enqueueAnalyticsEv
 const guard = readFileSync("lib/ai/toolGuard.ts", "utf8");
 assert.match(guard, /reserveAiChatMessage\(user\.id, \{ capability: bucket/, "tool quota reuses the chat quota tables");
 assert.match(guard, /"tools\.organize": \{ dayLimit: 30, monthLimit: 300 \}/);
-assert.match(guard, /"reflection\.process": \{ dayLimit: 40, monthLimit: 400 \}/);
 assert.match(guard, /status: 401/);
 assert.match(guard, /status: 429/);
 for (const [path, bucket] of [
   ["app/api/ai/tasks/decompose/route.ts", "tools.organize"],
-  ["app/api/ai/notes/triage/route.ts", "tools.organize"],
   ["app/api/ai/decisions/choose/route.ts", "tools.organize"],
   ["app/api/ai/routines/plan/route.ts", "tools.organize"],
-  ["app/api/ai/market/listing-draft/route.ts", "tools.organize"],
-  ["app/api/ai/reflections/step/route.ts", "reflection.process"]
+  ["app/api/ai/market/listing-draft/route.ts", "tools.organize"]
 ]) {
   const source = readFileSync(path, "utf8");
   const guardAt = source.indexOf(`guardAiTool(request, "${bucket}")`);
@@ -88,7 +85,7 @@ for (const [path, bucket] of [
   assert.ok(guardAt < source.indexOf("await generateAiJson"), `${path} checks quota before calling the provider`);
   assert.match(source, /catch \(error\) \{\s*\/\/[^\n]*\n\s*await guard\.refund\(\);/, `${path} returns the tap to the quota on failure`);
 }
-for (const path of ["components/TaskStepSuggester.tsx", "components/BrainDumpModal.tsx", "components/DecisionModal.tsx", "components/RoutinePlanModal.tsx", "components/ReflectionProcessor.tsx"]) {
+for (const path of ["components/TaskStepSuggester.tsx", "components/DecisionModal.tsx", "components/RoutinePlanModal.tsx"]) {
   const source = readFileSync(path, "utf8");
   assert.match(source, /postAiTool\(/, `${path} sends the session token`);
   assert.doesNotMatch(source, /fetch\("\/api\/ai\//, `${path} has no unauthenticated AI call left`);

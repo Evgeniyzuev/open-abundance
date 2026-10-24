@@ -8,8 +8,7 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
  * capability bucket, so one explicit tap costs one small quota write and no new tables.
  */
 export const AI_TOOL_LIMITS = {
-  "tools.organize": { dayLimit: 30, monthLimit: 300 },
-  "reflection.process": { dayLimit: 40, monthLimit: 400 }
+  "tools.organize": { dayLimit: 30, monthLimit: 300 }
 } as const;
 
 export type AiToolBucket = keyof typeof AI_TOOL_LIMITS;

@@ -1,8 +1,8 @@
 // One-time actions opened from app shortcuts, e.g. /?view=goals.checks&quick=new-task.
 
 export const QUICK_ACTION_PARAM = "quick";
-export type QuickAction = "capture" | "new-task" | "brain-dump";
-const QUICK_ACTIONS: QuickAction[] = ["capture", "new-task", "brain-dump"];
+export type QuickAction = "capture" | "new-task";
+const QUICK_ACTIONS: QuickAction[] = ["capture", "new-task"];
 
 export function parseQuickAction(search: string): QuickAction | null {
   const value = new URLSearchParams(search).get(QUICK_ACTION_PARAM);

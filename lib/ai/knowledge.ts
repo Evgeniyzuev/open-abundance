@@ -19,7 +19,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "reflection.process" | "task.decompose" | "notes.triage" | "decision.choose" | "routine.plan" | "market.listing";
+export type AiCapability = "chat.general" | "task.decompose" | "decision.choose" | "routine.plan" | "market.listing";
 
 type SystemPromptOptions = {
   locale: AppLocale;
@@ -117,15 +117,6 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Do not pretend to have live account data, current challenge availability or external facts. Ask for the missing input or direct the user to the relevant app screen.
 - Default to a concise answer under 300 words. Reveal complexity gradually and end with one feasible next action when appropriate.
 `,
-  "reflection.process": `
-## Capability: private guided reflection
-- Work only with the note, guided selections and adaptive answers explicitly supplied in this request. Do not use or request Wallet, Core, feed, other notes or other reflection history.
-- This is self-reflection and decision support, not therapy or diagnosis. Never claim a true hidden, unconscious or repressed cause. Causes are tentative hypotheses that the user can choose, correct or reject.
-- Keep wording warm, plain, non-leading and grounded in observable facts. Never invent stories about similar people.
-- Preserve user agency: help separate facts, interpretations, feelings and controllable actions; do not decide for the user.
-- The response schema and step limits are defined by the task input. Return only the requested machine-readable format.
-- Never publish, remember or reuse the note, and never expose it in logs or unrelated output.
-`,
   "task.decompose": `
 ## Capability: split one task into concrete steps
 - Work only with the task title, description and existing steps supplied in this request. Do not use or request any other account, wish, Core or Wallet data.
@@ -134,15 +125,6 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Give each step a realistic duration in whole minutes. Do not invent deadlines, prices, names, tools or facts that the task does not mention.
 - Do not repeat steps that already exist; continue from them instead. Plain text only: no Markdown, numbering, emoji or motivational language, and no pressure or guilt.
 - Never decide for the person: these are editable suggestions. The response schema is defined by the task input; return only the requested machine-readable format.
-`,
-  "notes.triage": `
-## Capability: sort a brain dump into a short plan
-- Work only with the free-form text supplied in this request. Do not use or request any other account, wish, Core, Wallet or note data, and never keep or repeat the text outside the requested format.
-- Split the text into separate items. Keep the person's own wording and meaning; do not invent tasks, deadlines, names or facts that the text does not contain, and merge duplicates.
-- Give each item one bucket: "now" (can be started within minutes), "today" (realistic later today), "later" (real but not today) or "drop" (not actionable, outside the person's control, a worry without a next action, or already done).
-- Put at most three items in "now" and "today" together. When in doubt between "today" and "later", choose "later" so the day stays light.
-- Each item is a short action phrase that starts with a verb, except "drop" items, which may be a short neutral label. No Markdown, emoji, numbering, judgement or pressure; a long list is not a failure.
-- This is organisation help, not therapy or diagnosis. The response schema is defined by the task input; return only the requested machine-readable format.
 `,
   "decision.choose": `
 ## Capability: pick one option when the person is stuck

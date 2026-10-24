@@ -53,34 +53,9 @@ assert.equal(getQuickReminderTime("evening", new Date(2026, 9, 13, 18, 55)).getD
 assert.equal(getQuickReminderTime("tomorrow", noon).getDate(), 14);
 assert.match(readFileSync("components/TasksApp.tsx", "utf8"), /cancelActionReminder/);
 
-const { normalizeBrainDumpItems, MAX_FOCUS_ITEMS } = await import("../lib/braindump.ts");
-const dump = normalizeBrainDumpItems([
-  { text: "Call the bank", bucket: "today" },
-  { text: "Send the report", bucket: "now" },
-  { text: "send the report", bucket: "now" },
-  { text: "Book a dentist", bucket: "today" },
-  { text: "Pay rent", bucket: "today" },
-  { text: "Fix the shelf", bucket: "later" },
-  { text: "Worry about the future", bucket: "drop" },
-  { text: "Bad bucket", bucket: "whenever" },
-  { text: "", bucket: "now" }
-]);
-assert.equal(dump.filter((item) => item.text.toLowerCase() === "send the report").length, 1, "duplicates are removed");
-assert.ok(!dump.some((item) => item.text === "Bad bucket"), "unknown buckets are dropped");
-assert.equal(dump.filter((item) => item.bucket === "now" || item.bucket === "today").length, MAX_FOCUS_ITEMS, "now + today is capped at three");
-assert.equal(dump.find((item) => item.text === "Send the report").bucket, "now", "now keeps its focus slot first");
-assert.equal(dump.find((item) => item.text === "Pay rent").bucket, "later", "overflow moves to later");
-
 const { hasSafetyText } = await import("../lib/ai/safety.ts");
 assert.ok(hasSafetyText("Не хочу жить так"), "safety text is detected");
 assert.ok(!hasSafetyText("Buy milk and call mum"));
-const triage = readFileSync("app/api/ai/notes/triage/route.ts", "utf8");
-assert.match(triage, /capability: "notes\.triage"/);
-assert.match(triage, /<private_dump>/);
-assert.match(triage, /hasSafetyText\(text\)/, "triage must stop on safety language before calling AI");
-assert.doesNotMatch(triage, /getServiceClient|supabase|\.rpc\(/i, "the triage route has no direct database access; quota goes through toolGuard");
-const dumpModal = readFileSync("components/BrainDumpModal.tsx", "utf8");
-assert.doesNotMatch(dumpModal, /saveNote\(\{[^}]*text\b[^}]*body: text/, "the raw dump is never saved as a note");
 
 const { cleanDecisionOptions, normalizeDecision } = await import("../lib/decision.ts");
 assert.deepEqual(cleanDecisionOptions(["  A ", "a", "B", "", "C", "D", "E"]), ["A", "B", "C", "D"], "options are unique and capped at four");

@@ -1,6 +1,7 @@
 /* Global styles live in app/styles/*.css and are imported in cascade order. */
 @import "./styles/base.css";
 @import "./styles/screens.css";
+@import "./styles/notes.css";
 @import "./styles/ai-chat.css";
 @import "./styles/reflection.css";
 @import "./styles/creator-and-expedition.css";

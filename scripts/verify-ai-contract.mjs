@@ -100,10 +100,4 @@ assert.match(providerGateway, /process\.env\.GEMINI_MODEL\?\.trim\(\) \|\| "gemi
 assert.match(providerGateway, /providerAttempts\.push\(await noteProviderFailure\(provider, error\)\)/);
 assert.match(providerGateway, /new AiGatewayError\("all_providers_failed", providerAttempts\)/);
 
-const reflectionRoute = read("app/api/ai/reflections/step/route.ts");
-assert.match(reflectionRoute, /capability: "reflection\.process"/);
-assert.match(reflectionRoute, /generateAiJson\(\{/);
-assert.match(reflectionRoute, /validate: \(value\) => validateModelResponse/);
-assert.match(reflectionRoute, /<private_note>/);
-
 console.log(`AI contract verified: ${generationRoutes.length} generation routes use one knowledge base and provider gateway.`);

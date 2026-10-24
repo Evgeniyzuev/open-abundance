@@ -172,194 +172,31 @@ test("returning device opens local-first notes without waiting for sign-in", asy
   expect(pageErrors).toEqual([]);
 });
 
-test("reflection inbox captures offline without calling AI and survives reload", async ({ page, context }) => {
+test("notes: a new note goes to the Inbox offline, opens full screen and closes with Back", async ({ page, context }) => {
   await prepareAuthenticatedApp(page);
-  let aiCalls = 0;
-  await page.route("**/api/ai/reflections/step", async (route) => {
-    aiCalls += 1;
-    await route.abort();
-  });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("openAbundanceLocale", "en");
-  });
-  await page.goto("/");
-  const capture = page.getByRole("textbox", { name: "Quick thought or feeling capture" });
-  // Go offline only after the notes view has loaded; the offline contract is about saving, not about fetching the app shell.
-  await expect(capture).toBeVisible();
+  await page.addInitScript(() => window.localStorage.setItem("openAbundanceLocale", "en"));
+  await page.goto("/?view=goals.notes");
+  await expect(page.getByRole("heading", { name: "My lists" })).toBeVisible();
+  await expect(page.getByText("Sort it all out")).toHaveCount(0);
 
   await context.setOffline(true);
-  await capture.fill("I keep postponing one difficult message.");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Saved");
-  await expect(page.getByText("Remind me to process the inbox once a day")).toHaveCount(0);
-  expect(aiCalls).toBe(0);
+  await page.getByRole("button", { name: "Create note" }).click();
+  const detail = page.getByRole("dialog", { name: "New note" });
+  await detail.getByRole("textbox", { name: "Note title" }).fill("Call the bank");
+  await detail.getByRole("button", { name: "Close" }).click();
+  await expect(detail).toHaveCount(0);
 
-  const saved = await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("open-abundance-offline");
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    const notes = await new Promise<Array<{ body: string; kind?: string; processing?: { status?: string } }>>((resolve, reject) => {
-      const request = db.transaction("notes", "readonly").objectStore("notes").getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    db.close();
-    const note = notes.find((note) => note.body === "I keep postponing one difficult message.");
-    return note ? { ...note, reviewAt: (note as { processing?: { reviewAt?: string } }).processing?.reviewAt } : undefined;
-  });
-  expect(saved).toMatchObject({ kind: "reflection", processing: { status: "inbox" } });
-  expect(new Date(saved?.reviewAt ?? "").getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
-  expect(new Date(saved?.reviewAt ?? "").getTime()).toBeLessThan(Date.now() + 25 * 60 * 60 * 1000);
+  await page.getByRole("button", { name: /Inbox/ }).click();
+  await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
+  await page.getByRole("button", { name: "AI review of the note" }).first().click();
+  await expect(page.getByText("AI review of notes is coming soon.")).toBeVisible();
 
+  await page.getByRole("button", { name: /Call the bank/ }).click();
+  await expect(page.getByRole("dialog", { name: "Note" })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("dialog", { name: "Note" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
   await context.setOffline(false);
-  await page.goto("/?view=goals.notes&reflectionInbox=1");
-  await expect(page.getByRole("heading", { name: "Process" })).toBeVisible();
-  await expect(page.getByText("You can return to this later.")).toHaveCount(0);
-  await expect(page.getByText("Remind me to process the inbox once a day")).toHaveCount(0);
-  await expect(page.getByText("Process now", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /I keep postponing one difficult message/ })).toBeVisible();
-  expect(aiCalls).toBe(0);
-});
-
-test("Home shows one local item for due reflection notes", async ({ page }) => {
-  await prepareAuthenticatedApp(page);
-  await page.addInitScript(() => {
-    window.localStorage.setItem("openAbundanceLocale", "en");
-  });
-  await page.goto("/?view=home");
-  await page.evaluate(() => {
-    const request = indexedDB.open("open-abundance-offline");
-    request.onsuccess = () => {
-      const db = request.result;
-      const note = {
-        id: "due-reflection-test",
-        title: "Due note",
-        body: "A local due note",
-        reminders: [],
-        completed: false,
-        createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date().toISOString(),
-        syncStatus: "local",
-        kind: "reflection",
-        processing: { schemaVersion: 1, status: "inbox", reviewAt: new Date(Date.now() - 60_000).toISOString(), answers: [], questionCount: 0 }
-      };
-      const transaction = db.transaction("notes", "readwrite");
-      transaction.objectStore("notes").put(note);
-      transaction.oncomplete = () => {
-        db.close();
-        window.dispatchEvent(new Event("open-abundance:notes-changed"));
-      };
-    };
-  });
-  // The Today card is a collapsed secondary disclosure on Home; the local item lives inside it.
-  await page.locator(".home-today-card > summary").click();
-  await expect(page.getByRole("button", { name: /Review notes/ })).toBeVisible();
-  await page.getByRole("button", { name: /Review notes/ }).click();
-  await expect(page.getByRole("heading", { name: "Process" })).toBeVisible();
-});
-
-test("reflection processing uses guided choices, asks at most two follow-ups, and returns an editable proposal", async ({ page }) => {
-  await prepareAuthenticatedApp(page);
-  let aiCalls = 0;
-  let submittedGuided: { desiredChanges?: string[] } | undefined;
-  await page.route("**/api/ai/reflections/step", async (route) => {
-    aiCalls += 1;
-    const body = route.request().postDataJSON() as { answers?: unknown[]; guided?: { desiredChanges?: string[] } };
-    if (body.guided) submittedGuided = body.guided;
-    const answerCount = body.answers?.length ?? 0;
-    if (!body.guided) {
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({
-          mode: "guided",
-          suggestions: {
-            feelings: [{ id: "anxiety", label: "Anxiety" }, { id: "irritation", label: "Irritation" }, { id: "uncertainty", label: "Uncertainty" }, { id: "tiredness", label: "Tiredness" }],
-            causes: [{ id: "conflict", label: "Fear of conflict" }, { id: "clarity", label: "Need for clarity" }, { id: "energy", label: "Not enough energy" }, { id: "control", label: "Lack of control" }],
-            desiredChanges: [{ id: "start", label: "Start the conversation" }, { id: "understand", label: "Understand the situation" }, { id: "prepare", label: "Prepare first" }, { id: "accept", label: "Accept what I cannot control" }],
-            actions: [{ id: "opener", label: "Write a two-sentence opener" }, { id: "ask", label: "Ask for clarification" }, { id: "time", label: "Set aside ten minutes" }, { id: "support", label: "Ask someone for support" }]
-          }
-        })
-      });
-      return;
-    }
-    if (answerCount < 2) {
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({ mode: "question", question: { id: `question_${answerCount + 1}`, text: `Question ${answerCount + 1}?` } })
-      });
-      return;
-    }
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        mode: "proposal",
-        proposal: {
-          summary: "A difficult message is being postponed.",
-          selfStatement: "When I think about the unsent message, I feel anxiety because clarity matters to me. I want to start the conversation. I am ready to write a short opener.",
-          facts: ["The message has not been sent"],
-          thoughts: ["The conversation may be uncomfortable"],
-          feelings: ["Anxiety"],
-          bodySignals: [],
-          reactions: ["Postponing"],
-          desiredOutcome: "Start the conversation respectfully",
-          causes: [{ id: "cause_1", text: "Fear of conflict", rationale: "Postponing reduces discomfort in the short term", confirmed: false }],
-          alternatives: [
-            { title: "Send a short opener", description: "Starts the conversation with limited effort" },
-            { title: "Schedule a call", description: "Provides more context but needs coordination" }
-          ],
-          resourcesHave: ["Contact details"],
-          resourcesNeed: ["A calm 10-minute window"],
-          resourcesObtain: ["Choose a time"],
-          practiceId: "implementation_intention",
-          outcomeKind: "act_now",
-          nextAction: "Write a two-sentence opener",
-          ifThen: "When it is 7 PM, I will write and send the opener."
-        }
-      })
-    });
-  });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("openAbundanceLocale", "en");
-    window.localStorage.setItem("open-abundance:reflection-settings:v1", JSON.stringify({ reviewTime: "19:00", enabled: false, configured: true }));
-  });
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "Quick thought or feeling capture" }).fill("I keep postponing one difficult message.");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await page.getByRole("button", { name: /Process/ }).first().click();
-  await page.getByText("Process now", { exact: true }).click();
-
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Process with AI" }).click();
-  await expect(page.getByRole("heading", { name: "What am I feeling right now?" })).toBeVisible();
-  await page.getByText("Anxiety", { exact: true }).click();
-  await page.getByRole("button", { name: "Next" }).click();
-  await page.getByText("Need for clarity", { exact: true }).click();
-  await page.getByRole("button", { name: "Next" }).click();
-  await page.getByPlaceholder("Write it in your own words").fill("Clarify what I need from the conversation");
-  await page.getByRole("button", { name: "Next" }).click();
-  await page.getByText("Write a two-sentence opener", { exact: true }).click();
-  await page.getByRole("button", { name: "Build summary" }).click();
-
-  for (let index = 1; index <= 2; index += 1) {
-    await expect(page.getByRole("heading", { name: `Question ${index}?` })).toBeVisible();
-    await page.getByRole("textbox", { name: "Short answer" }).fill(`Answer ${index}`);
-    await page.getByRole("button", { name: "Answer", exact: true }).click();
-  }
-
-  await expect(page.getByRole("heading", { name: "Possible causes" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Schedule" })).toBeVisible();
-  await expect(page.getByLabel("I-statement")).toHaveValue(/clarity matters to me/);
-  await expect(page.getByLabel("Next action")).toHaveValue("Write a two-sentence opener");
-  expect(submittedGuided).toMatchObject({ desiredChanges: ["Clarify what I need from the conversation"] });
-  expect(aiCalls).toBe(4);
-});
-
-test("reflection safety gate stops ordinary AI processing", async ({ request }) => {
-  const response = await request.post("/api/ai/reflections/step", { data: { rawText: "I want to kill myself", answers: [], locale: "en" } });
-  expect(response.ok()).toBeTruthy();
-  await expect(response.json()).resolves.toMatchObject({ mode: "safety" });
 });
 
 test("local-first shell does not wait for a signed-in user context refresh", async ({ page }) => {

@@ -28,7 +28,6 @@ import { captureShareTargetDraftFromLocation, readShareTargetDraft, saveShareTar
 import { markChallengesViewed, markTodayViewed, readDailyUnreadState } from "@/lib/dailyUnread";
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
-import type { ReflectionTaskDraft } from "@/lib/reflections";
 import { readPrimaryWish } from "@/lib/wishJourney";
 
 // Heavy tabs load on first visit; KeepAliveView keeps them mounted afterwards.
@@ -145,9 +144,7 @@ export default function AppNavigation() {
   const [challengeFocusNonce, setChallengeFocusNonce] = useState(0);
   const [challengeFocusId, setChallengeFocusId] = useState<string | null>(null);
   const [walletCalculatorRequest, setWalletCalculatorRequest] = useState<WalletCalculatorRequest | null>(null);
-  const [reflectionTaskDraft, setReflectionTaskDraft] = useState<ReflectionTaskDraft | null>(null);
   const [taskOpenRequest, setTaskOpenRequest] = useState<{ id: string; nonce: number } | null>(null);
-  const [reflectionInboxNonce, setReflectionInboxNonce] = useState(0);
   const [feedDraftFocusNonce, setFeedDraftFocusNonce] = useState(0);
   const [shareTargetDraft, setShareTargetDraft] = useState<ShareTargetDraft | null>(null);
   const [shareTargetToDispatch, setShareTargetToDispatch] = useState<ShareTargetDraft | null>(null);
@@ -567,21 +564,9 @@ export default function AppNavigation() {
     setActiveMainTab("wallet");
   }
 
-  function scheduleReflection(draft: ReflectionTaskDraft) {
-    setReflectionTaskDraft(draft);
-    setActiveGoalTab("checks");
-    setActiveMainTab("goals");
-  }
-
   function openTaskFromHome(taskId: string) {
     setTaskOpenRequest((current) => ({ id: taskId, nonce: (current?.nonce ?? 0) + 1 }));
     setActiveGoalTab("checks");
-    setActiveMainTab("goals");
-  }
-
-  function openReflectionInbox() {
-    setReflectionInboxNonce((value) => value + 1);
-    setActiveGoalTab("notes");
     setActiveMainTab("goals");
   }
 
@@ -665,7 +650,6 @@ export default function AppNavigation() {
             onOpenNextChallenge={openNextChallenge}
             onOpenChallenge={openJourneyChallenge}
             onOpenFeed={openFeed}
-            onOpenReflectionInbox={openReflectionInbox}
             onOpenToday={openToday}
             onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
             onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
@@ -682,7 +666,7 @@ export default function AppNavigation() {
           <WishOutcomeCheck active={showHome} />
         </div>
         <KeepAliveView active={showNotes} visited>
-          <NotesApp openInboxNonce={reflectionInboxNonce} onScheduleReflection={scheduleReflection} />
+          <NotesApp />
         </KeepAliveView>
         <KeepAliveView active={showWishes} visited={visitedServerViews.wishes}>
           <WishesApp
@@ -697,7 +681,7 @@ export default function AppNavigation() {
           <AiChatApp active={showIdeas} contentPostId={aiContentPostId} contentPostNonce={aiContentNonce} />
         </KeepAliveView>
         <KeepAliveView active={showChecks} visited>
-          <TasksApp createRequest={reflectionTaskDraft} onCreateRequestHandled={() => setReflectionTaskDraft(null)} openTaskRequest={taskOpenRequest} />
+          <TasksApp openTaskRequest={taskOpenRequest} />
         </KeepAliveView>
         <KeepAliveView active={showMap} visited={visitedServerViews.map}>
           <GrowthMapApp

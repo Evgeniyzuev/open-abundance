@@ -1,150 +1,72 @@
 ﻿"use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, Inbox, ListPlus, MoreHorizontal, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
 import {
   deleteList,
   deleteNote,
-  closeReflection,
   getLists,
   getNotes,
-  isReflectionDue,
   Note,
   ReminderList,
   saveList,
   saveNote,
-  saveReflectionCapture,
   toggleNoteCompleted,
   NOTES_CHANGED_EVENT
 } from "@/lib/notesStore";
 import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
-import ReflectionProcessor from "@/components/ReflectionProcessor";
 import BackupReminder from "@/components/BackupReminder";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
-import type { ReflectionTaskDraft } from "@/lib/reflections";
-import { trackProductEvent } from "@/lib/productAnalytics";
+import { takeQuickAction } from "@/lib/quickAction";
 
-type ConnectionState = "online" | "offline";
 type LocalDataStatus = "loading" | "slow" | "ready" | "error";
-type ViewId = "process" | "today" | "planned" | "all" | "completed" | `list:${string}`;
-type ModalMode = "create" | "edit";
+/** "inbox" is the built-in list that cannot be deleted: every note without a list of its own lives there. */
+type ViewId = "today" | "planned" | "all" | "completed" | "inbox" | `list:${string}`;
+type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 type SmartList = {
-  id: ViewId;
+  id: Exclude<ViewId, "inbox" | `list:${string}`>;
   titleKey: MessageKey;
-  icon: string;
+  Icon: typeof CalendarDays;
   tone: string;
 };
 
 const smartLists: SmartList[] = [
-  { id: "process", titleKey: "reflections.inbox", icon: "◌", tone: "purple" },
-  { id: "today", titleKey: "notes.smart.today", icon: "🗓", tone: "blue" },
-  { id: "planned", titleKey: "notes.smart.planned", icon: "📋", tone: "red" },
-  { id: "all", titleKey: "notes.smart.all", icon: "📥", tone: "black" },
-  { id: "completed", titleKey: "notes.smart.completed", icon: "✔️", tone: "gray" }
+  { id: "today", titleKey: "notes.smart.today", Icon: CalendarDays, tone: "blue" },
+  { id: "planned", titleKey: "notes.smart.planned", Icon: CalendarClock, tone: "red" },
+  { id: "all", titleKey: "notes.smart.all", Icon: Inbox, tone: "black" },
+  { id: "completed", titleKey: "notes.smart.completed", Icon: Check, tone: "gray" }
 ];
 
+const INBOX_COLOR = "#af52de";
 const listColors = ["#ff9500", "#007aff", "#34c759", "#ff3b30", "#af52de", "#8e8e93"];
+const emptyListForm = { title: "", icon: "📝", color: "#007aff" };
 
-function getDefaultReminderDraft(): string {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
-}
+/** What the full-screen note page is showing: an existing note, or a new one going into a list (or the Inbox). */
+type NoteTarget = { id: string; isNew: boolean; listId?: string };
 
-const emptyNoteForm = {
-  title: "",
-  body: "",
-  listId: "",
-  reminderDraft: getDefaultReminderDraft(),
-  reminders: [] as string[]
-};
-
-const emptyListForm = {
-  title: "",
-  icon: "↗️",
-  color: "#007aff"
-};
-
-import BrainDumpModal from "@/components/BrainDumpModal";
-import { MorningCheckInSheet } from "@/components/MorningCheckIn";
-import { takeQuickAction } from "@/lib/quickAction";
-
-type NotesAppProps = {
-  openInboxNonce?: number;
-  onScheduleReflection: (draft: ReflectionTaskDraft) => void;
-};
-
-export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: NotesAppProps) {
+export default function NotesApp() {
   const { locale, t } = useUserContext();
   const [notes, setNotes] = useState<Note[]>([]);
   const [lists, setLists] = useState<ReminderList[]>([]);
-  const [noteForm, setNoteForm] = useState(emptyNoteForm);
-  const [listForm, setListForm] = useState(emptyListForm);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailView, setDetailView] = useState<ViewId | null>(null);
-  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [view, setView] = useState<ViewId | null>(null);
+  const [noteTarget, setNoteTarget] = useState<NoteTarget | null>(null);
   const [listModalOpen, setListModalOpen] = useState(false);
-  const [infoNoteId, setInfoNoteId] = useState<string | null>(null);
-  const [connection, setConnection] = useState<ConnectionState>("online");
-  const [quickCapture, setQuickCapture] = useState("");
-  const [brainDumpOpen, setBrainDumpOpen] = useState(false);
-  const [morningOpen, setMorningOpen] = useState(false);
-  const [focusCapture, setFocusCapture] = useState(false);
-
-  useEffect(() => {
-    // App shortcuts: "Capture a thought" focuses the field, "Sort it all out" opens the brain dump.
-    if (takeQuickAction("capture")) setFocusCapture(true);
-    if (takeQuickAction("brain-dump")) setBrainDumpOpen(true);
-  }, []);
-  const [capturedNoteId, setCapturedNoteId] = useState<string | null>(null);
-  const [processingNoteId, setProcessingNoteId] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editingLists, setEditingLists] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [aiHint, setAiHint] = useState(false);
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
   const localLoadRequestRef = useRef(0);
 
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("reflectionInbox") === "1") {
-      setDetailView("process");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (openInboxNonce > 0) setDetailView("process");
-  }, [openInboxNonce]);
-
-  const activeView = detailView ?? "all";
-  const activeTitle = getViewTitle(activeView, lists, t);
-  const activeNote = infoNoteId ? notes.find((note) => note.id === infoNoteId) : undefined;
-  const processingNote = processingNoteId ? notes.find((note) => note.id === processingNoteId) : undefined;
-
-  const visibleNotes = useMemo(() => {
-    const source = notes.filter((note) => !note.deleted);
-    return filterNotes(source, activeView).sort((a, b) => {
-      if (activeView === "process") {
-        const dueDifference = Number(isReflectionDue(b)) - Number(isReflectionDue(a));
-        if (dueDifference !== 0) return dueDifference;
-        const leftReviewAt = a.processing?.reviewAt ?? a.updatedAt;
-        const rightReviewAt = b.processing?.reviewAt ?? b.updatedAt;
-        if (leftReviewAt !== rightReviewAt) return leftReviewAt.localeCompare(rightReviewAt);
-      }
-      if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
-      return b.updatedAt.localeCompare(a.updatedAt);
-    });
-  }, [activeView, notes]);
-
   const refreshData = useCallback(async () => {
     const [storedNotes, storedLists] = await Promise.all([getNotes(), getLists()]);
-    setNotes(storedNotes);
+    setNotes(storedNotes.filter((note) => !note.deleted));
     setLists(storedLists);
-    setNoteForm((current) => {
-      if (!current.listId || storedLists.some((list) => list.id === current.listId)) {
-        return current;
-      }
-      return { ...current, listId: "" };
-    });
   }, []);
 
   const loadLocalData = useCallback(async () => {
@@ -167,562 +89,393 @@ export default function NotesApp({ openInboxNonce = 0, onScheduleReflection }: N
   }, [refreshData]);
 
   useEffect(() => {
-    // Notes written elsewhere (brain dump, backup restore) appear without reopening the screen.
+    void loadLocalData();
+    return () => { localLoadRequestRef.current += 1; };
+  }, [loadLocalData]);
+
+  useEffect(() => {
+    // Notes written elsewhere (backup restore, other screens) appear without reopening the screen.
     const refresh = () => void refreshData().catch(() => undefined);
     window.addEventListener(NOTES_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(NOTES_CHANGED_EVENT, refresh);
   }, [refreshData]);
 
   useEffect(() => {
-    setConnection(navigator.onLine ? "online" : "offline");
-    void loadLocalData();
-
-    const handleOnline = () => setConnection("online");
-    const handleOffline = () => setConnection("offline");
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      localLoadRequestRef.current += 1;
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [loadLocalData]);
+    // App shortcut "Capture a thought" opens a new note in the Inbox.
+    if (takeQuickAction("capture")) setNoteTarget({ id: crypto.randomUUID(), isNew: true });
+  }, []);
 
   useEffect(() => {
-    if (!capturedNoteId) return;
-    const timeoutId = window.setTimeout(() => setCapturedNoteId(null), 2400);
+    if (!aiHint) return;
+    const timeoutId = window.setTimeout(() => setAiHint(false), 2400);
     return () => window.clearTimeout(timeoutId);
-  }, [capturedNoteId]);
+  }, [aiHint]);
 
-  function openList(view: ViewId) {
-    setDetailView(view);
-    if (view.startsWith("list:")) {
-      setNoteForm((current) => ({ ...current, listId: view.slice(5) }));
-    }
-  }
+  const visibleNotes = useMemo(() => (view ? sortNotes(filterNotes(notes, view)) : []), [notes, view]);
+  const searchResults = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return [];
+    return sortNotes(notes.filter((note) => `${note.title}\n${note.body}`.toLowerCase().includes(needle)));
+  }, [notes, query]);
 
-  function openCreateNote() {
-    const listId = detailView?.startsWith("list:") ? detailView.slice(5) : "";
-    setEditingId(null);
-    setNoteForm({ ...emptyNoteForm, listId });
-    setNoteModalOpen(true);
-  }
-
-  function openEditNote(note: Note) {
-    setEditingId(note.id);
-    setNoteForm({
-      title: note.title,
-      body: note.body,
-      listId: note.listId || "",
-      reminderDraft: "",
-      reminders: note.reminders || []
-    });
-    setInfoNoteId(null);
-    setNoteModalOpen(true);
-  }
-
-  function closeNoteModal() {
-    setNoteModalOpen(false);
-    setEditingId(null);
-    setNoteForm(emptyNoteForm);
-  }
-
-  async function handleNoteSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const title = noteForm.title.trim();
-    const body = noteForm.body.trim();
-    if (!title && !body) return;
-
-    await saveNote({
-      id: editingId ?? crypto.randomUUID(),
-      title: title || t("notes.untitled"),
-      body,
-      listId: noteForm.listId || undefined,
-      reminders: noteForm.reminders,
-      syncStatus: "local"
-    });
-
-    closeNoteModal();
-    await refreshData();
-  }
-
-  async function handleQuickCapture(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const body = quickCapture.trim();
-    if (!body) return;
-    const captured = await saveReflectionCapture(body);
-    setQuickCapture("");
-    setCapturedNoteId(captured.id);
-    trackProductEvent("reflection_captured", { lengthBucket: getLengthBucket(body.length) });
-    await refreshData();
-  }
-
-  async function handleListSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const title = listForm.title.trim();
-    if (!title) return;
-
-    const id = crypto.randomUUID();
-    await saveList({
-      id,
-      title,
-      icon: listForm.icon.trim() || "•",
-      color: listForm.color,
-      syncStatus: "local"
-    });
-
-    setListForm(emptyListForm);
-    setListModalOpen(false);
-    setDetailView(`list:${id}`);
-    await refreshData();
-  }
-
-  function addReminder() {
-    if (!noteForm.reminderDraft) return;
-    setNoteForm((current) => ({
-      ...current,
-      reminderDraft: "",
-      reminders: [...new Set([...current.reminders, new Date(current.reminderDraft).toISOString()])].sort()
-    }));
-  }
-
-  function removeReminder(value: string) {
-    setNoteForm((current) => ({
-      ...current,
-      reminders: current.reminders.filter((reminder) => reminder !== value)
-    }));
-  }
-
-  async function removeNote(note: Note) {
-    await deleteNote(note.id);
-    setInfoNoteId(null);
-    await refreshData();
+  function openNewNote() {
+    const listId = view?.startsWith("list:") ? view.slice(5) : undefined;
+    setNoteTarget({ id: crypto.randomUUID(), isNew: true, listId });
   }
 
   async function completeNote(note: Note) {
-    if (note.kind === "reflection") await closeReflection(note.id);
-    else await toggleNoteCompleted(note.id);
+    await toggleNoteCompleted(note.id);
     await refreshData();
   }
 
-  async function removeListConfirmed(list: ReminderList) {
-    const confirmed = window.confirm(t("notes.deleteListConfirm", { title: list.title }));
-    if (!confirmed) return;
-    await deleteList(list.id);
-    setDetailView(null);
+  async function createList(form: typeof emptyListForm) {
+    const id = crypto.randomUUID();
+    await saveList({ id, title: form.title, icon: form.icon.trim() || "•", color: form.color, syncStatus: "local" });
+    setListModalOpen(false);
+    setView(`list:${id}`);
     await refreshData();
   }
+
+  async function removeList(list: ReminderList) {
+    if (!window.confirm(t("notes.deleteListConfirm", { title: list.title }))) return;
+    await deleteList(list.id);
+    if (view === `list:${list.id}`) setView(null);
+    await refreshData();
+  }
+
+  const activeList = view?.startsWith("list:") ? lists.find((list) => list.id === view.slice(5)) : undefined;
+  const editingNote = noteTarget && !noteTarget.isNew ? notes.find((note) => note.id === noteTarget.id) : undefined;
 
   return (
-    <section className="reminders-app">
+    <section className="reminders-app notes-ios">
       <LocalDataNotice status={localDataStatus} onRetry={() => void loadLocalData()} />
       {localDataStatus === "ready" ? <BackupReminder records={notes} /> : null}
-      {detailView ? (
-        <ListDetail
-          activeTitle={activeTitle}
-          locale={locale}
-          notes={visibleNotes}
-          lists={lists}
-          onBack={() => setDetailView(null)}
-          onCreate={openCreateNote}
-          onCreateList={() => setListModalOpen(true)}
-          onComplete={completeNote}
-          onEdit={openEditNote}
-          onInfo={setInfoNoteId}
-          onOpenReflection={(note) => setProcessingNoteId(note.id)}
-          isReflectionQueue={activeView === "process"}
-        />
-      ) : (
-        <HomeScreen
-          connection={connection}
-          locale={locale}
-          lists={lists}
-          notes={notes}
-          onCreateList={() => setListModalOpen(true)}
-          onCreateNote={openCreateNote}
-          onDeleteList={removeListConfirmed}
-          onOpenList={openList}
-          captured={Boolean(capturedNoteId)}
-          onCapture={handleQuickCapture}
-          quickCapture={quickCapture}
-          setQuickCapture={setQuickCapture}
-          onBrainDump={() => setBrainDumpOpen(true)}
-          onMorning={() => setMorningOpen(true)}
-          autoFocusCapture={focusCapture}
-        />
-      )}
-      {morningOpen ? <MorningCheckInSheet onClose={() => setMorningOpen(false)} /> : null}
-      {brainDumpOpen ? (
-        <BrainDumpModal
-          initialText={quickCapture}
-          onClose={() => setBrainDumpOpen(false)}
-          onDone={() => { setBrainDumpOpen(false); setQuickCapture(""); }}
-        />
-      ) : null}
 
-      {noteModalOpen ? (
-        <NoteModal
-          mode={editingId ? "edit" : "create"}
-          form={noteForm}
-          lists={lists}
-          locale={locale}
-          onAddReminder={addReminder}
-          onClose={closeNoteModal}
-          onRemoveReminder={removeReminder}
-          onSubmit={handleNoteSubmit}
-          setForm={setNoteForm}
-        />
-      ) : null}
-
-      {listModalOpen ? (
-        <ListModal
-          form={listForm}
-          onClose={() => setListModalOpen(false)}
-          onSubmit={handleListSubmit}
-          setForm={setListForm}
-        />
-      ) : null}
-
-      {activeNote ? (
-        <InfoModal
-          list={lists.find((item) => item.id === activeNote.listId)}
-          locale={locale}
-          note={activeNote}
-          onClose={() => setInfoNoteId(null)}
-          onDelete={() => removeNote(activeNote)}
-          onEdit={() => openEditNote(activeNote)}
-        />
-      ) : null}
-
-      {processingNote?.processing ? (
-        <ReflectionProcessor
-          note={processingNote}
-          onClose={() => setProcessingNoteId(null)}
-          onRefresh={refreshData}
-          onSchedule={(draft) => {
-            setProcessingNoteId(null);
-            onScheduleReflection(draft);
-          }}
-        />
-      ) : null}
-    </section>
-  );
-}
-
-type HomeScreenProps = {
-  connection: ConnectionState;
-  locale: AppLocale;
-  lists: ReminderList[];
-  notes: Note[];
-  onCreateList: () => void;
-  onCreateNote: () => void;
-  onDeleteList: (list: ReminderList) => void;
-  onOpenList: (view: ViewId) => void;
-  captured: boolean;
-  onCapture: (event: FormEvent<HTMLFormElement>) => void;
-  quickCapture: string;
-  setQuickCapture: (value: string) => void;
-  onBrainDump: () => void;
-  onMorning: () => void;
-  autoFocusCapture?: boolean;
-};
-
-function HomeScreen({ connection, lists, notes, onCreateList, onCreateNote, onDeleteList, onOpenList, captured, onCapture, quickCapture, setQuickCapture, onBrainDump, onMorning, autoFocusCapture = false }: HomeScreenProps) {
-  const { t } = useUserContext();
-  const captureRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (!quickCapture && captureRef.current) captureRef.current.style.height = "";
-  }, [quickCapture]);
-
-  useEffect(() => {
-    if (autoFocusCapture) captureRef.current?.focus();
-  }, [autoFocusCapture]);
-
-  return (
-    <>
-      <header className="home-topbar">
-        <div className="status-line">
-          <span className={`dot ${connection}`} />
-          <span>{connection}</span>
-          <span>local</span>
-        </div>
-        <div className="top-actions">
-          <button className="round-button search-button" type="button" aria-label={t("app.common.search")}>⌕</button>
-          <button className="round-button list-create-button" type="button" aria-label={t("notes.createList")} onClick={onCreateList}>▦</button>
-          <button className="round-button primary-add-button" type="button" aria-label={t("notes.createNote")} onClick={onCreateNote}>+</button>
-        </div>
-      </header>
-
-      <form className="reflection-capture" onSubmit={onCapture}>
-        <textarea
-          ref={captureRef}
-          aria-label={t("reflections.captureLabel")}
-          placeholder={t("reflections.capturePlaceholder")}
-          rows={1}
-          value={quickCapture}
-          onChange={(event) => setQuickCapture(event.target.value)}
-          onInput={(event) => {
-            event.currentTarget.style.height = "auto";
-            event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 76)}px`;
-          }}
-        />
-        <button className="reflection-capture-button" type="submit" disabled={!quickCapture.trim()}>{t("reflections.capture")}</button>
-      </form>
-      <button className="text-button braindump-open" type="button" onClick={onBrainDump}>{t("braindump.open")}</button>
-      <button className="text-button braindump-open" type="button" onClick={onMorning}>{t("morning.open")}</button>
-      {captured ? (
-        <div className="reflection-capture-toast" role="status">{t("reflections.savedShort")}</div>
-      ) : null}
-
-      <div className="smart-grid compact">
-        {smartLists.map((list) => (
-          <button key={list.id} className={`smart-card ${list.tone}`} type="button" onClick={() => onOpenList(list.id)}>
-            <span className="smart-icon">{list.icon}</span>
-            <strong>{getSmartCount(list.id, notes)}</strong>
-            <span>{t(list.titleKey)}</span>
-          </button>
-        ))}
-      </div>
-
-      <section className="my-lists-section">
-        <h1>{t("notes.myLists")}</h1>
-        <div className="ios-list-card">
-          {lists.map((list) => (
-            <div className="ios-list-row" key={list.id}>
-              <button type="button" onClick={() => onOpenList(`list:${list.id}`)}>
-                <span className="list-icon" style={{ backgroundColor: list.color }}>{list.icon}</span>
-                <span>{list.title}</span>
-                <strong>{getListCount(list.id, notes)}</strong>
-                <span className="chevron">›</span>
-              </button>
-              <button className="row-delete" type="button" aria-label={t("notes.deleteListLabel", { title: list.title })} onClick={() => onDeleteList(list)}>×</button>
-            </div>
-          ))}
-        </div>
-      </section>
-    </>
-  );
-}
-
-type ListDetailProps = {
-  activeTitle: string;
-  locale: AppLocale;
-  notes: Note[];
-  lists: ReminderList[];
-  onBack: () => void;
-  onCreate: () => void;
-  onCreateList: () => void;
-  onComplete: (note: Note) => void;
-  onEdit: (note: Note) => void;
-  onInfo: (id: string) => void;
-  onOpenReflection: (note: Note) => void;
-  isReflectionQueue: boolean;
-};
-
-function ListDetail({ activeTitle, locale, notes, lists, onBack, onCreate, onCreateList, onComplete, onEdit, onInfo, onOpenReflection, isReflectionQueue }: ListDetailProps) {
-  const { t } = useUserContext();
-
-  return (
-    <section className="detail-screen">
-      <header className="detail-topbar">
-        <button className="back-button" type="button" onClick={onBack}>‹</button>
-        <h1>{activeTitle}</h1>
-        {isReflectionQueue ? (
-          <span className="reflection-queue-count">{notes.length}</span>
-        ) : (
-          <div className="top-actions">
-            <button className="round-button search-button" type="button" aria-label={t("app.common.search")}>⌕</button>
-            <button className="round-button list-create-button" type="button" aria-label={t("notes.createList")} onClick={onCreateList}>▦</button>
-            <button className="round-button primary-add-button" type="button" aria-label={t("notes.createNote")} onClick={onCreate}>+</button>
+      {searchOpen ? (
+        <div className="notes-search-screen">
+          <div className="notes-search-bar">
+            <label>
+              <Search size={18} aria-hidden="true" />
+              <input autoFocus type="search" aria-label={t("app.common.search")} placeholder={t("app.common.search")} value={query} onChange={(event) => setQuery(event.target.value)} />
+            </label>
+            <button className="text-button" type="button" onClick={() => { setSearchOpen(false); setQuery(""); }}>{t("app.common.cancel")}</button>
           </div>
-        )}
-      </header>
-
-      <div className="task-list compact-list">
-        {notes.length === 0 ? (
-          <div className="empty-state">{t(isReflectionQueue ? "reflections.inboxEmpty" : "notes.emptyList")}</div>
-        ) : (
-          notes.map((note) => {
-            const list = lists.find((item) => item.id === note.listId);
-            return (
-              <article className={`task-row ${note.completed ? "completed" : ""}`} key={note.id}>
-                <button className="complete-toggle" type="button" aria-label={t("notes.complete")} onClick={() => onComplete(note)}>{note.completed ? "\u2713" : ""}</button>
-                <button className="task-text" type="button" onClick={() => note.kind === "reflection" ? onOpenReflection(note) : onEdit(note)}>
-                  <span>{note.title}</span>
-                  {note.body ? <small>{note.body}</small> : null}
-                  {note.kind === "reflection" && note.processing ? <i>{getReflectionStatusLabel(note.processing.status, t)}</i> : null}
-                  {isReflectionQueue && note.processing?.reviewAt ? <em>{t("reflections.reviewDue", { time: formatReminder(note.processing.reviewAt, locale) })}</em> : null}
-                  {isReflectionQueue && note.kind === "reflection" ? <strong className="reflection-row-action">{t(note.processing?.status === "inbox" ? "reflections.processNow" : "reflections.openProcessing")}</strong> : null}
-                  {note.reminders.length > 0 ? <em>{note.reminders.map((reminder) => formatReminder(reminder, locale)).join(" · ")}</em> : null}
-                  {list ? <i>{list.icon} {list.title}</i> : null}
-                  {note.contexts?.length ? <i>{note.contexts.map((context) => t(`context.${context}` as MessageKey)).join(" · ")}</i> : null}
-                </button>
-                <button className="info-button" type="button" aria-label={t("app.common.info")} onClick={() => onInfo(note.id)}>i</button>
-              </article>
-            );
-          })
-        )}
-      </div>
-
-    </section>
-  );
-}
-
-type NoteModalProps = {
-  mode: ModalMode;
-  form: typeof emptyNoteForm;
-  locale: AppLocale;
-  lists: ReminderList[];
-  onAddReminder: () => void;
-  onClose: () => void;
-  onRemoveReminder: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  setForm: React.Dispatch<React.SetStateAction<typeof emptyNoteForm>>;
-};
-
-function NoteModal({ mode, form, locale, lists, onAddReminder, onClose, onRemoveReminder, onSubmit, setForm }: NoteModalProps) {
-  const { t } = useUserContext();
-
-  return (
-    <Sheet as="form" bare dismissible={false} ariaLabel={t("notes.note")} onSubmit={onSubmit} onClose={onClose}>
-        <div className="modal-header">
-          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
-          <h2>{mode === "edit" ? t("notes.note") : t("notes.newNote")}</h2>
-          <button className="text-button primary" type="submit">{t("app.common.done")}</button>
+          {query.trim() ? (
+            <NoteRows notes={searchResults} lists={lists} locale={locale} emptyKey="notes.searchEmpty" onComplete={completeNote} onOpen={(note) => setNoteTarget({ id: note.id, isNew: false })} onAi={() => setAiHint(true)} />
+          ) : null}
         </div>
-        <input aria-label={t("notes.titleLabel")} autoFocus placeholder={t("notes.titlePlaceholder")} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
-        <label className="note-body-field">
-          <span>{t("notes.bodyLabel")} <MediaUrlHelp t={t} /></span>
-          <textarea aria-label={t("notes.bodyLabel")} placeholder={t("notes.bodyPlaceholder")} value={form.body} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} />
-        </label>
-        <select value={form.listId} onChange={(event) => setForm((current) => ({ ...current, listId: event.target.value }))}>
-          <option value="">-- {t("notes.noList")}</option>
-          {lists.map((list) => <option key={list.id} value={list.id}>{list.icon} {list.title}</option>)}
-        </select>
-        <div className="date-row">
-          <input type="datetime-local" value={form.reminderDraft} onChange={(event) => setForm((current) => ({ ...current, reminderDraft: event.target.value }))} />
-          <button className="secondary-button" type="button" onClick={onAddReminder}>{t("notes.addDate")}</button>
-        </div>
-        {form.reminders.length > 0 ? (
-          <div className="chips">
-            {form.reminders.map((reminder) => (
-              <button className="chip" key={reminder} type="button" onClick={() => onRemoveReminder(reminder)}>{formatReminder(reminder, locale)} x</button>
+      ) : view ? (
+        <section className="notes-list-screen">
+          <header className="notes-list-topbar">
+            <button className="notes-back" type="button" onClick={() => setView(null)}>
+              <ChevronLeft size={24} aria-hidden="true" />
+              <span>{t("notes.lists")}</span>
+            </button>
+            {activeList ? (
+              <button className="notes-icon-button" type="button" aria-label={t("notes.deleteListLabel", { title: activeList.title })} onClick={() => void removeList(activeList)}>
+                <Trash2 size={19} aria-hidden="true" />
+              </button>
+            ) : null}
+          </header>
+          <h1 className="notes-list-title" style={{ color: viewColor(view, lists) }}>{getViewTitle(view, lists, t)}</h1>
+          <NoteRows notes={visibleNotes} lists={view.startsWith("list:") || view === "inbox" ? [] : lists} locale={locale} emptyKey="notes.emptyList" onComplete={completeNote} onOpen={(note) => setNoteTarget({ id: note.id, isNew: false })} onAi={() => setAiHint(true)} />
+        </section>
+      ) : (
+        <>
+          <header className="notes-home-topbar">
+            <div className="notes-toolbar">
+              <button type="button" aria-label={t("app.common.search")} onClick={() => setSearchOpen(true)}><Search size={21} aria-hidden="true" /></button>
+              <button type="button" aria-label={t("notes.createList")} onClick={() => setListModalOpen(true)}><ListPlus size={22} aria-hidden="true" /></button>
+              <button type="button" aria-label={t("notes.more")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><MoreHorizontal size={22} aria-hidden="true" /></button>
+            </div>
+            {menuOpen ? (
+              <div className="notes-menu" role="menu">
+                <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setListModalOpen(true); }}>{t("notes.newList")}</button>
+                <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setEditingLists((value) => !value); }}>{t(editingLists ? "app.common.done" : "notes.editLists")}</button>
+              </div>
+            ) : null}
+          </header>
+
+          <div className="notes-smart-grid">
+            {smartLists.map(({ id, titleKey, Icon, tone }) => (
+              <button key={id} className={`notes-smart-card ${tone}`} type="button" onClick={() => setView(id)}>
+                <span className="notes-smart-icon"><Icon size={22} aria-hidden="true" /></span>
+                <strong>{filterNotes(notes, id).length}</strong>
+                <span>{t(titleKey)}</span>
+              </button>
             ))}
           </div>
-        ) : null}
-    </Sheet>
+
+          <section className="notes-my-lists">
+            <h2>{t("notes.myLists")}</h2>
+            <div className="notes-list-card">
+              <ListRow color={INBOX_COLOR} icon={<Inbox size={19} aria-hidden="true" />} title={t("notes.inbox")} count={filterNotes(notes, "inbox").length} onOpen={() => setView("inbox")} />
+              {lists.map((list) => (
+                <ListRow
+                  key={list.id}
+                  color={list.color}
+                  icon={list.icon}
+                  title={list.title}
+                  count={filterNotes(notes, `list:${list.id}`).length}
+                  onOpen={() => setView(`list:${list.id}`)}
+                  onDelete={editingLists ? () => void removeList(list) : undefined}
+                  deleteLabel={t("notes.deleteListLabel", { title: list.title })}
+                />
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+
+      {!searchOpen && view !== "completed" ? (
+        <button className="notes-fab" type="button" aria-label={t("notes.createNote")} onClick={openNewNote}><Plus size={30} aria-hidden="true" /></button>
+      ) : null}
+
+      {aiHint ? <div className="notes-toast" role="status">{t("notes.aiSoon")}</div> : null}
+
+      {noteTarget && (noteTarget.isNew || editingNote) ? (
+        <NoteDetail
+          key={noteTarget.id}
+          note={editingNote}
+          target={noteTarget}
+          lists={lists}
+          locale={locale}
+          onAi={() => setAiHint(true)}
+          onClose={async () => { setNoteTarget(null); await refreshData(); }}
+        />
+      ) : null}
+
+      {listModalOpen ? <ListModal onClose={() => setListModalOpen(false)} onSubmit={(form) => void createList(form)} /> : null}
+    </section>
   );
 }
 
-type ListModalProps = {
-  form: typeof emptyListForm;
-  onClose: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  setForm: React.Dispatch<React.SetStateAction<typeof emptyListForm>>;
-};
-
-function ListModal({ form, onClose, onSubmit, setForm }: ListModalProps) {
-  const { t } = useUserContext();
-
+function ListRow({ color, icon, title, count, onOpen, onDelete, deleteLabel }: {
+  color: string;
+  icon: React.ReactNode;
+  title: string;
+  count: number;
+  onOpen: () => void;
+  onDelete?: () => void;
+  deleteLabel?: string;
+}) {
   return (
-    <Sheet as="form" bare dismissible={false} ariaLabel={t("notes.newList")} onSubmit={onSubmit} onClose={onClose} className="small">
-        <div className="modal-header">
-          <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
-          <h2>{t("notes.newList")}</h2>
-          <button className="text-button primary" type="submit">{t("app.common.done")}</button>
-        </div>
-        <label className="emoji-field">
-          <span style={{ backgroundColor: form.color }}>{form.icon || "•"}</span>
-          <input aria-label={t("notes.emojiLabel")} maxLength={4} placeholder={t("notes.emojiPlaceholder")} value={form.icon} onChange={(event) => setForm((current) => ({ ...current, icon: event.target.value }))} />
-        </label>
-        <input aria-label={t("notes.listTitleLabel")} autoFocus placeholder={t("notes.listTitlePlaceholder")} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
-        <div className="swatches">
-          {listColors.map((color) => (
-            <button className={form.color === color ? "swatch active" : "swatch"} key={color} style={{ backgroundColor: color }} type="button" onClick={() => setForm((current) => ({ ...current, color }))} />
-          ))}
-        </div>
-    </Sheet>
+    <div className="notes-list-row">
+      {onDelete ? <button className="notes-row-delete" type="button" aria-label={deleteLabel} onClick={onDelete}><X size={14} aria-hidden="true" /></button> : null}
+      <button className="notes-list-open" type="button" onClick={onOpen}>
+        <span className="notes-list-icon" style={{ backgroundColor: color }}>{icon}</span>
+        <span className="notes-list-name">{title}</span>
+        <strong>{count}</strong>
+        <ChevronRight size={18} aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
-type InfoModalProps = {
-  list?: ReminderList;
+function NoteRows({ notes, lists, locale, emptyKey, onComplete, onOpen, onAi }: {
+  notes: Note[];
+  lists: ReminderList[];
   locale: AppLocale;
-  note: Note;
-  onClose: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
-};
-
-function InfoModal({ list, locale, note, onClose, onDelete, onEdit }: InfoModalProps) {
+  emptyKey: MessageKey;
+  onComplete: (note: Note) => void;
+  onOpen: (note: Note) => void;
+  onAi: () => void;
+}) {
   const { t } = useUserContext();
+  if (notes.length === 0) return <p className="notes-empty">{t(emptyKey)}</p>;
+  return (
+    <div className="notes-rows">
+      {notes.map((note) => {
+        const list = lists.find((item) => item.id === note.listId);
+        return (
+          <article className={`notes-row${note.completed ? " completed" : ""}`} key={note.id}>
+            <button className="notes-check" type="button" aria-label={t("notes.complete")} aria-pressed={note.completed} onClick={() => onComplete(note)}>
+              {note.completed ? <Check size={14} aria-hidden="true" /> : null}
+            </button>
+            <button className="notes-row-text" type="button" onClick={() => onOpen(note)}>
+              <span>{note.title}</span>
+              {note.body && note.body !== note.title ? <small>{note.body}</small> : null}
+              {note.reminders.length > 0 ? <em>{note.reminders.map((reminder) => formatReminder(reminder, locale)).join(" · ")}</em> : null}
+              {list ? <i>{list.icon} {list.title}</i> : null}
+            </button>
+            <button className="notes-ai-button" type="button" aria-label={t("notes.aiLabel")} onClick={onAi}>AI</button>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * The full-screen note page: edit in place like iPhone Notes, saved when it closes
+ * (cross, Back, or a swipe from the left edge). An untouched new note is discarded.
+ */
+function NoteDetail({ note, target, lists, locale, onAi, onClose }: {
+  note?: Note;
+  target: NoteTarget;
+  lists: ReminderList[];
+  locale: AppLocale;
+  onAi: () => void;
+  onClose: () => Promise<void>;
+}) {
+  const { t } = useUserContext();
+  const [title, setTitle] = useState(note?.title ?? "");
+  const [body, setBody] = useState(note?.body ?? "");
+  const [listId, setListId] = useState(note?.listId ?? target.listId ?? "");
+  const [reminders, setReminders] = useState<string[]>(note?.reminders ?? []);
+  const [reminderDraft, setReminderDraft] = useState("");
+  const closingRef = useRef(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const field = bodyRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+  }, [body]);
+
+  async function close() {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    const nextTitle = title.trim();
+    const nextBody = body.trim();
+    const changed = !note || nextTitle !== note.title || nextBody !== note.body || (listId || undefined) !== note.listId || reminders.join() !== note.reminders.join();
+    if ((nextTitle || nextBody) && changed) {
+      await saveNote({
+        id: target.id,
+        title: nextTitle || nextBody.split("\n")[0].slice(0, 80) || t("notes.untitled"),
+        body: nextBody,
+        listId: listId || undefined,
+        reminders,
+        syncStatus: "local"
+      });
+    }
+    await onClose();
+  }
+
+  async function remove() {
+    closingRef.current = true;
+    if (note) await deleteNote(note.id);
+    await onClose();
+  }
+
+  function addReminder() {
+    if (!reminderDraft) return;
+    setReminders((current) => [...new Set([...current, new Date(reminderDraft).toISOString()])].sort());
+    setReminderDraft("");
+  }
 
   return (
-    <Sheet bare ariaLabel={t("app.common.info")} onClose={onClose} className="small">
-        <div className="modal-header">
-          <button className="text-button" type="button" onClick={onClose}>{t("app.common.close")}</button>
-          <h2>{t("app.common.info")}</h2>
-          <span />
+    <Sheet bare fullscreen className="notes-detail" ariaLabel={target.isNew ? t("notes.newNote") : t("notes.note")} closeLabel={t("app.common.close")} onClose={() => void close()}>
+      <div className="notes-detail-body">
+        <input className="notes-detail-title" aria-label={t("notes.titleLabel")} autoFocus={target.isNew} placeholder={t("notes.titlePlaceholder")} value={title} onChange={(event) => setTitle(event.target.value)} />
+        <textarea ref={bodyRef} className="notes-detail-text" aria-label={t("notes.bodyLabel")} placeholder={t("notes.bodyPlaceholder")} rows={4} value={body} onChange={(event) => setBody(event.target.value)} />
+        <MediaUrlHelp t={t} />
+
+        <div className="notes-detail-group">
+          <label className="notes-detail-field">
+            <span>{t("notes.list")}</span>
+            <select value={listId} onChange={(event) => setListId(event.target.value)}>
+              <option value="">{t("notes.inbox")}</option>
+              {lists.map((list) => <option key={list.id} value={list.id}>{list.icon} {list.title}</option>)}
+            </select>
+          </label>
+          <div className="notes-detail-field stacked">
+            <span>{t("notes.reminder")}</span>
+            <div className="notes-detail-date">
+              <input type="datetime-local" aria-label={t("notes.reminder")} value={reminderDraft} onChange={(event) => setReminderDraft(event.target.value)} />
+              <button className="text-button" type="button" disabled={!reminderDraft} onClick={addReminder}>{t("notes.addDate")}</button>
+            </div>
+          </div>
+          {reminders.length > 0 ? (
+            <div className="notes-detail-chips">
+              {reminders.map((reminder) => (
+                <button className="chip" key={reminder} type="button" onClick={() => setReminders((current) => current.filter((value) => value !== reminder))}>
+                  {formatReminder(reminder, locale)} <X size={12} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <div className="info-block">
-          <strong>{note.title}</strong>
-          {note.body ? <p>{note.body}</p> : null}
-          <span>{list ? `${list.icon} ${list.title}` : t("notes.noList")}</span>
-          <span>{note.syncStatus}</span>
-          {note.reminders.map((reminder) => <span key={reminder}>{formatReminder(reminder, locale)}</span>)}
-        </div>
-        <div className="modal-actions">
-          <button className="secondary-button" type="button" onClick={onEdit}>{t("app.common.edit")}</button>
-          <button className="danger-button" type="button" onClick={onDelete}>{t("app.common.delete")}</button>
-        </div>
+
+        <button className="notes-detail-ai" type="button" onClick={onAi}>
+          <Sparkles size={18} aria-hidden="true" />
+          <span>{t("notes.aiAction")}</span>
+        </button>
+
+        {note ? (
+          <button className="notes-detail-delete" type="button" onClick={() => void remove()}>
+            <Trash2 size={18} aria-hidden="true" />
+            <span>{t("app.common.delete")}</span>
+          </button>
+        ) : null}
+      </div>
+    </Sheet>
+  );
+}
+
+function ListModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (form: typeof emptyListForm) => void }) {
+  const { t } = useUserContext();
+  const [form, setForm] = useState(emptyListForm);
+
+  return (
+    <Sheet
+      as="form"
+      bare
+      dismissible={false}
+      ariaLabel={t("notes.newList")}
+      onClose={onClose}
+      className="small"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (form.title.trim()) onSubmit({ ...form, title: form.title.trim() });
+      }}
+    >
+      <div className="modal-header">
+        <button className="text-button" type="button" onClick={onClose}>{t("app.common.cancel")}</button>
+        <h2>{t("notes.newList")}</h2>
+        <button className="text-button primary" type="submit" disabled={!form.title.trim()}>{t("app.common.done")}</button>
+      </div>
+      <label className="emoji-field">
+        <span style={{ backgroundColor: form.color }}>{form.icon || "•"}</span>
+        <input aria-label={t("notes.emojiLabel")} maxLength={4} placeholder={t("notes.emojiPlaceholder")} value={form.icon} onChange={(event) => setForm((current) => ({ ...current, icon: event.target.value }))} />
+      </label>
+      <input aria-label={t("notes.listTitleLabel")} autoFocus placeholder={t("notes.listTitlePlaceholder")} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
+      <div className="swatches">
+        {listColors.map((color) => (
+          <button className={form.color === color ? "swatch active" : "swatch"} key={color} style={{ backgroundColor: color }} type="button" aria-label={color} onClick={() => setForm((current) => ({ ...current, color }))} />
+        ))}
+      </div>
     </Sheet>
   );
 }
 
 function filterNotes(notes: Note[], view: ViewId): Note[] {
-  if (view === "process") return notes.filter((note) => note.kind === "reflection" && note.processing?.status !== "closed");
   if (view === "today") return notes.filter((note) => !note.completed && note.reminders.some(isTodayReminder));
   if (view === "planned") return notes.filter((note) => !note.completed && note.reminders.length > 0);
   if (view === "completed") return notes.filter((note) => note.completed);
   if (view === "all") return notes.filter((note) => !note.completed);
-  if (view.startsWith("list:")) return notes.filter((note) => !note.completed && note.listId === view.slice(5));
-  return notes;
+  if (view === "inbox") return notes.filter((note) => !note.completed && !note.listId);
+  return notes.filter((note) => !note.completed && note.listId === view.slice(5));
 }
 
-function getSmartCount(view: ViewId, notes: Note[]): number {
-  return filterNotes(notes.filter((note) => !note.deleted), view).length;
+function sortNotes(notes: Note[]): Note[] {
+  return [...notes].sort((a, b) => {
+    if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
 }
 
-function getListCount(listId: string, notes: Note[]): number {
-  return notes.filter((note) => !note.deleted && !note.completed && note.listId === listId).length;
+function viewColor(view: ViewId, lists: ReminderList[]): string | undefined {
+  if (view === "inbox") return INBOX_COLOR;
+  if (view.startsWith("list:")) return lists.find((list) => list.id === view.slice(5))?.color;
+  return undefined;
 }
 
-function getViewTitle(view: ViewId, lists: ReminderList[], t: (key: MessageKey, values?: Record<string, string | number>) => string): string {
-  if (view === "process") return t("reflections.inbox");
-  if (view === "today") return t("notes.smart.today");
-  if (view === "planned") return t("notes.smart.planned");
-  if (view === "all") return t("notes.smart.all");
-  if (view === "completed") return t("notes.smart.completed");
+function getViewTitle(view: ViewId, lists: ReminderList[], t: Translate): string {
+  if (view === "inbox") return t("notes.inbox");
   if (view.startsWith("list:")) return lists.find((list) => list.id === view.slice(5))?.title ?? t("notes.listFallback");
-  return t("notes.listFallback");
-}
-
-function getReflectionStatusLabel(status: NonNullable<Note["processing"]>["status"], t: (key: MessageKey) => string): string {
-  if (status === "clarifying") return t("reflections.status.clarifying");
-  if (status === "ready") return t("reflections.status.ready");
-  if (status === "planned") return t("reflections.status.planned");
-  if (status === "waiting") return t("reflections.status.waiting");
-  if (status === "closed") return t("reflections.status.closed");
-  return t("reflections.status.inbox");
-}
-
-function getLengthBucket(length: number): string {
-  if (length < 120) return "short";
-  if (length < 500) return "medium";
-  return "long";
+  return t(smartLists.find((list) => list.id === view)?.titleKey ?? "notes.listFallback");
 }
 
 function isTodayReminder(value: string): boolean {

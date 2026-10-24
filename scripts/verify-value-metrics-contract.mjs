@@ -41,7 +41,6 @@ assert.match(report, /anonymous_id/, "guests are counted");
 for (const [path, event] of [
   ["components/TasksApp.tsx", "task_done"],
   ["components/TaskStepSuggester.tsx", "task_steps_accepted"],
-  ["components/BrainDumpModal.tsx", "brain_dump_created"],
   ["components/DecisionModal.tsx", "decision_task_added"],
   ["components/RoutinePlanModal.tsx", "routine_plan_created"]
 ]) {

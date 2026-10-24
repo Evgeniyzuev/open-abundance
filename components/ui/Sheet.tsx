@@ -1,15 +1,21 @@
 "use client";
 
 import { X } from "lucide-react";
-import { createElement, useEffect, useRef, type CSSProperties, type FormEventHandler, type ReactNode } from "react";
+import { createElement, useEffect, useRef, type CSSProperties, type FormEventHandler, type ReactNode, type TouchEvent as ReactTouchEvent } from "react";
 
 // Open sheets, topmost last: Escape closes only the topmost one.
 const openSheets: symbol[] = [];
+// Marker on the history entry a full-screen sheet adds, so the system Back gesture closes the sheet, not the screen.
+const SHEET_HISTORY_KEY = "openAbundanceSheet";
+const EDGE_SWIPE_START = 28;
+const EDGE_SWIPE_DISTANCE = 80;
 
 /**
  * Shared modal: bottom sheet on phones, centred card on wide screens.
  * Handles Escape, backdrop tap, swipe-down on the grabber, focus move/return and scroll lock.
- * `fullscreen` makes it a full-screen page (same as the post detail view), good for long content.
+ * `fullscreen` makes it a full-screen page (same as the post detail view), good for long content. A full-screen sheet
+ * also closes with the system Back (Android button, browser back, iOS edge swipe in Safari) and with a swipe from the
+ * left edge, which an installed iOS app has no system gesture for; the close cross stays in the top right.
  * `bare` leaves the header to the children (Cancel/Done style forms); `as="form"` renders the sheet as a form.
  */
 export default function Sheet({
@@ -47,7 +53,26 @@ export default function Sheet({
   const canDismiss = dismissible && Boolean(onClose);
   const onCloseRef = useRef(onClose);
   const dragStartY = useRef<number | null>(null);
+  const edgeStart = useRef<{ x: number; y: number } | null>(null);
   onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!fullscreen || !canDismiss) return;
+    const token = `${Date.now()}-${Math.random()}`;
+    window.history.pushState({ ...(window.history.state ?? {}), [SHEET_HISTORY_KEY]: token }, "", window.location.href);
+    function onPopState() {
+      if ((window.history.state as Record<string, unknown> | null)?.[SHEET_HISTORY_KEY] !== token) onCloseRef.current?.();
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // Closed by the cross, Escape or the app itself: drop the entry this sheet added, so Back is not wasted later.
+      // Checked a tick later, so a sheet that remounts at once (React strict mode) keeps its new entry.
+      window.setTimeout(() => {
+        if ((window.history.state as Record<string, unknown> | null)?.[SHEET_HISTORY_KEY] === token) window.history.back();
+      }, 0);
+    };
+  }, [canDismiss, fullscreen]);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -103,6 +128,21 @@ export default function Sheet({
           style,
           onClick: (event: { stopPropagation: () => void }) => event.stopPropagation(),
           onSubmit,
+          ...(fullscreen && canDismiss ? {
+            onTouchStart: (event: ReactTouchEvent) => {
+              const touch = event.touches[0];
+              const fromLeft = document.dir === "rtl" ? window.innerWidth - touch.clientX : touch.clientX;
+              edgeStart.current = fromLeft <= EDGE_SWIPE_START ? { x: touch.clientX, y: touch.clientY } : null;
+            },
+            onTouchEnd: (event: ReactTouchEvent) => {
+              const start = edgeStart.current;
+              edgeStart.current = null;
+              if (!start) return;
+              const touch = event.changedTouches[0];
+              const dx = (touch.clientX - start.x) * (document.dir === "rtl" ? -1 : 1);
+              if (dx > EDGE_SWIPE_DISTANCE && Math.abs(touch.clientY - start.y) < dx / 2) onCloseRef.current?.();
+            }
+          } : {}),
           ref: sheetRef,
           role: "dialog",
           tabIndex: -1

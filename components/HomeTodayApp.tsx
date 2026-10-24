@@ -1,7 +1,7 @@
 "use client";
 
 import type { DayCredit } from "@/lib/dayCredit";
-import { ArrowRight, Bell, CheckCircle2, Compass, FileText, Heart, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, Compass, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import DailySetCard from "@/components/DailySetCard";
@@ -16,7 +16,6 @@ import { saveTask } from "@/lib/tasksStore";
 import { todayKey } from "@/lib/taskSchedule";
 import { getBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabaseClient";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
-import { getNotes, isReflectionDue, NOTES_CHANGED_EVENT } from "@/lib/notesStore";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { playUiSound } from "@/lib/ui/sound";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -92,7 +91,6 @@ type HomeTodayAppProps = {
   onOpenNextChallenge: () => void;
   onOpenChallenge: (id: string) => void;
   onOpenFeed: () => void;
-  onOpenReflectionInbox: () => void;
   onOpenToday: () => void;
   onOpenTeams: () => void;
   onOpenWishes: () => void;
@@ -108,7 +106,6 @@ export default function HomeTodayApp({
   onOpenNextChallenge,
   onOpenChallenge,
   onOpenFeed,
-  onOpenReflectionInbox,
   onOpenToday,
   onOpenTeams,
   onOpenWishes,
@@ -124,7 +121,6 @@ export default function HomeTodayApp({
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [actionError, setActionError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
-  const [dueReflectionCount, setDueReflectionCount] = useState(0);
   const [reminderSettings, setReminderSettings] = useState(getDailyReminderSettings);
   const [reminderError, setReminderError] = useState(false);
   const [primaryWish, setPrimaryWish] = useState<PrimaryWishSummary | null>(null);
@@ -196,11 +192,6 @@ export default function HomeTodayApp({
     setAgentNote(t("home.path.milestoneSaved"));
     playUiSound("action");
   }
-
-  const loadDueReflections = useCallback(async () => {
-    const notes = await getNotes();
-    setDueReflectionCount(notes.filter((note) => isReflectionDue(note)).length);
-  }, []);
 
   const loadHome = useCallback(async () => {
     const requestId = requestIdRef.current + 1;
@@ -285,18 +276,6 @@ export default function HomeTodayApp({
     if (!active) return;
     void loadTeamSummary();
   }, [active, loadTeamSummary, refreshNonce]);
-
-  useEffect(() => {
-    if (!active) return;
-    const refresh = () => void loadDueReflections();
-    refresh();
-    window.addEventListener(NOTES_CHANGED_EVENT, refresh);
-    const intervalId = window.setInterval(refresh, 60_000);
-    return () => {
-      window.removeEventListener(NOTES_CHANGED_EVENT, refresh);
-      window.clearInterval(intervalId);
-    };
-  }, [active, loadDueReflections]);
 
   useEffect(() => {
     if (!active || !reminderSettings.configured) return;
@@ -540,13 +519,6 @@ export default function HomeTodayApp({
                   {text(item.title, item.item_key, locale)}
                 </span>
               ))}
-              {dueReflectionCount > 0 ? (
-                <button className="today-local-item" type="button" onClick={onOpenReflectionInbox}>
-                  <FileText size={15} />
-                  {t("today.reviewNotes", { count: dueReflectionCount })}
-                  <ArrowRight size={14} />
-                </button>
-              ) : null}
             </div>
             <div className="today-reminder-row">
               <span><Bell size={15} />{t("today.dailyReminder")}</span>
@@ -564,15 +536,6 @@ export default function HomeTodayApp({
         ) : (
           <>
             <p className="today-note">{t("home.today.preview")}</p>
-            {dueReflectionCount > 0 ? (
-              <div className="today-checklist">
-                <button className="today-local-item" type="button" onClick={onOpenReflectionInbox}>
-                  <FileText size={15} />
-                  {t("today.reviewNotes", { count: dueReflectionCount })}
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            ) : null}
           </>
         )}
           <button className="text-button home-secondary-open" type="button" onClick={onOpenToday}>{t("today.popup.open")}</button>

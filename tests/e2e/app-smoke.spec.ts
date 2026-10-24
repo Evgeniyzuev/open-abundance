@@ -189,7 +189,11 @@ test("notes: a new note goes to the Inbox offline, opens full screen and closes 
   await page.getByRole("button", { name: /Inbox/ }).click();
   await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
   await page.getByRole("button", { name: "AI review of the note" }).first().click();
-  await expect(page.getByText("AI review of notes is coming soon.")).toBeVisible();
+  const aiMenu = page.getByRole("dialog", { name: "How should AI review this note?" });
+  await expect(aiMenu.getByRole("button", { name: /Let's talk/ })).toBeVisible();
+  await aiMenu.getByRole("button", { name: /Turn into tasks/ }).click();
+  await expect(page.getByText("No connection. Try again when you are online.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "AI review of the note" }).first()).toBeVisible();
 
   await page.getByRole("button", { name: /Call the bank/ }).click();
   await expect(page.getByRole("dialog", { name: "Note" })).toBeVisible();

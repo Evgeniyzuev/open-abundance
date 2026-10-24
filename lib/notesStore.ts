@@ -8,6 +8,7 @@ import {
   type ReflectionProposal
 } from "@/lib/reflections";
 import { openOfflineDatabase } from "@/lib/offlineDatabase";
+import type { NoteAiReview } from "@/lib/noteAiReview";
 
 export type ReminderList = {
   id: string;
@@ -38,7 +39,12 @@ export type Note = {
   /** Morning check-in entry and the life contexts the person tagged it with. */
   morning?: boolean;
   contexts?: string[];
+  /** The latest AI review of this note: waiting, answered or failed. */
+  aiReview?: NoteAiReview;
 };
+
+/** Built-in lists that cannot be deleted. Notes without a list are in the Inbox; "abundance" is a reserved list id. */
+export const ABUNDANCE_LIST_ID = "abundance";
 
 export const NOTES_CHANGED_EVENT = "open-abundance:notes-changed";
 
@@ -153,7 +159,8 @@ export async function saveNote(input: NoteInput): Promise<Note> {
     kind: input.kind ?? existing?.kind ?? "regular",
     processing: input.processing ?? existing?.processing,
     morning: input.morning ?? existing?.morning,
-    contexts: input.contexts ?? existing?.contexts
+    contexts: input.contexts ?? existing?.contexts,
+    aiReview: existing?.aiReview
   };
 
   await withStore<IDBValidKey>(NOTES_STORE, "readwrite", (store) => store.put(note));
@@ -246,6 +253,16 @@ export async function setReflectionFeedback(id: string, feedback: ReflectionFeed
   const note = await getNote(id);
   if (!note?.processing) return;
   await updateReflectionProcessing(id, { ...note.processing, feedback });
+}
+
+/** Sets (or with `undefined` clears) the AI review of a note without touching its text or its "updated" time. */
+export async function setNoteAiReview(id: string, aiReview: NoteAiReview | undefined): Promise<Note | undefined> {
+  const existing = await getNote(id);
+  if (!existing) return undefined;
+  const note: Note = { ...existing, aiReview };
+  await withStore<IDBValidKey>(NOTES_STORE, "readwrite", (store) => store.put(note));
+  notifyNotesChanged();
+  return note;
 }
 
 export async function deleteNote(id: string): Promise<void> {

@@ -19,7 +19,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "task.decompose" | "decision.choose" | "routine.plan" | "market.listing";
+export type AiCapability = "chat.general" | "task.decompose" | "notes.review" | "decision.choose" | "routine.plan" | "market.listing";
 
 type SystemPromptOptions = {
   locale: AppLocale;
@@ -125,6 +125,18 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Give each step a realistic duration in whole minutes. Do not invent deadlines, prices, names, tools or facts that the task does not mention.
 - Do not repeat steps that already exist; continue from them instead. Plain text only: no Markdown, numbering, emoji or motivational language, and no pressure or guilt.
 - Never decide for the person: these are editable suggestions. The response schema is defined by the task input; return only the requested machine-readable format.
+`,
+  "notes.review": `
+## Capability: review one saved note in the way the person chose
+- Work only with the note, the chosen way of review and the optional context (other note excerpts, list titles) supplied in this request. Do not use or request any other account, wish, Core or Wallet data, and never repeat the note outside the requested format.
+- The person already chose what they want, so answer that and nothing else. Do not ask a chain of questions: at most one short optional follow-up question, and only when the answer would be empty without it.
+- sort: say in one or two sentences what the note is (task, wish, idea, observation or feeling) and where it fits; if one of the supplied list titles fits, name it exactly in "list".
+- advice: one or two concrete, kind suggestions with the reason, and a reminder that the decision is the person's. If the person would be better served by a professional or by people close to them, say so plainly.
+- plan: a SMART goal in one sentence in "text", and three to five steps in "items", the first one doable today in about fifteen minutes.
+- tasks: three to seven concrete tasks in "items", each starting with a verb, in the order they would be done; "text" is one short sentence.
+- links: compare the note with the supplied excerpts and name repeats, overlaps and connections by quoting a few words of the related note; say plainly when there are none.
+- Keep the person's own meaning; never invent facts, amounts, deadlines or names. Warm, plain language, no Markdown, emoji, numbering, pressure or guilt. This is organisation and reflection help, not therapy or diagnosis.
+- The response schema is defined by the task input; return only the requested machine-readable format.
 `,
   "decision.choose": `
 ## Capability: pick one option when the person is stuck

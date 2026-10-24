@@ -21,6 +21,7 @@ import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
 import Skeleton from "@/components/ui/Skeleton";
 import TasksApp from "@/components/TasksApp";
+import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
 import NotesApp from "@/components/NotesApp";
 import { useUserContext } from "@/components/UserProvider";
 import CoreSeedIcon from "@/components/icons/CoreSeedIcon";
@@ -150,6 +151,7 @@ export default function AppNavigation() {
   const [shareTargetToDispatch, setShareTargetToDispatch] = useState<ShareTargetDraft | null>(null);
   const [aiContentPostId, setAiContentPostId] = useState<string | null>(null);
   const [aiContentNonce, setAiContentNonce] = useState(0);
+  const [aiPrompt, setAiPrompt] = useState<{ text: string; nonce: number } | null>(null);
   const [wishFocusRequest, setWishFocusRequest] = useState<{ id: string; nonce: number } | null>(null);
   const [, setDailyUnreadVersion] = useState(0);
   const [visitedServerViews, setVisitedServerViews] = useState({
@@ -241,6 +243,20 @@ export default function AppNavigation() {
     };
     window.addEventListener("oa:open-ai-content", onAiContent);
     return () => window.removeEventListener("oa:open-ai-content", onAiContent);
+  }, []);
+
+  useEffect(() => {
+    // A note's "support" or "discuss" opens the Nova chat with the message ready; the person still presses Send.
+    const onAiPrompt = (event: Event) => {
+      const text = (event as CustomEvent<{ text?: unknown }>).detail?.text;
+      if (typeof text !== "string" || !text.trim()) return;
+      setAiPrompt((current) => ({ text, nonce: (current?.nonce ?? 0) + 1 }));
+      setVisitedHomeViews((current) => ({ ...current, ideas: true }));
+      setActiveHomeTab("ideas");
+      setActiveMainTab("home");
+    };
+    window.addEventListener(OPEN_AI_PROMPT_EVENT, onAiPrompt);
+    return () => window.removeEventListener(OPEN_AI_PROMPT_EVENT, onAiPrompt);
   }, []);
 
   const dailyUnread = user
@@ -678,7 +694,7 @@ export default function AppNavigation() {
           />
         </KeepAliveView>
         <KeepAliveView active={showIdeas} visited={visitedHomeViews.ideas}>
-          <AiChatApp active={showIdeas} contentPostId={aiContentPostId} contentPostNonce={aiContentNonce} />
+          <AiChatApp active={showIdeas} contentPostId={aiContentPostId} contentPostNonce={aiContentNonce} prompt={aiPrompt} />
         </KeepAliveView>
         <KeepAliveView active={showChecks} visited>
           <TasksApp openTaskRequest={taskOpenRequest} />

@@ -50,6 +50,8 @@ type AiChatAppProps = {
   active: boolean;
   contentPostId?: string | null;
   contentPostNonce?: number;
+  /** A prepared message to put into the input (from a note's "support" or "discuss"). */
+  prompt?: { text: string; nonce: number } | null;
 };
 
 type PendingChatAction =
@@ -75,7 +77,7 @@ type AiChatSettings = {
   models: AiSettingsModel[];
 };
 
-export default function AiChatApp({ active, contentPostId = null, contentPostNonce = 0 }: AiChatAppProps) {
+export default function AiChatApp({ active, contentPostId = null, contentPostNonce = 0, prompt = null }: AiChatAppProps) {
   const { core, locale, profile, t, user, wallet } = useUserContext();
   const userId = user?.id ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -682,6 +684,10 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     setQuestionsOpen(false);
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
+
+  useEffect(() => {
+    if (prompt?.text) selectPrompt(prompt.text);
+  }, [prompt?.nonce, prompt?.text, selectPrompt]);
 
   const openQuestions = useCallback(() => {
     const nextOpen = !questionsOpen;

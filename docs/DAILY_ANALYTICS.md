@@ -137,6 +137,8 @@
 
 ## 6. Порядок на каждый день
 
+Аналитика это первый шаг общей ежедневной процедуры: [DAILY_PROCEDURE.md](DAILY_PROCEDURE.md) (эссе, глубокие разборы заметок, список Abundance).
+
 1. `pnpm analytics:daily` (или `--source=api`).
 2. Claude читает `reports/analytics/<дата>/summary.md`, при необходимости `details/*.json`.
 3. Claude пишет в проект: 1–3 решения с опорой на цифры, что нужно подтвердить.

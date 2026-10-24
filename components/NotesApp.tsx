@@ -1,8 +1,9 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, Inbox, ListPlus, MoreHorizontal, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Eye, EyeOff, Inbox, ListPlus, MoreHorizontal, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
 import {
+  ABUNDANCE_LIST_ID,
   deleteList,
   deleteNote,
   getLists,
@@ -11,6 +12,7 @@ import {
   ReminderList,
   saveList,
   saveNote,
+  setNoteAiReview,
   toggleNoteCompleted,
   NOTES_CHANGED_EVENT
 } from "@/lib/notesStore";
@@ -22,14 +24,23 @@ import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { takeQuickAction } from "@/lib/quickAction";
 import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
+import { NoteAiAnswer, NoteAiBadge, NoteAiMenu } from "@/components/NoteAiPanel";
+import { flushAbundanceNotes, pullNoteAiAnswers, syncAbundanceNote } from "@/lib/noteAiClient";
+import { saveTask } from "@/lib/tasksStore";
+import { todayKey } from "@/lib/taskSchedule";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type LocalDataStatus = "loading" | "slow" | "ready" | "error";
-/** "inbox" is the built-in list that cannot be deleted: every note without a list of its own lives there. */
-type ViewId = "today" | "planned" | "all" | "completed" | "inbox" | `list:${string}`;
+/**
+ * Built-in lists cannot be deleted, only hidden: "inbox" holds every note without a list of its own,
+ * "abundance" holds thoughts and ideas the team and AI read (its notes are also saved on the server).
+ */
+type BuiltInListId = "inbox" | "abundance";
+type ViewId = "today" | "planned" | "all" | "completed" | BuiltInListId | `list:${string}`;
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 type SmartList = {
-  id: Exclude<ViewId, "inbox" | `list:${string}`>;
+  id: Exclude<ViewId, BuiltInListId | `list:${string}`>;
   titleKey: MessageKey;
   Icon: typeof CalendarDays;
   tone: string;
@@ -43,6 +54,9 @@ const smartLists: SmartList[] = [
 ];
 
 const INBOX_COLOR = "#af52de";
+const ABUNDANCE_COLOR = "#ff9f0a";
+const HIDDEN_LISTS_KEY = "openAbundanceHiddenNoteLists";
+const ABUNDANCE_INTRO_KEY = "openAbundanceAbundanceIntroSeen";
 const listColors = ["#ff9500", "#007aff", "#34c759", "#ff3b30", "#af52de", "#8e8e93"];
 const emptyListForm = { title: "", icon: "📝", color: "#007aff" };
 
@@ -60,7 +74,10 @@ export default function NotesApp() {
   const [editingLists, setEditingLists] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [aiHint, setAiHint] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [aiMenuNote, setAiMenuNote] = useState<Note | null>(null);
+  const [hiddenLists, setHiddenLists] = useState<BuiltInListId[]>([]);
+  const [aboutAbundance, setAboutAbundance] = useState(false);
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
   const localLoadRequestRef = useRef(0);
   // An open list and search are history layers, like the note page: Back returns to My lists, not to another tab.
@@ -112,10 +129,36 @@ export default function NotesApp() {
   }, []);
 
   useEffect(() => {
-    if (!aiHint) return;
-    const timeoutId = window.setTimeout(() => setAiHint(false), 2400);
+    if (!toast) return;
+    const timeoutId = window.setTimeout(() => setToast(null), 2800);
     return () => window.clearTimeout(timeoutId);
-  }, [aiHint]);
+  }, [toast]);
+
+  useEffect(() => {
+    setHiddenLists(readHiddenLists());
+    // AI answers that came while the app was closed, and Abundance notes that could not be sent yet.
+    const sync = () => {
+      if (document.visibilityState !== "visible") return;
+      void pullNoteAiAnswers().catch(() => 0);
+      void flushAbundanceNotes().catch(() => undefined);
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, []);
+
+  useEffect(() => {
+    // The first visit to Abundance explains who reads these notes.
+    if (view !== "abundance") return;
+    try {
+      if (window.localStorage.getItem(ABUNDANCE_INTRO_KEY)) return;
+      window.localStorage.setItem(ABUNDANCE_INTRO_KEY, "1");
+    } catch {
+      // Without storage the description stays one tap away behind (?).
+      return;
+    }
+    setAboutAbundance(true);
+  }, [view]);
 
   const visibleNotes = useMemo(() => (view ? sortNotes(filterNotes(notes, view)) : []), [notes, view]);
   const searchResults = useMemo(() => {
@@ -125,7 +168,7 @@ export default function NotesApp() {
   }, [notes, query]);
 
   function openNewNote() {
-    const listId = view?.startsWith("list:") ? view.slice(5) : undefined;
+    const listId = view === "abundance" ? ABUNDANCE_LIST_ID : view?.startsWith("list:") ? view.slice(5) : undefined;
     setNoteTarget({ id: crypto.randomUUID(), isNew: true, listId });
   }
 
@@ -142,6 +185,25 @@ export default function NotesApp() {
     await refreshData();
   }
 
+  function toggleHidden(id: BuiltInListId) {
+    setHiddenLists((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      try {
+        window.localStorage.setItem(HIDDEN_LISTS_KEY, JSON.stringify(next));
+      } catch {
+        // Hiding then lasts until the screen is reopened.
+      }
+      return next;
+    });
+  }
+
+  /** The AI button: ⏳ only reminds that the answer is coming, ✨ opens the answer, otherwise the choice of review. */
+  function onAi(note: Note) {
+    if (note.aiReview?.status === "pending") setToast(t("notes.ai.queued"));
+    else if (note.aiReview?.status === "ready" && !note.aiReview.seen) setNoteTarget({ id: note.id, isNew: false });
+    else setAiMenuNote(note);
+  }
+
   async function removeList(list: ReminderList) {
     if (!window.confirm(t("notes.deleteListConfirm", { title: list.title }))) return;
     await deleteList(list.id);
@@ -151,6 +213,14 @@ export default function NotesApp() {
 
   const activeList = view?.startsWith("list:") ? lists.find((list) => list.id === view.slice(5)) : undefined;
   const editingNote = noteTarget && !noteTarget.isNew ? notes.find((note) => note.id === noteTarget.id) : undefined;
+  const abundanceList = useMemo<ReminderList>(() => ({
+    id: ABUNDANCE_LIST_ID, title: t("notes.abundance.title"), icon: "✨", color: ABUNDANCE_COLOR, createdAt: "", updatedAt: "", syncStatus: "synced"
+  }), [t]);
+  const rowLists = useMemo(() => [abundanceList, ...lists], [abundanceList, lists]);
+  const builtIns: Array<{ id: BuiltInListId; color: string; icon: React.ReactNode; title: string }> = [
+    { id: "inbox", color: INBOX_COLOR, icon: <Inbox size={19} aria-hidden="true" />, title: t("notes.inbox") },
+    { id: "abundance", color: ABUNDANCE_COLOR, icon: <Sparkles size={19} aria-hidden="true" />, title: abundanceList.title }
+  ];
 
   return (
     <section className="reminders-app notes-ios">
@@ -167,7 +237,7 @@ export default function NotesApp() {
             <button className="text-button" type="button" onClick={closeSearch}>{t("app.common.cancel")}</button>
           </div>
           {query.trim() ? (
-            <NoteRows notes={searchResults} lists={lists} locale={locale} emptyKey="notes.searchEmpty" onComplete={completeNote} onOpen={(note) => setNoteTarget({ id: note.id, isNew: false })} onAi={() => setAiHint(true)} />
+            <NoteRows notes={searchResults} lists={rowLists} locale={locale} emptyKey="notes.searchEmpty" onComplete={completeNote} onOpen={(note) => setNoteTarget({ id: note.id, isNew: false })} onAi={onAi} />
           ) : null}
         </div>
       ) : view ? (
@@ -183,8 +253,15 @@ export default function NotesApp() {
               </button>
             ) : null}
           </header>
-          <h1 className="notes-list-title" style={{ color: viewColor(view, lists) }}>{getViewTitle(view, lists, t)}</h1>
-          <NoteRows notes={visibleNotes} lists={view.startsWith("list:") || view === "inbox" ? [] : lists} locale={locale} emptyKey="notes.emptyList" onComplete={completeNote} onOpen={(note) => setNoteTarget({ id: note.id, isNew: false })} onAi={() => setAiHint(true)} />
+          <div className="notes-list-heading">
+            <h1 className="notes-list-title" style={{ color: viewColor(view, lists) }}>{getViewTitle(view, lists, t)}</h1>
+            {view === "abundance" ? (
+              <button className="notes-icon-button" type="button" aria-label={t("notes.abundance.about")} onClick={() => setAboutAbundance(true)}>
+                <CircleHelp size={20} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+          <NoteRows notes={visibleNotes} lists={view.startsWith("list:") || view === "inbox" || view === "abundance" ? [] : rowLists} locale={locale} emptyKey="notes.emptyList" onComplete={completeNote} onOpen={(note) => setNoteTarget({ id: note.id, isNew: false })} onAi={onAi} />
         </section>
       ) : (
         <>
@@ -215,7 +292,19 @@ export default function NotesApp() {
           <section className="notes-my-lists">
             <h2>{t("notes.myLists")}</h2>
             <div className="notes-list-card">
-              <ListRow color={INBOX_COLOR} icon={<Inbox size={19} aria-hidden="true" />} title={t("notes.inbox")} count={filterNotes(notes, "inbox").length} onOpen={() => setView("inbox")} />
+              {builtIns.filter((item) => editingLists || !hiddenLists.includes(item.id)).map((item) => (
+                <ListRow
+                  key={item.id}
+                  color={item.color}
+                  icon={item.icon}
+                  title={item.title}
+                  count={filterNotes(notes, item.id).length}
+                  onOpen={() => setView(item.id)}
+                  hidden={hiddenLists.includes(item.id)}
+                  onToggleHidden={editingLists ? () => toggleHidden(item.id) : undefined}
+                  toggleLabel={t(hiddenLists.includes(item.id) ? "notes.showList" : "notes.hideList", { title: item.title })}
+                />
+              ))}
               {lists.map((list) => (
                 <ListRow
                   key={list.id}
@@ -237,7 +326,7 @@ export default function NotesApp() {
         <button className="notes-fab" type="button" aria-label={t("notes.createNote")} onClick={openNewNote}><Plus size={30} aria-hidden="true" /></button>
       ) : null}
 
-      {aiHint ? <div className="notes-toast" role="status">{t("notes.aiSoon")}</div> : null}
+      {toast ? <div className="notes-toast" role="status">{toast}</div> : null}
 
       {noteTarget && (noteTarget.isNew || editingNote) ? (
         <NoteDetail
@@ -245,10 +334,30 @@ export default function NotesApp() {
           note={editingNote}
           target={noteTarget}
           lists={lists}
+          abundanceTitle={abundanceList.title}
           locale={locale}
-          onAi={() => setAiHint(true)}
+          onAi={setAiMenuNote}
           onClose={async () => { setNoteTarget(null); await refreshData(); }}
         />
+      ) : null}
+
+      {aiMenuNote ? (
+        <NoteAiMenu
+          note={aiMenuNote}
+          listTitles={[t("notes.inbox"), abundanceList.title, ...lists.map((list) => list.title)]}
+          onClose={() => setAiMenuNote(null)}
+          onQueued={(message) => { setAiMenuNote(null); setToast(message); }}
+          onChat={() => { setAiMenuNote(null); setNoteTarget(null); }}
+        />
+      ) : null}
+
+      {aboutAbundance ? (
+        <Sheet bare className="small notes-about" ariaLabel={abundanceList.title} closeLabel={t("app.common.close")} onClose={() => setAboutAbundance(false)}>
+          <h2><Sparkles size={20} aria-hidden="true" /> {abundanceList.title}</h2>
+          <p>{t("notes.abundance.description")}</p>
+          <p className="notes-about-note">{t("notes.abundance.privacy")}</p>
+          <button className="notes-about-ok" type="button" onClick={() => setAboutAbundance(false)}>{t("notes.abundance.ok")}</button>
+        </Sheet>
       ) : null}
 
       {listModalOpen ? <ListModal onClose={() => setListModalOpen(false)} onSubmit={(form) => void createList(form)} /> : null}
@@ -256,7 +365,7 @@ export default function NotesApp() {
   );
 }
 
-function ListRow({ color, icon, title, count, onOpen, onDelete, deleteLabel }: {
+function ListRow({ color, icon, title, count, onOpen, onDelete, deleteLabel, hidden, onToggleHidden, toggleLabel }: {
   color: string;
   icon: React.ReactNode;
   title: string;
@@ -264,10 +373,19 @@ function ListRow({ color, icon, title, count, onOpen, onDelete, deleteLabel }: {
   onOpen: () => void;
   onDelete?: () => void;
   deleteLabel?: string;
+  /** Built-in lists are hidden instead of deleted: an eye in place of the cross. */
+  hidden?: boolean;
+  onToggleHidden?: () => void;
+  toggleLabel?: string;
 }) {
   return (
-    <div className="notes-list-row">
+    <div className={`notes-list-row${hidden ? " hidden-list" : ""}`}>
       {onDelete ? <button className="notes-row-delete" type="button" aria-label={deleteLabel} onClick={onDelete}><X size={14} aria-hidden="true" /></button> : null}
+      {onToggleHidden ? (
+        <button className="notes-row-eye" type="button" aria-label={toggleLabel} aria-pressed={!hidden} onClick={onToggleHidden}>
+          {hidden ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+        </button>
+      ) : null}
       <button className="notes-list-open" type="button" onClick={onOpen}>
         <span className="notes-list-icon" style={{ backgroundColor: color }}>{icon}</span>
         <span className="notes-list-name">{title}</span>
@@ -285,7 +403,7 @@ function NoteRows({ notes, lists, locale, emptyKey, onComplete, onOpen, onAi }: 
   emptyKey: MessageKey;
   onComplete: (note: Note) => void;
   onOpen: (note: Note) => void;
-  onAi: () => void;
+  onAi: (note: Note) => void;
 }) {
   const { t } = useUserContext();
   if (notes.length === 0) return <p className="notes-empty">{t(emptyKey)}</p>;
@@ -304,7 +422,7 @@ function NoteRows({ notes, lists, locale, emptyKey, onComplete, onOpen, onAi }: 
               {note.reminders.length > 0 ? <em>{note.reminders.map((reminder) => formatReminder(reminder, locale)).join(" · ")}</em> : null}
               {list ? <i>{list.icon} {list.title}</i> : null}
             </button>
-            <button className="notes-ai-button" type="button" aria-label={t("notes.aiLabel")} onClick={onAi}>AI</button>
+            <NoteAiBadge note={note} onClick={() => onAi(note)} />
           </article>
         );
       })}
@@ -316,12 +434,14 @@ function NoteRows({ notes, lists, locale, emptyKey, onComplete, onOpen, onAi }: 
  * The full-screen note page: edit in place like iPhone Notes, saved when it closes
  * (cross, Back, or a swipe from the left edge). An untouched new note is discarded.
  */
-function NoteDetail({ note, target, lists, locale, onAi, onClose }: {
+function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose }: {
   note?: Note;
   target: NoteTarget;
   lists: ReminderList[];
+  abundanceTitle: string;
   locale: AppLocale;
-  onAi: () => void;
+  /** Opens the choice of AI review for the note as it is now (the draft is saved first). */
+  onAi: (note: Note) => void;
   onClose: () => Promise<void>;
 }) {
   const { t } = useUserContext();
@@ -339,30 +459,74 @@ function NoteDetail({ note, target, lists, locale, onAi, onClose }: {
     field.style.height = `${field.scrollHeight}px`;
   }, [body]);
 
-  async function close() {
-    if (closingRef.current) return;
-    closingRef.current = true;
+  const review = note?.aiReview;
+  const answerReady = review?.status === "ready" && !review.seen;
+  useEffect(() => {
+    // Opening the note is reading the answer: the ✨ on the row goes back to "AI".
+    if (note && answerReady && review) void setNoteAiReview(note.id, { ...review, seen: true });
+  }, [note, answerReady, review]);
+
+  /** Saves the draft when it differs from the stored note; returns the stored note, or nothing for an empty new one. */
+  async function saveDraft(): Promise<Note | undefined> {
     const nextTitle = title.trim();
     const nextBody = body.trim();
     const changed = !note || nextTitle !== note.title || nextBody !== note.body || (listId || undefined) !== note.listId || reminders.join() !== note.reminders.join();
-    if ((nextTitle || nextBody) && changed) {
-      await saveNote({
-        id: target.id,
-        title: nextTitle || nextBody.split("\n")[0].slice(0, 80) || t("notes.untitled"),
-        body: nextBody,
-        listId: listId || undefined,
-        reminders,
-        syncStatus: "local"
-      });
-    }
+    if (!(nextTitle || nextBody) || !changed) return note;
+    const saved = await saveNote({
+      id: target.id,
+      title: nextTitle || nextBody.split("\n")[0].slice(0, 80) || t("notes.untitled"),
+      body: nextBody,
+      listId: listId || undefined,
+      reminders,
+      syncStatus: "local"
+    });
+    void syncAbundanceNote(saved, note?.listId);
+    return saved;
+  }
+
+  async function close() {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    await saveDraft();
     await onClose();
   }
 
   async function remove() {
     closingRef.current = true;
-    if (note) await deleteNote(note.id);
+    if (note) {
+      await deleteNote(note.id);
+      void syncAbundanceNote({ ...note, deleted: true }, note.listId);
+    }
     await onClose();
   }
+
+  async function openAi() {
+    const saved = await saveDraft();
+    if (saved) onAi(saved);
+    else bodyRef.current?.focus();
+  }
+
+  async function createTasks(items: string[]) {
+    for (const item of items) {
+      await saveTask({ id: crypto.randomUUID(), title: item, description: "", schedule: { type: "once", date: todayKey() }, sourceNoteId: target.id, syncStatus: "local" });
+    }
+  }
+
+  async function addWish() {
+    const response = await fetchWithSupabaseAuth("/api/wishes", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: (title.trim() || body.trim()).slice(0, 120), description: body.trim(), locale, visibility: "private" })
+    });
+    if (!response.ok) throw new Error(`Wish was not added: ${response.status}`);
+  }
+
+  const suggestedList = review?.result?.list?.toLowerCase();
+  const moveTarget = suggestedList
+    ? [{ id: "", title: t("notes.inbox") }, { id: ABUNDANCE_LIST_ID, title: abundanceTitle }, ...lists]
+      .find((list) => list.title.toLowerCase() === suggestedList && list.id !== listId)
+    : undefined;
 
   return (
     <Sheet bare fullscreen className="notes-detail" ariaLabel={target.isNew ? t("notes.newNote") : t("notes.note")} closeLabel={t("app.common.close")} onClose={() => void close()}>
@@ -376,16 +540,31 @@ function NoteDetail({ note, target, lists, locale, onAi, onClose }: {
             <span>{t("notes.list")}</span>
             <select value={listId} onChange={(event) => setListId(event.target.value)}>
               <option value="">{t("notes.inbox")}</option>
+              <option value={ABUNDANCE_LIST_ID}>✨ {abundanceTitle}</option>
               {lists.map((list) => <option key={list.id} value={list.id}>{list.icon} {list.title}</option>)}
             </select>
           </label>
           <ReminderPicker reminders={reminders} locale={locale} onChange={setReminders} />
         </div>
 
-        <button className="notes-detail-ai" type="button" onClick={onAi}>
-          <Sparkles size={18} aria-hidden="true" />
-          <span>{t("notes.aiAction")}</span>
-        </button>
+        {note?.aiReview ? (
+          <NoteAiAnswer
+            key={note.aiReview.requestId ?? note.aiReview.requestedAt}
+            note={note}
+            moveTarget={moveTarget ? { id: moveTarget.id, title: moveTarget.title } : undefined}
+            onMove={setListId}
+            onCreateTasks={createTasks}
+            onAddWish={addWish}
+            onAgain={() => void openAi()}
+          />
+        ) : null}
+
+        {note?.aiReview?.status !== "pending" ? (
+          <button className="notes-detail-ai" type="button" onClick={() => void openAi()}>
+            <Sparkles size={18} aria-hidden="true" />
+            <span>{t("notes.aiAction")}</span>
+          </button>
+        ) : null}
 
         {note ? (
           <button className="notes-detail-delete" type="button" onClick={() => void remove()}>
@@ -508,6 +687,7 @@ function filterNotes(notes: Note[], view: ViewId): Note[] {
   if (view === "completed") return notes.filter((note) => note.completed);
   if (view === "all") return notes.filter((note) => !note.completed);
   if (view === "inbox") return notes.filter((note) => !note.completed && !note.listId);
+  if (view === "abundance") return notes.filter((note) => !note.completed && note.listId === ABUNDANCE_LIST_ID);
   return notes.filter((note) => !note.completed && note.listId === view.slice(5));
 }
 
@@ -520,12 +700,14 @@ function sortNotes(notes: Note[]): Note[] {
 
 function viewColor(view: ViewId, lists: ReminderList[]): string | undefined {
   if (view === "inbox") return INBOX_COLOR;
+  if (view === "abundance") return ABUNDANCE_COLOR;
   if (view.startsWith("list:")) return lists.find((list) => list.id === view.slice(5))?.color;
   return undefined;
 }
 
 function getViewTitle(view: ViewId, lists: ReminderList[], t: Translate): string {
   if (view === "inbox") return t("notes.inbox");
+  if (view === "abundance") return t("notes.abundance.title");
   if (view.startsWith("list:")) return lists.find((list) => list.id === view.slice(5))?.title ?? t("notes.listFallback");
   return t(smartLists.find((list) => list.id === view)?.titleKey ?? "notes.listFallback");
 }
@@ -543,4 +725,13 @@ function formatReminder(value: string, locale: AppLocale): string {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function readHiddenLists(): BuiltInListId[] {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(HIDDEN_LISTS_KEY) ?? "[]") as unknown;
+    return Array.isArray(value) ? value.filter((item): item is BuiltInListId => item === "inbox" || item === "abundance") : [];
+  } catch {
+    return [];
+  }
 }

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   // The person chooses what reaches their Wallet; the invoice carries the provider's share on top.
   const payAmount = grossUpForFee(usdAmount, config.feePercent);
   try {
-    const invoice = await createCryptoPayInvoice(config, { invoiceId: id, usdAmount: payAmount, expiresInSeconds: INVOICE_TTL_SECONDS, description: "Open Abundance Wallet top-up" });
+    const invoice = await createCryptoPayInvoice(config, { invoiceId: id, usdAmount: payAmount, expiresInSeconds: INVOICE_TTL_SECONDS, description: "Open Abundance Wallet top-up", returnUrl: miniAppReturnUrl() });
     const payUrl = invoice.bot_invoice_url ?? invoice.pay_url ?? null;
     const expiresAt = new Date(Date.now() + INVOICE_TTL_SECONDS * 1000).toISOString();
     const { error: insertError } = await db.from("payment_provider_invoices").insert({
@@ -81,11 +81,17 @@ export async function POST(request: NextRequest) {
       status: "active", usd_amount: usdAmount, pay_usd_amount: payAmount, pay_url: payUrl, expires_at: expiresAt, idempotency_key: id
     });
     if (insertError) return json({ error: "Could not save the invoice." }, 500);
-    return json({ invoice: { id, usdAmount, payUsdAmount: payAmount, feeUsd: Math.round((payAmount - usdAmount) * 100) / 100, payUrl, miniAppUrl: invoice.mini_app_invoice_url ?? null, expiresAt, network: config.network } }, 201);
+    return json({ invoice: { id, usdAmount, payUsdAmount: payAmount, feeUsd: Math.round((payAmount - usdAmount) * 100) / 100, payUrl, miniAppUrl: invoice.mini_app_invoice_url ?? null, webAppUrl: invoice.web_app_invoice_url ?? null, expiresAt, network: config.network } }, 201);
   } catch (providerError) {
     // The provider's error name (for example UNAUTHORIZED) is safe to show; the token and request never are.
     const reason = providerError instanceof Error ? providerError.message.split(": ").pop() ?? "unknown" : "unknown";
     console.error("Crypto Pay createInvoice failed:", reason);
     return json({ error: "The payment provider is unavailable. Try again in a moment.", providerError: reason }, 502);
   }
+}
+
+/** Our Mini App (t.me/<bot>/<app>) for CryptoBot's button after payment, or null when it is not set up. */
+function miniAppReturnUrl(): string | null {
+  const url = process.env.TELEGRAM_MINI_APP_URL?.trim() ?? "";
+  return /^https:\/\/t\.me\/[A-Za-z0-9_]+(\/[A-Za-z0-9_]+)?\/?$/.test(url) ? url : null;
 }

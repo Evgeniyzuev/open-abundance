@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { grossUpForFee } from "../lib/cryptoPayFee.ts";
+import { chooseCryptoPayLink, cryptoPayCreditedCopy } from "../lib/cryptoPayLinks.ts";
 import { invoiceMatches, parseUsdAmount, readCryptoPayConfig, verifyCryptoPaySignature, webhookIsFresh } from "../lib/cryptoPayCore.ts";
 
 // Run with: node --experimental-strip-types scripts/verify-cryptopay-contract.mjs
@@ -94,5 +95,31 @@ assert.match(lib, /row\.pay_usd_amount \?\? row\.usd_amount/, "the provider invo
 assert.match(route, /config\.dailyUsd/, "a daily cap per person");
 assert.match(route, /payload.*|invoiceId: id/);
 assert.doesNotMatch(lib + route + webhook, /console\.(log|error)\([^)]*token/i, "the token is never logged");
+
+// --- Where the invoice opens: inside Telegram in the Mini App, the CryptoBot chat link elsewhere ---
+const links = { miniAppUrl: "https://t.me/CryptoBot/app?startapp=invoice-IV1", botUrl: "https://t.me/CryptoBot?start=IV1", webAppUrl: "https://app.send.tg/invoices/IV1" };
+assert.deepEqual(chooseCryptoPayLink(links, true), { url: links.miniAppUrl, inTelegram: true }, "the Mini App opens CryptoBot's Mini App");
+assert.deepEqual(chooseCryptoPayLink({ ...links, miniAppUrl: null }, true), { url: links.botUrl, inTelegram: true }, "then the CryptoBot chat");
+assert.deepEqual(chooseCryptoPayLink(links, false), { url: links.botUrl, inTelegram: false }, "a browser gets the CryptoBot chat link");
+assert.deepEqual(chooseCryptoPayLink({ webAppUrl: links.webAppUrl }, false), { url: links.webAppUrl, inTelegram: false }, "the web version is the last resort");
+assert.equal(chooseCryptoPayLink({ botUrl: "javascript:alert(1)" }, false), null, "only https links");
+assert.equal(chooseCryptoPayLink({}, true), null);
+assert.equal(cryptoPayCreditedCopy(10).ru.title, "Зачислено $10.00");
+assert.equal(cryptoPayCreditedCopy(1.5).en.title, "Credited $1.50");
+
+// --- "Credited" message once, sent at once; the background check credits a missed webhook ---
+assert.match(lib, /deposit-credited:\$\{invoiceId\}/, "one credited message per invoice");
+assert.match(lib, /p_push: true/, "the message is a push with a Telegram copy");
+assert.match(lib, /sendQueuedTelegramCopies/, "the Telegram copy is sent right away");
+assert.match(lib, /paid_btn_name: "openBot"/, "CryptoBot offers a button back to the Mini App");
+const reconcile = read("app/api/internal/payments/reconcile/route.ts");
+assert.match(reconcile, /x-ton-scanner-secret/, "the background check needs the scanner secret");
+assert.match(reconcile, /confirmAndSettle/, "it settles through the same idempotent path");
+assert.match(reconcile, /manual_review/, "a paid invoice that cannot be credited is never marked expired");
+const cron = read("supabase/migrations/20261025190000_payment_invoice_reconcile.sql");
+assert.match(cron, /where status = 'active'/, "the job calls the app only while invoices are open");
+assert.match(cron, /'\*\/5 \* \* \* \*'/);
+const modal = read("components/CryptoPayDepositModal.tsx");
+assert.match(modal, /openTelegramLink/, "the invoice opens inside Telegram");
 
 console.log("cryptopay contract ok");

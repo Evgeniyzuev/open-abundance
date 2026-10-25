@@ -5,14 +5,33 @@ import { useEffect, useRef, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
 import type { MessageKey } from "@/lib/i18n";
 import { grossUpForFee } from "@/lib/cryptoPayFee";
+import { chooseCryptoPayLink } from "@/lib/cryptoPayLinks";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { startVisiblePolling } from "@/lib/visiblePolling";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 type Limits = { enabled: boolean; network: "mainnet" | "testnet"; minUsd: number; maxUsd: number; dailyUsd: number; feePercent: number };
-type Invoice = { id: string; usdAmount: number; payUsdAmount: number; feeUsd: number; payUrl: string | null; miniAppUrl: string | null; expiresAt: string; network: string };
+type Invoice = { id: string; usdAmount: number; payUsdAmount: number; feeUsd: number; payUrl: string | null; miniAppUrl: string | null; webAppUrl?: string | null; expiresAt: string; network: string };
 
 const PRESETS = [5, 10, 25, 50];
+
+type TelegramWebApp = { initData?: string; openTelegramLink?: (url: string) => void; openLink?: (url: string) => void };
+const telegramWebApp = (): TelegramWebApp | null => {
+  const webApp = (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
+  return webApp?.initData ? webApp : null;
+};
+const invoiceLink = (invoice: Invoice) =>
+  chooseCryptoPayLink({ miniAppUrl: invoice.miniAppUrl, botUrl: invoice.payUrl, webAppUrl: invoice.webAppUrl }, Boolean(telegramWebApp()?.openTelegramLink));
+
+/** Inside the Mini App the invoice opens in CryptoBot without leaving Telegram; elsewhere in a new tab. */
+function openInvoice(invoice: Invoice): boolean {
+  const link = invoiceLink(invoice);
+  if (!link) return false;
+  const webApp = telegramWebApp();
+  if (link.inTelegram && webApp?.openTelegramLink) { webApp.openTelegramLink(link.url); return true; }
+  if (webApp?.openLink) { webApp.openLink(link.url); return true; }
+  return false;
+}
 
 /** Top-up through CryptoBot: pick a USD amount, pay in the bot, the status updates here on its own. */
 export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TFunction; onClose: () => void; onRefresh: () => Promise<void> }) {
@@ -70,6 +89,8 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
       }
       setInvoice(payload.invoice);
       setStatus("active");
+      // In Telegram the invoice opens at once, as in a bot; a browser may block a tab opened after a request.
+      if (telegramWebApp()) openInvoice(payload.invoice);
     } catch {
       setError(t("wallet.cryptopay.error.generic"));
     } finally {
@@ -121,8 +142,9 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
               {status === "active" ? (
                 <>
                   <p className="transfer-muted">{t("wallet.cryptopay.waiting")}</p>
-                  {invoice.payUrl ? (
-                    <a className="challenge-primary-action cryptopay-open" href={invoice.payUrl} target="_blank" rel="noopener noreferrer">
+                  {invoiceLink(invoice) ? (
+                    <a className="challenge-primary-action cryptopay-open" href={invoiceLink(invoice)?.url} target="_blank" rel="noopener noreferrer"
+                      onClick={(event) => { if (openInvoice(invoice)) event.preventDefault(); }}>
                       <ExternalLink size={16} />{t("wallet.cryptopay.open")}
                     </a>
                   ) : null}

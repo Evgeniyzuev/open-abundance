@@ -15,6 +15,7 @@ export type CryptoPayInvoice = {
   fee_amount?: string | number;
   bot_invoice_url?: string;
   mini_app_invoice_url?: string;
+  web_app_invoice_url?: string;
   pay_url?: string;
   expiration_date?: string;
 };

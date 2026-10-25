@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Eye, EyeOff, Inbox, ListPlus, MoreHorizontal, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Bell, CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, Eye, EyeOff, Inbox, ListPlus, MoreHorizontal, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
 import {
   ABUNDANCE_LIST_ID,
   deleteList,
@@ -20,6 +20,7 @@ import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import BackupReminder from "@/components/BackupReminder";
+import NotesImport from "@/components/NotesImport";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { takeQuickAction } from "@/lib/quickAction";
@@ -78,6 +79,7 @@ export default function NotesApp() {
   const [aiMenuNote, setAiMenuNote] = useState<Note | null>(null);
   const [hiddenLists, setHiddenLists] = useState<BuiltInListId[]>([]);
   const [aboutAbundance, setAboutAbundance] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [localDataStatus, setLocalDataStatus] = useState<LocalDataStatus>("loading");
   const localLoadRequestRef = useRef(0);
   // An open list and search are history layers, like the note page: Back returns to My lists, not to another tab.
@@ -275,6 +277,7 @@ export default function NotesApp() {
               <div className="notes-menu" role="menu">
                 <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setListModalOpen(true); }}>{t("notes.newList")}</button>
                 <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setEditingLists((value) => !value); }}>{t(editingLists ? "app.common.done" : "notes.editLists")}</button>
+                <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setImportOpen(true); }}>{t("notes.import.menu")}</button>
               </div>
             ) : null}
           </header>
@@ -348,6 +351,13 @@ export default function NotesApp() {
           onClose={() => setAiMenuNote(null)}
           onQueued={(message) => { setAiMenuNote(null); setToast(message); }}
           onChat={() => { setAiMenuNote(null); setNoteTarget(null); }}
+        />
+      ) : null}
+
+      {importOpen ? (
+        <NotesImport
+          onClose={() => setImportOpen(false)}
+          onDone={(count) => { setImportOpen(false); setToast(t("notes.import.done", { count })); void refreshData(); }}
         />
       ) : null}
 
@@ -544,7 +554,7 @@ function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose
               {lists.map((list) => <option key={list.id} value={list.id}>{list.icon} {list.title}</option>)}
             </select>
           </label>
-          <ReminderPicker reminders={reminders} locale={locale} onChange={setReminders} />
+          <ReminderPicker reminders={reminders} onChange={setReminders} />
         </div>
 
         {note?.aiReview ? (
@@ -577,63 +587,51 @@ function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose
   );
 }
 
-type ReminderPreset = "today" | "tomorrow" | "nextWeek";
-
-/** One reminder per note, set like on iPhone: a quick choice, or a date and a time that apply at once. */
-function ReminderPicker({ reminders, locale, onChange }: { reminders: string[]; locale: AppLocale; onChange: (value: string[]) => void }) {
+/**
+ * One reminder per note in one compact row: an empty date and an empty time. Tapping the date opens the
+ * system picker already on today; a date alone gets a time by itself (9:00, or the next full hour today).
+ */
+function ReminderPicker({ reminders, onChange }: { reminders: string[]; onChange: (value: string[]) => void }) {
   const { t } = useUserContext();
   const current = reminders[0];
-  const [picking, setPicking] = useState(false);
-  const parts = toLocalParts(current ?? presetReminder("tomorrow"));
+  const parts = current ? toLocalParts(current) : { date: "", time: "" };
 
-  function setFromParts(date: string, time: string) {
-    if (!date) return;
-    const value = new Date(`${date}T${time || "09:00"}`);
+  function apply(date: string, time: string) {
+    if (!date) {
+      onChange([]);
+      return;
+    }
+    const value = new Date(`${date}T${time || defaultReminderTime(date)}`);
     if (!Number.isNaN(value.getTime())) onChange([value.toISOString()]);
   }
 
   return (
-    <div className="notes-detail-field stacked">
-      <span>{t("notes.reminder")}</span>
-      {current ? (
-        <div className="notes-reminder-current">
-          <strong>{formatReminder(current, locale)}</strong>
-          <button className="notes-icon-button" type="button" aria-label={t("notes.when.clear")} onClick={() => { onChange([]); setPicking(false); }}><X size={16} aria-hidden="true" /></button>
-        </div>
-      ) : null}
-      <div className="notes-reminder-presets">
-        {(["today", "tomorrow", "nextWeek"] as const).map((preset) => (
-          <button key={preset} type="button" onClick={() => { onChange([presetReminder(preset)]); setPicking(false); }}>{t(`notes.when.${preset}`)}</button>
-        ))}
-        <button type="button" className={picking ? "active" : ""} aria-expanded={picking} onClick={() => setPicking((value) => !value)}>{t("notes.when.pick")}</button>
+    <div className="notes-detail-field notes-reminder-row" role="group" aria-label={t("notes.reminder")}>
+      <Bell size={20} aria-hidden="true" />
+      <div className="notes-reminder-inputs">
+        <input type="date" aria-label={t("notes.when.date")} value={parts.date} onChange={(event) => apply(event.target.value, parts.time)} />
+        <input type="time" aria-label={t("notes.when.time")} value={parts.time} onChange={(event) => apply(parts.date || nextDateForTime(event.target.value), event.target.value)} />
+        {current ? (
+          <button className="notes-icon-button" type="button" aria-label={t("notes.when.clear")} onClick={() => onChange([])}><X size={16} aria-hidden="true" /></button>
+        ) : null}
       </div>
-      {picking ? (
-        <div className="notes-reminder-inputs">
-          <label>
-            <span>{t("notes.when.date")}</span>
-            <input type="date" value={current ? parts.date : ""} onChange={(event) => setFromParts(event.target.value, parts.time)} />
-          </label>
-          <label>
-            <span>{t("notes.when.time")}</span>
-            <input type="time" value={current ? parts.time : ""} onChange={(event) => setFromParts(current ? parts.date : toLocalParts(presetReminder("today")).date, event.target.value)} />
-          </label>
-        </div>
-      ) : null}
     </div>
   );
 }
 
-function presetReminder(preset: ReminderPreset, now = new Date()): string {
+/** 9:00, or for today the next full hour when 9:00 has passed. */
+function defaultReminderTime(date: string, now = new Date()): string {
+  if (date !== toLocalParts(now.toISOString()).date || now.getHours() < 9) return "09:00";
+  return `${String(Math.min(now.getHours() + 1, 23)).padStart(2, "0")}:00`;
+}
+
+/** A time set first goes to today, or to tomorrow when that time has already passed. */
+function nextDateForTime(time: string, now = new Date()): string {
   const value = new Date(now);
-  if (preset === "today") {
-    // Evening today, or the next full hour when the evening has already started.
-    if (now.getHours() < 17) value.setHours(18, 0, 0, 0);
-    else value.setHours(now.getHours() + 1, 0, 0, 0);
-  } else {
-    value.setDate(value.getDate() + (preset === "tomorrow" ? 1 : 7));
-    value.setHours(9, 0, 0, 0);
-  }
-  return value.toISOString();
+  const [hours, minutes] = time.split(":").map(Number);
+  value.setHours(hours || 0, minutes || 0, 0, 0);
+  if (value <= now) value.setDate(value.getDate() + 1);
+  return toLocalParts(value.toISOString()).date;
 }
 
 function toLocalParts(iso: string): { date: string; time: string } {

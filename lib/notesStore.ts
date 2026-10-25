@@ -168,6 +168,42 @@ export async function saveNote(input: NoteInput): Promise<Note> {
   return note;
 }
 
+/** Saves imported notes in one transaction and refreshes screens once. Keeps the original creation date. */
+export async function importNotesBatch(items: Array<{ title: string; body: string; listId?: string; createdAt?: string }>): Promise<number> {
+  if (items.length === 0) return 0;
+  const now = new Date().toISOString();
+  const db = await openOfflineDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(NOTES_STORE, "readwrite");
+    const store = tx.objectStore(NOTES_STORE);
+    for (const item of items) {
+      const note: Note = {
+        id: crypto.randomUUID(),
+        title: item.title,
+        body: item.body,
+        listId: item.listId,
+        reminders: [],
+        completed: false,
+        createdAt: item.createdAt ?? now,
+        updatedAt: now,
+        syncStatus: "local",
+        kind: "regular"
+      };
+      store.put(note);
+    }
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
+  });
+  notifyNotesChanged();
+  return items.length;
+}
+
 export async function toggleNoteCompleted(id: string): Promise<void> {
   const existing = await getNote(id);
   if (!existing) return;

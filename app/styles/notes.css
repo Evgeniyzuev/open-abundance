@@ -70,17 +70,16 @@
 .notes-detail-ai, .notes-detail-delete { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 14px; border-radius: 14px; font-size: 1rem; font-weight: 700; }
 .notes-detail-ai { margin-top: 6px; background: var(--purple-soft); color: var(--purple-text); }
 .notes-detail-delete { background: var(--danger-soft); color: var(--danger); }
+.notes-reminder-inputs { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
+.modal-sheet .notes-reminder-inputs input { width: auto; min-width: 0; min-height: 36px; padding: 4px 8px; border: 0; border-radius: 8px; background: var(--surface-muted); color: var(--blue); font-size: 1rem; }
+.notes-reminder-row > svg { color: var(--muted); }
+.notes-reminder-row .notes-reminder-inputs { justify-content: flex-start; }
+.modal-sheet .notes-reminder-inputs input[type="date"] { flex: 1 1 auto; }
+.modal-sheet .notes-reminder-inputs input[type="time"] { flex: 0 0 auto; width: 104px; }
+.notes-reminder-inputs .notes-icon-button { width: 32px; height: 32px; flex: 0 0 auto; color: var(--muted); }
 .notes-detail-field.stacked { grid-template-columns: 1fr; gap: 4px; padding-block: 10px; }
 .notes-detail-body > .media-help, .notes-detail-body > button.media-url-help { justify-self: start; }
-.notes-reminder-current { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--blue); }
-.notes-reminder-current strong { font-size: 1rem; font-weight: 700; }
-.notes-reminder-presets { display: flex; flex-wrap: wrap; gap: 8px; }
-.notes-reminder-presets button { min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: 0.9375rem; }
-.notes-reminder-presets button.active { border-color: var(--accent-fill); background: var(--accent-soft); color: var(--blue); }
-.notes-reminder-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.notes-reminder-inputs label { display: grid; gap: 4px; color: var(--muted); font-size: 0.8125rem; }
-.modal-sheet .notes-reminder-inputs input { min-height: 42px; padding: 8px 10px; font-size: 1rem; }
-
+.modal-sheet 
 /* Challenge card opened full screen (same element as notes, posts and wishes). */
 .modal-sheet.sheet-fullscreen.challenge-detail-sheet { padding-top: calc(16px + env(safe-area-inset-top)); }
 .challenge-detail-head { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 14px; margin-bottom: 14px; padding-inline-end: 52px; }
@@ -135,3 +134,20 @@
 .notes-about p { margin: 0 0 10px; line-height: 1.45; }
 .notes-about-note { color: var(--muted); font-size: 0.875rem; }
 .notes-about-ok { width: 100%; min-height: 48px; margin-top: 6px; border-radius: 14px; background: var(--accent-fill); color: #fff; font-size: 1rem; font-weight: 800; }
+
+/* Import from other apps. */
+.modal-sheet.sheet-fullscreen.notes-import { padding-top: calc(60px + env(safe-area-inset-top)); }
+.notes-import-title { margin: 0; font-size: 1.75rem; font-weight: 800; }
+.notes-import-hint { margin: 0; color: var(--muted); font-size: 0.875rem; line-height: 1.4; }
+.notes-import-block { display: grid; gap: 8px; padding: 14px; border-radius: 16px; background: var(--surface-muted); }
+.notes-import-block h3 { margin: 0; font-size: 1rem; }
+.modal-sheet .notes-import-block textarea { min-height: 120px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 1rem; resize: vertical; }
+.notes-import-check { display: flex; align-items: center; gap: 8px; font-size: 0.9375rem; }
+.notes-import-check input { width: 18px; height: 18px; }
+.notes-import-pickers { display: flex; flex-wrap: wrap; gap: 8px; }
+.notes-import-pickers button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); background: var(--surface); color: var(--blue); font-weight: 700; }
+.notes-import-pickers button:disabled { opacity: 0.5; }
+.notes-import-preview { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; }
+.notes-import-preview ul { margin: 0; padding-inline-start: 18px; color: var(--text); }
+.notes-import-preview small { color: var(--muted); }
+.notes-about-ok:disabled { opacity: 0.5; }

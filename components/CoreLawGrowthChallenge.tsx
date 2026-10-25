@@ -18,6 +18,7 @@ type CoreLawGrowthChallengeProps = {
 const CONTENT_SCREEN_COUNT = 3;
 const GROWTH_YEARS = [0, 10, 20, 30];
 
+// Three questions on the rules; the numbers are on the screens before, not in the test (the step lost most people).
 const QUESTIONS: ChallengeQuizQuestion[] = [
   {
     answerIndex: 0,
@@ -27,25 +28,9 @@ const QUESTIONS: ChallengeQuizQuestion[] = [
   },
   {
     answerIndex: 1,
-    id: "one-dollar-fifty-years",
-    optionKeys: ["challenges.coreQuiz.q2.a", "challenges.coreQuiz.q2.b", "challenges.coreQuiz.q2.c"],
-    optionMoneyValues: [{ amount: 365 }, { amount: 18250 }, { amount: 1000000 }],
-    questionKey: "challenges.coreQuiz.q2",
-    questionMoneyValues: { daily: 1 }
-  },
-  {
-    answerIndex: 1,
     id: "reinvest-growth",
     optionKeys: ["challenges.coreQuiz.q3.a", "challenges.coreQuiz.q3.b", "challenges.coreQuiz.q3.c"],
     questionKey: "challenges.coreQuiz.q3"
-  },
-  {
-    answerIndex: 2,
-    id: "thirty-year-core",
-    optionKeys: ["challenges.coreQuiz.q4.a", "challenges.coreQuiz.q4.b", "challenges.coreQuiz.q4.c"],
-    optionMoneyValues: [{ amount: 10000 }, { amount: 100000 }, { amount: 1000000 }],
-    questionKey: "challenges.coreQuiz.q4",
-    questionMoneyValues: { start: 1000 }
   },
   {
     answerIndex: 0,
@@ -170,7 +155,7 @@ export default function CoreLawGrowthChallenge({ locale, t, onProof, onPassedCha
             onError={() => undefined}
             onPass={onProof}
             onPassedChange={onPassedChange}
-            passScore={4}
+            passScore={2}
             passRuleKey="challenges.coreQuiz.passRule"
             questions={QUESTIONS}
             t={t}

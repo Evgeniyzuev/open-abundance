@@ -34,3 +34,20 @@ export async function POST(request: NextRequest) {
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 500, headers: NO_STORE_HEADERS });
   return NextResponse.json({ challengeId, status: result.status, active: true }, { headers: NO_STORE_HEADERS });
 }
+
+/**
+ * GET /api/quests/active
+ *
+ * Whether the person has done the first path quest ("First step"). The app opens the quest log on entry until it is
+ * done, so the path starts on the first day instead of somewhere in the feed.
+ */
+export async function GET(request: NextRequest) {
+  const { supabase, user, error } = await getAuthenticatedUser(request);
+  if (!user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
+  const db = supabase as any;
+  const { data: first } = await db.from("challenges").select("id").eq("is_active", true).not("path_order", "is", null).order("path_order", { ascending: true }).limit(1).maybeSingle();
+  if (!first) return NextResponse.json({ firstStepDone: true }, { headers: NO_STORE_HEADERS });
+  const { data: row } = await db.from("user_challenges").select("status").eq("user_id", user.id).eq("challenge_id", first.id).maybeSingle();
+  const status = String(row?.status ?? "").toLowerCase();
+  return NextResponse.json({ firstStepDone: status === "completed" || status === "declined" }, { headers: NO_STORE_HEADERS });
+}

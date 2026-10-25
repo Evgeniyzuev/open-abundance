@@ -30,6 +30,7 @@ import { markChallengesViewed, markTodayViewed, readDailyUnreadState } from "@/l
 import type { MessageKey } from "@/lib/i18n";
 import type { WalletCalculatorRequest } from "@/components/WalletApp";
 import { readPrimaryWish } from "@/lib/wishJourney";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 // Heavy tabs load on first visit; KeepAliveView keeps them mounted afterwards.
 function TabLoading() {
@@ -397,6 +398,21 @@ export default function AppNavigation() {
       : { ...DEFAULT_NAVIGATION_STATE, mainTab: "people", socialTab: "feed" };
     suppressHistoryPushRef.current = true;
     applyNavigationState(nextState);
+    // Until "First step" is done the app opens on the quest log, where it is the active quest.
+    let cancelled = false;
+    void fetchWithSupabaseAuth("/api/quests/active", { cache: "no-store" }, { authRequired: true })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: { firstStepDone?: boolean } | null) => {
+        if (cancelled || !payload || payload.firstStepDone !== false) return;
+        // The person already went somewhere else while this loaded: leave them there.
+        if (navigationStateRef.current.mainTab !== nextState.mainTab) return;
+        suppressHistoryPushRef.current = true;
+        applyNavigationState({ ...DEFAULT_NAVIGATION_STATE, mainTab: "challenges" });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [applyNavigationState, authResolved, user]);
 
   useEffect(() => {

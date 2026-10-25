@@ -93,8 +93,10 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
     telegramSkipped: 0,
     outcomes: nudgeOutcomes(participants, sentBefore)
   };
-  const botToken = process.env.TELEGRAM_BOT_TOKEN ?? null;
   if (options.dryRun) return summary;
+  // Once every push is copied to Telegram (telegram_notification_deliveries), the nudge push already reaches Telegram.
+  const pushCopiedToTelegram = !(await db.from("telegram_notification_deliveries").select("id").limit(1)).error;
+  const botToken = pushCopiedToTelegram ? null : process.env.TELEGRAM_BOT_TOKEN ?? null;
 
   for (const { userId, step } of planned) {
     const participant = byId.get(userId);

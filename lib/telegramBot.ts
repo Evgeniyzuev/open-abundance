@@ -40,6 +40,28 @@ export function buildTelegramNudge(
   };
 }
 
+/**
+ * Telegram copy of one push: bold title, the body and an "Open" button to the push's deep link (the app's home when it
+ * has none or it is not a local path). Title and body are already in the person's language.
+ */
+export function buildTelegramNotification(
+  push: { title: string | null; body: string | null; deepLink: string | null },
+  locale: string,
+  siteUrl: string
+): TelegramNudgeMessage | null {
+  const title = String(push.title ?? "").trim();
+  const body = String(push.body ?? "").trim().slice(0, 3500);
+  if (!title && !body) return null;
+  const link = push.deepLink && push.deepLink.startsWith("/") && !push.deepLink.startsWith("//") ? push.deepLink : "/";
+  const text = [title ? `<b>${escapeTelegramHtml(title)}</b>` : "", escapeTelegramHtml(body)].filter(Boolean).join("\n\n");
+  return {
+    text,
+    buttonText: BUTTON_TEXT[locale] ?? BUTTON_TEXT.en,
+    url: `${siteUrl.replace(/\/+$/, "")}${link}`,
+    html: true
+  };
+}
+
 export type TelegramSendResult = { ok: true } | { ok: false; blocked: boolean; error: string };
 
 /**

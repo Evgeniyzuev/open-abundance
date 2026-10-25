@@ -1838,6 +1838,14 @@ export default function SocialApp({
               </div>
             </div>
           ) : null}
+          {telegramBotUrl(referralLink?.telegramUrl) ? (
+            <div className="referral-box referral-box-compact">
+              <div className="referral-box-copy"><span><Link size={15} />{t("profile.telegramBot.title")}</span><small>{t("profile.telegramBot.hint")}</small></div>
+              <div className="referral-compact-actions">
+                <a className="secondary-button" href={telegramBotUrl(referralLink?.telegramUrl) ?? undefined} target="_blank" rel="noreferrer">{t("profile.telegramBot.action")}</a>
+              </div>
+            </div>
+          ) : null}
           <AddLoginEmail />
           <ReferralProgramSummary />
           <LegalDisclosure
@@ -3014,4 +3022,10 @@ function SystemProfileView({
       />
     </section>
   );
+}
+
+/** The bot's chat (t.me/<bot>) from the Mini App link t.me/<bot>/<app>, where "Start" lets the bot write to the person. */
+function telegramBotUrl(miniAppUrl: string | null | undefined): string | null {
+  const match = /^https:\/\/t\.me\/([A-Za-z0-9_]+)/.exec(miniAppUrl ?? "");
+  return match ? `https://t.me/${match[1]}` : null;
 }

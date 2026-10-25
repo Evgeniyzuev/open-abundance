@@ -10,7 +10,14 @@ const TELEGRAM_SCRIPT = "https://telegram.org/js/telegram-web-app.js";
 // Start parameter of a one-time "link Telegram to my account" link from the profile (lib/telegramInitData.ts).
 const LINK_PREFIX = "lnk_";
 
-type TelegramWebApp = { initData?: string; ready?: () => void; expand?: () => void };
+type TelegramWebApp = {
+  initData?: string;
+  initDataUnsafe?: { user?: { allows_write_to_pm?: boolean } };
+  ready?: () => void;
+  expand?: () => void;
+  isVersionAtLeast?: (version: string) => boolean;
+  requestWriteAccess?: (callback?: (granted: boolean) => void) => void;
+};
 type Step = "choice" | "email" | "code";
 type Texts = typeof TEXTS.en;
 
@@ -61,6 +68,7 @@ export default function TelegramMiniApp() {
         const supabase = getBrowserSupabaseClient();
         const { data: { session } } = await supabase.auth.getSession();
         // A link always signs in again: the Mini App may hold a session of a separate Telegram account.
+        if (session && !linking && !cancelled) askToMessage(webApp);
         if ((session && !linking) || cancelled || !initData) return;
         const payload = await telegramSignIn(initData);
         if (cancelled) return;
@@ -75,6 +83,7 @@ export default function TelegramMiniApp() {
         }
         if (session) await supabase.auth.signOut({ scope: "local" });
         await supabase.auth.verifyOtp({ token_hash: payload.tokenHash, type: "magiclink" });
+        askToMessage(webApp);
       } catch (signInError) {
         // The app still works as a guest; sign-in by email stays available.
         console.warn("Telegram sign-in failed", signInError);
@@ -166,6 +175,29 @@ export default function TelegramMiniApp() {
       </div>
     </div>
   );
+}
+
+const WRITE_ACCESS_ASKED_KEY = "oa.telegram.writeAccessAskedAt";
+
+/**
+ * Asks Telegram to let the bot write to the person (pushes are copied there). Telegram allows it only after "Start" in
+ * the bot or this request; asked at most once a week, never when already allowed.
+ */
+function askToMessage(webApp: TelegramWebApp | null) {
+  if (!webApp?.requestWriteAccess || webApp.initDataUnsafe?.user?.allows_write_to_pm) return;
+  if (webApp.isVersionAtLeast && !webApp.isVersionAtLeast("6.9")) return;
+  try {
+    const askedAt = Number(window.localStorage.getItem(WRITE_ACCESS_ASKED_KEY) ?? 0);
+    if (Date.now() - askedAt < 7 * 86_400_000) return;
+    window.localStorage.setItem(WRITE_ACCESS_ASKED_KEY, String(Date.now()));
+  } catch {
+    // Without storage the request may repeat on the next launch; that is acceptable.
+  }
+  try {
+    webApp.requestWriteAccess(() => undefined);
+  } catch {
+    // Older clients without the method simply keep the in-app notifications.
+  }
 }
 
 async function telegramSignIn(initData: string, mode?: "create"): Promise<{ tokenHash?: string; needsChoice?: boolean; firstName?: string | null; code?: string }> {

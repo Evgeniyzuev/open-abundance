@@ -37,6 +37,8 @@ export const metadata: Metadata = {
     ...(process.env.YANDEX_SITE_VERIFICATION ? { yandex: process.env.YANDEX_SITE_VERIFICATION } : {}),
     ...(process.env.BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } } : {})
   },
+  // Heleket (crypto top-up provider) domain ownership check, see docs/CRYPTO_TOPUP_PLAN.md. Public, not a secret.
+  other: { heleket: "c43c0341" },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icons/twenty-levels-app-icon-512.png",

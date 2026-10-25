@@ -398,21 +398,23 @@ export default function AppNavigation() {
       : { ...DEFAULT_NAVIGATION_STATE, mainTab: "people", socialTab: "feed" };
     suppressHistoryPushRef.current = true;
     applyNavigationState(nextState);
-    // Until "First step" is done the app opens on the quest log, where it is the active quest.
-    let cancelled = false;
+    // Until "First step" is done the app opens on the quest log, where it is the active quest. Not cancelled when the
+    // user object is replaced by a refresh (the ref above keeps this from running again); only a different account
+    // drops the answer.
+    const entryUserId = user.id;
     void fetchWithSupabaseAuth("/api/quests/active", { cache: "no-store" }, { authRequired: true })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload: { firstStepDone?: boolean } | null) => {
-        if (cancelled || !payload || payload.firstStepDone !== false) return;
+        if (journeyEntryUserRef.current !== entryUserId || !payload || payload.firstStepDone !== false) return;
         // The person already went somewhere else while this loaded: leave them there.
         if (navigationStateRef.current.mainTab !== nextState.mainTab) return;
+        const questState: NavigationState = { ...DEFAULT_NAVIGATION_STATE, mainTab: "challenges" };
         suppressHistoryPushRef.current = true;
-        applyNavigationState({ ...DEFAULT_NAVIGATION_STATE, mainTab: "challenges" });
+        applyNavigationState(questState);
+        // Keep the address in step, so a reload or remount stays on the quest log instead of the old ?view.
+        writeNavigationStateToHistory(questState, "replace");
       })
       .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
   }, [applyNavigationState, authResolved, user]);
 
   useEffect(() => {

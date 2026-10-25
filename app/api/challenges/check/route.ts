@@ -349,7 +349,7 @@ async function verifyChallenge(
     const { data, error } = await db.from("humanity_verifications").select("humanity_level").eq("user_id", userId).maybeSingle();
     if (error) return { ok: false, reason: "Could not check your confirmation. Try again." };
     if (Number(data?.humanity_level ?? 0) >= 2) return { ok: true };
-    return { ok: false, reason: "Complete the humanity check first." };
+    return { ok: false, reason: "Confirm that you are not a robot first." };
   }
 
   // "Author from scratch": invited people who passed the humanity check (level 2) are counted from the facts, not claimed.
@@ -374,7 +374,7 @@ async function verifyChallenge(
     }
     return confirmed >= confirmedTarget
       ? { ok: true }
-      : { ok: false, reason: `${confirmed} of ${confirmedTarget} invited people have confirmed they are a person.` };
+      : { ok: false, reason: `${confirmed} of ${confirmedTarget} invited people have confirmed they are not a robot.` };
   }
 
   // Sales: any completed Market deal where the person is the seller counts (founder decision 2026-10-17).
@@ -453,7 +453,7 @@ async function verifyChallenge(
     if (logic === "business_external_buyer") {
       return invitedBuyers(confirmed, invited).length > 0
         ? { ok: true }
-        : { ok: false, reason: "A person who joined through your link and passed the humanity check must complete a purchase from you." };
+        : { ok: false, reason: "A person who joined through your link and confirmed they are not a robot must complete a purchase from you." };
     }
     return strangerBuyers(confirmed, [...invited, ...inviter]).length > 0
       ? { ok: true }

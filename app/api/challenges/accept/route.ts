@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     const { data: humanity, error: humanityError } = await (supabase as any).from("humanity_verifications").select("humanity_level").eq("user_id", user.id).maybeSingle();
     if (humanityError) return NextResponse.json({ error: humanityError.message }, { status: 500 });
     if (Number(humanity?.humanity_level ?? 0) < 2) {
-      return NextResponse.json({ error: "Confirm that you are a human first.", code: "humanity_required" }, { status: 409 });
+      return NextResponse.json({ error: "Confirm that you are not a robot first.", code: "humanity_required" }, { status: 409 });
     }
   }
 

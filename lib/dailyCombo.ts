@@ -16,7 +16,7 @@ const RIDDLE_ANSWERS: Record<number, string[]> = {
   4: ["маркет", "маркетплейс", "market", "marketplace"],
   5: ["план", "plan"],
   6: ["реалити", "реалитироста", "reality", "growthreality"],
-  7: ["человек", "человечность", "person", "human", "humanity"],
+  7: ["человек", "человечность", "робот", "person", "human", "humanity"],
   8: ["желание", "wish"],
   9: ["историироста", "истории", "growthstories", "stories"],
   10: ["челлендж", "челендж", "challenge"]

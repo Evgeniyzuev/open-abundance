@@ -1751,3 +1751,26 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .guest-bar-text { flex: 1 1 auto; min-width: 0; }
 .guest-bar-text strong, .guest-bar-text small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .guest-bar-signin, .guest-bar-join { padding: 0 10px; font-size: 0.75rem; }
+
+/* "Get a code" challenges (components/ChannelCodeChallenge.tsx). */
+.challenge-code-box {
+  display: grid;
+  gap: 10px;
+}
+
+.challenge-code-box > .secondary-button {
+  justify-self: start;
+}
+
+.challenge-code-input {
+  display: grid;
+  gap: 6px;
+}
+
+.challenge-code-input input {
+  max-width: 180px;
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

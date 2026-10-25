@@ -13,9 +13,13 @@ import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
 import { walletChallengeDone, walletChallengeRule, walletStats } from "@/lib/stayStreak";
 import { hasThreeSteps } from "@/lib/wishSteps";
 import { VALUES_CHALLENGE_SWIPES, valuesChallengeDone } from "@/lib/lifeValues";
+import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
+import { isChannelCodeValid } from "@/lib/channelCodesServer";
 
 type CheckRequest = {
   challengeId?: string;
+  /** Code of a "get a code" challenge (lib/channelCodes.ts). */
+  code?: string;
 };
 
 type ChallengeRow = Database["public"]["Tables"]["challenges"]["Row"];
@@ -115,7 +119,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const verification = await verifyChallenge(supabase, user.id, challenge);
+  const verification = await verifyChallenge(supabase, user.id, challenge, body.code);
   if (!verification.ok) {
     await supabase.from("user_challenges").upsert(
       {
@@ -236,9 +240,15 @@ export async function POST(request: NextRequest) {
 async function verifyChallenge(
   supabase: ReturnType<typeof createClient<Database>>,
   userId: string,
-  challenge: ChallengeRow
+  challenge: ChallengeRow,
+  code?: string
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   const db = supabase as any;
+  if (isChannelCodeLogic(challenge.verification_logic)) {
+    const channel = CHANNEL_CODE_CHALLENGES[challenge.verification_logic];
+    const valid = isChannelCodeValid(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "", userId, channel, code, Date.now());
+    return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
+  }
   const acquisitionTarget = Number((challenge as any).acquisition_target ?? 0);
   if (challenge.verification_logic === "acquisition_publications_milestone") {
     const { count, error } = await db.from("acquisition_submissions").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("submission_type", "publication").eq("status", "approved");

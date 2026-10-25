@@ -6,6 +6,8 @@ import Sheet from "@/components/ui/Sheet";
 import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import InstallPingChallenge from "@/components/InstallPingChallenge";
+import ChannelCodeChallenge from "@/components/ChannelCodeChallenge";
+import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
 import HumanityCard from "@/components/HumanityCard";
 import InviteKit from "@/components/InviteKit";
 import ReferralProgramSummary from "@/components/ReferralProgramSummary";
@@ -1146,6 +1148,7 @@ function ChallengeDetailContent({
   const needsValuesChallenge = challenge.verification_logic === "values_goals_defined" && accepted && !completed && !locked;
   const needsInstallPingChallenge = challenge.verification_logic === "install_ping_answered" && accepted && !completed && !locked;
   const needsCoreLawChallenge = challenge.verification_logic === "core_law_understood" && accepted && !completed && !locked;
+  const codeChannel = isChannelCodeLogic(challenge.verification_logic) && accepted && !completed && !locked ? CHANNEL_CODE_CHALLENGES[challenge.verification_logic] : null;
   const needsAppTesting = challenge.verification_logic === "app_testing_feedback" && accepted && !completed && !locked;
   const needsAcquisition = challenge.verification_logic === "acquisition_publications_milestone" || challenge.verification_logic?.startsWith("acquisition_metric_") === true;
   const needsPeerReviews = challenge.verification_logic === "peer_reviews";
@@ -1165,6 +1168,7 @@ function ChallengeDetailContent({
   const [nicheTaskChosen, setNicheTaskChosen] = useState(false);
   const [valuesDone, setValuesDone] = useState(false);
   const [installPingPassed, setInstallPingPassed] = useState(false);
+  const [channelCode, setChannelCode] = useState("");
 
   useEffect(() => {
     setCompoundQuizPassed(false);
@@ -1206,6 +1210,12 @@ function ChallengeDetailContent({
       return;
     }
 
+    if (codeChannel && channelCode.length !== 6) {
+      setCheckMessage(t("challenges.code.required"));
+      setCheckStatus("idle");
+      return;
+    }
+
     if (needsCoreLawChallenge && !coreLawPassed) {
       setCheckMessage(t("challenges.coreQuiz.required"));
       setCheckStatus("idle");
@@ -1221,7 +1231,7 @@ function ChallengeDetailContent({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ challengeId: challenge.id })
+        body: JSON.stringify(codeChannel ? { challengeId: challenge.id, code: channelCode } : { challengeId: challenge.id })
       }, { authRequired: true });
       const payload = (await response.json()) as CheckChallengeResponse;
 
@@ -1462,6 +1472,10 @@ function ChallengeDetailContent({
 
       {needsInstallPingChallenge ? (
         <InstallPingChallenge locale={locale} onPassedChange={setInstallPingPassed} t={t} />
+      ) : null}
+
+      {codeChannel ? (
+        <ChannelCodeChallenge challengeId={challenge.id} channel={codeChannel} t={t} onCodeChange={setChannelCode} />
       ) : null}
 
       {needsCoreLawChallenge ? (
@@ -1864,7 +1878,12 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "first_marketplace_listing":
       return Store;
     case "install_ping_answered":
+    case "code_push":
       return Smartphone;
+    case "code_telegram":
+      return Send;
+    case "code_nova":
+      return Bot;
     case "has_referral":
     case "team_contact_active":
       return Users;

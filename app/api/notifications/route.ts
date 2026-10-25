@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { CHANNEL_CODE_EVENT } from "@/lib/channelCodes";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { normalizeLocale, translate, type MessageKey } from "@/lib/i18n";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
@@ -41,7 +42,11 @@ export async function GET(request: NextRequest) {
     if (preferenceError) return json({ error: preferenceError.message }, 500);
 
     const disabledCategories = new Set((preferences ?? []).filter((item: any) => item.in_app_enabled === false).map((item: any) => item.category));
-    const visibleRows = (rows ?? []).filter((row: any) => !disabledCategories.has((Array.isArray(row.event) ? row.event[0] : row.event)?.category));
+    // A challenge code push stays out of the list: the code must arrive through the push itself.
+    const visibleRows = (rows ?? []).filter((row: any) => {
+      const event = Array.isArray(row.event) ? row.event[0] : row.event;
+      return !disabledCategories.has(event?.category) && event?.event_type !== CHANNEL_CODE_EVENT;
+    });
     const hasMore = visibleRows.length > limit || (rows?.length ?? 0) > limit;
     const page = visibleRows.slice(0, limit).map((row: any) => {
       const event = Array.isArray(row.event) ? row.event[0] : row.event;

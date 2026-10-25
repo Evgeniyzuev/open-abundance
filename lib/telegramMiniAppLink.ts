@@ -6,3 +6,9 @@ export function telegramMiniAppLink(baseUrl: string | undefined, code: string): 
   url.searchParams.set("startapp", code);
   return url.toString();
 }
+
+/** The bot's own chat (t.me/<bot>), where "Start" lets the bot write to the person; null when no Mini App is set up. */
+export function telegramBotChatUrl(baseUrl: string | undefined): string | null {
+  const match = /^https:\/\/t\.me\/([A-Za-z0-9_]+)/.exec(baseUrl?.trim() ?? "");
+  return match ? `https://t.me/${match[1]}` : null;
+}

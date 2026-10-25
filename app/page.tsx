@@ -4,6 +4,7 @@ import { OnboardingGate } from "@/components/OnboardingApp";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import PublicIntro from "@/components/PublicIntro";
 import PushReminderPrompt from "@/components/PushReminderPrompt";
+import TelegramBotPrompt from "@/components/TelegramBotPrompt";
 import TimezoneSync from "@/components/TimezoneSync";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import ShareTargetBootstrap from "@/components/ShareTargetBootstrap";
@@ -54,6 +55,7 @@ export default function Home() {
         <InstallAppPrompt />
         <TimezoneSync />
         <PushReminderPrompt />
+        <TelegramBotPrompt />
         <OnboardingGate>
           <AppNavigation />
         </OnboardingGate>

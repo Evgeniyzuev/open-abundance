@@ -181,7 +181,8 @@ export function AppInstalledQuest({ challengeId, locale, t, onCodeChange }: { ch
 
 export type PathMapItem = { id: string; step: number; title: string; state: "done" | "active" | "taken" | "skipped" | "open" | "locked" };
 
-/** The whole path as a list: number, title and state of each step; locked steps keep their title as a teaser. */
+/** The path as a list: number, title and state of each step shown; locked steps keep their title as a teaser. When
+ * nothing is ahead any more, it points to the side quests. */
 export function PathMap({ items, t }: { items: PathMapItem[]; t: TFunction }) {
   return (
     <ol className="quest-path-map">
@@ -192,6 +193,7 @@ export function PathMap({ items, t }: { items: PathMapItem[]; t: TFunction }) {
           <small>{t(`quests.path.state.${item.state}` as MessageKey)}</small>
         </li>
       ))}
+      {items.every((item) => item.state !== "open" && item.state !== "locked") ? <li className="quest-path-item more">{t("quests.path.more")}</li> : null}
     </ol>
   );
 }

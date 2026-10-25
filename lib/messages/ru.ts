@@ -3079,6 +3079,12 @@ const ru: Record<string, string> = {
     "quests.leaders.count": "квестов: {count}",
     "quests.leaders.you": "ты",
     "challenges.code.problem.not_installed": "Открой установленное приложение с иконки на главном экране и запроси код там.",
+    "home.dailyGoal.title": "Цель дня",
+    "home.dailyGoal.setup": "Рассчитай дневную цель в квесте «Рассчитай путь к желанию»",
+    "home.dailyGoal.streak": "дней подряд: {count}",
+    "quests.active.pathStepShort": "Путь · шаг {step}",
+    "quests.path.showShort": "Путь · пройдено {done}",
+    "quests.path.more": "Пройди дополнительные задания, чтобы поднять уровень",
 };
 
 export default ru;

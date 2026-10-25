@@ -759,22 +759,19 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
             <section className="quest-log" aria-label={t("quests.active.label")}>
               <header className="quest-log-head">
                 <span>{t("quests.active.label")}</span>
-                <small>{questInfo?.activePathStep ? t("quests.active.pathStep", { step: questInfo.activePathStep, total: questInfo.pathTotal }) : t("quests.active.side")}</small>
+                <small>{questInfo?.activePathStep ? t("quests.active.pathStepShort", { step: questInfo.activePathStep }) : t("quests.active.side")}</small>
               </header>
               {questInfo && questInfo.pathTotal > 0 ? (
                 <div className="quest-log-path">
                   <PathTree done={questInfo.pathDone} total={questInfo.pathTotal} />
                   <div className="quest-log-path-side">
-                    <div className="quest-path-dots" aria-label={t("quests.active.pathDone", { done: questInfo.pathDone, total: questInfo.pathTotal })}>
-                      {pathItems.map((item) => <i className={item.state === "done" ? "done" : item.state === "active" ? "current" : ""} key={item.id} />)}
-                    </div>
                     <button aria-expanded={pathMapOpen} className="quest-path-toggle" type="button" onClick={() => setPathMapOpen((open) => !open)}>
-                      {t(pathMapOpen ? "quests.path.hide" : "quests.path.show", { done: questInfo.pathDone, total: questInfo.pathTotal })}
+                      {t(pathMapOpen ? "quests.path.hide" : "quests.path.showShort", { done: questInfo.pathDone })}
                     </button>
                   </div>
                 </div>
               ) : null}
-              {pathMapOpen ? <PathMap items={pathItems.map((item) => ({ ...item, title: displayText(item.title, "", locale) }))} t={t} /> : null}
+              {pathMapOpen ? <PathMap items={visiblePath(pathItems).map((item) => ({ ...item, title: displayText(item.title, "", locale) }))} t={t} /> : null}
               <div className="challenge-list">{renderChallenge(activeQuest)}</div>
               <NovaBubble text={novaLine(activeQuest.verification_logic, t)} t={t} />
             </section>
@@ -2026,4 +2023,11 @@ function compareRecommendedChallenges(left: Challenge, right: Challenge): number
   const sortOrder = left.sort_order - right.sort_order;
   if (sortOrder !== 0) return sortOrder;
   return left.difficulty_level - right.difficulty_level;
+}
+
+/** The path as the person sees it: what is behind them and two or three steps ahead, not the whole length. */
+function visiblePath<T extends { state: string }>(items: T[]): T[] {
+  const started = items.filter((item) => item.state !== "open" && item.state !== "locked");
+  const ahead = items.filter((item) => item.state === "open" || item.state === "locked").slice(0, started.some((item) => item.state === "active") ? 2 : 3);
+  return items.filter((item) => started.includes(item) || ahead.includes(item));
 }

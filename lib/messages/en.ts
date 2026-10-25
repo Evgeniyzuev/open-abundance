@@ -3079,6 +3079,12 @@ const en = {
     "quests.leaders.count": "{count} quests",
     "quests.leaders.you": "you",
     "challenges.code.problem.not_installed": "Open the installed app from its home screen icon and request the code there.",
+    "home.dailyGoal.title": "Goal for today",
+    "home.dailyGoal.setup": "Work out your daily goal in the quest \"Work out the path to your wish\"",
+    "home.dailyGoal.streak": "{count} days in a row",
+    "quests.active.pathStepShort": "Path · step {step}",
+    "quests.path.showShort": "Path · {done} done",
+    "quests.path.more": "Do extra quests to raise your level",
 } satisfies Record<string, string>;
 
 export default en;

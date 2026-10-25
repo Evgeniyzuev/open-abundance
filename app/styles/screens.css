@@ -1774,3 +1774,9 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+.home-goal-card { display: grid; gap: 7px; width: 100%; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--surface); color: var(--text); font: inherit; text-align: start; box-shadow: var(--shadow-soft); }
+.home-goal-card.setup { cursor: pointer; }
+.home-goal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.home-goal-head small { color: var(--muted); font-size: 0.75rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; }
+.home-goal-streak { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 9px; background: rgba(255, 150, 50, 0.14); color: #c85a00; font-size: 0.78rem; font-weight: 900; }
+.home-goal-card strong { font-size: 1.1rem; }

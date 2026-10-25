@@ -374,3 +374,4 @@
 .quest-leaders-rank { color: var(--muted); font-weight: 900; text-align: center; }
 .quest-leaders-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
 .quest-leaders li small { color: var(--muted); font-weight: 800; }
+.quest-path-item.more { display: block; color: #ffd66b; font-weight: 800; }

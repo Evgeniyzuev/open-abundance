@@ -1,7 +1,7 @@
 "use client";
 
 import type { DayCredit } from "@/lib/dayCredit";
-import { ArrowRight, Bell, CheckCircle2, Compass, Heart, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, Compass, Flame, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import DailySetCard from "@/components/DailySetCard";
@@ -61,6 +61,9 @@ type TodayItem = {
   status: "pending" | "done" | "skipped";
   title: LocaleText;
 };
+
+// "Work out the path to your wish": saving its plan sets the daily goal shown at the top of Home.
+const GOAL_PLAN_QUEST_ID = "69ce2255-6676-4541-9a0f-5fe13b94c22c";
 
 type TodayPayload = {
   checkInStreak: number;
@@ -357,6 +360,24 @@ export default function HomeTodayApp({
           <RefreshCw size={17} />
         </button>
       </header>
+
+      {user && today ? (
+        today.setupRequired ? (
+          <button className="home-goal-card setup" type="button" onClick={() => onOpenChallenge(GOAL_PLAN_QUEST_ID)}>
+            <span className="home-goal-head"><small>{t("home.dailyGoal.title")}</small><ArrowRight size={17} aria-hidden="true" /></span>
+            <strong>{t("home.dailyGoal.setup")}</strong>
+          </button>
+        ) : (
+          <section className="home-goal-card" aria-label={t("home.dailyGoal.title")}>
+            <span className="home-goal-head">
+              <small>{t("home.dailyGoal.title")}</small>
+              <span className="home-goal-streak"><Flame size={15} aria-hidden="true" />{t("home.dailyGoal.streak", { count: today.credit?.countedStreak ?? today.completionStreak })}</span>
+            </span>
+            <strong>{formatMoney(todayProgress, locale)} / {formatMoney(todayTarget, locale)} · {todayPercent}%</strong>
+            <span className="today-progress" aria-label={t("today.progress")}><span style={{ width: `${todayPercent}%` }} /></span>
+          </section>
+        )
+      ) : null}
 
       <HomeContinueCard active={active} onOpenTask={onOpenTask} />
       <HomeComebackCard active={active} onOpenTasks={onOpenTasks} />

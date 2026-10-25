@@ -78,6 +78,8 @@ Evgen в @CryptoBot → Crypto Pay → My Apps → наше приложение
 
 ### Этап 3. Heleket как второй провайдер (2–3 дня)
 
+**Отложен 2026-10-25** (Evgen): по ставке Heleket не дешевле CryptoBot. Вместо него новые сети прямого депозита без комиссии, см. [DIRECT_DEPOSIT_NETWORKS_PLAN.md](DIRECT_DEPOSIT_NETWORKS_PLAN.md). Метатег подтверждения домена остаётся на сайте. Этап 1 выпущен 2026-10-25 и проверен реальным платежом.
+
 Цель: сети и монеты, которых нет в CryptoBot, и оплата без аккаунта в Telegram (обычная веб-страница).
 
 1. Миграция: разрешить `provider='heleket'` в `payment_provider_invoices`, поле `network` для Heleket ставить `mainnet` (у Heleket нет отдельной тестовой сети, тестировать малыми суммами с выключателем).

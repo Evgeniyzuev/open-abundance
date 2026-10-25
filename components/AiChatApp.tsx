@@ -42,6 +42,7 @@ import type { MessageKey } from "@/lib/i18n";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { getSoundsEnabled, playUiSound, setSoundsEnabled } from "@/lib/ui/sound";
 import { readPrimaryWish } from "@/lib/wishJourney";
+import { currentAiPreferenceKeys, recordAiFeedback, removeAiFeedback } from "@/lib/aiPreferencesStore";
 import type { AppLocale } from "@/lib/locales";
 
 type ChatMessage = AiLocalMessage;
@@ -399,6 +400,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
           deep: deep || undefined,
           contentPostId: selectedContentId ?? undefined,
           feedback,
+          preferences: currentAiPreferenceKeys(),
           context: contextText
         });
 
@@ -706,6 +708,10 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
   const rateMessage = useCallback(async (index: number, rating: 1 | 2 | 3 | 4 | 5) => {
     const nextRating = messages[index]?.rating === rating ? null : rating;
     setMessages((current) => current.map((message, messageIndex) => messageIndex === index ? { ...message, rating: nextRating } : message));
+    // Ratings also shape later answers (lib/aiPreferences.ts); kept on this device only.
+    const feedbackRef = `chat:${activeChat?.id ?? "draft"}:${index}`;
+    if (nextRating === null) removeAiFeedback(feedbackRef);
+    else recordAiFeedback({ at: new Date().toISOString(), rating: nextRating, tags: [], source: "chat", ref: feedbackRef });
     if (!userId) return;
     const reactionId = `reaction:${userId}:${index}`;
     if (nextRating === null) {
@@ -727,7 +733,7 @@ export default function AiChatApp({ active, contentPostId = null, contentPostNon
     };
     await saveMemoryItem(item);
     setMemoryItems((current) => [item, ...current.filter((memory) => memory.id !== item.id)]);
-  }, [locale, memoryEnabled, messages, userId]);
+  }, [activeChat?.id, locale, memoryEnabled, messages, userId]);
 
   const saveMemoryCandidate = useCallback(async () => {
     if (!userId || !memoryCandidate || !memoryEnabled) return;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { preferencePromptLines } from "@/lib/aiPreferences";
 import { AI_KNOWLEDGE_VERSION, buildAiSystemPrompt } from "@/lib/ai/knowledge";
 import {
   AI_PROVIDER_MODELS,
@@ -34,6 +35,7 @@ type ChatRequest = {
   locale?: string;
   context?: unknown;
   feedback?: unknown;
+  preferences?: unknown;
   contentPostId?: unknown;
   deep?: unknown;
   mode?: unknown;
@@ -95,6 +97,8 @@ export async function POST(request: NextRequest) {
     body.context,
     body.feedback
   );
+  const preferences = preferencePromptLines(body.preferences);
+  if (preferences.length) systemPrompt += `\n\n## The person's preferences from earlier ratings\n${preferences.map((line) => `- ${line}`).join("\n")}`;
   // A deeper answer is only offered on the system route and costs two messages of the daily limit.
   const deepRequested = body.deep === true && !followup;
   if (deepRequested) systemPrompt += DEEP_ANSWER_INSTRUCTION;

@@ -12,6 +12,7 @@
     "notes:review": "node --experimental-strip-types scripts/notes-review.mjs",
     "abundance:review": "node --experimental-strip-types scripts/abundance-review.mjs",
     "test:note-ai": "node --experimental-strip-types scripts/verify-note-ai-contract.mjs",
+    "test:ai-preferences": "node --experimental-strip-types scripts/verify-ai-preferences-contract.mjs",
     "test:notes-import": "node --experimental-strip-types scripts/verify-notes-import-contract.mjs",
     "test:channel-code": "node --experimental-strip-types scripts/verify-channel-code-contract.mjs",
     "test:telegram-push": "node --experimental-strip-types scripts/verify-telegram-push-copies-contract.mjs",

@@ -4,6 +4,7 @@ import { ABUNDANCE_LIST_ID, getNotes, setNoteAiReview, type Note } from "@/lib/n
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { MAX_LINK_NOTES, normalizeNoteAiResult, type NoteAiMode, type NoteAiQueueAction, type NoteAiReview } from "@/lib/noteAiReview";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import { currentAiPreferenceKeys } from "@/lib/aiPreferencesStore";
 
 export type NoteAiRequestFailure = "offline" | "signin" | "quota" | "deep_limit" | "not_ready" | "error";
 
@@ -34,8 +35,10 @@ export async function requestNoteAiReview(input: {
   action: NoteAiQueueAction;
   locale: string;
   listTitles: string[];
+  /** The person's clarification for a repeated review. */
+  addition?: string;
 }): Promise<{ ok: true; review: NoteAiReview } | { ok: false; reason: NoteAiRequestFailure }> {
-  const { note, mode, action, locale, listTitles } = input;
+  const { note, mode, action, locale, listTitles, addition } = input;
   if (typeof navigator !== "undefined" && !navigator.onLine) return { ok: false, reason: "offline" };
   const previous = note.aiReview;
   const pending: NoteAiReview = { status: "pending", mode, action, requestedAt: new Date().toISOString() };
@@ -50,7 +53,7 @@ export async function requestNoteAiReview(input: {
       method: "POST",
       cache: "no-store",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientNoteId: note.id, mode, action, text: noteText(note), context, locale })
+      body: JSON.stringify({ clientNoteId: note.id, mode, action, text: noteText(note), context, addition: addition?.trim() || undefined, preferences: currentAiPreferenceKeys(), locale })
     });
     const payload = await response.json().catch(() => null) as { requestId?: string; status?: string; result?: unknown; code?: string; safety?: { title: string; message: string; actions: string[] } } | null;
     if (response.ok && payload?.status === "safety" && payload.safety) {

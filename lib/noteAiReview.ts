@@ -43,6 +43,8 @@ export type NoteAiReview = {
   result?: NoteAiResult;
   /** The person opened the answer. */
   seen?: boolean;
+  /** How the person rated the answer: a 1–5 smiley and tags from lib/aiPreferences.ts. */
+  feedback?: { rating: 1 | 2 | 3 | 4 | 5; tags: string[] };
 };
 
 export function isQueueAction(value: unknown): value is NoteAiQueueAction {

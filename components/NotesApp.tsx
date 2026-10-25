@@ -26,7 +26,7 @@ import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { takeQuickAction } from "@/lib/quickAction";
 import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
 import { NoteAiAnswer, NoteAiBadge, NoteAiMenu } from "@/components/NoteAiPanel";
-import { flushAbundanceNotes, pullNoteAiAnswers, syncAbundanceNote } from "@/lib/noteAiClient";
+import { flushAbundanceNotes, pullNoteAiAnswers, requestNoteAiReview, syncAbundanceNote, type NoteAiRequestFailure } from "@/lib/noteAiClient";
 import { saveTask } from "@/lib/tasksStore";
 import { todayKey } from "@/lib/taskSchedule";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -214,7 +214,8 @@ export default function NotesApp() {
   }
 
   const activeList = view?.startsWith("list:") ? lists.find((list) => list.id === view.slice(5)) : undefined;
-  const editingNote = noteTarget && !noteTarget.isNew ? notes.find((note) => note.id === noteTarget.id) : undefined;
+  // A new note becomes a stored one once saved (for example before an AI review), so look it up either way.
+  const editingNote = noteTarget ? notes.find((note) => note.id === noteTarget.id) : undefined;
   const abundanceList = useMemo<ReminderList>(() => ({
     id: ABUNDANCE_LIST_ID, title: t("notes.abundance.title"), icon: "✨", color: ABUNDANCE_COLOR, createdAt: "", updatedAt: "", syncStatus: "synced"
   }), [t]);
@@ -516,6 +517,16 @@ function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose
     else bodyRef.current?.focus();
   }
 
+  /** The same review again, with the person's clarification. */
+  async function reviewAgain(addition: string): Promise<NoteAiRequestFailure | null> {
+    const saved = await saveDraft();
+    const previous = saved?.aiReview;
+    if (!saved || !previous) return "error";
+    const listTitles = [t("notes.inbox"), abundanceTitle, ...lists.map((list) => list.title)];
+    const outcome = await requestNoteAiReview({ note: saved, mode: previous.mode, action: previous.action, locale, listTitles, addition });
+    return outcome.ok ? null : outcome.reason;
+  }
+
   async function createTasks(items: string[]) {
     for (const item of items) {
       await saveTask({ id: crypto.randomUUID(), title: item, description: "", schedule: { type: "once", date: todayKey() }, sourceNoteId: target.id, syncStatus: "local" });
@@ -566,6 +577,7 @@ function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose
             onCreateTasks={createTasks}
             onAddWish={addWish}
             onAgain={() => void openAi()}
+            onReviewAgain={reviewAgain}
           />
         ) : null}
 

@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bot, Hourglass, Sparkles, X } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
 import { OPEN_AI_PROMPT_EVENT, requestNoteAiReview, type NoteAiRequestFailure } from "@/lib/noteAiClient";
+import { AI_FEEDBACK_PAIRS, buildPreferenceKeys, type AiFeedbackTag } from "@/lib/aiPreferences";
+import { AI_PREFERENCES_CHANGED_EVENT, readAiFeedback, recordAiFeedback, removeAiFeedback, resetAiFeedback } from "@/lib/aiPreferencesStore";
+import { trackProductEvent } from "@/lib/productAnalytics";
 import {
   buildNoteChatPrompt,
   DEEP_REVIEWS_PER_DAY,
@@ -105,6 +108,7 @@ export function NoteAiMenu({ note, listTitles, onClose, onQueued, onChat }: {
         ))}
       </section>
       {failure ? <p className="notes-ai-error" role="alert">{t(FAILURE_KEYS[failure])}</p> : null}
+      <AiPreferencesInfo />
     </Sheet>
   );
 }
@@ -132,7 +136,7 @@ export function NoteAiBadge({ note, onClick }: { note: Note; onClick: () => void
 }
 
 /** The answer inside the note: text, optional checklist of tasks or steps, and one-tap follow-ups. */
-export function NoteAiAnswer({ note, moveTarget, onMove, onCreateTasks, onAddWish, onAgain }: {
+export function NoteAiAnswer({ note, moveTarget, onMove, onCreateTasks, onAddWish, onAgain, onReviewAgain }: {
   note: Note;
   /** A list the answer suggested that exists on this device, if any. */
   moveTarget?: { id: string; title: string };
@@ -140,6 +144,8 @@ export function NoteAiAnswer({ note, moveTarget, onMove, onCreateTasks, onAddWis
   onCreateTasks: (items: string[]) => Promise<void>;
   onAddWish: () => Promise<void>;
   onAgain: () => void;
+  /** Repeats the same review with the person's clarification; returns why it failed, if it did. */
+  onReviewAgain: (addition: string) => Promise<NoteAiRequestFailure | null>;
 }) {
   const { t } = useUserContext();
   const review = note.aiReview;
@@ -206,6 +212,129 @@ export function NoteAiAnswer({ note, moveTarget, onMove, onCreateTasks, onAddWis
         <button type="button" onClick={onAgain}>{t("notes.ai.again")}</button>
         <button type="button" aria-label={t("notes.ai.hide")} onClick={() => void setNoteAiReview(note.id, undefined)}><X size={14} aria-hidden="true" /></button>
       </div>
+      <NoteAiFeedback note={note} onReviewAgain={onReviewAgain} />
+    </section>
+  );
+}
+
+const RATING_FACES = ["😕", "🙁", "😐", "🙂", "🤩"] as const;
+const TAG_KEYS: Record<AiFeedbackTag, MessageKey> = {
+  on_topic: "ai.feedback.tag.on_topic",
+  off_topic: "ai.feedback.tag.off_topic",
+  good_option: "ai.feedback.tag.good_option",
+  generic: "ai.feedback.tag.generic",
+  my_tone: "ai.feedback.tag.my_tone",
+  not_my_tone: "ai.feedback.tag.not_my_tone",
+  shorter: "ai.feedback.tag.shorter",
+  more_detail: "ai.feedback.tag.more_detail"
+};
+
+/**
+ * Rating of an answer: the same smileys as in the Nova chat, then tags by aspect (topic, use, tone, length) and a
+ * clarification for a repeated review. Ratings stay on the device and shape later answers; analytics gets only the
+ * rating, the tags and the kind of review.
+ */
+function NoteAiFeedback({ note, onReviewAgain }: { note: Note; onReviewAgain: (addition: string) => Promise<NoteAiRequestFailure | null> }) {
+  const { t } = useUserContext();
+  const review = note.aiReview;
+  const [addition, setAddition] = useState("");
+  const [sending, setSending] = useState(false);
+  const [failure, setFailure] = useState<NoteAiRequestFailure | null>(null);
+  if (!review) return null;
+  const feedback = review.feedback;
+  const ref = `note:${review.requestId ?? `${note.id}:${review.requestedAt}`}`;
+
+  function save(next: NonNullable<typeof feedback> | undefined) {
+    if (!review) return;
+    void setNoteAiReview(note.id, { ...review, feedback: next });
+    if (!next) {
+      removeAiFeedback(ref);
+      return;
+    }
+    recordAiFeedback({ at: new Date().toISOString(), rating: next.rating, tags: next.tags as AiFeedbackTag[], source: "note", ref });
+    trackProductEvent("note_ai_rated", { mode: review.mode, action: review.action, rating: next.rating, tags: next.tags.join(",") || null });
+  }
+
+  function toggleTag(tag: AiFeedbackTag) {
+    if (!feedback) return;
+    const pair = AI_FEEDBACK_PAIRS.find((item) => item.includes(tag)) ?? [tag, tag];
+    const tags = feedback.tags.includes(tag)
+      ? feedback.tags.filter((item) => item !== tag)
+      : [...feedback.tags.filter((item) => !pair.includes(item as AiFeedbackTag)), tag];
+    save({ ...feedback, tags });
+  }
+
+  async function sendAddition() {
+    if (!addition.trim() || sending) return;
+    setSending(true);
+    setFailure(null);
+    const result = await onReviewAgain(addition.trim());
+    setSending(false);
+    if (result) setFailure(result);
+    else setAddition("");
+  }
+
+  return (
+    <div className="notes-ai-feedback">
+      <div className="ai-msg-rating notes-ai-rating" role="group" aria-label={t("ai.chat.rating.label")}>
+        {RATING_FACES.map((face, index) => {
+          const rating = (index + 1) as 1 | 2 | 3 | 4 | 5;
+          return (
+            <button key={rating} type="button" className={feedback?.rating === rating ? "is-selected" : ""} aria-pressed={feedback?.rating === rating} aria-label={`${t("ai.chat.rating.option", { rating })}: ${t(`ai.chat.rating.${rating}` as MessageKey)}`} onClick={() => save(feedback?.rating === rating ? undefined : { rating, tags: feedback?.tags ?? [] })}>
+              {face}
+            </button>
+          );
+        })}
+      </div>
+      {feedback ? (
+        <>
+          <div className="notes-ai-tags">
+            {AI_FEEDBACK_PAIRS.flat().map((tag) => (
+              <button key={tag} type="button" className={feedback.tags.includes(tag) ? "active" : ""} aria-pressed={feedback.tags.includes(tag)} onClick={() => toggleTag(tag)}>{t(TAG_KEYS[tag])}</button>
+            ))}
+          </div>
+          <div className="notes-ai-addition">
+            <textarea rows={2} maxLength={600} aria-label={t("ai.feedback.additionLabel")} placeholder={t("ai.feedback.additionPlaceholder")} value={addition} onChange={(event) => setAddition(event.target.value)} />
+            <button type="button" disabled={!addition.trim() || sending} onClick={() => void sendAddition()}>{t("ai.feedback.reviewAgain")}</button>
+          </div>
+          {failure ? <p className="notes-ai-error" role="alert">{t(FAILURE_KEYS[failure])}</p> : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+const PREFERENCE_KEYS: Record<ReturnType<typeof buildPreferenceKeys>[number], MessageKey> = {
+  brief: "ai.prefs.brief",
+  detailed: "ai.prefs.detailed",
+  concrete: "ai.prefs.concrete",
+  stay_on_topic: "ai.prefs.stay_on_topic",
+  keep_tone: "ai.prefs.keep_tone",
+  change_tone: "ai.prefs.change_tone",
+  new_approach: "ai.prefs.new_approach"
+};
+
+/** "How AI uses your ratings": the instructions that go with every answer now, and a reset. */
+export function AiPreferencesInfo() {
+  const { t } = useUserContext();
+  const [open, setOpen] = useState(false);
+  const [entries, setEntries] = useState(() => (typeof window === "undefined" ? [] : readAiFeedback()));
+  useEffect(() => {
+    const refresh = () => setEntries(readAiFeedback());
+    window.addEventListener(AI_PREFERENCES_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(AI_PREFERENCES_CHANGED_EVENT, refresh);
+  }, []);
+  const keys = buildPreferenceKeys(entries);
+  return (
+    <section className="notes-ai-prefs">
+      <button className="notes-ai-prefs-toggle" type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("ai.prefs.title")}</button>
+      {open ? (
+        <div className="notes-ai-prefs-body">
+          <p>{t("ai.prefs.how", { count: entries.length })}</p>
+          {keys.length ? <ul>{keys.map((key) => <li key={key}>{t(PREFERENCE_KEYS[key])}</li>)}</ul> : <p className="notes-ai-prefs-empty">{t("ai.prefs.none")}</p>}
+          {entries.length ? <button type="button" onClick={resetAiFeedback}>{t("ai.prefs.reset")}</button> : null}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -23,6 +23,7 @@ import {
 } from "./coordinatorAnalysis.ts";
 import { guestReview } from "./marketplaceGuestVisibility.ts";
 import { buildPathReport } from "./questPathAnalytics.ts";
+import { isQaUser } from "./qaAccounts.ts";
 
 export const MIN_GROUP = 5;
 export const WINDOW_DAYS = 45;
@@ -111,9 +112,17 @@ export async function loadAnalyticsSnapshot(db: AnyDb, now = Date.now()): Promis
       if ((data ?? []).length < PAGE) break;
       if (rows.length >= cap) snapshot.truncated.push(spec.table);
     }
-    snapshot.tables[spec.table] = rows;
+    snapshot.tables[spec.table] = rows.filter((row) => !isQaRow(row));
   }));
   return snapshot;
+}
+
+/** A row that belongs to a QA test account (lib/qaAccounts.ts) in any of its person columns. */
+function isQaRow(row: Row): boolean {
+  for (const [key, value] of Object.entries(row)) {
+    if ((key === "user_id" || key.endsWith("_user_id")) && isQaUser(value as string | null)) return true;
+  }
+  return false;
 }
 
 // --- Helpers ------------------------------------------------------------------------------------

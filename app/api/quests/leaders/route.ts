@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { isQaUser } from "@/lib/qaAccounts";
 import { LEADERS_WINDOW_MS, weeklyLeaders, type LeaderRow } from "@/lib/questLeaders";
 import { createServiceSupabaseClient, getAuthenticatedUser } from "@/lib/serverSupabase";
 
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
   ]);
   if (rows.error) return json({ error: "Could not load leaders." }, 500);
   const onboardingIds = new Set<string>((onboarding.data ?? []).map((row: { id: string }) => row.id));
-  const all = weeklyLeaders((rows.data ?? []) as LeaderRow[], onboardingIds, now, 1000);
+  const all = weeklyLeaders(((rows.data ?? []) as LeaderRow[]).filter((row) => !isQaUser(row.user_id)), onboardingIds, now, 1000);
   const top = all.slice(0, 5);
 
   const ids = top.map((leader) => leader.userId);

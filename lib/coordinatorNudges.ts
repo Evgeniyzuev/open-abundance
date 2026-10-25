@@ -22,6 +22,7 @@ import {
 import type { Localized } from "@/lib/locales";
 import { HOLDOUT_EVENT, isHoldout, type QuestCatalogItem, type QuestNudgeInput, type QuestUserRow } from "@/lib/questNudges";
 import { weeklyLeaders } from "@/lib/questLeaders";
+import { isQaUser } from "@/lib/qaAccounts";
 
 type AnyDb = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
 
@@ -52,7 +53,7 @@ export type NudgeRunSummary = {
 export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean; now?: number; questMode?: boolean }): Promise<NudgeRunSummary> {
   const now = options.now ?? Date.now();
   const questMode = options.questMode === true;
-  const { participants } = await loadParticipantRecords(db, now);
+  const participants = (await loadParticipantRecords(db, now)).participants.filter((participant) => !isQaUser(participant.id));
 
   const [{ data: pastEvents, error }, { data: day2Events, error: day2Error }, { data: holdoutEvents }] = await Promise.all([
     db.from("notification_events").select("idempotency_key,created_at").eq("event_type", NUDGE_EVENT_TYPE),
@@ -247,7 +248,7 @@ export async function runTelegramDay2(db: AnyDb, options: { dryRun: boolean; now
   const since = new Date(now - 72 * 3_600_000).toISOString();
   const { data: profiles, error } = await db.from("user_profiles").select("user_id,created_at,timezone,default_locale,first_name,display_name,username").gte("created_at", since).is("deleted_at", null);
   if (error) throw new Error(error.message);
-  const ids = (profiles ?? []).map((row: any) => row.user_id);
+  const ids = (profiles ?? []).map((row: any) => row.user_id).filter((id: string) => !isQaUser(id));
   if (ids.length === 0) return summary;
 
   const [accounts, sentEvents, preferences, recentNudges] = await Promise.all([
@@ -315,7 +316,7 @@ async function loadQuestInputs(db: AnyDb, userIds: string[], now: number): Promi
     sortOrder: Number(row.sort_order ?? 0)
   }));
   const onboardingIds = new Set(catalog.filter((quest) => quest.category === "onboarding").map((quest) => quest.id));
-  const leaders = weeklyLeaders((userRows.data ?? []) as any[], onboardingIds, now, 1000);
+  const leaders = weeklyLeaders(((userRows.data ?? []) as any[]).filter((row) => !isQaUser(row.user_id)), onboardingIds, now, 1000);
   const rank = new Map(leaders.map((leader, index) => [leader.userId, { rank: index + 1, quests: leader.quests }]));
   const rowsByUser = new Map<string, QuestUserRow[]>();
   for (const row of userRows.data ?? []) {

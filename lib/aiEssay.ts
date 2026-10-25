@@ -11,8 +11,6 @@ export const AI_ESSAY_PASS_SCORE = 30;
 /** Founder's split (2026-10-23): points up to 80 pay into Core, points above 80 into Wallet. */
 export const AI_ESSAY_CORE_CAP = 80;
 
-/** Posts whose comments are ranked by votes (best first) instead of by time. */
-export const VOTE_RANKED_POST_IDS = new Set([AI_ESSAY_DISCUSSION_POST_ID]);
 
 export type EssayCriterion = "relevance" | "depth" | "personal" | "novelty" | "clarity";
 

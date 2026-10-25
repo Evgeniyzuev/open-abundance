@@ -504,6 +504,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           id: string
+          parent_comment_id: string | null
           post_id: string
           updated_at: string
           user_id: string
@@ -514,6 +515,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
+          parent_comment_id?: string | null
           post_id: string
           updated_at?: string
           user_id: string
@@ -524,6 +526,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
+          parent_comment_id?: string | null
           post_id?: string
           updated_at?: string
           user_id?: string

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { isSharedContentId } from "@/lib/sharedContentAccess";
 
@@ -64,7 +64,11 @@ export async function generateMetadata({ params }: { params: { postId: string } 
 
 export default async function SharedPostPage({ params }: { params: { postId: string } }) {
   const post = await loadPublicPost(params.postId);
-  if (!post) notFound();
+  if (!post) {
+    // Mention links point here for every kind of post; anything but a shared link opens as a discussion.
+    if (await isOtherPublicPost(params.postId)) redirect(`/d/${params.postId}`);
+    notFound();
+  }
   const title = post.title || post.sourceTitle || "Shared material";
   return <main className="public-shared-post">
     <header><a href="/">Open Abundance</a><span>{post.authorName ?? "Open Abundance member"}</span></header>
@@ -80,6 +84,13 @@ export default async function SharedPostPage({ params }: { params: { postId: str
       <a className="primary-button" href={post.sourceUrl} target="_blank" rel="noopener noreferrer">Open source</a>
     </article>
   </main>;
+}
+
+async function isOtherPublicPost(postId: string): Promise<boolean> {
+  if (!isSharedContentId(postId)) return false;
+  const { data } = await createServiceSupabaseClient().from("feed_posts").select("id")
+    .eq("id", postId).neq("post_type", "external_link").eq("status", "published").eq("visibility", "public").is("deleted_at", null).maybeSingle();
+  return Boolean(data);
 }
 
 function isSafeHttpUrl(value: unknown): value is string {

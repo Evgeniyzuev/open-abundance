@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { VOTE_RANKED_POST_IDS, rankComments } from "@/lib/aiEssay";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Tables } from "@/lib/database.types";
+import { COMMENT_LOAD_LIMIT, COMMENT_MAX_CHARS, buildCommentThreads, commentNotificationTargets, discussionPath, replyRootId } from "@/lib/feedComments";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { notifyMentions } from "@/lib/serverMentions";
 import { createServiceSupabaseClient, getAuthenticatedUser } from "@/lib/serverSupabase";
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
     }
 
     if (action === "comment") {
-      const commentBody = typeof body.body === "string" ? body.body.trim().slice(0, 2000) : "";
+      const commentBody = typeof body.body === "string" ? body.body.trim().slice(0, COMMENT_MAX_CHARS) : "";
       const idempotencyKey = normalizeIdempotencyKey(request.headers.get("Idempotency-Key") ?? body.idempotencyKey);
       if (!commentBody) return NextResponse.json({ error: "Comment cannot be empty." }, { status: 400, headers: NO_STORE_HEADERS });
       if (!idempotencyKey) return NextResponse.json({ error: "Comment request key is missing." }, { status: 400, headers: NO_STORE_HEADERS });
@@ -75,19 +75,38 @@ export async function POST(request: NextRequest, { params }: { params: { postId:
         .eq("client_idempotency_key", idempotencyKey)
         .maybeSingle();
       if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500, headers: NO_STORE_HEADERS });
+      // A reply names the comment it answers; one level only, so it hangs on that branch's top comment.
+      const parentId = typeof body.parentId === "string" && body.parentId ? body.parentId : null;
+      let parent: { id: string; user_id: string; parent_comment_id: string | null } | null = null;
+      if (parentId) {
+        const { data: parentRow, error: parentError } = await supabase
+          .from("feed_post_comments")
+          .select("id,user_id,parent_comment_id")
+          .eq("id", parentId)
+          .eq("post_id", post.id)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (parentError) return NextResponse.json({ error: parentError.message }, { status: 500, headers: NO_STORE_HEADERS });
+        if (!parentRow) return NextResponse.json({ error: "The comment you reply to is gone." }, { status: 404, headers: NO_STORE_HEADERS });
+        parent = parentRow;
+      }
       if (!existing) {
         const { data: insertedComment, error: commentError } = await supabase.from("feed_post_comments").insert({
           post_id: post.id,
           user_id: user.id,
           body: commentBody,
-          client_idempotency_key: idempotencyKey
+          client_idempotency_key: idempotencyKey,
+          parent_comment_id: parent ? replyRootId(parent) : null
         }).select("id").single();
         if (commentError && commentError.code !== "23505") {
           return NextResponse.json({ error: commentError.message }, { status: 500, headers: NO_STORE_HEADERS });
         }
         if (!commentError) {
           await recordInteractionEvent("feed_post_commented", post, user.id);
-          if (insertedComment?.id) await notifyMentions(supabase, { text: commentBody, authorId: user.id, postId: post.id, sourceKey: `comment:${insertedComment.id}` });
+          if (insertedComment?.id) {
+            await notifyMentions(supabase, { text: commentBody, authorId: user.id, postId: post.id, sourceKey: `comment:${insertedComment.id}` });
+            await notifyCommentTargets(supabase, { commentId: insertedComment.id, commenterId: user.id, postId: post.id, postAuthorId: post.author_user_id, parentAuthorId: parent?.user_id ?? null });
+          }
         }
       }
     }
@@ -188,7 +207,7 @@ async function loadInteractions(
   const [likes, viewerLike, comments] = await Promise.all([
     supabase.from("feed_post_likes").select("id", { count: "exact", head: true }).eq("post_id", postId),
     supabase.from("feed_post_likes").select("id").eq("post_id", postId).eq("user_id", userId).maybeSingle(),
-    supabase.from("feed_post_comments").select("*").eq("post_id", postId).is("deleted_at", null).order("created_at", { ascending: true }).limit(100)
+    supabase.from("feed_post_comments").select("*").eq("post_id", postId).is("deleted_at", null).order("created_at", { ascending: true }).limit(COMMENT_LOAD_LIMIT)
   ]);
   if (likes.error) throw likes.error;
   if (viewerLike.error) throw viewerLike.error;
@@ -223,12 +242,42 @@ async function loadInteractions(
     own: comment.user_id === userId
   }));
 
+  // Every post ranks its top-level comments best first, with replies under each in time order.
   return {
     likeCount: likes.count ?? 0,
     liked: Boolean(viewerLike.data),
-    voteRanked: VOTE_RANKED_POST_IDS.has(postId),
-    comments: VOTE_RANKED_POST_IDS.has(postId) ? rankComments(scoredComments) : scoredComments
+    voteRanked: true,
+    commentCount: scoredComments.length,
+    comments: buildCommentThreads(scoredComments)
   };
+}
+
+/**
+ * Tells the author of the answered comment and the post author about a new comment. Best effort:
+ * a failure never fails the comment. The event carries only a link, not the text.
+ */
+async function notifyCommentTargets(
+  db: any,
+  input: { commentId: string; commenterId: string; postId: string; postAuthorId: string | null; parentAuthorId: string | null }
+): Promise<void> {
+  for (const target of commentNotificationTargets(input)) {
+    try {
+      await db.rpc("create_notification_event", {
+        p_event_type: target.reason === "reply" ? "social.comment_reply" : "social.post_comment",
+        p_category: "social",
+        p_source_type: "feed_post",
+        p_source_id: input.postId,
+        p_title: target.reason === "reply" ? "New reply to your comment" : "New comment on your post",
+        p_body: "Open the discussion to read it.",
+        p_deep_link: discussionPath(input.postId, input.commentId),
+        p_recipient_user_ids: [target.userId],
+        p_idempotency_key: `comment:${input.commentId}:${target.userId}`,
+        p_metadata: { author_user_id: input.commenterId }
+      });
+    } catch {
+      // Notifications are best effort.
+    }
+  }
 }
 
 async function readJsonBody(request: NextRequest): Promise<Record<string, unknown>> {

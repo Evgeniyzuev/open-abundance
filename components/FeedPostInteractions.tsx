@@ -1,15 +1,17 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Heart, MessageCircle, Repeat2, Send, Share2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp, CornerDownRight, Heart, MessageCircle, Repeat2, Send, Share2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import MentionText from "@/components/MentionText";
 import { trackClientEvent } from "@/lib/clientAnalytics";
+import { COMMENT_MAX_CHARS, discussionPath } from "@/lib/feedComments";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import type { FeedPost } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 type InteractionComment = {
   id: string;
+  parent_comment_id?: string | null;
   body: string;
   created_at: string;
   score?: number;
@@ -24,7 +26,9 @@ type InteractionComment = {
 type InteractionPayload = {
   likeCount: number;
   liked: boolean;
-  comments: InteractionComment[];
+  commentCount?: number;
+  /** Top-level comments best first, each with its replies (one level). */
+  comments: Array<InteractionComment & { replies?: InteractionComment[] }>;
 };
 
 export default function FeedPostInteractions({
@@ -32,16 +36,21 @@ export default function FeedPostInteractions({
   locale,
   post,
   t,
-  onReposted
+  onReposted,
+  full = false
 }: {
   currentUserId: string | null;
   locale: AppLocale;
   post: FeedPost;
+  /** On the discussion page itself: no link to it, and a #c-<id> anchor scrolls to that comment. */
+  full?: boolean;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onReposted?: () => void;
 }) {
   const [payload, setPayload] = useState<InteractionPayload | null>(null);
   const [commentBody, setCommentBody] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const scrolledRef = useRef(false);
   const [mirrorUrl, setMirrorUrl] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -64,6 +73,14 @@ export default function FeedPostInteractions({
     return () => { active = false; };
   }, [canInteract, post.id, t]);
 
+  // A notification link (/d/<post>#c-<comment>) lands on that comment once the list is there.
+  useEffect(() => {
+    if (!full || !payload || scrolledRef.current) return;
+    scrolledRef.current = true;
+    const target = window.location.hash.startsWith("#c-") ? document.getElementById(window.location.hash.slice(1)) : null;
+    target?.scrollIntoView({ block: "center" });
+  }, [full, payload]);
+
   async function runAction(action: "like" | "unlike" | "comment" | "repost" | "vote_comment", body?: string, vote?: { commentId: string; value: number }) {
     if (!canInteract || saving) return;
     setSaving(true);
@@ -77,12 +94,12 @@ export default function FeedPostInteractions({
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(action === "comment" ? { "Idempotency-Key": crypto.randomUUID() } : {})
         },
-        body: JSON.stringify({ action, body, ...(vote ?? {}) })
+        body: JSON.stringify({ action, body, ...(vote ?? {}), ...(action === "comment" && replyTo ? { parentId: replyTo.id } : {}) })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? t("social.feed.interactionError"));
       setPayload(result);
-      if (action === "comment") setCommentBody("");
+      if (action === "comment") { setCommentBody(""); setReplyTo(null); }
       if (action === "repost") onReposted?.();
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : t("social.feed.interactionError"));
@@ -94,7 +111,9 @@ export default function FeedPostInteractions({
   async function sharePost() {
     const url = post.post_type === "external_link"
       ? `${window.location.origin}/p/${post.id}`
-      : `${window.location.origin}/u/${post.author_user_id ?? "open-abundance"}/blog?post=${post.id}`;
+      : post.author_user_id
+        ? `${window.location.origin}/u/${post.author_user_id}/blog?post=${post.id}`
+        : `${window.location.origin}${discussionPath(post.id)}`;
     const shareText = post.body?.trim() || t("social.post.detail");
     const method = typeof navigator.share === "function" ? "native" : "copy";
     try {
@@ -133,6 +152,41 @@ export default function FeedPostInteractions({
     }
   }
 
+  function startReply(comment: InteractionComment, rootId: string) {
+    const name = comment.author?.username ? `@${comment.author.username}` : comment.author?.display_name ?? t("social.feed.comment");
+    setReplyTo({ id: rootId, name });
+    // Naming the person keeps a reply-to-a-reply readable inside the one-level branch.
+    if (comment.author?.username && comment.id !== rootId) setCommentBody((current) => current.trim() ? current : `@${comment.author!.username} `);
+    document.getElementById(`comment-${post.id}`)?.focus();
+  }
+
+  function renderComment(comment: InteractionComment, rootId: string = comment.id) {
+    return (
+      <article id={`c-${comment.id}`}>
+        <strong>{comment.author?.display_name ?? (comment.author?.username ? `@${comment.author.username}` : t("social.feed.comment"))}{comment.author?.display_name && comment.author?.username ? <small className="profile-handle"> @{comment.author.username}</small> : null}</strong>
+        <p><MentionText text={comment.body} /></p>
+        <time dateTime={comment.created_at}>{formatCommentDate(comment.created_at, locale)}</time>
+        <div className="feed-comment-votes">
+          {typeof comment.score === "number" ? (
+            <>
+              <button type="button" disabled={saving || comment.own} aria-pressed={comment.viewerVote === 1} aria-label="+1" onClick={() => void runAction("vote_comment", undefined, { commentId: comment.id, value: comment.viewerVote === 1 ? 0 : 1 })}>
+                <ChevronUp size={16} aria-hidden />
+              </button>
+              <span>{comment.score}</span>
+              <button type="button" disabled={saving || comment.own} aria-pressed={comment.viewerVote === -1} aria-label="-1" onClick={() => void runAction("vote_comment", undefined, { commentId: comment.id, value: comment.viewerVote === -1 ? 0 : -1 })}>
+                <ChevronDown size={16} aria-hidden />
+              </button>
+            </>
+          ) : null}
+          <button className="feed-comment-reply" type="button" disabled={saving} onClick={() => startReply(comment, rootId)}>
+            <CornerDownRight size={14} aria-hidden />
+            <span>{t("social.feed.reply")}</span>
+          </button>
+        </div>
+      </article>
+    );
+  }
+
   if (!canInteract) return null;
 
   return (
@@ -145,7 +199,7 @@ export default function FeedPostInteractions({
         </button>
         <button type="button" disabled={saving} onClick={() => document.getElementById(`comment-${post.id}`)?.focus()}>
           <MessageCircle size={16} />
-          <span>{payload?.comments.length ?? 0}</span>
+          <span>{payload?.commentCount ?? payload?.comments.length ?? 0}</span>
           <span className="sr-only">{t("social.feed.comment")}</span>
         </button>
         <button type="button" disabled={saving} onClick={() => { void runAction("repost"); }}>
@@ -157,11 +211,18 @@ export default function FeedPostInteractions({
           <span>{t("social.feed.share")}</span>
         </button>
       </div>
+      {replyTo ? (
+        <div className="feed-comment-replying">
+          <CornerDownRight size={14} aria-hidden />
+          <span>{t("social.feed.replyingTo", { name: replyTo.name })}</span>
+          <button type="button" aria-label={t("social.feed.cancelReply")} onClick={() => setReplyTo(null)}><X size={14} aria-hidden /></button>
+        </div>
+      ) : null}
       <form className="feed-comment-form" onSubmit={(event) => { event.preventDefault(); void runAction("comment", commentBody); }}>
         <input
           id={`comment-${post.id}`}
-          maxLength={2000}
-          placeholder={t("social.feed.commentPlaceholder")}
+          maxLength={COMMENT_MAX_CHARS}
+          placeholder={replyTo ? t("social.feed.replyPlaceholder") : t("social.feed.commentPlaceholder")}
           value={commentBody}
           onChange={(event) => setCommentBody(event.target.value)}
         />
@@ -172,24 +233,19 @@ export default function FeedPostInteractions({
       {payload?.comments.length ? (
         <div className="feed-comment-list">
           {payload.comments.map((comment) => (
-            <article key={comment.id}>
-              <strong>{comment.author?.display_name ?? (comment.author?.username ? `@${comment.author.username}` : t("social.feed.comment"))}{comment.author?.display_name && comment.author?.username ? <small className="profile-handle"> @{comment.author.username}</small> : null}</strong>
-              <p><MentionText text={comment.body} /></p>
-              <time dateTime={comment.created_at}>{formatCommentDate(comment.created_at, locale)}</time>
-              {typeof comment.score === "number" ? (
-                <div className="feed-comment-votes">
-                  <button type="button" disabled={saving || comment.own} aria-pressed={comment.viewerVote === 1} aria-label="+1" onClick={() => void runAction("vote_comment", undefined, { commentId: comment.id, value: comment.viewerVote === 1 ? 0 : 1 })}>
-                    <ChevronUp size={16} aria-hidden />
-                  </button>
-                  <span>{comment.score}</span>
-                  <button type="button" disabled={saving || comment.own} aria-pressed={comment.viewerVote === -1} aria-label="-1" onClick={() => void runAction("vote_comment", undefined, { commentId: comment.id, value: comment.viewerVote === -1 ? 0 : -1 })}>
-                    <ChevronDown size={16} aria-hidden />
-                  </button>
+            <div className="feed-comment-thread" key={comment.id}>
+              {renderComment(comment)}
+              {comment.replies?.length ? (
+                <div className="feed-comment-replies">
+                  {comment.replies.map((reply) => <div key={reply.id}>{renderComment(reply, comment.id)}</div>)}
                 </div>
               ) : null}
-            </article>
+            </div>
           ))}
         </div>
+      ) : null}
+      {!full && (payload?.commentCount ?? 0) > 0 ? (
+        <a className="feed-comment-open-discussion" href={discussionPath(post.id)}>{t("social.feed.openDiscussion")}</a>
       ) : null}
       {shareOpen ? (
         <div className="feed-share-package">

@@ -66,6 +66,8 @@ function notificationCopy(eventType: string | undefined, locale: AppLocale) {
       : eventType === "rewards.team_core_growth" ? "teamReward"
         : eventType === "rewards.challenge_completed" ? "challenge"
           : eventType === "social.mention" ? "mention"
+          : eventType === "social.comment_reply" ? "commentReply"
+          : eventType === "social.post_comment" ? "postComment"
           : eventType === "social.reality_day" ? "realityDay"
           : eventType?.startsWith("market.counter_offer.") ? "counterOffer"
           : eventType?.startsWith("confirmations.") ? "confirmation"

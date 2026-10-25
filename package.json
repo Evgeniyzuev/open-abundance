@@ -18,6 +18,7 @@
     "test:telegram-push": "node --experimental-strip-types scripts/verify-telegram-push-copies-contract.mjs",
     "test:telegram-day2": "node --experimental-strip-types scripts/verify-telegram-day2-contract.mjs",
     "test:ai-essay": "node --experimental-strip-types scripts/verify-ai-essay-contract.mjs",
+    "test:feed-comments": "node --experimental-strip-types scripts/verify-feed-comments.mjs",
     "test:nova-inbox": "node --experimental-strip-types scripts/verify-nova-inbox-contract.mjs",
     "test:daily-analytics": "node --experimental-strip-types scripts/verify-daily-analytics-contract.mjs",
     "test:ai": "node scripts/verify-ai-contract.mjs && node scripts/verify-ai-usage-contract.mjs",

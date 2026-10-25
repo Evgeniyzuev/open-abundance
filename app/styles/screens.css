@@ -1376,6 +1376,22 @@
 .feed-comment-votes button { display: grid; place-items: center; width: 32px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
 .feed-comment-votes button[aria-pressed="true"] { border-color: var(--blue); color: var(--blue); }
 .feed-comment-votes button:disabled { opacity: 0.45; }
+.feed-comment-votes .feed-comment-reply { width: auto; gap: 4px; display: inline-flex; padding: 0 8px; margin-left: 4px; font-size: 0.7rem; font-weight: 800; }
+.feed-comment-thread { display: grid; gap: 4px; }
+.feed-comment-replies { display: grid; gap: 4px; margin-left: 14px; padding-left: 8px; border-left: 2px solid var(--line); }
+.feed-comment-list article:target { outline: 2px solid var(--blue); outline-offset: 1px; }
+.feed-comment-replying { display: flex; align-items: center; gap: 6px; color: var(--blue); font-size: 0.75rem; font-weight: 800; }
+.feed-comment-replying span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-comment-replying button { display: grid; place-items: center; width: 28px; height: 28px; margin-left: auto; border-radius: 8px; color: var(--muted); }
+.feed-comment-open-discussion { justify-self: start; color: var(--blue); font-size: 0.78rem; font-weight: 850; }
+.discussion-page { min-height: 100dvh; background: var(--surface); color: var(--text); }
+.discussion-page > div { width: min(680px, 100%); margin: 0 auto; padding: 14px 16px 40px; display: grid; gap: 12px; }
+.discussion-page header { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.8rem; font-weight: 850; }
+.discussion-page header a { color: var(--blue); }
+.discussion-page h1 { margin: 0; font-size: 1.15rem; }
+.discussion-page .discussion-post-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+.discussion-page .discussion-cover { width: 100%; height: auto; border-radius: 12px; }
+.discussion-page .discussion-author { color: var(--muted); font-size: 0.78rem; }
 .feed-share-package { display: grid; gap: 7px; border-radius: 10px; padding: 9px; background: var(--accent-soft); }
 .feed-share-package strong { color: var(--blue); font-size: 0.8rem; }
 .feed-share-package label { display: grid; gap: 4px; color: var(--muted); font-size: 0.7rem; font-weight: 850; }

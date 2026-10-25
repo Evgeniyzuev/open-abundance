@@ -8,13 +8,20 @@ export type QuestMotive = (typeof QUEST_MOTIVES)[number];
 const DAILY_CORE_RATE = 0.000633;
 
 export const FIRST_STEP_LOGIC = "first_step_motive";
-export const CHANNEL_CONNECTED_LOGIC = "channel_connected";
+/** Path step 3: a push code that only the installed app asks for (the Telegram bot is step 4, "code_telegram"). */
+export const APP_INSTALLED_LOGIC = "app_installed";
 export const MOTIVE_NOTE_MAX = 200;
 export const AVAILABLE_LIMIT = 4;
 export const ALMOST_LIMIT = 3;
 
 export function isQuestMotive(value: unknown): value is QuestMotive {
   return typeof value === "string" && (QUEST_MOTIVES as readonly string[]).includes(value);
+}
+
+/** Answers to "why are you here", several allowed: known values only, each once, in the order given. */
+export function parseMotives(value: unknown): QuestMotive[] {
+  const list = Array.isArray(value) ? value : value == null ? [] : [value];
+  return [...new Set(list.filter(isQuestMotive))];
 }
 
 export type QuestRecord = {
@@ -84,7 +91,7 @@ export function sortPath(quests: QuestRecord[]): QuestRecord[] {
  * open as soon as the one before it is completed, skipped or simply accepted, and side quests open by the number of
  * completed quests, whichever they were.
  */
-export function buildQuestPath(quests: QuestRecord[], motive: QuestMotive | null, options: { signedIn: boolean } = { signedIn: true }): QuestPathView {
+export function buildQuestPath(quests: QuestRecord[], motive: QuestMotive | QuestMotive[] | null, options: { signedIn: boolean } = { signedIn: true }): QuestPathView {
   const completedCount = completedQuestCount(quests);
   const path = sortPath(quests);
   const placements: Record<string, QuestPlacement> = {};
@@ -110,7 +117,9 @@ export function buildQuestPath(quests: QuestRecord[], motive: QuestMotive | null
   // The next path quest after the current one, so a person can move on without finishing it.
   const nextPath = path.find((quest, index) => index > currentIndex && openPath.has(quest.id) && !status(quest) && quest.can_accept !== false) ?? null;
 
-  const scoreFor = (quest: QuestRecord) => (motive && MOTIVE_CATEGORIES[motive].includes(String(quest.category ?? "")) ? 1 : 0);
+  const motives = parseMotives(motive);
+  // A side quest that fits more of the person's answers comes first.
+  const scoreFor = (quest: QuestRecord) => motives.filter((item) => MOTIVE_CATEGORIES[item].includes(String(quest.category ?? ""))).length;
   const sideCandidates: QuestRecord[] = [];
 
   for (const quest of quests) {

@@ -20,6 +20,8 @@ import {
   type TodayTasks
 } from "@/lib/coordinatorNextStep";
 import type { Localized } from "@/lib/locales";
+import { HOLDOUT_EVENT, isHoldout, type QuestCatalogItem, type QuestNudgeInput, type QuestUserRow } from "@/lib/questNudges";
+import { weeklyLeaders } from "@/lib/questLeaders";
 
 type AnyDb = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
 
@@ -33,6 +35,10 @@ export type NudgeRunSummary = {
   failed: number;
   telegramSent: number;
   telegramSkipped: number;
+  /** Quest mode (on unless QUEST_NUDGES_ENABLED=0): the path decides the message. */
+  questMode: boolean;
+  /** Control group: chosen a message, got none (recorded as a product event to compare with). */
+  holdout: number;
   /** Per step: nudged people and how many did the step afterwards. */
   outcomes: NudgeOutcomes;
 };
@@ -43,13 +49,15 @@ export type NudgeRunSummary = {
  * only reaches people with an enabled push subscription or a Telegram account; the rest see it in the in-app list.
  * With `dryRun` nothing is written.
  */
-export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean; now?: number }): Promise<NudgeRunSummary> {
+export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean; now?: number; questMode?: boolean }): Promise<NudgeRunSummary> {
   const now = options.now ?? Date.now();
+  const questMode = options.questMode === true;
   const { participants } = await loadParticipantRecords(db, now);
 
-  const [{ data: pastEvents, error }, { data: day2Events, error: day2Error }] = await Promise.all([
+  const [{ data: pastEvents, error }, { data: day2Events, error: day2Error }, { data: holdoutEvents }] = await Promise.all([
     db.from("notification_events").select("idempotency_key,created_at").eq("event_type", NUDGE_EVENT_TYPE),
-    db.from("product_events").select("user_id,occurred_at").eq("event_name", DAY2_EVENT)
+    db.from("product_events").select("user_id,occurred_at").eq("event_name", DAY2_EVENT),
+    db.from("product_events").select("user_id,occurred_at,properties").eq("event_name", HOLDOUT_EVENT)
   ]);
   if (error) throw new Error(error.message);
   if (day2Error) throw new Error(day2Error.message);
@@ -70,12 +78,15 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
   }
   // The second-day bot message is today's message too, and it is the "tasks for today" text.
   for (const row of day2Events ?? []) if (row.user_id) addSend(row.user_id, "tasks", Date.parse(row.occurred_at));
+  // A held-out message counts as sent for the limits, so the control group is paced like everyone else.
+  for (const row of holdoutEvents ?? []) if (row.user_id) addSend(row.user_id, String(row.properties?.step ?? "quest_stalled"), Date.parse(row.occurred_at));
 
   const tasks = await loadTodayTasks(db, participants.map((participant) => participant.id));
+  const quests = questMode ? await loadQuestInputs(db, participants.map((participant) => participant.id), now) : null;
   const byId = new Map(participants.map((participant) => [participant.id, participant]));
   const contextFor = (userId: string) => {
     const lastActiveAt = byId.get(userId)?.lastActiveAt;
-    return { tasks: tasks.get(userId) ?? null, lastActiveAt: lastActiveAt ? Date.parse(lastActiveAt) : null };
+    return { tasks: tasks.get(userId) ?? null, lastActiveAt: lastActiveAt ? Date.parse(lastActiveAt) : null, quest: quests?.get(userId) ?? null };
   };
 
   // Plan wider than one run, then keep the people for whom it is daytime now: the job runs every hour and picks up
@@ -91,6 +102,8 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
     failed: 0,
     telegramSent: 0,
     telegramSkipped: 0,
+    questMode,
+    holdout: 0,
     outcomes: nudgeOutcomes(participants, sentBefore)
   };
   if (options.dryRun) return summary;
@@ -99,6 +112,12 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
   const botToken = pushCopiedToTelegram ? null : process.env.TELEGRAM_BOT_TOKEN ?? null;
 
   for (const { userId, step } of planned) {
+    if (questMode && isHoldout(userId)) {
+      // Control group: nothing is sent; the event says what would have gone out, for the analytics.
+      await db.from("product_events").insert({ event_name: HOLDOUT_EVENT, user_id: userId, source: "server", properties: { step: step.key } });
+      summary.holdout += 1;
+      continue;
+    }
     const participant = byId.get(userId);
     const profile = profiles.get(userId);
     const copy = fillNudgeCopy(step.copy, { name: profile?.name ?? null, core: participant?.coreBalance ?? 0, tasks: tasks.get(userId) ?? null });
@@ -272,4 +291,40 @@ export async function runTelegramDay2(db: AnyDb, options: { dryRun: boolean; now
     await db.from("product_events").insert({ event_name: DAY2_EVENT, user_id: person.userId, source: "server", properties: { delivered: result.ok, tasks: tasks.get(person.userId)?.count ?? 0 } });
   }
   return summary;
+}
+
+/**
+ * What Nova needs to know about each person's path: the quest catalogue (path and side quests), their quest rows and
+ * their place among the leaders of the week.
+ */
+async function loadQuestInputs(db: AnyDb, userIds: string[], now: number): Promise<Map<string, QuestNudgeInput>> {
+  const result = new Map<string, QuestNudgeInput>();
+  if (userIds.length === 0) return result;
+  const [catalogRows, userRows] = await Promise.all([
+    db.from("challenges").select("id,title,path_order,unlock_at_completed,category,sort_order").eq("is_active", true),
+    db.from("user_challenges").select("user_id,challenge_id,status,is_active,updated_at").in("user_id", userIds)
+  ]);
+  if (catalogRows.error) throw new Error(catalogRows.error.message);
+  if (userRows.error) throw new Error(userRows.error.message);
+  const catalog: QuestCatalogItem[] = (catalogRows.data ?? []).map((row: any) => ({
+    id: row.id,
+    title: { ...(row.title ?? {}), en: String(row.title?.en ?? row.title?.ru ?? "") },
+    pathOrder: row.path_order ?? null,
+    unlockAtCompleted: Number(row.unlock_at_completed ?? 0),
+    category: row.category ?? null,
+    sortOrder: Number(row.sort_order ?? 0)
+  }));
+  const onboardingIds = new Set(catalog.filter((quest) => quest.category === "onboarding").map((quest) => quest.id));
+  const leaders = weeklyLeaders((userRows.data ?? []) as any[], onboardingIds, now, 1000);
+  const rank = new Map(leaders.map((leader, index) => [leader.userId, { rank: index + 1, quests: leader.quests }]));
+  const rowsByUser = new Map<string, QuestUserRow[]>();
+  for (const row of userRows.data ?? []) {
+    const list = rowsByUser.get(row.user_id) ?? [];
+    list.push({ challengeId: row.challenge_id, status: String(row.status ?? "").toLowerCase(), isActive: row.is_active === true, updatedAt: Date.parse(row.updated_at ?? "") || 0 });
+    rowsByUser.set(row.user_id, list);
+  }
+  for (const userId of userIds) {
+    result.set(userId, { catalog, rows: rowsByUser.get(userId) ?? [], leaderRank: rank.get(userId)?.rank ?? null, weekQuests: rank.get(userId)?.quests ?? 0 });
+  }
+  return result;
 }

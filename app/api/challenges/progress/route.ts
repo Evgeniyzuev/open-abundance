@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { isNicheTaskKey, nicheKeyForTask } from "@/lib/nicheTasks";
 import { recordProductEvent } from "@/lib/serverAnalytics";
-import { FIRST_STEP_LOGIC, MOTIVE_NOTE_MAX, isQuestMotive } from "@/lib/questPath";
+import { FIRST_STEP_LOGIC, MOTIVE_NOTE_MAX, QUEST_MOTIVES, parseMotives } from "@/lib/questPath";
 
 type ProgressRequest = {
   proofKey?: string;
@@ -13,6 +13,7 @@ type ProgressRequest = {
   verificationLogic?: string;
   taskKey?: string;
   motive?: string;
+  motives?: string[];
   note?: string;
 };
 
@@ -63,9 +64,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose one of the suggested tasks." }, { status: 400 });
   }
 
-  const motive = isQuestMotive(body.motive) ? body.motive : null;
+  // Several answers are allowed; the first one stays the main motive.
+  const motives = parseMotives(body.motives ?? body.motive);
+  const motive = motives[0] ?? null;
   const motiveNote = typeof body.note === "string" ? body.note.trim().slice(0, MOTIVE_NOTE_MAX) : "";
-  if (body.verificationLogic === FIRST_STEP_LOGIC && (!motive || (motive === "own" && !motiveNote))) {
+  if (body.verificationLogic === FIRST_STEP_LOGIC && (!motive || (motives.includes("own") && !motiveNote))) {
     return NextResponse.json({ error: "Choose an answer or write your own." }, { status: 400 });
   }
 
@@ -133,7 +136,7 @@ export async function POST(request: NextRequest) {
     ...(body.verificationLogic === "attention_value_audit"
       ? { attention_minutes_per_day: minutesPerDay, attention_hourly_value_usd: hourlyValueUsd }
       : {}),
-    ...(body.verificationLogic === FIRST_STEP_LOGIC ? { motive } : {})
+    ...(body.verificationLogic === FIRST_STEP_LOGIC ? { motive, motives } : {})
   };
   const nextStatus = existing?.status && existing.status !== "declined" ? existing.status : "accepted";
 
@@ -156,6 +159,7 @@ export async function POST(request: NextRequest) {
   // settled only when this server-side proof flow has accepted the proof key;
   // the client never supplies the reward amount or completion percentage.
   const milestoneAwards: unknown[] = [];
+  let motivePeers: Record<string, number> | undefined;
   const db = supabase as any;
   const { data: milestones, error: milestoneError } = await db
     .from("challenge_milestones")
@@ -183,10 +187,12 @@ export async function POST(request: NextRequest) {
     // The answer lives on the profile so quests, Nova and the daily analytics can use it; it can be changed later.
     const { error: profileError } = await (supabase as any)
       .from("user_profiles")
-      .update({ quest_motive: motive, quest_motive_note: motive === "own" ? motiveNote : null })
+      .update({ quest_motive: motive, quest_motives: motives, quest_motive_note: motives.includes("own") ? motiveNote : null })
       .eq("user_id", user.id);
     if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
-    await recordProductEvent({ entityId: challenge.id, entityType: "challenge", eventName: "quest_motive_chosen", properties: { motive }, source: "server", userId: user.id });
+    await recordProductEvent({ entityId: challenge.id, entityType: "challenge", eventName: "quest_motive_chosen", properties: { motive, motives }, source: "server", userId: user.id });
+    // For the summary scene: how many others came for the same reasons. Counts only, nobody is named.
+    motivePeers = await countMotivePeers(supabase, user.id, motives);
   }
 
   if (body.verificationLogic === "niche_task_chosen" && body.taskKey) {
@@ -200,7 +206,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ recorded: true, status: nextStatus, milestoneAwards });
+  return NextResponse.json({ recorded: true, status: nextStatus, milestoneAwards, ...(motivePeers ? { motivePeers } : {}) });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -215,4 +221,15 @@ function normalizeBoundedNumber(value: unknown, min: number, max: number): numbe
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   if (value < min || value > max) return null;
   return Math.round(value * 100) / 100;
+}
+
+/** Other people who gave each of these answers. A failed count leaves that answer out rather than failing the save. */
+async function countMotivePeers(supabase: unknown, userId: string, motives: string[]): Promise<Record<string, number>> {
+  const db = supabase as any;
+  const result: Record<string, number> = {};
+  await Promise.all(motives.filter((motive) => (QUEST_MOTIVES as readonly string[]).includes(motive)).map(async (motive) => {
+    const { count, error } = await db.from("user_profiles").select("user_id", { count: "exact", head: true }).contains("quest_motives", [motive]).neq("user_id", userId);
+    if (!error) result[motive] = Number(count ?? 0);
+  }));
+  return result;
 }

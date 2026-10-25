@@ -7,11 +7,13 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 type Channel = "telegram" | "push" | "nova";
-type Problem = "telegram_not_linked" | "bot_not_started" | "no_push_device" | "failed";
+type Problem = "telegram_not_linked" | "bot_not_started" | "no_push_device" | "not_installed" | "failed";
 
 type ChannelCodeChallengeProps = {
   challengeId: string;
   channel: Channel;
+  /** Sent with the request: "Install the app" gives its code only to the app opened from the home screen. */
+  standalone?: boolean;
   t: TFunction;
   onCodeChange: (code: string) => void;
 };
@@ -21,7 +23,7 @@ type ChannelCodeChallengeProps = {
  * push or Nova chat, app/api/challenges/channel-code); the person types it here and presses Check completion. When the
  * channel is not ready yet, the card says what to do and offers the one button that fixes it.
  */
-export default function ChannelCodeChallenge({ challengeId, channel, t, onCodeChange }: ChannelCodeChallengeProps) {
+export default function ChannelCodeChallenge({ challengeId, channel, standalone, t, onCodeChange }: ChannelCodeChallengeProps) {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [problem, setProblem] = useState<Problem | null>(null);
@@ -42,12 +44,12 @@ export default function ChannelCodeChallenge({ challengeId, channel, t, onCodeCh
       const response = await fetchWithSupabaseAuth("/api/challenges/channel-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challengeId, channel })
+        body: JSON.stringify({ challengeId, ...(standalone === undefined ? {} : { standalone }) })
       }, { authRequired: true });
       const payload = (await response.json().catch(() => ({}))) as { sent?: boolean; code?: string; botUrl?: string | null };
       setBotUrl(payload.botUrl ?? null);
       if (payload.sent) setSent(true);
-      else setProblem(payload.code === "telegram_not_linked" || payload.code === "bot_not_started" || payload.code === "no_push_device" ? payload.code : "failed");
+      else setProblem(payload.code === "telegram_not_linked" || payload.code === "bot_not_started" || payload.code === "no_push_device" || payload.code === "not_installed" ? payload.code : "failed");
     } catch {
       setProblem("failed");
     } finally {

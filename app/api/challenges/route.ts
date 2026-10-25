@@ -4,7 +4,7 @@ import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { canAcceptChallenge, getChallengeAccessReasons, hasFirstResult, isChallengeAlmostAvailable, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { activateQuest } from "@/lib/questActivation";
-import { buildQuestPath, isQuestMotive, type QuestMotive } from "@/lib/questPath";
+import { buildQuestPath, parseMotives, type QuestMotive } from "@/lib/questPath";
 import { walletChallengeProgress, walletChallengeRule, walletStats, type StayLedgerRow, type WalletChallengeProgress } from "@/lib/stayStreak";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
   let viewerLevel = 1;
   let viewerHumanConfirmed: boolean | undefined;
   let viewerLedger: StayLedgerRow[] = [];
-  let viewerMotive: QuestMotive | null = null;
+  let viewerMotives: QuestMotive[] = [];
   const completedAt = new Map<string, Date>();
   if (viewerUserId) {
     const [{ data: progressRows, error: progressError }, { data: snapshots, error: snapshotError }, { data: coreAccount, error: coreError }, humanity, ledger, motiveRow] = await Promise.all([
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       supabase.from("core_accounts").select("level").eq("user_id", viewerUserId).maybeSingle(),
       (supabase as any).from("humanity_verifications").select("humanity_level").eq("user_id", viewerUserId).maybeSingle(),
       supabase.from("wallet_ledger").select("operation_type,direction,amount,created_at").eq("user_id", viewerUserId).in("operation_type", ["crypto_deposit", "crypto_withdrawal"]),
-      (supabase as any).from("user_profiles").select("quest_motive").eq("user_id", viewerUserId).maybeSingle()
+      (supabase as any).from("user_profiles").select("quest_motive,quest_motives").eq("user_id", viewerUserId).maybeSingle()
     ]);
     if (progressError || snapshotError || coreError) {
       return NextResponse.json({ error: progressError?.message ?? snapshotError?.message ?? coreError?.message ?? "Failed to load challenge eligibility." }, { status: 500, headers: NO_STORE_HEADERS });
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     // A failed humanity lookup leaves the gate open rather than locking everyone out.
     if (!humanity.error) viewerHumanConfirmed = Number(humanity.data?.humanity_level ?? 0) >= 2;
     viewerLedger = (ledger.data ?? []) as StayLedgerRow[];
-    if (isQuestMotive(motiveRow.data?.quest_motive)) viewerMotive = motiveRow.data.quest_motive;
+    viewerMotives = parseMotives(motiveRow.data?.quest_motives?.length ? motiveRow.data.quest_motives : motiveRow.data?.quest_motive);
     for (const row of progressRows ?? []) {
       if (String(row.status).trim().toLowerCase() !== "completed") continue;
       const time = Date.parse(String(row.reward_settled_at ?? row.updated_at ?? ""));
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
   for (const challenge of data) {
     challenge.almost_eligible = !challenge.can_accept && isChallengeAlmostAvailable(challenge, viewerLevel, data);
   }
-  let questPath = buildQuestPath(data, viewerMotive, { signedIn: Boolean(viewerUserId) });
+  let questPath = buildQuestPath(data, viewerMotives, { signedIn: Boolean(viewerUserId) });
 
   // Nothing is active yet: the path's next quest is accepted and becomes active by itself.
   if (viewerUserId && questPath.autoActivateId) {
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
         if (isTarget) challenge.user_challenge_status = activated.status;
         challenge.user_challenge_active = isTarget;
       }
-      questPath = buildQuestPath(data, viewerMotive, { signedIn: true });
+      questPath = buildQuestPath(data, viewerMotives, { signedIn: true });
     }
   }
 
@@ -199,7 +199,8 @@ export async function GET(request: NextRequest) {
         pathTotal: questPath.pathTotal,
         pathDone: questPath.pathDone,
         activePathStep: questPath.activePathStep,
-        motive: viewerMotive
+        motive: viewerMotives[0] ?? null,
+        motives: viewerMotives
       },
       challenges: quests
     },

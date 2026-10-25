@@ -15,11 +15,14 @@ export const maxDuration = 30;
  *
  * Called by pg_cron once a day with the shared scanner secret. Queues one "next step" push for
  * each person stuck on a basic step. It sends only when COORDINATOR_NUDGES_ENABLED=1; otherwise
- * it reports what it would have sent (kill switch: unset the variable).
+ * it reports what it would have sent (kill switch: unset the variable). The growth path chooses the message
+ * (lib/questNudges.ts, founder decision 2026-10-25): Nova about the person's quest, three a week at most, a 10%
+ * control group that gets nothing. QUEST_NUDGES_ENABLED=0 goes back to the basic steps.
  *
  * GET /api/internal/coordinator/nudges
  *
- * Operator-only preview. Always a dry run: lists who would get which step, short ids only.
+ * Operator-only preview. Always a dry run: lists who would get which step, short ids only. ?quest=0 previews the
+ * basic steps instead of the growth path.
  */
 export async function POST(request: NextRequest) {
   const expected = process.env.TON_SCANNER_SECRET?.trim();
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
   try {
     const db = createServiceSupabaseClient() as any;
     const day2 = await runTelegramDay2(db, { dryRun: !day2Enabled }).catch((day2Error) => ({ error: day2Error instanceof Error ? day2Error.message : "day2 failed" }));
-    return json({ ...(await runCoordinatorNudges(db, { dryRun: !enabled })), day2 }, 200);
+    return json({ ...(await runCoordinatorNudges(db, { dryRun: !enabled, questMode: questNudgesEnabled() })), day2 }, 200);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Nudge run failed." }, 500);
   }
@@ -43,10 +46,15 @@ export async function GET(request: NextRequest) {
   if (!user) return json({ error }, 401);
   if (!isGrowthOperator(user.id)) return json({ error: "Not found." }, 404);
   try {
-    return json(await runCoordinatorNudges(createServiceSupabaseClient() as any, { dryRun: true }), 200);
+    const questMode = questNudgesEnabled() && request.nextUrl.searchParams.get("quest") !== "0";
+    return json(await runCoordinatorNudges(createServiceSupabaseClient() as any, { dryRun: true, questMode }), 200);
   } catch (runError) {
     return json({ error: runError instanceof Error ? runError.message : "Nudge preview failed." }, 500);
   }
+}
+
+function questNudgesEnabled(): boolean {
+  return process.env.QUEST_NUDGES_ENABLED?.trim() !== "0";
 }
 
 function safeEqual(left: string, right: string): boolean {

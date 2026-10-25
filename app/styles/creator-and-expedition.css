@@ -304,7 +304,9 @@
 .quest-path-dots i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
 .quest-path-dots i.done { background: #7ee2a8; }
 .quest-path-dots i.current { background: #ffd66b; box-shadow: 0 0 8px rgba(255, 214, 107, 0.8); }
-.quest-log .challenge-list { background: rgba(255, 255, 255, 0.94); }
+.quest-log .challenge-list { background: rgba(255, 255, 255, 0.94); color: var(--text); }
+/* The detail sheet opens from the row inside the log and must not inherit the log's light text. */
+.quest-log .challenge-detail-sheet { color: var(--text); }
 .quest-nova { display: flex; align-items: flex-start; gap: 9px; }
 .quest-nova-avatar { flex: none; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #fff; }
 .quest-nova p { margin: 0; border-radius: 4px 14px 14px 14px; padding: 8px 11px; background: rgba(255, 255, 255, 0.1); color: inherit; font-size: 0.875rem; line-height: 1.35; }
@@ -337,4 +339,38 @@
 .quest-plan-result small { color: var(--muted); font-size: 0.7rem; font-weight: 800; }
 .quest-plan-result strong { color: var(--text); font-size: 1rem; overflow-wrap: anywhere; }
 @media (max-width: 360px) { .quest-plan-result { grid-template-columns: 1fr; } }
-.challenge-modal-body .quest-scene p.quest-scene-text, .challenge-modal-body .quest-nova p { color: #eef1ff; }
+.challenge-modal-body .quest-scene p.quest-scene-text, .challenge-modal-body .quest-nova p, .quest-log .challenge-detail-sheet .quest-scene { color: #eef1ff; }
+.challenge-modal-body .quest-scene p.quest-scene-hint { color: #c8cff5; }
+.quest-choice.selected::before { content: "✓ "; }
+.quest-scene-hint { margin: -6px 0 0; color: #c8cff5; font-size: 0.82rem; }
+.quest-goals { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.quest-goals li { display: grid; gap: 2px; border-left: 3px solid #ffd66b; border-radius: 4px; padding: 6px 10px; background: rgba(255, 255, 255, 0.06); font-weight: 800; }
+.quest-goals small { color: #c8cff5; font-weight: 700; }
+.quest-steps { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: var(--muted); font-weight: 800; }
+.quest-steps li.current { color: var(--text); }
+.quest-steps li.done { color: var(--success, #2f8f5b); }
+.quest-log-path { display: flex; align-items: center; gap: 12px; }
+.quest-log-path-side { display: grid; flex: 1; gap: 8px; min-width: 0; }
+.quest-tree { flex: none; width: 92px; height: 76px; }
+.quest-tree-bud { filter: drop-shadow(0 0 4px rgba(255, 214, 107, 0.9)); }
+.quest-path-toggle { justify-self: start; min-height: 32px; border: 1px solid rgba(159, 176, 255, 0.4); border-radius: 999px; padding: 0 12px; background: transparent; color: #eef1ff; font: inherit; font-size: 0.8rem; font-weight: 800; }
+.quest-path-map { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.quest-path-item { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-radius: 8px; padding: 6px 8px; background: rgba(255, 255, 255, 0.05); font-size: 0.875rem; }
+.quest-path-num { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); font-size: 0.75rem; font-weight: 900; }
+.quest-path-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+.quest-path-item small { color: #c8cff5; font-size: 0.72rem; font-weight: 800; }
+.quest-path-item.done .quest-path-num { background: #7ee2a8; color: #0b0f1f; }
+.quest-path-item.active { background: rgba(255, 214, 107, 0.16); }
+.quest-path-item.active .quest-path-num { background: #ffd66b; color: #0b0f1f; }
+.quest-path-item.locked { opacity: 0.55; }
+.quest-path-item.skipped .quest-path-title { text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.4); }
+.quest-leaders { display: grid; gap: 8px; margin: 0 0 16px; border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--surface); color: var(--text); }
+.quest-leaders header { display: grid; gap: 2px; }
+.quest-leaders header small { color: var(--muted); font-size: 0.78rem; }
+.quest-leaders ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.quest-leaders li { display: grid; grid-template-columns: 22px 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 0.9rem; }
+.quest-leaders li.viewer { font-weight: 900; }
+.quest-leaders img, .quest-leaders-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--surface-muted); }
+.quest-leaders-rank { color: var(--muted); font-weight: 900; text-align: center; }
+.quest-leaders-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+.quest-leaders li small { color: var(--muted); font-weight: 800; }

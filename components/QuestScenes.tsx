@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ChannelCodeChallenge from "@/components/ChannelCodeChallenge";
+import { InstallGuideDetails } from "@/components/InstallGuide";
 import { DAILY_CORE_RATE } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
+import { isStandaloneDisplay } from "@/lib/installPing";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
+import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { MOTIVE_NOTE_MAX, QUEST_MOTIVES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
@@ -27,18 +30,25 @@ export function NovaBubble({ text, t }: { text: string; t: TFunction }) {
 }
 
 /**
- * "First step": the opening scene of the path. The person says why they are here; the answer goes to the profile
- * (app/api/challenges/progress) and steers which side quests come first. Then the quest checks itself.
+ * "First step": the opening scene of the path. The person says why they are here, one answer or several; the answers
+ * go to the profile (app/api/challenges/progress) and steer which side quests come first. The second scene sums the
+ * answers up, says how many others came for the same, and the reward is taken from there.
  */
-export function FirstStepQuest({ question, t, onAnswered }: { question: string; t: TFunction; onAnswered: (motive: QuestMotive) => void }) {
-  const [choice, setChoice] = useState<QuestMotive | null>(null);
+export function FirstStepQuest({ question, t, onAnswered }: { question: string; t: TFunction; onAnswered: (motives: QuestMotive[]) => void }) {
+  const [chosen, setChosen] = useState<QuestMotive[]>([]);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [peers, setPeers] = useState<Record<string, number> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const saved = peers !== null;
+  const needsNote = chosen.includes("own") && !note.trim();
 
-  async function save(motive: QuestMotive) {
-    if (motive === "own" && !note.trim()) return;
+  function toggle(motive: QuestMotive) {
+    setChosen((current) => (current.includes(motive) ? current.filter((item) => item !== motive) : [...current, motive]));
+  }
+
+  async function save() {
+    if (chosen.length === 0 || needsNote) return;
     setSaving(true);
     setError(null);
     try {
@@ -46,18 +56,19 @@ export function FirstStepQuest({ question, t, onAnswered }: { question: string; 
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verificationLogic: "first_step_motive", proofKey: "motive_chosen", motive, note: motive === "own" ? note.trim() : undefined })
+        body: JSON.stringify({ verificationLogic: "first_step_motive", proofKey: "motive_chosen", motives: chosen, note: chosen.includes("own") ? note.trim() : undefined })
       }, { authRequired: true });
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; motivePeers?: Record<string, number> };
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("quests.firstStep.saveFailed"));
-      setSaved(true);
-      onAnswered(motive);
+      setPeers(payload.motivePeers ?? {});
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : t("quests.firstStep.saveFailed"));
     } finally {
       setSaving(false);
     }
   }
+
+  const label = (motive: QuestMotive) => (motive === "own" ? note.trim() : t(`quests.firstStep.option.${motive}` as MessageKey));
 
   return (
     <section className="quest-scene">
@@ -66,36 +77,48 @@ export function FirstStepQuest({ question, t, onAnswered }: { question: string; 
       {!saved ? (
         <>
           <p className="quest-scene-text">{question}</p>
-          <div className="quest-choices" role="radiogroup" aria-label={question}>
+          <p className="quest-scene-hint">{t("quests.firstStep.multi")}</p>
+          <div className="quest-choices" role="group" aria-label={question}>
             {QUEST_MOTIVES.map((motive) => (
               <button
-                aria-checked={choice === motive}
-                className={choice === motive ? "quest-choice selected" : "quest-choice"}
+                aria-pressed={chosen.includes(motive)}
+                className={chosen.includes(motive) ? "quest-choice selected" : "quest-choice"}
                 disabled={saving}
                 key={motive}
-                role="radio"
                 type="button"
-                onClick={() => {
-                  setChoice(motive);
-                  if (motive !== "own") void save(motive);
-                }}
+                onClick={() => toggle(motive)}
               >
                 {t(`quests.firstStep.option.${motive}` as MessageKey)}
               </button>
             ))}
           </div>
-          {choice === "own" ? (
+          {chosen.includes("own") ? (
             <div className="quest-own">
               <textarea maxLength={MOTIVE_NOTE_MAX} placeholder={t("quests.firstStep.ownPlaceholder")} value={note} onChange={(event) => setNote(event.target.value)} />
-              <button className="challenge-primary-action" type="button" disabled={saving || !note.trim()} onClick={() => void save("own")}>
-                {saving ? t("app.common.loading") : t("quests.firstStep.save")}
-              </button>
             </div>
           ) : null}
+          <button className="challenge-primary-action" type="button" disabled={saving || chosen.length === 0 || needsNote} onClick={() => void save()}>
+            {saving ? t("app.common.loading") : t("quests.firstStep.save")}
+          </button>
         </>
-      ) : null}
-      {choice && saved ? <NovaBubble text={t(`quests.firstStep.reply.${choice}` as MessageKey)} t={t} /> : null}
-      {saved ? <p className="quest-scene-text">{t("quests.firstStep.hook")}</p> : null}
+      ) : (
+        <>
+          <p className="quest-scene-text"><strong>{t("quests.firstStep.summaryTitle")}</strong></p>
+          <ul className="quest-goals">
+            {chosen.map((motive) => (
+              <li key={motive}>
+                <span>{label(motive)}</span>
+                {motive !== "own" && (peers?.[motive] ?? 0) > 0 ? <small>{t("quests.firstStep.peers", { count: peers?.[motive] ?? 0 })}</small> : null}
+              </li>
+            ))}
+          </ul>
+          <NovaBubble text={t(`quests.firstStep.reply.${chosen[0]}` as MessageKey)} t={t} />
+          <p className="quest-scene-text">{t("quests.firstStep.hook")}</p>
+          <button className="challenge-primary-action" type="button" onClick={() => onAnswered(chosen)}>
+            {t("quests.firstStep.claim")}
+          </button>
+        </>
+      )}
       {error ? <p className="challenge-error">{error}</p> : null}
     </section>
   );
@@ -106,25 +129,96 @@ function inTelegramMiniApp(): boolean {
   return Boolean((window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData);
 }
 
-/** "Stay in touch with Nova": a code through push in a browser or the installed app, through the bot in Telegram. */
-export function ChannelConnectedQuest({ challengeId, t, onCodeChange }: { challengeId: string; t: TFunction; onCodeChange: (code: string) => void }) {
-  const [channel, setChannel] = useState<"push" | "telegram">("push");
+/**
+ * "Install the app": the install steps until the app runs from the home screen, then a push code that only the
+ * installed app can ask for. Inside Telegram the app cannot be installed, so the scene sends the person to a browser.
+ */
+export function AppInstalledQuest({ challengeId, locale, t, onCodeChange }: { challengeId: string; locale: string; t: TFunction; onCodeChange: (code: string) => void }) {
+  const [standalone, setStandalone] = useState(false);
+  const [telegram, setTelegram] = useState(false);
+  const [desktop, setDesktop] = useState(false);
+  const [installPromptAvailable, setInstallPromptAvailable] = useState(false);
+
   useEffect(() => {
-    if (inTelegramMiniApp()) setChannel("telegram");
+    setStandalone(isStandaloneDisplay());
+    setTelegram(inTelegramMiniApp());
+    setDesktop(!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    const update = () => setInstallPromptAvailable(canPromptPwaInstall());
+    update();
+    return subscribeToPwaInstallPrompt(update);
   }, []);
+
+  function openInBrowser() {
+    const url = `${window.location.origin}/?view=challenges`;
+    const webApp = (window as unknown as { Telegram?: { WebApp?: { openLink?: (link: string) => void } } }).Telegram?.WebApp;
+    if (webApp?.openLink) webApp.openLink(url);
+    else window.open(url, "_blank", "noopener");
+  }
 
   return (
     <section className="quest-channel">
-      <div className="quest-tabs" role="tablist">
-        {(["push", "telegram"] as const).map((option) => (
-          <button aria-selected={channel === option} className={channel === option ? "quest-tab selected" : "quest-tab"} key={option} role="tab" type="button" onClick={() => setChannel(option)}>
-            {t(`quests.channel.${option}` as MessageKey)}
-          </button>
-        ))}
-      </div>
-      <p className="challenge-note">{channel === "push" ? t("quests.channel.pushHint") : t("quests.channel.telegramHint")}</p>
-      <ChannelCodeChallenge challengeId={challengeId} channel={channel} key={channel} t={t} onCodeChange={onCodeChange} />
+      <ol className="quest-steps">
+        <li className={standalone ? "done" : "current"}>{standalone ? t("quests.install.step1Done") : t("quests.install.step1")}</li>
+        <li className={standalone ? "current" : ""}>{t("quests.install.step2")}</li>
+      </ol>
+      {!standalone && telegram ? (
+        <>
+          <p className="challenge-note">{t("quests.install.telegram")}</p>
+          <button className="secondary-button" type="button" onClick={openInBrowser}>{t("quests.install.openBrowser")}</button>
+        </>
+      ) : null}
+      {!standalone ? (
+        <>
+          <InstallGuideDetails installPromptAvailable={installPromptAvailable} isDesktop={desktop} locale={locale} t={t} onInstall={() => { void promptPwaInstall(); }} />
+          <p className="challenge-note">{t("quests.install.openFromIcon")}</p>
+        </>
+      ) : (
+        <ChannelCodeChallenge challengeId={challengeId} channel="push" standalone t={t} onCodeChange={onCodeChange} />
+      )}
     </section>
+  );
+}
+
+export type PathMapItem = { id: string; step: number; title: string; state: "done" | "active" | "taken" | "skipped" | "open" | "locked" };
+
+/** The whole path as a list: number, title and state of each step; locked steps keep their title as a teaser. */
+export function PathMap({ items, t }: { items: PathMapItem[]; t: TFunction }) {
+  return (
+    <ol className="quest-path-map">
+      {items.map((item) => (
+        <li className={`quest-path-item ${item.state}`} key={item.id}>
+          <span className="quest-path-num" aria-hidden="true">{item.state === "done" ? "✓" : item.step}</span>
+          <span className="quest-path-title">{item.title}</span>
+          <small>{t(`quests.path.state.${item.state}` as MessageKey)}</small>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// Leaf positions on the tree, in the order they appear as steps are done (viewBox 0 0 96 80).
+const LEAVES: Array<[number, number]> = [
+  [48, 50], [40, 44], [56, 42], [34, 36], [62, 34], [46, 30], [28, 28], [68, 26], [52, 22], [38, 20], [60, 16], [48, 12], [30, 14], [66, 10]
+];
+
+/** A tree that grows a leaf for every finished path step; the next leaf is a bud. */
+export function PathTree({ done, total }: { done: number; total: number }) {
+  const shown = Math.min(LEAVES.length, Math.max(total, 1));
+  const ratio = total > 0 ? Math.min(1, done / total) : 0;
+  const top = 64 - Math.round(ratio * 40);
+  return (
+    <svg aria-hidden="true" className="quest-tree" viewBox="0 0 96 80">
+      <ellipse cx="48" cy="74" rx="34" ry="5" fill="rgba(126, 226, 168, 0.25)" />
+      <path d={`M48 74 C47 66 49 ${top + 10} 48 ${top}`} stroke="#b88a5a" strokeLinecap="round" strokeWidth="4" fill="none" />
+      {ratio > 0.25 ? <path d={`M48 ${Math.max(top + 14, 46)} L36 ${Math.max(top + 4, 38)}`} stroke="#b88a5a" strokeLinecap="round" strokeWidth="2.5" /> : null}
+      {ratio > 0.4 ? <path d={`M48 ${Math.max(top + 10, 42)} L60 ${Math.max(top + 2, 34)}`} stroke="#b88a5a" strokeLinecap="round" strokeWidth="2.5" /> : null}
+      {LEAVES.slice(0, shown).map(([x, y], index) => {
+        const leafY = Math.max(y, top - 6 + (index % 3) * 4);
+        if (index < done) return <circle cx={x} cy={leafY} fill="#7ee2a8" key={index} r="5.5" />;
+        if (index === done) return <circle className="quest-tree-bud" cx={x} cy={leafY} fill="#ffd66b" key={index} r="3" />;
+        return null;
+      })}
+    </svg>
   );
 }
 
@@ -239,6 +333,55 @@ export function GoalPlanQuest({ coreBalance, locale, t, onSaved }: { coreBalance
         </button>
       ) : <p className="challenge-note">{t("quests.plan.saved", { amount: formatRoundedMoney(savedDaily, locale) })}</p>}
       {error ? <p className="challenge-error">{error}</p> : null}
+    </section>
+  );
+}
+
+type LeadersPayload = {
+  leaders?: Array<{ rank: number; name: string | null; avatarUrl: string | null; quests: number; isViewer: boolean }>;
+  viewer?: { rank: number | null; quests: number | null } | null;
+};
+
+/** Leaders of the week (app/api/quests/leaders): shown to everyone, so the pace of others is visible. */
+export function QuestLeaders({ refreshKey, t }: { refreshKey: number; t: TFunction }) {
+  const [payload, setPayload] = useState<LeadersPayload | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const response = await fetchWithSupabaseAuth("/api/quests/leaders", { cache: "no-store" });
+        if (!response.ok) return;
+        const next = (await response.json()) as LeadersPayload;
+        if (mounted) setPayload(next);
+      } catch {
+        // No board is fine: it is a bonus, not a step.
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [refreshKey]);
+
+  const leaders = payload?.leaders ?? [];
+  if (leaders.length === 0) return null;
+  return (
+    <section className="quest-leaders" aria-label={t("quests.leaders.title")}>
+      <header>
+        <strong>{t("quests.leaders.title")}</strong>
+        <small>{t("quests.leaders.note")}</small>
+      </header>
+      <ol>
+        {leaders.map((leader) => (
+          <li className={leader.isViewer ? "viewer" : undefined} key={leader.rank}>
+            <span className="quest-leaders-rank">{leader.rank}</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {leader.avatarUrl ? <img alt="" src={leader.avatarUrl} /> : <span className="quest-leaders-avatar" aria-hidden="true" />}
+            <span className="quest-leaders-name">{leader.isViewer ? `${leader.name ?? ""} (${t("quests.leaders.you")})` : leader.name ?? "—"}</span>
+            <small>{t("quests.leaders.count", { count: leader.quests })}</small>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

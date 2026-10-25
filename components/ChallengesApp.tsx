@@ -18,8 +18,8 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
-import { ChannelConnectedQuest, FirstStepQuest, GoalPlanQuest, NovaBubble, novaLine } from "@/components/QuestScenes";
-import { CHANNEL_CONNECTED_LOGIC, FIRST_STEP_LOGIC, type QuestPlacement } from "@/lib/questPath";
+import { AppInstalledQuest, FirstStepQuest, GoalPlanQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
+import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, type QuestPlacement } from "@/lib/questPath";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
@@ -227,6 +227,8 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   const [activeQuest, setActiveQuest] = useState<Challenge | null>(null);
   const [moreChallenges, setMoreChallenges] = useState<Challenge[]>([]);
   const [questInfo, setQuestInfo] = useState<QuestInfo | null>(null);
+  const [pathItems, setPathItems] = useState<Array<Omit<PathMapItem, "title"> & { title: Challenge["title"] }>>([]);
+  const [pathMapOpen, setPathMapOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [today, setToday] = useState<TodayPayload | null>(null);
@@ -325,6 +327,20 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
         const active = nextChallenges.find((challenge) => challenge.id === payload.quest?.activeId) ?? null;
         setActiveQuest(active);
         setQuestInfo(payload.quest);
+        // The whole path for the "Whole path" list: every step with its state, hidden ones included.
+        setPathItems(nextChallenges
+          .filter((challenge) => challenge.path_order != null)
+          .sort((left, right) => Number(left.path_order) - Number(right.path_order))
+          .map((challenge, index) => ({
+            id: challenge.id,
+            step: index + 1,
+            title: challenge.title,
+            state: challenge.id === payload.quest?.activeId ? "active"
+              : challenge.user_challenge_status === "completed" ? "done"
+              : challenge.user_challenge_status === "declined" ? "skipped"
+              : challenge.user_challenge_status === "accepted" || challenge.user_challenge_status === "failed" ? "taken"
+              : challenge.quest_placement === "hidden" ? "locked" : "open"
+          })));
         setPermanentChallenges(placed("permanent"));
         setAcceptedChallenges(placed("accepted"));
         setCompletedChallenges(placed("completed"));
@@ -337,6 +353,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
       }
       setActiveQuest(null);
       setQuestInfo(null);
+      setPathItems([]);
       setMoreChallenges([]);
       const serverPermanentChallenges = nextChallenges.filter((challenge) => challenge.is_permanent && (isActiveChallenge(challenge) || isCompletedChallenge(challenge)));
       const serverCompletedChallenges = nextChallenges.filter((challenge) => !challenge.is_permanent && isCompletedChallenge(challenge));
@@ -745,16 +762,24 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
                 <small>{questInfo?.activePathStep ? t("quests.active.pathStep", { step: questInfo.activePathStep, total: questInfo.pathTotal }) : t("quests.active.side")}</small>
               </header>
               {questInfo && questInfo.pathTotal > 0 ? (
-                <div className="quest-path-dots" aria-label={t("quests.active.pathDone", { done: questInfo.pathDone, total: questInfo.pathTotal })}>
-                  {Array.from({ length: questInfo.pathTotal }, (_, index) => (
-                    <i className={index < questInfo.pathDone ? "done" : index + 1 === questInfo.activePathStep ? "current" : ""} key={index} />
-                  ))}
+                <div className="quest-log-path">
+                  <PathTree done={questInfo.pathDone} total={questInfo.pathTotal} />
+                  <div className="quest-log-path-side">
+                    <div className="quest-path-dots" aria-label={t("quests.active.pathDone", { done: questInfo.pathDone, total: questInfo.pathTotal })}>
+                      {pathItems.map((item) => <i className={item.state === "done" ? "done" : item.state === "active" ? "current" : ""} key={item.id} />)}
+                    </div>
+                    <button aria-expanded={pathMapOpen} className="quest-path-toggle" type="button" onClick={() => setPathMapOpen((open) => !open)}>
+                      {t(pathMapOpen ? "quests.path.hide" : "quests.path.show", { done: questInfo.pathDone, total: questInfo.pathTotal })}
+                    </button>
+                  </div>
                 </div>
               ) : null}
+              {pathMapOpen ? <PathMap items={pathItems.map((item) => ({ ...item, title: displayText(item.title, "", locale) }))} t={t} /> : null}
               <div className="challenge-list">{renderChallenge(activeQuest)}</div>
               <NovaBubble text={novaLine(activeQuest.verification_logic, t)} t={t} />
             </section>
           ) : null}
+          {questInfo ? <QuestLeaders refreshKey={questInfo.pathDone} t={t} /> : null}
 
           <ChallengeSection
             challenges={availableChallenges}
@@ -1201,7 +1226,7 @@ function ChallengeDetailContent({
   const locked = !accepted && !completed && (challenge.can_accept === false || accessReasons.length > 0);
   const needsGoalPlan = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsFirstStep = challenge.verification_logic === FIRST_STEP_LOGIC && accepted && !completed && !locked;
-  const needsChannelConnected = challenge.verification_logic === CHANNEL_CONNECTED_LOGIC && accepted && !completed && !locked;
+  const needsAppInstalled = challenge.verification_logic === APP_INSTALLED_LOGIC && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
   const needsValuesChallenge = challenge.verification_logic === "values_goals_defined" && accepted && !completed && !locked;
@@ -1263,7 +1288,7 @@ function ChallengeDetailContent({
       return;
     }
 
-    if ((codeChannel || needsChannelConnected) && channelCode.length !== 6) {
+    if ((codeChannel || needsAppInstalled) && channelCode.length !== 6) {
       setCheckMessage(t("challenges.code.required"));
       setCheckStatus("idle");
       return;
@@ -1285,7 +1310,7 @@ function ChallengeDetailContent({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(codeChannel || needsChannelConnected ? { challengeId: challenge.id, code: channelCode } : { challengeId: challenge.id })
+        body: JSON.stringify(codeChannel || needsAppInstalled ? { challengeId: challenge.id, code: channelCode } : { challengeId: challenge.id })
       }, { authRequired: true });
       const payload = (await response.json()) as CheckChallengeResponse;
 
@@ -1482,7 +1507,7 @@ function ChallengeDetailContent({
         <FirstStepQuest question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
 
-      {needsChannelConnected ? <ChannelConnectedQuest challengeId={challenge.id} t={t} onCodeChange={setChannelCode} /> : null}
+      {needsAppInstalled ? <AppInstalledQuest challengeId={challenge.id} locale={locale} t={t} onCodeChange={setChannelCode} /> : null}
 
       {needsGoalPlan ? <GoalPlanQuest coreBalance={coreBalance} locale={locale} t={t} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 

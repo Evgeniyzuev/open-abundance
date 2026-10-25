@@ -1,5 +1,6 @@
 import type { ParticipantRecord } from "@/lib/coordinatorAnalysis";
 import type { Localized } from "@/lib/locales";
+import { QUEST_NUDGE_WEEK_LIMIT, chooseQuestNudge, weekSends, type QuestNudgeInput, type QuestNudgeKey } from "./questNudges.ts";
 
 /**
  * Pure rules for the coordinator's daily message. No I/O so a deterministic Node test can check them
@@ -11,7 +12,9 @@ import type { Localized } from "@/lib/locales";
  * {tasks} and {amount}, filled per person with `fillNudgeCopy`. Nothing here pays anyone.
  */
 
-export type NextStepKey = "core" | "wish" | "calculator" | "accept_challenge" | "finish_challenge" | "invite" | "tasks";
+export type BasicStepKey = "core" | "wish" | "calculator" | "accept_challenge" | "finish_challenge" | "invite" | "tasks";
+/** Basic steps plus Nova's messages about the growth path (lib/questNudges.ts). */
+export type NextStepKey = BasicStepKey | QuestNudgeKey;
 
 export type NextStepCopy = { title: string; body: string; button: string };
 
@@ -39,7 +42,7 @@ export const NUDGE_MAX_PER_PERSON = 30;
 export const TODAY_TASKS_MAX_USD = 10;
 export const TODAY_TASKS_MAX_COUNT = 6;
 
-export const NEXT_STEPS: Record<NextStepKey, NextStep> = {
+export const NEXT_STEPS: Record<BasicStepKey, NextStep> = {
   core: {
     key: "core",
     deepLink: "/?view=wallet.core",
@@ -252,7 +255,12 @@ export type NudgeHistory = { sends: NudgeSend[] };
 export type NudgeCandidate = { userId: string; step: NextStep };
 
 /** What the coordinator knows about one person beyond their record: Core balance and tasks open for today. */
-export type NudgeContext = { tasks: TodayTasks | null; lastActiveAt: number | null };
+export type NudgeContext = {
+  tasks: TodayTasks | null;
+  lastActiveAt: number | null;
+  /** Set unless QUEST_NUDGES_ENABLED=0: the path decides, three messages a week at most, no separate basic steps. */
+  quest?: QuestNudgeInput | null;
+};
 
 /**
  * Today's message for one person, or null: nothing in the first day, at most one a day, quiet after
@@ -268,6 +276,14 @@ export function chooseNudge(participant: ParticipantRecord, past: NudgeHistory |
   const unanswered = sends.filter((send) => context.lastActiveAt === null || send.at > context.lastActiveAt).length;
   if (unanswered >= NUDGE_PAUSE_AFTER) return null;
 
+  if (context.quest) {
+    // The path covers the basic steps (wish, calculator, first quest), so only Core and tasks for today remain.
+    const questNudge = chooseQuestNudge(context.quest, sends, context.lastActiveAt, now);
+    if (questNudge) return questNudge;
+    if (weekSends(sends, now) >= QUEST_NUDGE_WEEK_LIMIT) return null;
+    if (participant.coreBalance >= 0.01 && !sends.some((send) => send.step === "core")) return NEXT_STEPS.core;
+    return context.tasks && context.tasks.count > 0 ? NEXT_STEPS.tasks : null;
+  }
   if (participant.coreBalance >= 0.01 && !sends.some((send) => send.step === "core")) return NEXT_STEPS.core;
   const basic = nextStepFor(participant, now);
   if (basic) {

@@ -15,7 +15,7 @@ import { hasThreeSteps } from "@/lib/wishSteps";
 import { VALUES_CHALLENGE_SWIPES, valuesChallengeDone } from "@/lib/lifeValues";
 import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
 import { isChannelCodeValid } from "@/lib/channelCodesServer";
-import { CHANNEL_CONNECTED_LOGIC, FIRST_STEP_LOGIC } from "@/lib/questPath";
+import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC } from "@/lib/questPath";
 
 type CheckRequest = {
   challengeId?: string;
@@ -250,12 +250,10 @@ async function verifyChallenge(
     const valid = isChannelCodeValid(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "", userId, channel, code, Date.now());
     return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
   }
-  if (challenge.verification_logic === CHANNEL_CONNECTED_LOGIC) {
-    // Either channel counts: a push code from the installed app or a code from the Telegram bot.
-    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-    const now = Date.now();
-    const valid = isChannelCodeValid(secret, userId, "push", code, now) || isChannelCodeValid(secret, userId, "telegram", code, now);
-    return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
+  if (challenge.verification_logic === APP_INSTALLED_LOGIC) {
+    // The push code; the channel-code route sends it only to the app opened from the home screen.
+    const valid = isChannelCodeValid(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "", userId, "push", code, Date.now());
+    return valid ? { ok: true } : { ok: false, reason: "Enter the code from the notification." };
   }
   if (challenge.verification_logic === FIRST_STEP_LOGIC) {
     const progress = await getChallengeProgressProof(supabase, userId, challenge, "motive_chosen");

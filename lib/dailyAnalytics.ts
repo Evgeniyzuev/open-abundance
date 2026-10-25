@@ -22,6 +22,7 @@ import {
   type Proposal
 } from "./coordinatorAnalysis.ts";
 import { guestReview } from "./marketplaceGuestVisibility.ts";
+import { buildPathReport } from "./questPathAnalytics.ts";
 
 export const MIN_GROUP = 5;
 export const WINDOW_DAYS = 45;
@@ -51,7 +52,7 @@ type TableSpec = {
 };
 
 export const TABLE_SPECS: TableSpec[] = [
-  { table: "user_profiles", select: "user_id,created_at,default_locale,timezone,level,deleted_at" },
+  { table: "user_profiles", select: "user_id,created_at,default_locale,timezone,level,deleted_at,quest_motive,quest_motives" },
   { table: "core_accounts", select: "user_id,balance,level" },
   { table: "wallet_accounts", select: "user_id,balance" },
   {
@@ -68,8 +69,8 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "feed_posts", select: "id,author_user_id,post_type,visibility,status,source_key,repost_of_post_id,created_at,deleted_at", since: "created_at" },
   { table: "feed_post_comments", select: "id,post_id,user_id,body,created_at,deleted_at", since: "created_at" },
   { table: "feed_post_likes", select: "post_id,user_id,created_at", since: "created_at" },
-  { table: "challenges", select: "id,title,track_key,category,verification_type,core_reward_amount,wallet_reward_amount,is_active" },
-  { table: "user_challenges", select: "user_id,challenge_id,status,created_at,updated_at", cap: 50_000 },
+  { table: "challenges", select: "id,title,track_key,category,verification_type,core_reward_amount,wallet_reward_amount,is_active,path_order" },
+  { table: "user_challenges", select: "user_id,challenge_id,status,created_at,updated_at,is_active", cap: 50_000 },
   { table: "challenge_feedback_submissions", select: "user_id,status,overall_rating,submitted_at" },
   { table: "challenge_essay_submissions", select: "status,score,submitted_at,reviewed_at" },
   { table: "peer_review_answers", select: "status,created_at,submitted_at", since: "created_at" },
@@ -85,6 +86,7 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "direct_messages", select: "sender_user_id,conversation_id,created_at", since: "created_at", cap: 50_000 },
   { table: "user_follows", select: "follower_user_id,followee_user_id,created_at" },
   { table: "telegram_accounts", select: "user_id" },
+  { table: "notification_events", select: "idempotency_key,created_at", since: "created_at", eq: ["event_type", "coach.next_step"] },
   { table: "coordinator_recommendations", select: "kind,status,source,outcome,created_at,decided_at", since: "created_at" }
 ];
 
@@ -619,6 +621,31 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   }));
   const queue = t.coordinator_recommendations ?? [];
   if (queue.length) out.push(`\nОчередь рекомендаций за окно: ${countBy(queue, (row) => row.status).map(([status, value]) => `${status} ${value}`).join(", ")}.`);
+
+  // 15. The growth path
+  const path = buildPathReport(t, { now, minGroup, pseudonym: p });
+  Object.assign(metrics, path.metrics);
+  out.push("\n## 15. Путь квестов");
+  out.push(path.steps.length
+    ? table(["Шаг", "Квест", "Дошли", "Выполнили", "Пропустили", "Застряли 2+ дня", "Медиана дней"], path.steps.map((step) => [
+      step.step, step.title, step.reached, `${step.completed} (${pct(step.completed, step.reached)})`, step.declined, step.stuck, step.medianDays ?? "—"
+    ]))
+    : "_путь не задан_");
+  out.push(`\n«Первый шаг» в первые сутки: ${path.firstStepDay1.done} из ${path.firstStepDay1.eligible} (${pct(path.firstStepDay1.done, path.firstStepDay1.eligible)}, цель 70%). Ответили «зачем ты здесь»: ${metrics.path_motive_answered}.`);
+  out.push("\nСообщения Новы и контрольная группа (старше 72 ч):");
+  out.push(path.nudges.length
+    ? table(["Группа", "Сообщение", "Людей", "Зашли за 24 ч", "Сдвинулись за 72 ч"], path.nudges.map((row) => [
+      row.group === "sent" ? "получили" : "контроль", row.step === "all" ? "все" : row.step, row.people, pct(row.opened24h, row.people), pct(row.progressed72h, row.people)
+    ]))
+    : "_пока нет сообщений старше 72 ч_");
+  if (path.motives.length) {
+    out.push("\nЗачем пришли (группы от " + minGroup + " человек):");
+    out.push(table(["Ответ", "Людей", "Медиана квестов"], path.motives.map((row) => [row.motive, row.people, row.medianQuests])));
+  }
+  out.push(`\nЛидеров недели (2+ квеста за 7 дней): ${path.leaders.length}${path.leaders.length ? `, у первого ${path.leaders[0].quests}` : ""}.`);
+  out.push("\n### Предложения по улучшению (решение за Evgen)");
+  out.push(path.proposals.length ? path.proposals.map((proposal, index) => `${index + 1}. **${proposal.title}.** ${proposal.why}`).join("\n") : "_сегодня правила ничего не предлагают_");
+  details.path = { steps: path.steps, firstStepDay1: path.firstStepDay1, nudges: path.nudges, motives: path.motives, leaders: path.leaders, proposals: path.proposals };
 
   out.push("\n## Детали");
   out.push("Файлы рядом с этой сводкой (`details/*.json`): " + Object.keys(details).map((key) => `\`${key}\``).join(", ") + ".");

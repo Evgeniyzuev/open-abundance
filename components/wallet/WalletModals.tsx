@@ -21,6 +21,7 @@ import { startVisiblePolling } from "@/lib/visiblePolling";
 import MarketOfferHelper from "@/components/MarketOfferHelper";
 import type { TonDepositInvoice, TonDepositEvent, DepositQuote, TonWithdrawalQuote, TonWithdrawal, TFunction, WalletTransferContact, WalletRecipient, MarketplaceListing, MarketplaceListingInput, WalletTransferReceipt, WalletRow } from "@/components/wallet/walletTypes";
 import { loadWalletTransferContacts, loadWalletRecipient, getAccessToken, contactName, contactInitial, shortId, shortHash, formatFixedUsd, formatAssetAmount, isTonDepositTerminal, isTonDepositReusable, tonDepositStatusKey, withdrawalStatusKey, parseNumber } from "@/components/wallet/walletHelpers";
+import TonConnectPay from "@/components/TonConnectPay";
 
 export function MarketplaceListingDetailModal({
   listing,
@@ -814,6 +815,9 @@ export function TonDepositModal({
         ) : null}
         {invoice ? (
           <div className="ton-deposit-body">
+            {invoice.status === "ready" ? (
+              <TonConnectPay asset="TON" invoiceId={invoice.id} defaultAmount={nanoToTonAmount(invoice.expected_amount_nano)} locale={locale} t={t} />
+            ) : null}
             <div className="ton-deposit-qr">
               <QRCodeSVG value={invoice.transferLink} size={184} includeMargin />
             </div>

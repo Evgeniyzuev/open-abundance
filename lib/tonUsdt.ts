@@ -192,6 +192,14 @@ export async function deriveTonUsdtJettonWallet(config: TonUsdtConfig): Promise<
   }
 }
 
+/** The USDT Jetton wallet of any owner (for a person paying from their own wallet), friendly bounceable form. */
+export async function tonUsdtJettonWalletOf(config: TonUsdtConfig, ownerAddress: string): Promise<string> {
+  const client = new TonClient({ endpoint: config.rpcEndpoint, apiKey: config.apiKey, timeout: 15_000 });
+  const master = client.open(JettonMaster.create(Address.parse(config.masterAddress)));
+  const wallet = await master.getWalletAddress(Address.parse(ownerAddress));
+  return wallet.toString({ bounceable: true, testOnly: config.network === "testnet" });
+}
+
 export async function resolveTonUsdtPriceResolution(): Promise<TonUsdtPriceResolution> {
   const [diaQuote, coinGeckoQuote] = await Promise.all([
     resolveUsdtPriceSnapshot(),

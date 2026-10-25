@@ -104,6 +104,10 @@
 .cryptopay-amount { margin: 0; font-size: 2rem; font-weight: 900; text-align: center; }
 .cryptopay-open { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
 .cryptopay-done { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; color: var(--blue); font-weight: 700; text-align: center; }
+.tonconnect-pay { display: grid; gap: 8px; border-radius: 12px; padding: 12px; background: var(--surface-muted); }
+.tonconnect-pay p { margin: 0; }
+.tonconnect-pay .challenge-primary-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.tonconnect-connected { font-size: 0.8rem; }
 .wallet-fee-line { display: block; margin-top: 4px; color: var(--muted); font-size: 0.75rem; font-style: normal; }
 .cryptopay-quote { margin: 0; border-radius: 10px; padding: 8px 10px; background: var(--surface-muted); color: var(--muted); font-size: 0.82rem; line-height: 1.35; }
 .step-suggester { display: grid; gap: 8px; }

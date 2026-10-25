@@ -12,6 +12,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { parseTonUsdtUnits, tonUsdtUnitsToDecimal } from "@/lib/tonUsdtAmount";
 import { formatRateMoney } from "@/lib/moneyFormat";
 import { startVisiblePolling } from "@/lib/visiblePolling";
+import TonConnectPay from "@/components/TonConnectPay";
 
 type WalletRow = Tables<"wallet_accounts">;
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -127,6 +128,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
         <div className="usdt-bound-list" aria-label={t("wallet.usdt.deposit.bound.addresses")}>
           {bound.map((item) => <code key={item.address}>{shortAddress(item.address)}</code>)}
         </div>
+        <TonConnectPay asset="USDT" defaultAmount="10" locale={locale} t={t} />
         {data.boundTransferLink ? <div className="ton-deposit-qr"><QRCodeSVG value={data.boundTransferLink} size={160} includeMargin /></div> : null}
         {data.depositAddress ? <CopyField label={t("wallet.usdt.deposit.address")} value={data.depositAddress} copied={copied === "address"} copyLabel={t("wallet.usdt.deposit.copy")} onCopy={() => void copy(data.depositAddress as string, "address")} /> : null}
         <p className="transfer-muted">{t("wallet.usdt.deposit.bound.exchangeNote")}</p>
@@ -141,6 +143,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
           {bindNote ? <p>{bindNote}</p> : null}
         </div> : null}
         {inProgress ? <>
+          {invoice.status === "waiting" ? <TonConnectPay asset="USDT" invoiceId={invoice.id} defaultAmount="10" locale={locale} t={t} /> : null}
           <p className="usdt-must-comment" role="alert">{t("wallet.usdt.deposit.mustComment")}</p>
           <p className="transfer-summary">{t(bound.length > 0 ? "wallet.usdt.deposit.bindAnotherHint" : "wallet.usdt.deposit.bindHint")}</p>
           <p className="usdt-no-bind-note">{t("wallet.usdt.deposit.noBindNote")}</p>

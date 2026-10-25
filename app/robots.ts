@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const PRIVATE_PATHS = ["/api/", "/auth/"];
+const PRIVATE_PATHS = ["/api/", "/auth/", "/products/"];
 
 // Search engines and AI assistants (search, user-triggered fetches and training) may read every public page.
 // Named explicitly so the policy is clear to each crawler; the wildcard rule covers everyone else.

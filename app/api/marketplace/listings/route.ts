@@ -1,11 +1,11 @@
 import { revalidatePath } from "next/cache";
-import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { withAutoCheck, withGuestVisibility } from "@/lib/marketplaceGuestVisibility";
 import { NEW_ACCOUNT_DAILY_LISTINGS, NEW_ACCOUNT_DAYS, checkListingText, listingFingerprint, type ListingFlag } from "@/lib/marketplaceListingCheck";
+import { buildTerms, hashTerms } from "@/lib/marketplaceTerms";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { normalizeUuid } from "@/lib/uuid";
 
@@ -392,21 +392,6 @@ async function readJsonBody(request: NextRequest): Promise<ListingPostBody> {
   }
 }
 
-function buildTerms({ artifact, description, priceAmount, title, listingKind, fulfillmentDays, category }: { artifact: UserArtifactRow | null; description: string | null; priceAmount: number; title: string; listingKind: "digital_asset" | "service" | "physical_good"; fulfillmentDays: number | null; category: string | null }) {
-  return {
-    artifactId: artifact?.id ?? null,
-    artifactTitle: artifact?.title ?? null,
-    category,
-    currencyCode: "$",
-    description,
-    fulfillmentDays,
-    listingKind,
-    priceAmount,
-    title,
-    version: 1
-  };
-}
-
 function normalizeListingKind(value: unknown): "digital_asset" | "service" | "physical_good" {
   return value === "service" || value === "physical_good" ? value : "digital_asset";
 }
@@ -414,18 +399,6 @@ function normalizeListingKind(value: unknown): "digital_asset" | "service" | "ph
 function normalizeFulfillmentDays(value: unknown): number | null {
   const numeric = Number(value);
   return [1, 3, 7, 14].includes(numeric) ? numeric : 7;
-}
-
-function hashTerms(value: unknown): string {
-  return createHash("sha256").update(stableStringify(value)).digest("hex");
-}
-
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  if (value && typeof value === "object") {
-    return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
 }
 
 function normalizeAmount(value: unknown): number | null {

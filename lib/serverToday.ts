@@ -56,6 +56,20 @@ export async function syncTodayForUser(
     userId
   });
 
+  // A plan saved during the day ("Work out the path to your wish" says it becomes the goal of the day) applies to today
+  // as well, as long as today is not completed yet.
+  if (plan && today.status !== "completed" && today.core_growth_plan_id !== plan.id) {
+    const { data, error } = await supabase
+      .from("user_today_instances")
+      .update({ core_growth_plan_id: plan.id, target_core: Math.max(DEFAULT_TODAY_TARGET, Number(plan.daily_additions ?? 0)) })
+      .eq("id", today.id)
+      .select("*")
+      .single();
+
+    if (error) throw error;
+    today = data;
+  }
+
   const showIntro = !today.info_seen_at;
   if (showIntro && options.markIntroSeen) {
     const { data, error } = await supabase

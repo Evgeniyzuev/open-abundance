@@ -233,10 +233,13 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
     if (wish.source_recommended_wish_id) {
       setRecommendedWishes((current) => current.filter((item) => item.id !== wish.source_recommended_wish_id));
     }
+    // The first wish becomes the main one, so Home and the calculator show it without a separate choice.
+    if (user && wish.status === "active" && !readPrimaryWish(user.id)) storePrimaryWish(user.id, wish);
     if (notice) setErrorMessage(notice);
     setIsCreateOpen(false);
     setRecommendedDraft(null);
     setCreateInitial(emptyForm);
+    setActiveTab("mine");
   }
 
   async function updateWish(wish: Wish, values: FormState) {

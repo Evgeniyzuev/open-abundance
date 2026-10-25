@@ -6,6 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, type TouchEvent } from "react"
 // so the system Back (Android button, browser back, iOS edge swipe in Safari) closes the top layer instead
 // of leaving the screen. Entries keep the stack of open layer tokens; a layer is open while its token is in it.
 const LAYERS_KEY = "openAbundanceLayers";
+// Layers the app closed whose history entry has not been dropped yet. A layer that opens in the same moment (one
+// sheet replaced by another, e.g. a wish's details by its form) takes over that entry instead of pushing a new one:
+// a Back still in flight would otherwise land on the new entry and close the new layer at once.
+const closedLayers = new Set<string>();
 
 function currentLayers(): string[] {
   const value = (window.history.state as Record<string, unknown> | null)?.[LAYERS_KEY];
@@ -30,7 +34,14 @@ export function useHistoryLayer(active: boolean, onBack: () => void): () => void
     tokenRef.current = token;
     // Pushed a tick later, so a layer that React mounts twice in a row (strict mode) adds only one entry.
     const pushTimer = window.setTimeout(() => {
-      window.history.pushState({ ...(window.history.state ?? {}), [LAYERS_KEY]: [...currentLayers(), token] }, "", window.location.href);
+      const layers = currentLayers();
+      const top = layers[layers.length - 1];
+      if (top && closedLayers.has(top)) {
+        closedLayers.delete(top);
+        window.history.replaceState({ ...(window.history.state ?? {}), [LAYERS_KEY]: [...layers.slice(0, -1), token] }, "", window.location.href);
+        return;
+      }
+      window.history.pushState({ ...(window.history.state ?? {}), [LAYERS_KEY]: [...layers, token] }, "", window.location.href);
     }, 0);
     function onPopState() {
       if (tokenRef.current !== token || currentLayers().includes(token)) return;
@@ -42,11 +53,14 @@ export function useHistoryLayer(active: boolean, onBack: () => void): () => void
       window.clearTimeout(pushTimer);
       window.removeEventListener("popstate", onPopState);
       if (tokenRef.current === token) tokenRef.current = null;
-      // Closed by the app itself (saved, deleted): drop the entry if it is still on top.
-      window.setTimeout(() => {
+      // Closed by the app itself (saved, deleted): drop the entry if it is still on top. Two ticks later, so a layer
+      // opened in its place has had its turn to take the entry over (see closedLayers).
+      closedLayers.add(token);
+      window.setTimeout(() => window.setTimeout(() => {
+        closedLayers.delete(token);
         const layers = currentLayers();
         if (layers[layers.length - 1] === token) window.history.back();
-      }, 0);
+      }, 0), 0);
     };
   }, [active]);
 

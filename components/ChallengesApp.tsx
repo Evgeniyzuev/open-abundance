@@ -1623,7 +1623,7 @@ function ChallengeDetailContent({
       ) : null}
 
       {checkMessage ? <p className={checkStatus === "error" || acceptStatus === "error" || giveUpStatus === "error" ? "challenge-error" : "challenge-note"}>{checkMessage}</p> : null}
-      {checkReason === "not_done_yet" && sectionTarget ? (
+      {sectionTarget && !completed && (accepted || checkReason === "not_done_yet") ? (
         <button className="challenge-secondary-action" type="button" onClick={() => window.dispatchEvent(new CustomEvent("oa:open-tab", { detail: sectionTarget }))}>
           {t("challenges.openSection")}
         </button>

@@ -38,6 +38,12 @@ export default function ChannelCodeChallenge({ challengeId, channel, standalone,
   }, [challengeId, channel, onCodeChange]);
 
   async function send() {
+    // Push code without notification permission yet: ask for it right in this tap (iOS allows the prompt only from a
+    // tap), then the code is sent once the device is registered.
+    if (channel === "push" && typeof Notification !== "undefined" && Notification.permission === "default") {
+      await enablePush();
+      return;
+    }
     setBusy(true);
     setProblem(null);
     try {
@@ -87,7 +93,7 @@ export default function ChannelCodeChallenge({ challengeId, channel, standalone,
       {problem ? <p className="challenge-note" role="status">{t(`challenges.code.problem.${problem}` as MessageKey)}</p> : null}
       {problem === "telegram_not_linked" ? <button className="secondary-button" type="button" onClick={() => void linkTelegram()}>{t("profile.telegramLink.action")}</button> : null}
       {problem === "bot_not_started" && botUrl ? <a className="secondary-button" href={botUrl} target="_blank" rel="noreferrer">{t("profile.telegramBot.action")}</a> : null}
-      {problem === "no_push_device" ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void enablePush()}>{t("push.prompt.enable")}</button> : null}
+      {problem === "no_push_device" ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void enablePush()}>{t("challenges.code.enablePush")}</button> : null}
       <label className="challenge-code-input">
         <span>{t("challenges.code.label")}</span>
         <input

@@ -58,6 +58,7 @@
     "test:stay-streak": "node --experimental-strip-types scripts/verify-stay-streak-contract.mjs",
     "test:sales-challenges": "node --experimental-strip-types scripts/verify-sales-challenges-contract.mjs",
     "test:market-listing-check": "node --experimental-strip-types scripts/verify-market-listing-check-contract.mjs",
+    "test:quest-path": "node --experimental-strip-types scripts/verify-quest-path-contract.mjs",
     "test:creator-challenges": "node --experimental-strip-types scripts/verify-creator-challenges-contract.mjs",
     "test:growth-stories": "node --experimental-strip-types scripts/verify-growth-stories-contract.mjs",
     "test:challenge-cards": "node --experimental-strip-types scripts/verify-challenge-cards-contract.mjs",

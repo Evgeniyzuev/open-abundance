@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, CircleHelp, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Smartphone, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
-import ChallengeQuiz, { type ChallengeQuizQuestion } from "@/components/ChallengeQuiz";
 import AttentionValueChallenge from "@/components/AttentionValueChallenge";
 import InstallPingChallenge from "@/components/InstallPingChallenge";
 import ChannelCodeChallenge from "@/components/ChannelCodeChallenge";
@@ -19,6 +18,8 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
+import { ChannelConnectedQuest, FirstStepQuest, GoalPlanQuest, NovaBubble, novaLine } from "@/components/QuestScenes";
+import { CHANNEL_CONNECTED_LOGIC, FIRST_STEP_LOGIC, type QuestPlacement } from "@/lib/questPath";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
@@ -68,6 +69,17 @@ type Challenge = {
   acquisition_metric_key?: string | null;
   is_permanent?: boolean;
   user_challenge_status?: ChallengeStatus | null;
+  user_challenge_active?: boolean;
+  path_order?: number | null;
+  quest_placement?: QuestPlacement;
+  quests_missing?: number | null;
+};
+
+type QuestInfo = {
+  activeId: string | null;
+  pathTotal: number;
+  pathDone: number;
+  activePathStep: number | null;
 };
 
 type ChallengesResponse = {
@@ -75,6 +87,7 @@ type ChallengesResponse = {
   viewerUserId?: string | null;
   challenges?: Challenge[];
   viewerLevel?: number;
+  quest?: QuestInfo;
   error?: string;
 };
 
@@ -188,44 +201,6 @@ function parseActionView(view: string | null): { main: string; sub?: string } | 
   return SECTION_TABS.has(main) ? { main, sub: sub || undefined } : null;
 }
 const VISIBLE_REFRESH_COOLDOWN_MS = 30_000;
-const COMPOUND_QUIZ_PASS_SCORE = 4;
-const COMPOUND_QUIZ_QUESTIONS: ChallengeQuizQuestion[] = [
-  {
-    answerIndex: 0,
-    id: "thirty-year-core",
-    optionKeys: ["challenges.quiz.q1.a", "challenges.quiz.q1.b", "challenges.quiz.q1.c"],
-    optionMoneyValues: [{ amount: 1000000 }, { amount: 26000 }, { amount: 10000 }],
-    questionKey: "challenges.quiz.q1",
-    questionMoneyValues: { start: 1000 }
-  },
-  {
-    answerIndex: 1,
-    id: "daily-ten",
-    optionKeys: ["challenges.quiz.q2.a", "challenges.quiz.q2.b", "challenges.quiz.q2.c"],
-    optionMoneyValues: [{ amount: 110000 }, { amount: 17000000 }, { amount: 1000000 }],
-    questionKey: "challenges.quiz.q2",
-    questionMoneyValues: { daily: 10, start: 1000 }
-  },
-  {
-    answerIndex: 1,
-    id: "daily-twenty-target",
-    optionKeys: ["challenges.quiz.q3.a", "challenges.quiz.q3.b", "challenges.quiz.q3.c"],
-    questionKey: "challenges.quiz.q3",
-    questionMoneyValues: { daily: 20, target: 500000 }
-  },
-  {
-    answerIndex: 2,
-    id: "zero-reinvest",
-    optionKeys: ["challenges.quiz.q4.a", "challenges.quiz.q4.b", "challenges.quiz.q4.c"],
-    questionKey: "challenges.quiz.q4"
-  },
-  {
-    answerIndex: 0,
-    id: "daily-rewards",
-    optionKeys: ["challenges.quiz.q5.a", "challenges.quiz.q5.b", "challenges.quiz.q5.c"],
-    questionKey: "challenges.quiz.q5"
-  }
-];
 
 type ChallengesAppProps = {
   active: boolean;
@@ -249,6 +224,10 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
   const [almostAvailableChallenges, setAlmostAvailableChallenges] = useState<Challenge[]>([]);
   const [permanentChallenges, setPermanentChallenges] = useState<Challenge[]>([]);
+  const [activeQuest, setActiveQuest] = useState<Challenge | null>(null);
+  const [moreChallenges, setMoreChallenges] = useState<Challenge[]>([]);
+  const [questInfo, setQuestInfo] = useState<QuestInfo | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [today, setToday] = useState<TodayPayload | null>(null);
   const [expandedChallengeId, setExpandedChallengeId] = useState<string | null>(null);
@@ -276,7 +255,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
   const userLevel = core?.level ?? profile?.level ?? DEFAULT_USER_LEVEL;
   const [serverUserLevel, setServerUserLevel] = useState<number | null>(null);
   const effectiveUserLevel = serverUserLevel ?? userLevel;
-  const hasChallenges = availableChallenges.length > 0 || almostAvailableChallenges.length > 0 || permanentChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
+  const hasChallenges = Boolean(activeQuest) || moreChallenges.length > 0 || availableChallenges.length > 0 || almostAvailableChallenges.length > 0 || permanentChallenges.length > 0 || acceptedChallenges.length > 0 || completedChallenges.length > 0;
   const hasProjects = projects.length > 0;
 
   const loadToday = useCallback(async ({ isMounted = () => true }: { isMounted?: () => boolean } = {}) => {
@@ -339,6 +318,26 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
       if (mutationVersionAtStart !== challengeMutationVersionRef.current) return;
 
       const nextChallenges = payload.challenges ?? [];
+      const serverUserLevel = Number(payload.viewerLevel ?? userLevel);
+      if (payload.quest) {
+        // The server placed every quest on the path (lib/questPath.ts): one active, a short list, the rest waits.
+        const placed = (placement: QuestPlacement) => nextChallenges.filter((challenge) => challenge.quest_placement === placement);
+        const active = nextChallenges.find((challenge) => challenge.id === payload.quest?.activeId) ?? null;
+        setActiveQuest(active);
+        setQuestInfo(payload.quest);
+        setPermanentChallenges(placed("permanent"));
+        setAcceptedChallenges(placed("accepted"));
+        setCompletedChallenges(placed("completed"));
+        setAlmostAvailableChallenges(placed("almost"));
+        setAvailableChallenges([...placed("path_next"), ...placed("available")]);
+        setMoreChallenges(sortChallenges(placed("more")));
+        setServerUserLevel(payload.viewerLevel == null ? null : serverUserLevel);
+        setStatus("ready");
+        return;
+      }
+      setActiveQuest(null);
+      setQuestInfo(null);
+      setMoreChallenges([]);
       const serverPermanentChallenges = nextChallenges.filter((challenge) => challenge.is_permanent && (isActiveChallenge(challenge) || isCompletedChallenge(challenge)));
       const serverCompletedChallenges = nextChallenges.filter((challenge) => !challenge.is_permanent && isCompletedChallenge(challenge));
       const serverAcceptedChallenges = nextChallenges.filter((challenge) => !challenge.is_permanent && isActiveChallenge(challenge));
@@ -346,7 +345,6 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
       const acceptedIds = new Set(serverAcceptedChallenges.map((challenge) => challenge.id));
       const completedIds = new Set(serverCompletedChallenges.map((challenge) => challenge.id));
       const unstartedChallenges = nextChallenges.filter((challenge) => !permanentIds.has(challenge.id) && !acceptedIds.has(challenge.id) && !completedIds.has(challenge.id));
-      const serverUserLevel = Number(payload.viewerLevel ?? userLevel);
 
       setPermanentChallenges(serverPermanentChallenges);
       setAcceptedChallenges(serverAcceptedChallenges);
@@ -449,8 +447,8 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     if (!active || !focusNextChallengeNonce || handledFocusNextChallengeRef.current === focusNextChallengeNonce) return;
 
     const nextChallenge = focusChallengeId
-      ? [...acceptedChallenges, ...permanentChallenges, ...availableChallenges, ...almostAvailableChallenges, ...completedChallenges].find((challenge) => challenge.id === focusChallengeId)
-      : [...acceptedChallenges, ...availableChallenges]
+      ? [...(activeQuest ? [activeQuest] : []), ...acceptedChallenges, ...permanentChallenges, ...availableChallenges, ...almostAvailableChallenges, ...moreChallenges, ...completedChallenges].find((challenge) => challenge.id === focusChallengeId)
+      : activeQuest ?? [...acceptedChallenges, ...availableChallenges]
         .filter((challenge) => challenge.can_accept !== false && challenge.difficulty_level <= effectiveUserLevel && challenge.prerequisite_completed !== false && (!challenge.prerequisite_challenge_id || challenge.prerequisite_completed))
         .sort((a, b) => Number(b.user_challenge_status === "accepted") - Number(a.user_challenge_status === "accepted") || compareRecommendedChallenges(a, b))[0];
     if (!nextChallenge) return;
@@ -461,13 +459,14 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setAlmostAvailableOpen(almostAvailableChallenges.some((challenge) => challenge.id === nextChallenge.id));
     setPermanentOpen(permanentChallenges.some((challenge) => challenge.id === nextChallenge.id));
     setCompletedOpen(completedChallenges.some((challenge) => challenge.id === nextChallenge.id));
+    setMoreOpen(moreChallenges.some((challenge) => challenge.id === nextChallenge.id));
     setExpandedChallengeId(nextChallenge.id);
     requestAnimationFrame(() => {
       const row = document.getElementById(`challenge-${nextChallenge.id}`);
       row?.scrollIntoView({ block: "start", behavior: "auto" });
       row?.querySelector("summary")?.focus();
     });
-  }, [active, availableChallenges, acceptedChallenges, almostAvailableChallenges, permanentChallenges, completedChallenges, focusChallengeId, focusNextChallengeNonce, effectiveUserLevel]);
+  }, [active, activeQuest, availableChallenges, acceptedChallenges, almostAvailableChallenges, moreChallenges, permanentChallenges, completedChallenges, focusChallengeId, focusNextChallengeNonce, effectiveUserLevel]);
 
   useEffect(() => {
     if (!active) return;
@@ -519,6 +518,20 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     applyChallengeStatus(payload.challengeId ?? challenge.id, payload.status ?? "accepted");
     setExpandedChallengeId(null);
     await onRefresh();
+    await loadChallenges();
+  }
+
+  async function makeQuestActive(challenge: Challenge) {
+    const response = await fetchWithSupabaseAuth("/api/quests/active", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeId: challenge.id })
+    }, { authRequired: true });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok || payload.error) throw new Error(payload.error ?? t("quests.makeActiveFailed"));
+    challengeMutationVersionRef.current += 1;
+    setExpandedChallengeId(null);
     await loadChallenges();
   }
 
@@ -684,11 +697,14 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
             level: effectiveUserLevel
           }}
           challenge={challenge}
+          coreBalance={Number(core?.balance ?? 0)}
+          isActiveQuest={challenge.id === activeQuest?.id}
           isRegistered={Boolean(user)}
           locale={locale}
           userLevel={effectiveUserLevel}
           t={t}
           onAccept={() => acceptChallenge(challenge)}
+          onMakeActive={() => makeQuestActive(challenge)}
           onGiveUp={() => giveUpChallenge(challenge)}
           onNavigateTesting={onNavigateTesting}
           onComplete={completeChallenge}
@@ -721,6 +737,24 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
         <>
           {status === "loading" && !hasChallenges ? <ChallengeState title={t("app.common.loading")} description={t("challenges.loading.description")} /> : null}
           {status === "offline" && !hasChallenges ? <ChallengeState title={t("app.common.offline")} description={t("challenges.offline.description")} /> : null}
+
+          {activeQuest ? (
+            <section className="quest-log" aria-label={t("quests.active.label")}>
+              <header className="quest-log-head">
+                <span>{t("quests.active.label")}</span>
+                <small>{questInfo?.activePathStep ? t("quests.active.pathStep", { step: questInfo.activePathStep, total: questInfo.pathTotal }) : t("quests.active.side")}</small>
+              </header>
+              {questInfo && questInfo.pathTotal > 0 ? (
+                <div className="quest-path-dots" aria-label={t("quests.active.pathDone", { done: questInfo.pathDone, total: questInfo.pathTotal })}>
+                  {Array.from({ length: questInfo.pathTotal }, (_, index) => (
+                    <i className={index < questInfo.pathDone ? "done" : index + 1 === questInfo.activePathStep ? "current" : ""} key={index} />
+                  ))}
+                </div>
+              ) : null}
+              <div className="challenge-list">{renderChallenge(activeQuest)}</div>
+              <NovaBubble text={novaLine(activeQuest.verification_logic, t)} t={t} />
+            </section>
+          ) : null}
 
           <ChallengeSection
             challenges={availableChallenges}
@@ -779,6 +813,23 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
             }}
             count={almostAvailableChallenges.length}
           />
+
+          {moreChallenges.length > 0 ? (
+            <ChallengeSection
+              challenges={moreChallenges}
+              emptyMessage={t("challenges.emptyArchive")}
+              title={t("quests.more")}
+              unread={false}
+              t={t}
+              renderChallenge={renderChallenge}
+              open={moreOpen}
+              onToggle={() => {
+                setMoreOpen((current) => !current);
+                if (moreOpen) setExpandedChallengeId(null);
+              }}
+              count={moreChallenges.length}
+            />
+          ) : null}
 
           <ChallengeSection
             challenges={permanentChallenges}
@@ -1114,11 +1165,14 @@ function ChallengeRow({ challenge, children, expanded, locale, userLevel, t, onT
 function ChallengeDetailContent({
   author,
   challenge,
+  coreBalance,
+  isActiveQuest,
   isRegistered,
   locale,
   userLevel,
   t,
   onAccept,
+  onMakeActive,
   onGiveUp,
   onNavigateTesting,
   onComplete,
@@ -1127,11 +1181,14 @@ function ChallengeDetailContent({
 }: {
   author: { avatarUrl: string | null; displayName: string; level: number };
   challenge: Challenge;
+  coreBalance: number;
+  isActiveQuest: boolean;
   isRegistered: boolean;
   locale: AppLocale;
   userLevel: number;
   t: TFunction;
   onAccept: () => Promise<void>;
+  onMakeActive: () => Promise<void>;
   onGiveUp: () => Promise<void>;
   onNavigateTesting: (target: AppTestingNavigationTarget) => void;
   onComplete: (challenge: Challenge, reward: CompletionReward) => void;
@@ -1142,7 +1199,9 @@ function ChallengeDetailContent({
   const accepted = isActiveChallenge(challenge);
   const accessReasons = challenge.access_reasons ?? getChallengeAccessReasons(challenge, userLevel);
   const locked = !accepted && !completed && (challenge.can_accept === false || accessReasons.length > 0);
-  const needsCompoundQuiz = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
+  const needsGoalPlan = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
+  const needsFirstStep = challenge.verification_logic === FIRST_STEP_LOGIC && accepted && !completed && !locked;
+  const needsChannelConnected = challenge.verification_logic === CHANNEL_CONNECTED_LOGIC && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
   const needsValuesChallenge = challenge.verification_logic === "values_goals_defined" && accepted && !completed && !locked;
@@ -1157,12 +1216,12 @@ function ChallengeDetailContent({
   const [acceptStatus, setAcceptStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [activeStatus, setActiveStatus] = useState<"idle" | "loading" | "error">("idle");
   const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
   const [checkReason, setCheckReason] = useState<ChallengeCheckReasonCode | null>(null);
   const sectionTarget = parseActionView(challenge.action_view);
   const instructionParts = splitChallengeInstructions(displayText(challenge.instructions, "", locale));
-  const [compoundQuizPassed, setCompoundQuizPassed] = useState(false);
   const [attentionProofRecorded, setAttentionProofRecorded] = useState(false);
   const [coreLawPassed, setCoreLawPassed] = useState(false);
   const [nicheTaskChosen, setNicheTaskChosen] = useState(false);
@@ -1171,7 +1230,6 @@ function ChallengeDetailContent({
   const [channelCode, setChannelCode] = useState("");
 
   useEffect(() => {
-    setCompoundQuizPassed(false);
     setAttentionProofRecorded(false);
     setCoreLawPassed(false);
     setNicheTaskChosen(false);
@@ -1179,12 +1237,7 @@ function ChallengeDetailContent({
     setInstallPingPassed(false);
   }, [challenge.id]);
 
-  async function handleCheck() {
-    if (needsCompoundQuiz && !compoundQuizPassed) {
-      setCheckMessage(t("challenges.quiz.required"));
-      setCheckStatus("idle");
-      return;
-    }
+  async function handleCheck({ proofJustSaved = false }: { proofJustSaved?: boolean } = {}) {
 
     if (needsAttentionChallenge && !attentionProofRecorded) {
       setCheckMessage(t("challenges.attention.required"));
@@ -1210,7 +1263,7 @@ function ChallengeDetailContent({
       return;
     }
 
-    if (codeChannel && channelCode.length !== 6) {
+    if ((codeChannel || needsChannelConnected) && channelCode.length !== 6) {
       setCheckMessage(t("challenges.code.required"));
       setCheckStatus("idle");
       return;
@@ -1223,7 +1276,8 @@ function ChallengeDetailContent({
     }
 
     setCheckStatus("loading");
-    setCheckMessage(null);
+    // A scene that has just saved its proof checks itself, so the reward comes without another tap.
+    setCheckMessage(proofJustSaved ? t("challenges.checking") : null);
     setCheckReason(null);
     try {
       const response = await fetchWithSupabaseAuth("/api/challenges/check", {
@@ -1231,7 +1285,7 @@ function ChallengeDetailContent({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(codeChannel ? { challengeId: challenge.id, code: channelCode } : { challengeId: challenge.id })
+        body: JSON.stringify(codeChannel || needsChannelConnected ? { challengeId: challenge.id, code: channelCode } : { challengeId: challenge.id })
       }, { authRequired: true });
       const payload = (await response.json()) as CheckChallengeResponse;
 
@@ -1281,6 +1335,18 @@ function ChallengeDetailContent({
     }
   }
 
+  async function handleMakeActive() {
+    setActiveStatus("loading");
+    setCheckMessage(null);
+    try {
+      await onMakeActive();
+      setActiveStatus("idle");
+    } catch (error) {
+      setCheckMessage(error instanceof Error ? error.message : t("quests.makeActiveFailed"));
+      setActiveStatus("error");
+    }
+  }
+
   async function handleGiveUp() {
     setGiveUpStatus("loading");
     setCheckMessage(null);
@@ -1305,27 +1371,6 @@ function ChallengeDetailContent({
       console.error(error);
       setCheckMessage(error instanceof Error ? error.message : t("challenges.signInGoogle"));
       setAuthStatus("error");
-    }
-  }
-
-  async function recordCompoundQuizPass(score: number) {
-    setCheckMessage(null);
-    const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        verificationLogic: "calculate_time_to_goal",
-        proofKey: "compound_quiz_passed",
-        score
-      })
-    }, { authRequired: true });
-    const payload = (await response.json()) as { error?: string };
-
-    if (!response.ok || payload.error) {
-      throw new Error(payload.error ?? t("challenges.quiz.recordFailed"));
     }
   }
 
@@ -1369,7 +1414,7 @@ function ChallengeDetailContent({
 
   return (
     <div className="challenge-modal-body challenge-inline-detail">
-      {displayText(challenge.description, "", locale) ? <p>{displayText(challenge.description, "", locale)}</p> : null}
+      {displayText(challenge.description, "", locale) && !needsFirstStep ? <p>{displayText(challenge.description, "", locale)}</p> : null}
 
       <div className="challenge-detail-grid">
         <span>
@@ -1388,14 +1433,14 @@ function ChallengeDetailContent({
         ) : null}
       </div>
 
-      {instructionParts.why ? (
+      {instructionParts.why && !needsFirstStep ? (
         <section>
           <h4>{t("challenges.why")}</h4>
           <p>{instructionParts.why}</p>
         </section>
       ) : null}
 
-      {instructionParts.steps.length > 0 || instructionParts.note ? (
+      {(instructionParts.steps.length > 0 || instructionParts.note) && !needsFirstStep ? (
         <section>
           <h4>{instructionParts.steps.length > 0 ? t("challenges.steps") : t("challenges.instructions")}</h4>
           {instructionParts.steps.length > 0 ? (
@@ -1407,7 +1452,7 @@ function ChallengeDetailContent({
         </section>
       ) : null}
 
-      {displayText(challenge.requirements, "", locale) ? (
+      {displayText(challenge.requirements, "", locale) && !needsFirstStep ? (
         <section>
           <h4>{t("challenges.acceptance")}</h4>
           <p>{displayText(challenge.requirements, "", locale)}</p>
@@ -1433,16 +1478,13 @@ function ChallengeDetailContent({
         </div>
       ) : null}
 
-      {needsCompoundQuiz ? (
-        <ChallengeQuiz
-          passScore={COMPOUND_QUIZ_PASS_SCORE}
-          questions={COMPOUND_QUIZ_QUESTIONS}
-          t={t}
-          onError={setCheckMessage}
-          onPass={recordCompoundQuizPass}
-          onPassedChange={setCompoundQuizPassed}
-        />
+      {needsFirstStep ? (
+        <FirstStepQuest question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
+
+      {needsChannelConnected ? <ChannelConnectedQuest challengeId={challenge.id} t={t} onCodeChange={setChannelCode} /> : null}
+
+      {needsGoalPlan ? <GoalPlanQuest coreBalance={coreBalance} locale={locale} t={t} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
       {needsAttentionChallenge ? (
         <AttentionValueChallenge
@@ -1529,8 +1571,14 @@ function ChallengeDetailContent({
       ) : null}
 
       {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && !needsAiEssay && challenge.verification_logic !== "referral_program" ? (
-        <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={handleCheck}>
+        <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={() => void handleCheck()}>
           {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
+        </button>
+      ) : null}
+
+      {!completed && accepted && !isActiveQuest && isRegistered ? (
+        <button className="challenge-secondary-action" type="button" disabled={activeStatus === "loading"} onClick={() => void handleMakeActive()}>
+          {activeStatus === "loading" ? t("app.common.loading") : t("quests.makeActive")}
         </button>
       ) : null}
 

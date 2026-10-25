@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { isNicheTaskKey, nicheKeyForTask } from "@/lib/nicheTasks";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { FIRST_STEP_LOGIC, MOTIVE_NOTE_MAX, isQuestMotive } from "@/lib/questPath";
 
 type ProgressRequest = {
   proofKey?: string;
@@ -11,6 +12,8 @@ type ProgressRequest = {
   hourlyValueUsd?: number;
   verificationLogic?: string;
   taskKey?: string;
+  motive?: string;
+  note?: string;
 };
 
 const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
@@ -18,7 +21,8 @@ const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
   ai_message_sent: ["ai_message_sent"],
   attention_value_audit: ["attention_audit_completed"],
   core_law_understood: ["core_law_understood"],
-  niche_task_chosen: ["niche_task_chosen"]
+  niche_task_chosen: ["niche_task_chosen"],
+  [FIRST_STEP_LOGIC]: ["motive_chosen"]
 };
 
 export async function POST(request: NextRequest) {
@@ -57,6 +61,12 @@ export async function POST(request: NextRequest) {
 
   if (body.verificationLogic === "niche_task_chosen" && !isNicheTaskKey(body.taskKey)) {
     return NextResponse.json({ error: "Choose one of the suggested tasks." }, { status: 400 });
+  }
+
+  const motive = isQuestMotive(body.motive) ? body.motive : null;
+  const motiveNote = typeof body.note === "string" ? body.note.trim().slice(0, MOTIVE_NOTE_MAX) : "";
+  if (body.verificationLogic === FIRST_STEP_LOGIC && (!motive || (motive === "own" && !motiveNote))) {
+    return NextResponse.json({ error: "Choose an answer or write your own." }, { status: 400 });
   }
 
   const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
@@ -122,7 +132,8 @@ export async function POST(request: NextRequest) {
       : {}),
     ...(body.verificationLogic === "attention_value_audit"
       ? { attention_minutes_per_day: minutesPerDay, attention_hourly_value_usd: hourlyValueUsd }
-      : {})
+      : {}),
+    ...(body.verificationLogic === FIRST_STEP_LOGIC ? { motive } : {})
   };
   const nextStatus = existing?.status && existing.status !== "declined" ? existing.status : "accepted";
 
@@ -166,6 +177,16 @@ export async function POST(request: NextRequest) {
       }
       if (award?.[0]) milestoneAwards.push(award[0]);
     }
+  }
+
+  if (body.verificationLogic === FIRST_STEP_LOGIC && motive) {
+    // The answer lives on the profile so quests, Nova and the daily analytics can use it; it can be changed later.
+    const { error: profileError } = await (supabase as any)
+      .from("user_profiles")
+      .update({ quest_motive: motive, quest_motive_note: motive === "own" ? motiveNote : null })
+      .eq("user_id", user.id);
+    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
+    await recordProductEvent({ entityId: challenge.id, entityType: "challenge", eventName: "quest_motive_chosen", properties: { motive }, source: "server", userId: user.id });
   }
 
   if (body.verificationLogic === "niche_task_chosen" && body.taskKey) {

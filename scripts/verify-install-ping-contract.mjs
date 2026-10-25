@@ -52,7 +52,10 @@ assert.match(ackRoute, /isUuid/);
 assert.match(edge, /install_ping/);
 assert.match(edge, /TTL: 180/);
 
-assert.match(installLib, /6f3a1c52-8d47-4b0e-9a15-2c7e5b9d1a03/);
-assert.ok(migration.includes("6f3a1c52-8d47-4b0e-9a15-2c7e5b9d1a03"), "challenge id matches the migration");
+// The first id was taken over by the humanity check, so the challenge came back under a new one.
+const questPath = read("supabase/migrations/20261025130000_quest_path.sql");
+assert.match(installLib, /0a5e7f10-1c2d-4e3f-8a4b-5c6d7e8f9a03/);
+assert.ok(questPath.includes("0a5e7f10-1c2d-4e3f-8a4b-5c6d7e8f9a03"), "challenge id matches the migration");
+assert.ok(questPath.includes("'install_ping_answered'"), "the restored row keeps its verification logic");
 
 console.log("install ping contract ok");

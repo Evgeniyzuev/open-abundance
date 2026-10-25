@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CHANNEL_CODE_CHALLENGES, CHANNEL_CODE_EVENT, CHANNEL_CODE_TEXT, isChannelCodeLogic, type CodeChannel } from "@/lib/channelCodes";
+import { CHANNEL_CONNECTED_LOGIC } from "@/lib/questPath";
 import { channelCode } from "@/lib/channelCodesServer";
 import { SITE_URL } from "@/lib/guideLocales";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
@@ -25,14 +26,18 @@ export async function POST(request: NextRequest) {
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) return json({ error: "Not configured." }, 500);
 
-  const body = (await request.json().catch(() => null)) as { challengeId?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { challengeId?: unknown; channel?: unknown } | null;
   const challengeId = typeof body?.challengeId === "string" ? body.challengeId : "";
   const { data: challenge } = await db.from("challenges").select("id,verification_logic").eq("id", challengeId).eq("is_active", true).maybeSingle();
-  if (!challenge || !isChannelCodeLogic(challenge.verification_logic)) return json({ error: "Challenge not found." }, 404);
+  // "Stay in touch with Nova" lets the person pick push or Telegram; the other challenges have one channel each.
+  const connected = challenge?.verification_logic === CHANNEL_CONNECTED_LOGIC;
+  if (!challenge || (!connected && !isChannelCodeLogic(challenge.verification_logic))) return json({ error: "Challenge not found." }, 404);
   const { data: accepted } = await db.from("user_challenges").select("status").eq("user_id", user.id).eq("challenge_id", challenge.id).maybeSingle();
   if (accepted?.status !== "accepted") return json({ error: "Accept the challenge first.", code: "not_accepted" }, 409);
 
-  const channel: CodeChannel = CHANNEL_CODE_CHALLENGES[challenge.verification_logic as keyof typeof CHANNEL_CODE_CHALLENGES];
+  const channel: CodeChannel = connected
+    ? (body?.channel === "telegram" ? "telegram" : "push")
+    : CHANNEL_CODE_CHALLENGES[challenge.verification_logic as keyof typeof CHANNEL_CODE_CHALLENGES];
   const now = Date.now();
   const code = channelCode(secret, user.id, channel, now);
   const { data: profile } = await db.from("user_profiles").select("default_locale").eq("user_id", user.id).maybeSingle();

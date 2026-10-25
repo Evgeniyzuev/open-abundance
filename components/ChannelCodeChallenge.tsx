@@ -33,7 +33,7 @@ export default function ChannelCodeChallenge({ challengeId, channel, t, onCodeCh
     setProblem(null);
     setCode("");
     onCodeChange("");
-  }, [challengeId, onCodeChange]);
+  }, [challengeId, channel, onCodeChange]);
 
   async function send() {
     setBusy(true);
@@ -42,7 +42,7 @@ export default function ChannelCodeChallenge({ challengeId, channel, t, onCodeCh
       const response = await fetchWithSupabaseAuth("/api/challenges/channel-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challengeId })
+        body: JSON.stringify({ challengeId, channel })
       }, { authRequired: true });
       const payload = (await response.json().catch(() => ({}))) as { sent?: boolean; code?: string; botUrl?: string | null };
       setBotUrl(payload.botUrl ?? null);

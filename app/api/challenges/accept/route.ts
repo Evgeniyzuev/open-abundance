@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { challengeNeedsHumanity, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { completedQuestCount, questUnlocked } from "@/lib/questPath";
 
 type AcceptRequest = {
   challengeId?: string;
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id,prerequisite_challenge_id,verification_logic,difficulty_level,category,core_reward_amount,wallet_reward_amount")
+    .select("id,prerequisite_challenge_id,verification_logic,difficulty_level,category,core_reward_amount,wallet_reward_amount,unlock_at_completed")
     .eq("id", body.challengeId)
     .eq("is_active", true)
     .maybeSingle();
@@ -70,6 +71,15 @@ export async function POST(request: NextRequest) {
   const userLevel = Number(coreAccount?.level ?? 1);
   if (challenge.difficulty_level > userLevel) {
     return NextResponse.json({ error: `Challenge requires Core level ${challenge.difficulty_level}.` }, { status: 409 });
+  }
+
+  const completedCount = completedQuestCount(((progressRows ?? []) as unknown as Array<{ status: string | null; challenges?: { category?: string | null } | { category?: string | null }[] | null }>).map((row, index) => {
+    const related = Array.isArray(row.challenges) ? row.challenges[0] : row.challenges;
+    return { id: String(index), category: related?.category ?? null, sort_order: 0, difficulty_level: 0, user_challenge_status: row.status };
+  }));
+  if (!questUnlocked(challenge as { unlock_at_completed?: number | null }, completedCount)) {
+    const needed = Number((challenge as { unlock_at_completed?: number | null }).unlock_at_completed ?? 0);
+    return NextResponse.json({ error: `This quest opens after ${needed} completed quests.`, code: "quest_locked" }, { status: 409 });
   }
 
   if (challengeNeedsHumanity(challenge)) {

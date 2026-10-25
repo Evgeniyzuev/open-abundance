@@ -15,6 +15,7 @@ import { hasThreeSteps } from "@/lib/wishSteps";
 import { VALUES_CHALLENGE_SWIPES, valuesChallengeDone } from "@/lib/lifeValues";
 import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
 import { isChannelCodeValid } from "@/lib/channelCodesServer";
+import { CHANNEL_CONNECTED_LOGIC, FIRST_STEP_LOGIC } from "@/lib/questPath";
 
 type CheckRequest = {
   challengeId?: string;
@@ -249,6 +250,18 @@ async function verifyChallenge(
     const valid = isChannelCodeValid(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "", userId, channel, code, Date.now());
     return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
   }
+  if (challenge.verification_logic === CHANNEL_CONNECTED_LOGIC) {
+    // Either channel counts: a push code from the installed app or a code from the Telegram bot.
+    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+    const now = Date.now();
+    const valid = isChannelCodeValid(secret, userId, "push", code, now) || isChannelCodeValid(secret, userId, "telegram", code, now);
+    return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
+  }
+  if (challenge.verification_logic === FIRST_STEP_LOGIC) {
+    const progress = await getChallengeProgressProof(supabase, userId, challenge, "motive_chosen");
+    if (progress.error) return { ok: false, reason: "Could not check your answer. Try again." };
+    return progress.proved ? { ok: true } : { ok: false, reason: "Choose an answer first." };
+  }
   const acquisitionTarget = Number((challenge as any).acquisition_target ?? 0);
   if (challenge.verification_logic === "acquisition_publications_milestone") {
     const { count, error } = await db.from("acquisition_submissions").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("submission_type", "publication").eq("status", "approved");
@@ -280,25 +293,16 @@ async function verifyChallenge(
   }
 
   if (challenge.verification_logic === "calculate_time_to_goal") {
-    const [calculatorProgress, quizProgress] = await Promise.all([
+    // A saved Core growth plan is the result: from the card's plan or from the calculator in Wallet.
+    const [calculatorProgress, plan] = await Promise.all([
       getChallengeProgressProof(supabase, userId, challenge, "calculated"),
-      getChallengeProgressProof(supabase, userId, challenge, "compound_quiz_passed")
+      supabase.from("user_core_growth_plans").select("id").eq("user_id", userId).eq("is_active", true).limit(1)
     ]);
-    if (calculatorProgress.error || quizProgress.error) {
+    if (calculatorProgress.error || plan.error) {
       return { ok: false, reason: "Could not check calculator progress. Try again." };
     }
-
-    if (!calculatorProgress.proved) {
-      return { ok: false, reason: "Use the Core calculator first, then check this challenge." };
-    }
-
-    if (!quizProgress.proved) {
-      return { ok: false, reason: "Pass the compound interest test first, then check this challenge." };
-    }
-
-    if (calculatorProgress.proved && quizProgress.proved) {
-      return { ok: true };
-    }
+    if (calculatorProgress.proved || (plan.data?.length ?? 0) > 0) return { ok: true };
+    return { ok: false, reason: "Save the plan to your wish first, then check this quest." };
   }
 
   if (challenge.verification_logic === "attention_value_audit") {

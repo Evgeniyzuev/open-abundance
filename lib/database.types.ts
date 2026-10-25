@@ -208,10 +208,12 @@ export type Database = {
           image_url: string | null
           instructions: Json
           is_active: boolean
+          path_order: number | null
           prerequisite_challenge_id: string | null
           requirements: Json
           sort_order: number
           title: Json
+          unlock_at_completed: number
           track_key: string | null
           track_step: number | null
           verification_logic: string | null
@@ -230,10 +232,12 @@ export type Database = {
           image_url?: string | null
           instructions?: Json
           is_active?: boolean
+          path_order?: number | null
           prerequisite_challenge_id?: string | null
           requirements?: Json
           sort_order?: number
           title?: Json
+          unlock_at_completed?: number
           track_key?: string | null
           track_step?: number | null
           verification_logic?: string | null
@@ -252,10 +256,12 @@ export type Database = {
           image_url?: string | null
           instructions?: Json
           is_active?: boolean
+          path_order?: number | null
           prerequisite_challenge_id?: string | null
           requirements?: Json
           sort_order?: number
           title?: Json
+          unlock_at_completed?: number
           track_key?: string | null
           track_step?: number | null
           verification_logic?: string | null
@@ -2366,6 +2372,7 @@ export type Database = {
       user_challenges: {
         Row: {
           challenge_id: string
+          is_active: boolean
           core_reward_amount: number
           created_at: string
           id: string
@@ -2379,6 +2386,7 @@ export type Database = {
         }
         Insert: {
           challenge_id: string
+          is_active?: boolean
           core_reward_amount?: number
           created_at?: string
           id?: string
@@ -2392,6 +2400,7 @@ export type Database = {
         }
         Update: {
           challenge_id?: string
+          is_active?: boolean
           core_reward_amount?: number
           created_at?: string
           id?: string

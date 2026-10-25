@@ -2,7 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
-import { canAcceptChallenge, getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { canAcceptChallenge, getChallengeAccessReasons, hasFirstResult, isChallengeAlmostAvailable, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { activateQuest } from "@/lib/questActivation";
+import { buildQuestPath, isQuestMotive, type QuestMotive } from "@/lib/questPath";
 import { walletChallengeProgress, walletChallengeRule, walletStats, type StayLedgerRow, type WalletChallengeProgress } from "@/lib/stayStreak";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +13,7 @@ export const fetchCache = "force-no-store";
 
 type ChallengeProgress = {
   status: string | null;
+  is_active?: boolean | null;
   updated_at?: string | null;
   user_id?: string | null;
 };
@@ -24,6 +27,8 @@ type ChallengeWithProgress = Pick<
   acquisition_target?: number | null;
   acquisition_metric_key?: string | null;
   is_permanent?: boolean;
+  path_order?: number | null;
+  unlock_at_completed?: number | null;
   user_challenges?: ChallengeProgress[] | null;
 };
 
@@ -68,8 +73,8 @@ export async function GET(request: NextRequest) {
     .from("challenges")
     .select(
       viewerUserId
-        ? "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent,user_challenges(status,updated_at,user_id)"
-        : "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent"
+        ? "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent,path_order,unlock_at_completed,user_challenges(status,updated_at,user_id,is_active)"
+        : "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent,path_order,unlock_at_completed"
     )
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -91,14 +96,16 @@ export async function GET(request: NextRequest) {
   let viewerLevel = 1;
   let viewerHumanConfirmed: boolean | undefined;
   let viewerLedger: StayLedgerRow[] = [];
+  let viewerMotive: QuestMotive | null = null;
   const completedAt = new Map<string, Date>();
   if (viewerUserId) {
-    const [{ data: progressRows, error: progressError }, { data: snapshots, error: snapshotError }, { data: coreAccount, error: coreError }, humanity, ledger] = await Promise.all([
+    const [{ data: progressRows, error: progressError }, { data: snapshots, error: snapshotError }, { data: coreAccount, error: coreError }, humanity, ledger, motiveRow] = await Promise.all([
       supabase.from("user_challenges").select("challenge_id,status,updated_at,reward_settled_at,challenges(category)").eq("user_id", viewerUserId),
       supabase.from("challenge_completion_snapshots").select("challenge_category").eq("user_id", viewerUserId),
       supabase.from("core_accounts").select("level").eq("user_id", viewerUserId).maybeSingle(),
       (supabase as any).from("humanity_verifications").select("humanity_level").eq("user_id", viewerUserId).maybeSingle(),
-      supabase.from("wallet_ledger").select("operation_type,direction,amount,created_at").eq("user_id", viewerUserId).in("operation_type", ["crypto_deposit", "crypto_withdrawal"])
+      supabase.from("wallet_ledger").select("operation_type,direction,amount,created_at").eq("user_id", viewerUserId).in("operation_type", ["crypto_deposit", "crypto_withdrawal"]),
+      (supabase as any).from("user_profiles").select("quest_motive").eq("user_id", viewerUserId).maybeSingle()
     ]);
     if (progressError || snapshotError || coreError) {
       return NextResponse.json({ error: progressError?.message ?? snapshotError?.message ?? coreError?.message ?? "Failed to load challenge eligibility." }, { status: 500, headers: NO_STORE_HEADERS });
@@ -112,6 +119,7 @@ export async function GET(request: NextRequest) {
     // A failed humanity lookup leaves the gate open rather than locking everyone out.
     if (!humanity.error) viewerHumanConfirmed = Number(humanity.data?.humanity_level ?? 0) >= 2;
     viewerLedger = (ledger.data ?? []) as StayLedgerRow[];
+    if (isQuestMotive(motiveRow.data?.quest_motive)) viewerMotive = motiveRow.data.quest_motive;
     for (const row of progressRows ?? []) {
       if (String(row.status).trim().toLowerCase() !== "completed") continue;
       const time = Date.parse(String(row.reward_settled_at ?? row.updated_at ?? ""));
@@ -143,12 +151,38 @@ export async function GET(request: NextRequest) {
     return {
       ...publicChallenge,
       user_challenge_status: userChallenge?.status ? String(userChallenge.status).trim().toLowerCase() : null,
+      user_challenge_active: Boolean(userChallenge?.is_active),
       prerequisite_completed: prerequisiteCompleted,
       progress,
       can_accept: canAcceptChallenge(eligibility, viewerLevel),
-      access_reasons: getChallengeAccessReasons(eligibility, viewerLevel)
+      access_reasons: getChallengeAccessReasons(eligibility, viewerLevel),
+      almost_eligible: false
     };
   });
+
+  for (const challenge of data) {
+    challenge.almost_eligible = !challenge.can_accept && isChallengeAlmostAvailable(challenge, viewerLevel, data);
+  }
+  let questPath = buildQuestPath(data, viewerMotive, { signedIn: Boolean(viewerUserId) });
+
+  // Nothing is active yet: the path's next quest is accepted and becomes active by itself.
+  if (viewerUserId && questPath.autoActivateId) {
+    const activated = await activateQuest(supabase, viewerUserId, questPath.autoActivateId, { auto: true });
+    if (!("error" in activated)) {
+      for (const challenge of data) {
+        const isTarget = challenge.id === questPath.autoActivateId;
+        if (isTarget) challenge.user_challenge_status = activated.status;
+        challenge.user_challenge_active = isTarget;
+      }
+      questPath = buildQuestPath(data, viewerMotive, { signedIn: true });
+    }
+  }
+
+  const quests = data.map((challenge) => ({
+    ...challenge,
+    quest_placement: questPath.placements[challenge.id] ?? "hidden",
+    quests_missing: questPath.questsMissing[challenge.id] ?? null
+  }));
 
   return NextResponse.json(
     {
@@ -160,7 +194,14 @@ export async function GET(request: NextRequest) {
       viewerUserId,
       viewerLevel,
       userChallengeCount,
-      challenges: data
+      quest: {
+        activeId: questPath.activeId,
+        pathTotal: questPath.pathTotal,
+        pathDone: questPath.pathDone,
+        activePathStep: questPath.activePathStep,
+        motive: viewerMotive
+      },
+      challenges: quests
     },
     {
       headers: NO_STORE_HEADERS

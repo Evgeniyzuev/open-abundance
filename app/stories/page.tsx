@@ -30,7 +30,7 @@ export default async function GrowthStoriesPage() {
         <section className="legal-sections">
           <section>
             <h2>Что здесь подтверждено · What is verified</h2>
-            <p>Уровень, оборот, рост Core и выполненные челленджи система считает сама по журналам Core и Wallet и публикует в ежедневном посте автора. Автор не может их вписать вручную, только скрыть. Отметку «человек подтверждён» ставит проверка «вы не робот». Исполненное желание и рассказ «что изменилось» пишет сам автор.</p>
+            <p>Уровень, оборот, рост Core и выполненные челленджи система считает сама по журналам Core и Wallet и публикует в ежедневном посте автора. Автор не может их вписать вручную, только скрыть. Отметку «человек подтверждён» ставит проверка «Я не робот». Исполненное желание и рассказ «что изменилось» пишет сам автор.</p>
             <p>Level, turnover, Core growth and challenges are counted by the system from the Core and Wallet ledgers. The author can hide them but cannot type them. Fulfilled wishes are marked by the author.</p>
           </section>
           <section>

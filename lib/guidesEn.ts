@@ -908,7 +908,7 @@ export const guidesEn: Guide[] = [
           "No unconditional income: rewards are only for contribution, and contribution is open to everyone on equal terms.",
           "Transparency: reward rules are known in advance, and a “traffic light” shows whether the reward fund is sufficient.",
           "No gambling mechanics: money rewards are never random and chances cannot be bought.",
-          "Not-a-robot check: system rewards require confirming you are a unique real person, not a robot."
+          "\"I'm not a robot\": system rewards require confirming you are a unique real person, not a robot."
         ]
       },
       {
@@ -922,7 +922,7 @@ export const guidesEn: Guide[] = [
     faq: [
       { question: "Can I buy rewards or speed them up with money?", answer: "No. Challenge rewards depend only on the result. Chances cannot be bought." },
       { question: "Is it an investment?", answer: "No. Internal rewards recognise participation in the experiment; they are not an investment or a promise of income." },
-      { question: "How do I withdraw money?", answer: "You can withdraw money from your Wallet in the Wallet section. Core cannot be withdrawn; it stays with you forever, and the part of its daily accrual you do not reinvest goes to your Wallet. To get challenges with a Wallet reward, raise your level. Right now referral bonuses and \"confirm you are not a robot\" pay to your Wallet. Withdrawals are limited by the reserve, and the rules are published in advance." }
+      { question: "How do I withdraw money?", answer: "You can withdraw money from your Wallet in the Wallet section. Core cannot be withdrawn; it stays with you forever, and the part of its daily accrual you do not reinvest goes to your Wallet. To get challenges with a Wallet reward, raise your level. Right now referral bonuses and \"I'm not a robot\" pay to your Wallet. Withdrawals are limited by the reserve, and the rules are published in advance." }
     ],
     updated: GUIDES_EN_UPDATED
   }

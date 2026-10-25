@@ -349,7 +349,7 @@ async function verifyChallenge(
     const { data, error } = await db.from("humanity_verifications").select("humanity_level").eq("user_id", userId).maybeSingle();
     if (error) return { ok: false, reason: "Could not check your confirmation. Try again." };
     if (Number(data?.humanity_level ?? 0) >= 2) return { ok: true };
-    return { ok: false, reason: "Confirm that you are not a robot first." };
+    return { ok: false, reason: "Complete \"I'm not a robot\" first." };
   }
 
   // "Author from scratch": invited people who passed the humanity check (level 2) are counted from the facts, not claimed.

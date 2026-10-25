@@ -4,7 +4,8 @@ import { type ProfileVisibility, type ProfileVisibilitySettings } from "@/lib/so
 
 export type SocialTab = "feed" | "people" | "blog" | "profile" | "teams";
 export type SocialTabChange = (tab: SocialTab) => void;
-export type ReferralLink = { code: string; url: string; appUrl?: string; telegramUrl?: string | null };
+export type ReferralLink = { code: string; url: string; appUrl?: string; telegramUrl?: string | null; telegramLinked?: boolean };
+export type ReferralKind = "app" | "blog" | "telegram";
 export type TeamTask = {
   id: string;
   leader_user_id: string;

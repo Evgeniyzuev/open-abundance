@@ -841,7 +841,7 @@
 .team-member-avatar { width: 26px; height: 26px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 999px; background: var(--surface); color: var(--blue); }
 .team-member-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .inline-profile-button .team-member-avatar { width: 34px; height: 34px; }
-.referral-icon-button { width: 42px; padding: 0; }
+.referral-icon-button { width: 42px; height: 42px; min-height: 42px; flex: 0 0 42px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .referral-qr-modal { position: relative; justify-items: center; padding-top: 44px; text-align: center; }
 .referral-qr-modal > strong { font-size: 1.0625rem; }
 .referral-qr-modal > p { max-width: 100%; margin: 0; overflow-wrap: anywhere; color: var(--muted); font-size: 0.8125rem; }

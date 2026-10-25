@@ -44,7 +44,11 @@ export async function GET(request: NextRequest) {
     // The same invitation as a Telegram Mini App link (t.me/<bot>/<app>?startapp=<code>), when the bot is set up.
     const telegramUrl = telegramMiniAppLink(process.env.TELEGRAM_MINI_APP_URL, code);
 
-    return NextResponse.json({ available: true, code, url: url.toString(), appUrl: appUrl.toString(), telegramUrl, reason: null }, { headers: NO_STORE_HEADERS });
+    // Whether a Telegram account already points at this account (telegram_accounts), so the profile hides "Link Telegram".
+    const { data: telegramAccount } = await (supabase as any).from("telegram_accounts").select("telegram_id").eq("user_id", user.id).limit(1).maybeSingle();
+    const telegramLinked = Boolean(telegramAccount?.telegram_id);
+
+    return NextResponse.json({ available: true, code, url: url.toString(), appUrl: appUrl.toString(), telegramUrl, telegramLinked, reason: null }, { headers: NO_STORE_HEADERS });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to load referral link." },

@@ -4,12 +4,12 @@ import FeedbackButton from "@/components/FeedbackButton";
 import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import OperatorEntry from "@/components/OperatorEntry";
 import NicknameField from "@/components/NicknameField";
-import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, Copy, Edit3, ExternalLink, Link, MessageCircle, Newspaper, Play, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, Check, ChevronDown, Copy, Edit3, ExternalLink, Link, MessageCircle, Newspaper, Play, QrCode, Save, Search, Send, Settings, Share2, Sparkles, Star, Trash2, UserPlus, UserRound, Users, Volume2, VolumeX, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { nextInSequence } from "@/lib/swipe";
-import type { SocialTab, SocialTabChange, ReferralLink, TeamTask, TeamTaskHelpRequest, TeamTaskRevision, TeamChallengeOption, TeamProfile, TeamContext, TeamRewardDay, PayoutNotification, ContactRow, TrustConfirmationRow, TrustConfirmationsPayload, SocialProfilePayload, PublicProfilePayload, ReviewEditPayload, PeopleFilter, PeopleRow, PeoplePayload, DirectConversationPayload, ProfileEditorState, ProfileAction, PeopleSection } from "@/components/social/socialTypes";
+import type { SocialTab, SocialTabChange, ReferralLink, ReferralKind, TeamTask, TeamTaskHelpRequest, TeamTaskRevision, TeamChallengeOption, TeamProfile, TeamContext, TeamRewardDay, PayoutNotification, ContactRow, TrustConfirmationRow, TrustConfirmationsPayload, SocialProfilePayload, PublicProfilePayload, ReviewEditPayload, PeopleFilter, PeopleRow, PeoplePayload, DirectConversationPayload, ProfileEditorState, ProfileAction, PeopleSection } from "@/components/social/socialTypes";
 import { StoryWishRequestError, getAccessToken, refreshAccessToken, requestStoryWish, storyWishErrorMessage, loadTeamRewardsHistory, loadCoreNotifications, loadNotificationCenter, markNotificationsRead, buildPayoutNotifications, formatDate, formatDay, formatLeader, formatTeamAssignment, formatProfileName, localizedSystemBio, createProfileEditorState, updateFeedWishCopyState, replaceFeedPost, updatePostWishCopyState, visibilityLabelKey, profileVisibilityKeyLabel, contactSourceLabelKey, peopleFilterLabelKey, peopleSectionLabelKey, peopleInfluenceLabelKey, getContactTrustState, formatWishAmount, readableHost } from "@/components/social/socialHelpers";
 import { FeedView, PostList, PostDetailModal, HistoryPanel, TrustConfirmationsPanel } from "@/components/social/FeedParts";
 import Sheet from "@/components/ui/Sheet";
@@ -107,7 +107,7 @@ export default function SocialApp({
   const [socialError, setSocialError] = useState<string | null>(null);
   const [storyWishError, setStoryWishError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"app" | "blog" | "telegram" | null>(null);
-  const [referralQrKind, setReferralQrKind] = useState<"app" | "blog">("app");
+  const [referralQrKind, setReferralQrKind] = useState<ReferralKind>("app");
   const [referralQrOpen, setReferralQrOpen] = useState(false);
   const [teamRewardsOpen, setTeamRewardsOpen] = useState(false);
   const [teamRewards, setTeamRewards] = useState<TeamRewardDay[] | null>(null);
@@ -264,7 +264,7 @@ export default function SocialApp({
     const payload = (await response.json()) as ReferralLink & { available?: boolean; reason?: string | null; error?: string };
     if (!response.ok || payload.error) throw new Error(payload.error ?? "Failed to load referral link.");
     setReferralLocked(payload.available === false || payload.reason === "first_result_required");
-    setReferralLink(payload.available === false || !payload.code || !payload.url ? null : { code: payload.code, url: payload.url, appUrl: payload.appUrl, telegramUrl: payload.telegramUrl ?? null });
+    setReferralLink(payload.available === false || !payload.code || !payload.url ? null : { code: payload.code, url: payload.url, appUrl: payload.appUrl, telegramUrl: payload.telegramUrl ?? null, telegramLinked: payload.telegramLinked === true });
   }, [user]);
 
   const loadTeamContext = useCallback(async () => {
@@ -690,12 +690,52 @@ export default function SocialApp({
   const pendingIncomingConfirmations = trustConfirmations?.filter((item) => item.counterparty_user_id === user?.id && item.status === "pending").length ?? 0;
   const combinedError = error ?? socialError;
 
-  async function copyReferralLink(kind: "app" | "blog" | "telegram" = "app") {
-    if (!referralLink) return;
-    const link = kind === "telegram" ? referralLink.telegramUrl : kind === "app" ? referralLink.appUrl : null;
-    await navigator.clipboard.writeText(link ?? referralLink.url);
+  function referralUrl(kind: ReferralKind): string | null {
+    if (!referralLink) return null;
+    if (kind === "telegram") return referralLink.telegramUrl ?? null;
+    return kind === "app" ? referralLink.appUrl ?? referralLink.url : referralLink.url;
+  }
+
+  async function copyReferralLink(kind: ReferralKind = "app") {
+    const link = referralUrl(kind);
+    if (!link) return;
+    await navigator.clipboard.writeText(link);
     setCopied(kind);
     window.setTimeout(() => setCopied(null), 1600);
+  }
+
+  // Same behaviour as sharing a blog post: the system share sheet, or a copy when the browser has none.
+  async function shareReferralKind(kind: ReferralKind) {
+    const url = referralUrl(kind);
+    if (!url) return;
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: "Open Abundance", text: t("profile.referral.shareText"), url });
+      } else {
+        await copyReferralLink(kind);
+      }
+    } catch {
+      // A cancelled native share is not an application error.
+    }
+  }
+
+  // Three equal square buttons under each invitation link: copy, QR code, share.
+  function renderReferralActions(kind: ReferralKind) {
+    const disabled = !referralUrl(kind);
+    const copyLabel = copied === kind ? t("profile.referral.copied") : t("profile.referral.copy");
+    return (
+      <div className="referral-compact-actions">
+        <button className="secondary-button referral-icon-button" type="button" disabled={disabled} aria-label={copyLabel} title={copyLabel} onClick={() => void copyReferralLink(kind)}>
+          {copied === kind ? <Check size={19} /> : <Copy size={19} />}
+        </button>
+        <button className="secondary-button referral-icon-button" type="button" disabled={disabled} aria-label={t("profile.referral.qrTitle")} title={t("profile.referral.qrTitle")} onClick={() => { setReferralQrKind(kind); setReferralQrOpen(true); }}>
+          <QrCode size={19} />
+        </button>
+        <button className="secondary-button referral-icon-button" type="button" disabled={disabled} aria-label={t("profile.referral.share")} title={t("profile.referral.share")} onClick={() => void shareReferralKind(kind)}>
+          <Share2 size={19} />
+        </button>
+      </div>
+    );
   }
 
   // One-time link that points the person's Telegram at this account (app/api/auth/telegram/link).
@@ -1783,54 +1823,20 @@ export default function SocialApp({
           <ReputationCard active={active} />
           <div className="referral-box referral-box-compact">
             <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.appTitle")}</span><small>{t("profile.referral.appHint")}</small></div>
-            <div className="referral-compact-actions">
-              <button
-                className="secondary-button referral-icon-button"
-                type="button"
-                disabled={!referralLink}
-                aria-label={copied === "app" ? t("profile.referral.copied") : t("profile.referral.copy")}
-                title={copied === "app" ? t("profile.referral.copied") : t("profile.referral.copy")}
-                onClick={() => void copyReferralLink("app")}
-              >
-                {copied === "app" ? <Check size={19} /> : <Copy size={19} />}
-              </button>
-              <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => { setReferralQrKind("app"); setReferralQrOpen(true); }}><Share2 size={16} />{t("profile.referral.invite")}</button>
-            </div>
+            {renderReferralActions("app")}
             {referralLocked ? <small className="referral-locked-hint">{t("social.teams.inviteLocked")}</small> : null}
           </div>
           <div className="referral-box referral-box-compact">
             <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.title")}</span><small>{t("profile.referral.compactHint")}</small></div>
-            <div className="referral-compact-actions">
-              <button
-                className="secondary-button referral-icon-button"
-                type="button"
-                disabled={!referralLink}
-                aria-label={copied === "blog" ? t("profile.referral.copied") : t("profile.referral.copy")}
-                title={copied === "blog" ? t("profile.referral.copied") : t("profile.referral.copy")}
-                onClick={() => void copyReferralLink("blog")}
-              >
-                {copied === "blog" ? <Check size={19} /> : <Copy size={19} />}
-              </button>
-              <button className="secondary-button" type="button" disabled={!referralLink} onClick={() => { setReferralQrKind("blog"); setReferralQrOpen(true); }}><Share2 size={16} />{t("profile.referral.invite")}</button>
-            </div>
+            {renderReferralActions("blog")}
           </div>
           {referralLink?.telegramUrl ? (
             <div className="referral-box referral-box-compact">
               <div className="referral-box-copy"><span><Link size={15} />{t("profile.referral.telegramTitle")}</span><small>{t("profile.referral.telegramHint")}</small></div>
-              <div className="referral-compact-actions">
-                <button
-                  className="secondary-button referral-icon-button"
-                  type="button"
-                  aria-label={copied === "telegram" ? t("profile.referral.copied") : t("profile.referral.copy")}
-                  title={copied === "telegram" ? t("profile.referral.copied") : t("profile.referral.copy")}
-                  onClick={() => void copyReferralLink("telegram")}
-                >
-                  {copied === "telegram" ? <Check size={19} /> : <Copy size={19} />}
-                </button>
-              </div>
+              {renderReferralActions("telegram")}
             </div>
           ) : null}
-          {referralLink?.telegramUrl && !user?.email?.endsWith("@telegram.open-abundance.app") ? (
+          {referralLink?.telegramUrl && !referralLink.telegramLinked && !user?.email?.endsWith("@telegram.open-abundance.app") ? (
             <div className="referral-box referral-box-compact">
               <div className="referral-box-copy"><span><Link size={15} />{t("profile.telegramLink.title")}</span><small>{t("profile.telegramLink.hint")}</small></div>
               <div className="referral-compact-actions">
@@ -1911,9 +1917,9 @@ export default function SocialApp({
             </button>
             <strong>{t("profile.referral.qrTitle")}</strong>
             <div className="referral-qr-code">
-              <QRCodeSVG value={referralQrKind === "app" ? referralLink.appUrl ?? referralLink.url : referralLink.url} size={220} level="M" marginSize={2} />
+              <QRCodeSVG value={referralUrl(referralQrKind) ?? referralLink.url} size={220} level="M" marginSize={2} />
             </div>
-            <p>{referralQrKind === "app" ? referralLink.appUrl ?? referralLink.url : referralLink.url}</p>
+            <p>{referralUrl(referralQrKind) ?? referralLink.url}</p>
         </Sheet>
       ) : null}
       {publicProfile ? (

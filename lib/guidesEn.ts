@@ -922,7 +922,8 @@ export const guidesEn: Guide[] = [
     faq: [
       { question: "Can I buy rewards or speed them up with money?", answer: "No. Challenge rewards depend only on the result. Chances cannot be bought." },
       { question: "Is it an investment?", answer: "No. Internal rewards recognise participation in the experiment; they are not an investment or a promise of income." },
-      { question: "How do I withdraw money?", answer: "You can withdraw money from your Wallet in the Wallet section. Core cannot be withdrawn; it stays with you forever, and the part of its daily accrual you do not reinvest goes to your Wallet. To get challenges with a Wallet reward, raise your level. Right now referral bonuses and \"I'm not a robot\" pay to your Wallet. Withdrawals are limited by the reserve, and the rules are published in advance." }
+      { question: "How do I withdraw money?", answer: "You can withdraw money from your Wallet in the Wallet section. Core cannot be withdrawn; it stays with you forever, and the part of its daily accrual you do not reinvest goes to your Wallet. To get challenges with a Wallet reward, raise your level. Right now referral bonuses and \"I'm not a robot\" pay to your Wallet. Withdrawals are limited by the reserve, and the rules are published in advance." },
+      { question: "How do I turn crypto into regular money?", answer: "First withdraw USDT or TON from your Wallet, then exchange it for regular money in one of these services: P2P in Open Abundance (the P2P section, trades with other members), Walt, the Telegram wallet with a P2P market, Antarctic Wallet, CheckOne (t.me/checkone_bot/wallet), LightPay (t.me/LightPayOfficialBot), xRocket (t.me/xrocket/app), or P2P on major exchanges. These are third-party services not affiliated with Open Abundance: fees, limits, availability in your country and identity checks differ. Start with a small amount." }
     ],
     updated: GUIDES_EN_UPDATED
   }

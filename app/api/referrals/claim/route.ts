@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isQaUser } from "@/lib/qaAccounts";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 type ClaimBody = {
@@ -13,6 +14,8 @@ export async function POST(request: NextRequest) {
     if (error || !user) {
       return NextResponse.json({ error }, { status: 401 });
     }
+    // A QA test account joins no real leader's team (lib/qaAccounts.ts).
+    if (isQaUser(user.id)) return NextResponse.json({ status: "qa_account", membership: null });
 
     const body = await readJsonBody(request);
     const rawCode = typeof body.referralCode === "string" ? body.referralCode.trim() : "";

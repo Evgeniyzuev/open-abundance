@@ -19,15 +19,15 @@ export function chooseCryptoPayLink(links: CryptoPayInvoiceLinks, inTelegram: bo
 
 export type CreditedCopy = Record<"en" | "ru" | "es" | "zh" | "hi" | "ar", { title: string; body: string }>;
 
-/** Push and Telegram text for a credited top-up, in every app language. */
-export function cryptoPayCreditedCopy(usdAmount: number): CreditedCopy {
+/** Push and Telegram text for a credited top-up (CryptoBot, TON or USDT), in every app language. */
+export function depositCreditedCopy(usdAmount: number): CreditedCopy {
   const amount = `$${usdAmount.toFixed(2)}`;
   return {
-    en: { title: `Credited ${amount}`, body: "Your CryptoBot top-up reached your Wallet." },
-    ru: { title: `Зачислено ${amount}`, body: "Пополнение через CryptoBot пришло на ваш Wallet." },
-    es: { title: `Acreditado ${amount}`, body: "Tu recarga con CryptoBot llegó a tu Wallet." },
-    zh: { title: `已到账 ${amount}`, body: "你通过 CryptoBot 的充值已到达钱包。" },
-    hi: { title: `${amount} जमा हुए`, body: "CryptoBot से आपका टॉप-अप Wallet में पहुँच गया।" },
-    ar: { title: `تمت إضافة ${amount}`, body: "وصل شحن CryptoBot إلى محفظتك." }
+    en: { title: `Credited ${amount}`, body: "Your top-up reached your Wallet." },
+    ru: { title: `Зачислено ${amount}`, body: "Пополнение пришло на ваш Wallet." },
+    es: { title: `Acreditado ${amount}`, body: "Tu recarga llegó a tu Wallet." },
+    zh: { title: `已到账 ${amount}`, body: "你的充值已到达钱包。" },
+    hi: { title: `${amount} जमा हुए`, body: "आपका टॉप-अप Wallet में पहुँच गया।" },
+    ar: { title: `تمت إضافة ${amount}`, body: "وصل الشحن إلى محفظتك." }
   };
 }

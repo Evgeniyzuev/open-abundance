@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { loadTonDepositConfig, resolveTonPriceResolution } from "@/lib/tonDeposits";
+import { notifyDepositCreditedSafely } from "@/lib/depositNotify";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -102,6 +103,9 @@ export async function POST(request: NextRequest) {
           });
           if (completeError) throw new Error(completeError.message);
           settled += 1;
+          if (["credited", "credited_late", "credited_amount_mismatch"].includes(status ?? "")) {
+            await notifyDepositCreditedSafely(supabase, { userId: settlementRows?.[0]?.credited_user_id, sourceType: "ton_chain_event", sourceId: retry.chain_event_id, usdAmount: settlementRows?.[0]?.usd_amount });
+          }
         }
       } catch (settlementError) {
         await supabase.rpc("fail_ton_deposit_settlement_retry", {

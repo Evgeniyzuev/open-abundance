@@ -3,6 +3,7 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { loadTonUsdtConfig, resolveTonUsdtPriceResolution } from "@/lib/tonUsdt";
 import { checkSenderEligibility } from "@/lib/tonUsdtSender";
+import { notifyDepositCreditedSafely } from "@/lib/depositNotify";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -47,6 +48,9 @@ export async function POST(request: NextRequest) {
           const { error: completeError } = await supabase.rpc("complete_ton_usdt_deposit_settlement_retry", { p_chain_event_id: retry.chain_event_id });
           if (completeError) throw new Error(completeError.message);
           settled += 1;
+          if (["credited", "credited_late", "credited_amount_mismatch", "credited_bound_sender"].includes(status ?? "")) {
+            await notifyDepositCreditedSafely(supabase, { userId: settlementRows?.[0]?.credited_user_id, sourceType: "ton_usdt_chain_event", sourceId: retry.chain_event_id, usdAmount: settlementRows?.[0]?.usd_amount });
+          }
           // A deposit credited through its secret comment proves the sender can send from that
           // address, so bind it. This never fails the settlement.
           if (["credited", "credited_late", "credited_amount_mismatch"].includes(status ?? "")) {

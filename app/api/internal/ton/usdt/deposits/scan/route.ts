@@ -80,6 +80,8 @@ async function scan(request: NextRequest) {
       }
     }
     if (page.latestLogicalTime) await saveCursor(supabase, config, page.latestLogicalTime, page.latestTransactionHash);
+    // Settle new deposits now instead of on the next pipeline tick; the pipeline still picks them up if this fails.
+    if (inserted > 0) await supabase.rpc("dispatch_ton_usdt_deposit_settlement").then(() => undefined, () => undefined);
     return jsonResponse({ network: config.network, assetCode: "USDT", scanned: transactions.length, inserted, ignored, cursor: page.latestLogicalTime });
   } catch (routeError) {
     return jsonResponse({ error: routeError instanceof Error ? routeError.message : "Failed to scan TON USDT deposits." }, { status: 500 });

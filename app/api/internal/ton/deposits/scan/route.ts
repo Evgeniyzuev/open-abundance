@@ -208,6 +208,10 @@ async function scan(request: NextRequest) {
       );
     }
 
+    // Settle new deposits now instead of on the next pipeline tick (about 30 seconds sooner). Best effort: the
+    // pipeline still picks them up if this call fails.
+    if (inserted > 0) await supabase.rpc("dispatch_ton_deposit_settlement").then(() => undefined, () => undefined);
+
     return jsonResponse({
       network: config.network,
       scanned: newTransactions.length,

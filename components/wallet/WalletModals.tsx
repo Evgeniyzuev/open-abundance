@@ -673,7 +673,7 @@ export function TonDepositModal({
       }
     }
 
-    const stop = startVisiblePolling(() => { void refreshInvoice(); }, 15_000);
+    const stop = startVisiblePolling(() => { void refreshInvoice(); }, 5_000);
     return () => {
       mounted = false;
       stop();

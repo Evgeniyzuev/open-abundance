@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { grossUpForFee } from "../lib/cryptoPayFee.ts";
-import { chooseCryptoPayLink, cryptoPayCreditedCopy } from "../lib/cryptoPayLinks.ts";
+import { chooseCryptoPayLink, depositCreditedCopy } from "../lib/cryptoPayLinks.ts";
 import { invoiceMatches, parseUsdAmount, readCryptoPayConfig, verifyCryptoPaySignature, webhookIsFresh } from "../lib/cryptoPayCore.ts";
 
 // Run with: node --experimental-strip-types scripts/verify-cryptopay-contract.mjs
@@ -104,13 +104,14 @@ assert.deepEqual(chooseCryptoPayLink(links, false), { url: links.botUrl, inTeleg
 assert.deepEqual(chooseCryptoPayLink({ webAppUrl: links.webAppUrl }, false), { url: links.webAppUrl, inTelegram: false }, "the web version is the last resort");
 assert.equal(chooseCryptoPayLink({ botUrl: "javascript:alert(1)" }, false), null, "only https links");
 assert.equal(chooseCryptoPayLink({}, true), null);
-assert.equal(cryptoPayCreditedCopy(10).ru.title, "Зачислено $10.00");
-assert.equal(cryptoPayCreditedCopy(1.5).en.title, "Credited $1.50");
+assert.equal(depositCreditedCopy(10).ru.title, "Зачислено $10.00");
+assert.equal(depositCreditedCopy(1.5).en.title, "Credited $1.50");
 
 // --- "Credited" message once, sent at once; the background check credits a missed webhook ---
-assert.match(lib, /deposit-credited:\$\{invoiceId\}/, "one credited message per invoice");
-assert.match(lib, /p_push: true/, "the message is a push with a Telegram copy");
-assert.match(lib, /sendQueuedTelegramCopies/, "the Telegram copy is sent right away");
+assert.match(read("lib/depositNotify.ts"), /deposit-credited:\$\{input.sourceId\}/, "one credited message per deposit");
+assert.match(read("lib/depositNotify.ts"), /p_push: true/, "the message is a push with a Telegram copy");
+assert.match(read("lib/depositNotify.ts"), /sendQueuedTelegramCopies/, "the Telegram copy is sent right away");
+assert.match(lib, /notifyDepositCredited/);
 assert.match(lib, /paid_btn_name: "openBot"/, "CryptoBot offers a button back to the Mini App");
 const reconcile = read("app/api/internal/payments/reconcile/route.ts");
 assert.match(reconcile, /x-ton-scanner-secret/, "the background check needs the scanner secret");

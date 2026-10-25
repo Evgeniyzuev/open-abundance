@@ -1,6 +1,5 @@
 import { readCryptoPayConfig, type CryptoPayConfig, type CryptoPayInvoice, invoiceMatches, type ExpectedInvoice } from "@/lib/cryptoPayCore";
-import { cryptoPayCreditedCopy } from "@/lib/cryptoPayLinks";
-import { sendQueuedTelegramCopies, telegramCopiesBotToken } from "@/lib/telegramNotificationQueue";
+import { notifyDepositCredited } from "@/lib/depositNotify";
 
 export function loadCryptoPayConfig(): CryptoPayConfig {
   return readCryptoPayConfig(process.env);
@@ -84,34 +83,10 @@ export async function confirmAndSettle(db: any, config: CryptoPayConfig, row: { 
   const result = Array.isArray(data) ? data[0] : data;
   if (result?.invoice_status === "credited") {
     try {
-      await notifyCredited(db, row.user_id, row.id, Number(result?.usd_amount ?? row.usd_amount));
+      await notifyDepositCredited(db, { userId: row.user_id, sourceType: "payment_provider_invoice", sourceId: row.id, usdAmount: Number(result?.usd_amount ?? row.usd_amount) });
     } catch {
       // The money is credited; a missed message is not worth failing the settlement for.
     }
   }
   return { settled: true, status: result?.invoice_status ?? "credited", usdAmount: Number(result?.usd_amount ?? row.usd_amount), walletBalance: result?.wallet_balance != null ? Number(result.wallet_balance) : null };
-}
-
-/**
- * "Credited $X" as a push and a Telegram copy, once per invoice (the idempotency key). The Telegram copy is sent right
- * away instead of waiting for the per-minute queue, so it arrives seconds after the payment.
- */
-async function notifyCredited(db: any, userId: string, invoiceId: string, usdAmount: number) {
-  const copy = cryptoPayCreditedCopy(usdAmount);
-  const { data: eventId, error } = await db.rpc("create_notification_event_raw", {
-    p_event_type: "wallet.deposit_credited",
-    p_category: "wallet",
-    p_source_type: "payment_provider_invoice",
-    p_source_id: invoiceId,
-    p_title: copy.en.title,
-    p_body: copy.en.body,
-    p_deep_link: "/?view=wallet.wallet",
-    p_recipient_user_ids: [userId],
-    p_idempotency_key: `deposit-credited:${invoiceId}`,
-    p_metadata: { copy, invoiceId },
-    p_push: true
-  });
-  if (error || !eventId) return;
-  const botToken = telegramCopiesBotToken();
-  if (botToken) await sendQueuedTelegramCopies(db, botToken, 10);
 }

@@ -91,7 +91,7 @@ export function TonUsdtDepositModal({ locale, t, onClose, onRefresh }: { locale:
       void load().then((payload) => {
         if (payload.invoice && CREDITED_STATUSES.includes(payload.invoice.status)) void onRefresh();
       }).catch(() => undefined);
-    }, 15_000);
+    }, 5_000);
   }, [inProgress, bindingPending, load, onRefresh]);
 
   useEffect(() => {

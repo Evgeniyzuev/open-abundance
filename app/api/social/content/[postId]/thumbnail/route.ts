@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadPublicThumbnail } from "@/lib/sharePreview";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { createServiceSupabaseClient } from "@/lib/serverSupabase";
+import { isExpiredTikTokThumbnail, loadTikTokOembed } from "@/lib/tiktokLinks";
 import { getOptionalSharedContentViewer, isSharedContentId, readAuthorizedSharedPost } from "@/lib/sharedContentAccess";
 
 export const dynamic = "force-dynamic";
@@ -17,15 +19,30 @@ export async function GET(request: NextRequest, { params }: { params: { postId: 
     if (!access.post) return notFound();
     const { data: source, error } = await viewer.supabase
       .from("feed_post_external_links")
-      .select("thumbnail_url")
+      .select("id, provider, external_url, title, thumbnail_url")
       .eq("post_id", access.post.id)
       .eq("relation", "source")
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (error || !source?.thumbnail_url) return notFound();
+    if (error || !source) return notFound();
 
-    const image = await loadPublicThumbnail(source.thumbnail_url);
+    let thumbnailUrl: string | null = source.thumbnail_url;
+    // TikTok still frames are signed and expire in days, and short share links often had none: fetch a fresh one.
+    if (source.provider === "tiktok" && isExpiredTikTokThumbnail(thumbnailUrl)) {
+      const fresh = await loadTikTokOembed(source.external_url).catch(() => null);
+      if (fresh?.thumbnailUrl) {
+        thumbnailUrl = fresh.thumbnailUrl;
+        const generic = !source.title || /^TikTok\b/.test(source.title);
+        await createServiceSupabaseClient()
+          .from("feed_post_external_links")
+          .update({ thumbnail_url: fresh.thumbnailUrl, ...(generic && fresh.title ? { title: fresh.title } : {}), ...(fresh.authorName ? { author_name: fresh.authorName } : {}) })
+          .eq("id", source.id);
+      }
+    }
+    if (!thumbnailUrl) return notFound();
+
+    const image = await loadPublicThumbnail(thumbnailUrl);
     if (!image) return notFound();
     return new NextResponse(new Uint8Array(image.body), {
       status: 200,

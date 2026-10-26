@@ -3,6 +3,7 @@ import { isIP, type LookupFunction } from "node:net";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { absoluteUrl, readJsonLdProduct } from "./productLink.ts";
+import { resolveTikTokLink } from "./tiktokLinks.ts";
 
 export type LinkSource = {
   provider: "tiktok" | "instagram" | "telegram" | "youtube" | "x" | "website";
@@ -95,7 +96,8 @@ export async function loadLinkPreview(source: LinkSource): Promise<LinkPreview> 
   const deadlineAt = Date.now() + FETCH_TIMEOUT_MS;
   try {
     const oembedUrl = source.provider === "youtube" ? `https://www.youtube.com/oembed?url=${encodeURIComponent(source.externalUrl)}&format=json`
-      : source.provider === "tiktok" ? `https://www.tiktok.com/oembed?url=${encodeURIComponent(source.externalUrl)}` : null;
+      // A short vt.tiktok.com share link is resolved first: TikTok's oEmbed often refuses it and the page itself is generic.
+      : source.provider === "tiktok" ? `https://www.tiktok.com/oembed?url=${encodeURIComponent(await resolveTikTokLink(source.externalUrl).catch(() => null) ?? source.externalUrl)}` : null;
     if (oembedUrl) {
       const response = await safeGet(new URL(oembedUrl), MAX_HTML_BYTES, deadlineAt);
       if (response.status >= 200 && response.status < 300) {

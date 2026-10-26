@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { findShortVideoLinks, findVideoEmbeds, isShortVideoLink, videoEmbedFromUrl } from "../lib/videoEmbed.ts";
 import { normalizeWatchReply, WATCH_MAX_REPLY } from "../lib/watchCompanion.ts";
+import { isExpiredTikTokThumbnail } from "../lib/tiktokLinks.ts";
 
 // Run with: node --experimental-strip-types scripts/verify-video-embed-contract.mjs
 const read = (path) => readFileSync(path, "utf8");
@@ -33,9 +34,18 @@ assert.equal(isShortVideoLink("https://example.com/ZSg44HSSC/"), false);
 assert.deepEqual(findShortVideoLinks("см https://vt.tiktok.com/ZSg44HSSC/ и https://youtu.be/dQw4w9WgXcQ"), ["https://vt.tiktok.com/ZSg44HSSC/"]);
 assert.equal(embed("https://www.tiktok.com/embed/v2/7300000000000000000").provider, "tiktok");
 assert.equal(embed("https://m.tiktok.com/v/7300000000000000000.html").provider, "tiktok");
-const resolver = read("app/api/video/resolve/route.ts");
+const resolver = read("lib/tiktokLinks.ts");
 assert.match(resolver, /redirect: "manual"/, "redirects are followed by hand");
 assert.match(resolver, /isTikTokHost\(url\.hostname\)/, "only TikTok hosts are fetched");
+
+// --- TikTok still frames: signed URLs expire, the thumbnail route refreshes them ---
+const now = Date.UTC(2026, 9, 26);
+assert.equal(isExpiredTikTokThumbnail("https://p19.tiktokcdn-us.com/a.image?x-expires=1792238400", now), true, "Oct 17 frame is stale on Oct 26");
+assert.equal(isExpiredTikTokThumbnail(`https://p19.tiktokcdn-us.com/a.image?x-expires=${now / 1000 + 86400 * 3}`, now), false);
+assert.equal(isExpiredTikTokThumbnail(null, now), true);
+assert.match(read("app/api/social/content/[postId]/thumbnail/route.ts"), /loadTikTokOembed/);
+assert.match(read("components/FeedPostGallery.tsx"), /provider === "tiktok"\) return `\/api\/social\/content\/\$\{post\.id\}\/thumbnail`/, "feed tiles ask for a fresh TikTok frame");
+assert.match(read("lib/sharePreview.ts"), /resolveTikTokLink\(source\.externalUrl\)/, "new TikTok posts resolve the short link before oEmbed");
 
 // --- Vimeo, Rutube, VK ---
 assert.equal(embed("https://vimeo.com/76979871").embedUrl, "https://player.vimeo.com/video/76979871?autoplay=1&dnt=1");

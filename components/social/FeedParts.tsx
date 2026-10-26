@@ -866,6 +866,8 @@ export function ExternalLinkPreview({ post, locale, t }: {
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
 }) {
   const externalLink = post.externalLinks?.[0];
+  // TikTok frames expire, so link posts take a fresh one from the thumbnail route.
+  const stillFrame = externalLink?.provider === "tiktok" && post.post_type === "external_link" ? `/api/social/content/${post.id}/thumbnail` : externalLink?.thumbnail_url ?? null;
   const embed = externalLink ? videoEmbedFromUrl(externalLink.external_url) : findVideoEmbeds(post.body, 1)[0];
   if (embed) {
     return (
@@ -873,7 +875,7 @@ export function ExternalLinkPreview({ post, locale, t }: {
         embed={embed}
         title={externalLink?.title ?? null}
         author={externalLink?.author_name ?? externalLink?.author_handle ?? null}
-        thumbnailUrl={externalLink?.thumbnail_url ?? null}
+        thumbnailUrl={stillFrame}
         locale={locale}
         t={t}
       />
@@ -895,7 +897,7 @@ export function ExternalLinkPreview({ post, locale, t }: {
         fallback={card}
         title={externalLink?.title ?? null}
         author={externalLink?.author_name ?? externalLink?.author_handle ?? null}
-        thumbnailUrl={externalLink?.thumbnail_url ?? null}
+        thumbnailUrl={stillFrame}
         locale={locale}
         t={t}
       />

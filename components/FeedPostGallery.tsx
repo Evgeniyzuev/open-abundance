@@ -137,6 +137,8 @@ export function getFeedPostCover(post: FeedPost): string | null {
   const media = [...post.media, ...(post.repostOf?.media ?? [])].find((item) => item.media_type === "image" && (item.thumbnail_url || item.media_url));
   if (media?.thumbnail_url || media?.media_url) return media.thumbnail_url ?? media.media_url;
   if (post.wish?.image_url) return post.wish.image_url;
+  // TikTok frames expire and are refreshed by the thumbnail route, so a TikTok link post always asks it.
+  if (post.post_type === "external_link" && post.externalLinks[0]?.provider === "tiktok") return `/api/social/content/${post.id}/thumbnail`;
   const externalThumbnail = post.externalLinks.find((item) => item.thumbnail_url)?.thumbnail_url;
   if (externalThumbnail) return post.post_type === "external_link" ? `/api/social/content/${post.id}/thumbnail` : externalThumbnail;
   return systemCoverForType(post.post_type);

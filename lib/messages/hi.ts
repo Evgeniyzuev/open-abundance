@@ -1718,6 +1718,7 @@ const hi: Record<string, string> = {
   "notes.addDate": "तारीख़ जोड़ें",
   "notes.newList": "नई सूची",
   "notes.customColor": "अपना रंग",
+  "social.blog.backToMine": "मेरा ब्लॉग",
   "wishes.photo.upload": "फ़ोटो अपलोड करें",
   "wishes.photo.uploading": "अपलोड हो रहा है…",
   "wishes.photo.remove": "तस्वीर हटाएँ",

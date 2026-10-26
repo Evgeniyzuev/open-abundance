@@ -2249,6 +2249,7 @@ const en = {
   "notes.addDate": "Add date",
   "notes.newList": "New list",
   "notes.customColor": "Custom color",
+  "social.blog.backToMine": "My blog",
   "wishes.photo.upload": "Upload photo",
   "wishes.photo.uploading": "Uploading…",
   "wishes.photo.remove": "Remove image",

@@ -13,7 +13,7 @@ import type { SocialTab, SocialTabChange, ReferralLink, ReferralKind, TeamTask, 
 import { StoryWishRequestError, getAccessToken, refreshAccessToken, requestStoryWish, storyWishErrorMessage, loadTeamRewardsHistory, loadCoreNotifications, loadNotificationCenter, markNotificationsRead, buildPayoutNotifications, formatDate, formatDay, formatLeader, formatTeamAssignment, formatProfileName, localizedSystemBio, createProfileEditorState, updateFeedWishCopyState, replaceFeedPost, updatePostWishCopyState, visibilityLabelKey, profileVisibilityKeyLabel, contactSourceLabelKey, peopleFilterLabelKey, peopleSectionLabelKey, peopleInfluenceLabelKey, getContactTrustState, formatWishAmount, readableHost } from "@/components/social/socialHelpers";
 import { FeedView, PostList, PostDetailModal, HistoryPanel, TrustConfirmationsPanel } from "@/components/social/FeedParts";
 import Sheet from "@/components/ui/Sheet";
-import { isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences } from "@/lib/feedPreferences";
+import { isFeedTopicMuted, readFeedPreferences } from "@/lib/feedPreferences";
 import { clearFeedSnapshots } from "@/lib/feedSnapshot";
 import { useFeed } from "@/components/social/useFeed";
 import LegalDisclosure from "@/components/LegalDisclosure";
@@ -1309,6 +1309,11 @@ export default function SocialApp({
     } : current);
   }
 
+  // Someone else's blog is a visit: leaving the Blog tab brings the person back to their own blog next time.
+  useEffect(() => {
+    if (activeTab !== "blog") setSelectedBlogAuthorId(null);
+  }, [activeTab]);
+
   function openAuthorBlog(authorUserId: string) {
     setSelectedBlogAuthorId(authorUserId === user?.id ? null : authorUserId);
     onTabChange("blog");
@@ -1321,8 +1326,7 @@ export default function SocialApp({
     if (activeTab === "feed" && feedPosts.some((item) => item.id === post.id)) {
       const preferences = readFeedPreferences(user?.id);
       setFeedSequence(feedPosts
-        .filter((item) => !isFeedTopicMuted(item, preferences))
-        .sort((left, right) => Number(isFeedTopicInterested(right, preferences)) - Number(isFeedTopicInterested(left, preferences))));
+        .filter((item) => !isFeedTopicMuted(item, preferences)));
     } else {
       setFeedSequence([]);
     }
@@ -1566,6 +1570,7 @@ export default function SocialApp({
           t={t}
           onOpenPost={openPostDetail}
           onChanged={() => { invalidateFeedCache(); void loadSystemDrafts().catch(() => undefined); }}
+          onBackToOwn={() => setSelectedBlogAuthorId(null)}
         />
       ) : null}
 

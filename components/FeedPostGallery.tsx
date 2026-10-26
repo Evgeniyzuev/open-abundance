@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { FeedPostSignalMenu } from "@/components/FeedPostSignals";
 import ProtectedImage from "@/components/ProtectedImage";
 import { trackClientEvent } from "@/lib/clientAnalytics";
-import { emptyFeedPreferenceState, isFeedTopicInterested, isFeedTopicMuted, readFeedPreferences, type FeedPreferenceState } from "@/lib/feedPreferences";
+import { emptyFeedPreferenceState, isFeedTopicMuted, readFeedPreferences, type FeedPreferenceState } from "@/lib/feedPreferences";
 import type { MessageKey } from "@/lib/i18n";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import type { FeedPost } from "@/lib/socialFeed";
@@ -40,8 +40,7 @@ export default function FeedPostGallery({ addingStoryWishKey, currentUserId = nu
   }, [currentUserId]);
 
   const allVisiblePosts = posts
-    .filter((post) => !isFeedTopicMuted(post, preferences))
-    .sort((left, right) => Number(isFeedTopicInterested(right, preferences)) - Number(isFeedTopicInterested(left, preferences)));
+    .filter((post) => !isFeedTopicMuted(post, preferences));
   // The grid has 3 columns: while more pages exist hide the incomplete last row (the next page completes it),
   // and on the last page pad it with quiet filler cells so the grid stays a rectangle.
   const remainder = layout === "grid" ? allVisiblePosts.length % GRID_COLUMNS : 0;
@@ -72,7 +71,8 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
   const author = getTileAuthor(post);
   const canAddWish = Boolean(onAddStoryWish && recommendedWishIdForStory(post.source_key));
-  const evidence = post.post_type === "reality_demo" ? evidenceLabels?.demo : post.system_verified ? evidenceLabels?.verified : null;
+  // "Verified by Abundance" is shown only on the open post, not on the card.
+  const evidence = post.post_type === "reality_demo" ? evidenceLabels?.demo : null;
 
   useEffect(() => {
     if (!currentUserId || typeof IntersectionObserver === "undefined") return;

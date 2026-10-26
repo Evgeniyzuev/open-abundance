@@ -129,9 +129,11 @@ const newEdit = (): EditState => ({ post: null, sourceUrl: "", title: "", body: 
 const templates = ["daily_progress", "level_up", "wish_completed", "challenge_completed"] as const;
 const templateKeys = ["social.feed.cover.template.daily_progress", "social.feed.cover.template.level_up", "social.feed.cover.template.wish_completed", "social.feed.cover.template.challenge_completed"] as const;
 
-export default function BlogWorkspace({ userId, authorId, locale, active, refreshKey, openCabinetNonce, t, onOpenPost, onChanged }: {
+export default function BlogWorkspace({ userId, authorId, locale, active, refreshKey, openCabinetNonce, t, onOpenPost, onChanged, onBackToOwn }: {
   userId: string; authorId: string | null; locale: AppLocale; active: boolean; refreshKey: string; openCabinetNonce: number;
   t: Translate; onOpenPost: (post: FeedPost) => void; onChanged: () => void;
+  /** Someone else's blog is open: goes back to the person's own blog. */
+  onBackToOwn: () => void;
 }) {
   const ru = locale === "ru";
   const own = !authorId || authorId === userId;
@@ -289,6 +291,7 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
   const system = Boolean(editor?.post && ["daily_progress", "level_up", "wish_completed", "challenge"].includes(editor.post.post_type));
   const canChangeMedia = !editor?.post || editor.post.post_type === "external_link" || editor.post.status === "draft" && (system || editor.post.post_type === "manual");
   return <section className="blog-workspace" hidden={!active}>
+    {!own ? <button type="button" className="text-button blog-back-own" onClick={onBackToOwn}>← {t("social.blog.backToMine")}</button> : null}
     {own ? <div className="blog-workspace-tabs" role="tablist" aria-label={t("social.blog.mine")}>
       {(["cabinet", "posts"] as const).map((item, index) => <button key={item} id={`blog-tab-${item}`} aria-controls={`blog-panel-${item}`} role="tab" type="button" aria-selected={tab === item} tabIndex={tab === item ? 0 : -1} className={tab === item ? "active" : ""} onClick={() => selectTab(item)} onKeyDown={(event) => {
         if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) { event.preventDefault(); const next = event.key === "Home" ? "cabinet" : event.key === "End" ? "posts" : index ? "cabinet" : "posts"; selectTab(next); document.getElementById(`blog-tab-${next}`)?.focus(); }

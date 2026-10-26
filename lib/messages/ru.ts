@@ -2249,6 +2249,7 @@ const ru: Record<string, string> = {
   "notes.addDate": "\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0434\u0430\u0442\u0443",
   "notes.newList": "\u041d\u043e\u0432\u044b\u0439 \u0441\u043f\u0438\u0441\u043e\u043a",
   "notes.customColor": "Свой цвет",
+  "social.blog.backToMine": "Мой блог",
   "wishes.photo.upload": "Загрузить фото",
   "wishes.photo.uploading": "Загружаем…",
   "wishes.photo.remove": "Убрать картинку",

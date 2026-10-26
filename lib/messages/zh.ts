@@ -1718,6 +1718,7 @@ const zh: Record<string, string> = {
   "notes.addDate": "添加日期",
   "notes.newList": "新清单",
   "notes.customColor": "自定义颜色",
+  "social.blog.backToMine": "我的博客",
   "wishes.photo.upload": "上传照片",
   "wishes.photo.uploading": "正在上传…",
   "wishes.photo.remove": "移除图片",

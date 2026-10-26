@@ -432,7 +432,6 @@ export function PostCard({
       <header>
         <div className="feed-author-block">
           <PostAuthor post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
-          {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
           {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
           {post.post_type === "abundance_story" ? (
             <span className="system-story-badge">

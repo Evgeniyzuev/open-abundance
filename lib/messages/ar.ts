@@ -1718,6 +1718,7 @@ const ar: Record<string, string> = {
   "notes.addDate": "إضافة تاريخ",
   "notes.newList": "قائمة جديدة",
   "notes.customColor": "لون مخصص",
+  "social.blog.backToMine": "مدونتي",
   "wishes.photo.upload": "رفع صورة",
   "wishes.photo.uploading": "جارٍ الرفع…",
   "wishes.photo.remove": "إزالة الصورة",

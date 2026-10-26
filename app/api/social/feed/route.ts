@@ -143,7 +143,8 @@ export async function GET(request: NextRequest) {
       .from("feed_posts")
       .select("id,author_user_id,author_label,source_key,snapshot_id,system_verified,post_type,status,visibility,title,body,created_at,updated_at,published_at,deleted_at,repost_of_post_id")
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
+      // The feed is newest first by publication: a draft written days ago goes on top the moment it is published.
+      .order(scope === "feed" ? "published_at" : "created_at", { ascending: false })
       .limit(scope === "system" ? limit : limit + 1);
     if (scope === "blog") {
       query = query.order("id", { ascending: false });
@@ -161,7 +162,7 @@ export async function GET(request: NextRequest) {
         const followeeIds = await loadFolloweeIds(supabase, viewerId);
         query = query.in("author_user_id", followeeIds.length ? followeeIds : ["00000000-0000-0000-0000-000000000000"]);
       }
-      if (cursor) query = query.lt("created_at", cursor);
+      if (cursor) query = query.lt("published_at", cursor);
     } else if (scope === "system") {
       const systemPostIds = systemStoryMetadata.map((item) => item.post_id);
       query = query
@@ -247,7 +248,7 @@ export async function GET(request: NextRequest) {
         author: authorProfile,
         blogHeader,
         systemAccount,
-        nextCursor: hasMore && rawPostRows.length ? (scope === "blog" ? encodeBlogCursor(rawPostRows[rawPostRows.length - 1]) : rawPostRows.at(-1)?.created_at) : null,
+        nextCursor: hasMore && rawPostRows.length ? (scope === "blog" ? encodeBlogCursor(rawPostRows[rawPostRows.length - 1]) : scope === "feed" ? rawPostRows.at(-1)?.published_at : rawPostRows.at(-1)?.created_at) : null,
         reviewSummary,
         posts: visiblePostRows.map((post) => {
           const translation = translations.get(post.id) ?? null;

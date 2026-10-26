@@ -1718,6 +1718,7 @@ const es: Record<string, string> = {
   "notes.addDate": "Añadir fecha",
   "notes.newList": "Nueva lista",
   "notes.customColor": "Color propio",
+  "social.blog.backToMine": "Mi blog",
   "wishes.photo.upload": "Subir foto",
   "wishes.photo.uploading": "Subiendo…",
   "wishes.photo.remove": "Quitar imagen",

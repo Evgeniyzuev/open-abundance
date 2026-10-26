@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { findVideoEmbeds, videoEmbedFromUrl } from "../lib/videoEmbed.ts";
+import { findShortVideoLinks, findVideoEmbeds, isShortVideoLink, videoEmbedFromUrl } from "../lib/videoEmbed.ts";
 import { normalizeWatchReply, WATCH_MAX_REPLY } from "../lib/watchCompanion.ts";
 
 // Run with: node --experimental-strip-types scripts/verify-video-embed-contract.mjs
@@ -24,6 +24,18 @@ assert.equal(embed("https://t.me/s/durov/123").embedUrl, "https://t.me/durov/123
 assert.equal(embed("https://t.me/c/123456/789"), null, "private channels cannot be embedded");
 assert.equal(embed("https://t.me/durov"), null);
 assert.equal(embed("https://x.com/user/status/1800000000000000000").embedUrl, "https://platform.twitter.com/embed/Tweet.html?id=1800000000000000000&dnt=true");
+
+// --- TikTok short share links are resolved by the server, only through TikTok's own redirects ---
+assert.equal(isShortVideoLink("https://vt.tiktok.com/ZSg44HSSC/"), true);
+assert.equal(isShortVideoLink("https://vm.tiktok.com/ZMabc123/"), true);
+assert.equal(isShortVideoLink("https://www.tiktok.com/t/ZTabc123/"), true);
+assert.equal(isShortVideoLink("https://example.com/ZSg44HSSC/"), false);
+assert.deepEqual(findShortVideoLinks("см https://vt.tiktok.com/ZSg44HSSC/ и https://youtu.be/dQw4w9WgXcQ"), ["https://vt.tiktok.com/ZSg44HSSC/"]);
+assert.equal(embed("https://www.tiktok.com/embed/v2/7300000000000000000").provider, "tiktok");
+assert.equal(embed("https://m.tiktok.com/v/7300000000000000000.html").provider, "tiktok");
+const resolver = read("app/api/video/resolve/route.ts");
+assert.match(resolver, /redirect: "manual"/, "redirects are followed by hand");
+assert.match(resolver, /isTikTokHost\(url\.hostname\)/, "only TikTok hosts are fetched");
 
 // --- Vimeo, Rutube, VK ---
 assert.equal(embed("https://vimeo.com/76979871").embedUrl, "https://player.vimeo.com/video/76979871?autoplay=1&dnt=1");
@@ -54,6 +66,7 @@ const feed = read("components/social/FeedParts.tsx");
 assert.match(feed, /videoEmbedFromUrl\(externalLink\.external_url\)/, "feed link posts use the player");
 assert.match(feed, /findVideoEmbeds\(post\.body, 1\)/, "feed text posts use the player");
 assert.match(feed, /hasVisualMedia || hasVideoEmbed ? null/, "an open video post shows the player without the still frame on top");
+assert.match(feed, /videoLayout \? null : <div className="post-detail-author-row">/, "an open video post has no header above the player");
 assert.match(read("components/NotesApp.tsx"), /<TextVideoEmbeds text=\{body\}/, "notes show players for links");
 const player = read("components/VideoEmbed.tsx");
 assert.match(player, /href=\{embed\.sourceUrl\}/, "the original link is always offered");

@@ -42,6 +42,7 @@ export const guidesEn: Guide[] = [
     faq: [
       { question: "Is Open Abundance free?", answer: "Yes. The app is free; no card or subscription is needed." },
       { question: "Do I need to download it from an app store?", answer: "No. It is a web app: open it in a browser and add it to the home screen." },
+      { question: "Can I spend crypto from my Wallet in shops?", answer: "Open Abundance does not issue cards. You can withdraw TON or USDT on TON to a card or QR-payment service you choose; examples and what to check are in the answer “How to spend crypto in shops”." },
       { question: "Is it a way to make money?", answer: "Not by itself. Internal rewards recognise useful actions, but it is not an investment and not guaranteed income. What it does help with is planning, finding people and trading skills and goods with other members." }
     ],
     updated: GUIDES_EN_UPDATED
@@ -926,5 +927,56 @@ export const guidesEn: Guide[] = [
       { question: "How do I turn crypto into regular money?", answer: "First withdraw USDT or TON from your Wallet, then exchange it for regular money in one of these services: P2P in Open Abundance (the P2P section, trades with other members), Walt, the Telegram wallet with a P2P market, Antarctic Wallet, CheckOne (t.me/checkone_bot/wallet), LightPay (t.me/LightPayOfficialBot), xRocket (t.me/xrocket/app), or P2P on major exchanges. These are third-party services not affiliated with Open Abundance: fees, limits, availability in your country and identity checks differ. Start with a small amount." }
     ],
     updated: GUIDES_EN_UPDATED
-  }
+  },
+  {
+    slug: "how-to-spend-crypto-in-shops",
+    ruSlug: "kak-potratit-kriptu-v-magazinah",
+    title: "How to spend crypto in shops: cards and QR payments",
+    description: "Two ways to pay with crypto in everyday life: a card topped up with crypto, or a QR or link payment from a crypto account. Examples of third-party services and what to check first.",
+    answer: "You can spend crypto in shops in two ways: with a card topped up with crypto (virtual or physical, Visa or Mastercard), or by paying a QR code or link from a crypto account, where the service pays the merchant in local currency. Both are run by third parties, not by Open Abundance. Availability depends on your country, fees are usually 1–5%, and many services are custodial, so test with a small amount first.",
+    sections: [
+      {
+        title: "Option 1: a card topped up with crypto",
+        bullets: [
+          "Cryptomus Card: virtual Visa funded with USDT, USDC, TON, BTC or ETH; low conversion fee; custodial.",
+          "Cryptopay Card: Visa, virtual or physical; full identity check; sometimes declines applicants from some countries.",
+          "BFinance: virtual Visa or Mastercard issued in a Telegram bot, funded with TON, BNB, TRX or USDT; supports Apple Pay and Google Pay.",
+          "Antarctic Wallet: card and QR payments from a crypto balance (USDT on TON, TRC-20 or BEP-20); custodial, identity check for cards.",
+          "Bybit Card and similar exchange cards: funded from your exchange balance; availability depends on country.",
+          "Gnosis Pay: a card linked to your own wallet, so you keep the keys; available in Europe and the UK only."
+        ]
+      },
+      {
+        title: "Option 2: QR or link payment from a crypto account",
+        bullets: [
+          "QRypto Turtle (Telegram bot): you hold USDT, scan the shop’s SBP QR code, and the shop receives roubles; the fee is in the exchange rate; limits and operator abroad.",
+          "Antarctic Wallet: QR payments up to a set limit per operation.",
+          "Online shops that accept crypto via payment providers such as Crypto Pay: this works only where the shop has switched it on."
+        ]
+      },
+      {
+        title: "Check before you use any of them",
+        bullets: [
+          "Country: many cards are not available to residents of some countries, and foreign cards may not work at local terminals or ATMs.",
+          "Total cost: top-up fee plus conversion plus per-payment fee; compare the final amount on a small test.",
+          "Custody: custodial services can freeze an account for checks; do not keep more there than you plan to spend.",
+          "Network: send exactly the coin and network the service asks for, with the memo or tag if required; a wrong network usually means lost funds.",
+          "Terms change often. This list is a set of examples, not a recommendation, and not verified by Open Abundance."
+        ]
+      },
+      {
+        title: "How this connects to Open Abundance",
+        paragraphs: [
+          "Open Abundance does not issue cards or run these services. Your Wallet supports withdrawing TON and USDT on TON to an address you control, so you can send a small test amount to a service you chose. Other networks are planned."
+        ]
+      }
+    ],
+    faq: [
+      { question: "Can I pay in a shop directly from my Open Abundance Wallet?", answer: "Not directly. You can withdraw TON or USDT on TON to a card or QR service you choose, then pay from there." },
+      { question: "Does Open Abundance recommend or earn from these services?", answer: "No. The list is examples only, with no paid placement and no referral rewards." },
+      { question: "Is it legal?", answer: "It depends on your country and the service. You are responsible for following local rules and taxes, and for choosing a provider you trust." },
+      { question: "What is the safest way to start?", answer: "Pick one service, read its terms, send a small amount, make one real payment and only then add more." }
+    ],
+    updated: GUIDES_EN_UPDATED
+  },
 ];

@@ -192,3 +192,9 @@ export function findShortVideoLinks(text: string | null | undefined, limit = MAX
   }
   return found;
 }
+
+/** True when a post's source link (or, without one, its text) will be shown as a player. */
+export function postHasVideoLink(sourceUrl: string | null | undefined, body: string | null | undefined): boolean {
+  if (sourceUrl) return Boolean(videoEmbedFromUrl(sourceUrl)) || isShortVideoLink(sourceUrl);
+  return findVideoEmbeds(body, 1).length > 0 || findShortVideoLinks(body, 1).length > 0;
+}

@@ -51,7 +51,7 @@ export function VideoEmbedPlayer({ embed, title, author, thumbnailUrl, locale, t
   }
 
   return (
-    <div className={`video-embed video-embed-${embed.shape}${active ? " active" : ""}`} onClick={(event) => event.stopPropagation()}>
+    <div className={`video-embed video-embed-${embed.shape} video-embed-from-${embed.provider}${active ? " active" : ""}`} onClick={(event) => event.stopPropagation()}>
       <div className="video-embed-frame">
         {active ? (
           <iframe

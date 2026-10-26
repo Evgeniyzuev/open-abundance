@@ -11,6 +11,7 @@ import { BLOG_PAGE_SIZE, mergeBlogPosts } from "@/lib/blogWorkspace";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import type { FeedExternalLink, FeedMedia, FeedPayload, FeedPost } from "@/lib/socialFeed";
 import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
+import { postHasVideoLink, videoEmbedFromUrl } from "@/lib/videoEmbed";
 
 async function request<T>(url: string, init?: RequestInit, options: { optionalAuth?: boolean } = {}): Promise<T> {
   const { data, error } = await getBrowserSupabaseClient().auth.getSession();
@@ -289,6 +290,10 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
     finally { busyRef.current = false; setBusy(false); }
   }
   const system = Boolean(editor?.post && ["daily_progress", "level_up", "wish_completed", "challenge"].includes(editor.post.post_type));
+  // A link that plays here gets a cover picker for its feed tile instead of the generic media field.
+  const videoLinkUrl = editor?.post?.post_type === "external_link" ? editor.post.externalLinks[0]?.external_url : editorKey === "link" ? editor?.sourceUrl || link : null;
+  const videoLink = Boolean(videoLinkUrl && postHasVideoLink(videoLinkUrl, null));
+  const videoLinkProvider = videoLinkUrl ? videoEmbedFromUrl(videoLinkUrl)?.provider ?? null : null;
   const canChangeMedia = !editor?.post || editor.post.post_type === "external_link" || editor.post.status === "draft" && (system || editor.post.post_type === "manual");
   return <section className="blog-workspace" hidden={!active}>
     {!own ? <button type="button" className="text-button blog-back-own" onClick={onBackToOwn}>← {t("social.blog.backToMine")}</button> : null}
@@ -351,11 +356,12 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
         {editor.post ? <label>{t("social.blog.visibility")}<select value={editor.visibility} disabled={busy} onChange={(event) => updateEdit({ visibility: event.target.value })}>
           <option value="public">{t("social.blog.everyone")}</option><option value="private">{t("social.blog.onlyMe")}</option>
         </select></label> : null}
-        {canChangeMedia ? <label>{t("social.blog.mediaCover")}<input type="file" disabled={busy} accept={system ? "image/jpeg,image/png,image/webp" : "image/jpeg,image/png,image/webp,video/mp4"} onChange={(event) => updateEdit({ file: event.target.files?.[0] ?? null, template: null })} /></label> : null}
-        {editor.file ? <p>{editor.file.name}</p> : null}
-        <p>{canChangeMedia ? t("social.blog.mediaHint") : null}</p>
+        {canChangeMedia && videoLink ? <VideoCoverField busy={busy} file={editor.file} currentUrl={editor.post?.media.find((item) => item.media_type === "image")?.media_url ?? null} noSourceFrame={videoLinkProvider === "instagram" || !editor.post?.externalLinks[0]?.thumbnail_url} t={t} onChange={(file) => updateEdit({ file, template: null })} /> : null}
+        {canChangeMedia && !videoLink ? <label>{t("social.blog.mediaCover")}<input type="file" disabled={busy} accept={system ? "image/jpeg,image/png,image/webp" : "image/jpeg,image/png,image/webp,video/mp4"} onChange={(event) => updateEdit({ file: event.target.files?.[0] ?? null, template: null })} /></label> : null}
+        {editor.file && !videoLink ? <p>{editor.file.name}</p> : null}
+        {videoLink ? null : <p>{canChangeMedia ? t("social.blog.mediaHint") : null}</p>}
         {system && canChangeMedia ? <fieldset disabled={busy}><legend>{t("social.blog.coverTemplate")}</legend><div className="blog-cover-options">{templates.map((key, index) => <button type="button" key={key} aria-pressed={editor.template === key} onClick={() => updateEdit({ template: key, file: null })}><img alt="" src={`/feed/system-events/${key.replaceAll("_", "-")}.png`} />{t(templateKeys[index])}</button>)}</div></fieldset> : null}
-        {!editor.file && editor.post?.media[0]?.media_url ? editor.post.media[0].media_type === "video" ? <video className="blog-editor-preview" controls src={editor.post.media[0].media_url} /> : <img className="blog-editor-preview" alt="" src={editor.post.media[0].media_url} /> : null}
+        {!videoLink && !editor.file && editor.post?.media[0]?.media_url ? editor.post.media[0].media_type === "video" ? <video className="blog-editor-preview" controls src={editor.post.media[0].media_url} /> : <img className="blog-editor-preview" alt="" src={editor.post.media[0].media_url} /> : null}
         {editor.post?.statBlocks.length ? <fieldset disabled={busy}><legend>{t("social.blog.publicBlocks")}</legend>{editor.post.statBlocks.map((block) => <label className="blog-block-option" key={block.id}><input type="checkbox" checked={block.visibility === "public"} onChange={(event) => updateEdit({ post: { ...editor.post!, statBlocks: editor.post!.statBlocks.map((item) => item.id === block.id ? { ...item, visibility: event.target.checked ? "public" : "private" } : item) } })} />{block.label}</label>)}</fieldset> : null}
         {editor.error ? <p role="alert" className="finance-error">{editor.error}</p> : null}
         {editor.message ? <p role="status">{editor.message}</p> : null}
@@ -375,6 +381,40 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
       </form> : null}
     </EditorDialog> : null}
   </section>;
+}
+
+/** Cover for a video link post: a screenshot shows on its feed tile and on the player before it starts. */
+function VideoCoverField({ busy, file, currentUrl, noSourceFrame, t, onChange }: {
+  busy: boolean;
+  file: File | null;
+  currentUrl: string | null;
+  noSourceFrame: boolean;
+  t: Translate;
+  onChange: (file: File | null) => void;
+}) {
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) { setPreview(null); return; }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  const shown = preview ?? currentUrl;
+  return <div className="video-cover-field">
+    <span className="video-cover-field-preview">{shown ? <img alt="" src={shown} /> : <small>{t("social.blog.videoCoverEmpty")}</small>}</span>
+    <div className="video-cover-field-copy">
+      <strong>{t("social.blog.videoCover")}</strong>
+      <p>{noSourceFrame ? t("social.blog.videoCoverNoFrame") : t("social.blog.videoCoverHint")}</p>
+      <div className="video-cover-field-actions">
+        <label className="secondary-button system-event-upload">
+          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { onChange(event.target.files?.[0] ?? null); event.currentTarget.value = ""; }} />
+          {shown ? t("social.blog.videoCoverReplace") : t("social.blog.videoCoverUpload")}
+        </label>
+        {file ? <button type="button" className="text-button" disabled={busy} onClick={() => onChange(null)}>{t("social.blog.videoCoverCancel")}</button> : null}
+      </div>
+      {file ? <small>{t("social.blog.videoCoverSaveHint")}</small> : null}
+    </div>
+  </div>;
 }
 
 function ExternalSourceCard({ link, postId, t }: { link: FeedExternalLink; postId: string; t: Translate }) {

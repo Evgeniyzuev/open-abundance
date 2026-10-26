@@ -19,7 +19,7 @@ import { type FeedFilter } from "@/components/social/useFeed";
 import FollowButton from "@/components/FollowButton";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
 import { ShortLinkVideoEmbed, VideoEmbedPlayer } from "@/components/VideoEmbed";
-import { findShortVideoLinks, findVideoEmbeds, isShortVideoLink, videoEmbedFromUrl } from "@/lib/videoEmbed";
+import { findShortVideoLinks, findVideoEmbeds, isShortVideoLink, postHasVideoLink, videoEmbedFromUrl } from "@/lib/videoEmbed";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
@@ -428,6 +428,7 @@ export function PostCard({
   onPublish: (post: FeedPost) => void;
 }) {
   const canDelete = Boolean(post.author_user_id) && post.author_user_id === currentUserId;
+  const videoCoverOnly = postHasVideoLink(post.externalLinks?.[0]?.external_url, post.body) && !post.media.some((item) => item.media_type === "video");
 
   return (
     <article className="feed-post-card">
@@ -456,7 +457,7 @@ export function PostCard({
         <p>{post.body ?? t("social.post.detail")}</p>
         <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
       </button>
-      <PostMedia media={post.media} locale={locale} onOpen={() => onOpenPost(post)} portrait={post.post_type === "abundance_story"} />
+      {videoCoverOnly ? null : <PostMedia media={post.media} locale={locale} onOpen={() => onOpenPost(post)} portrait={post.post_type === "abundance_story"} />}
       <WishPostPreview
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}
@@ -596,10 +597,11 @@ export function PostDetailModal({
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
   const hasVisualMedia = post.media.some((item) => (item.media_type === "image" || item.media_type === "video") && Boolean(item.media_url));
   // A post with a video player shows only the player, not its still frame on top as well.
-  const hasVideoEmbed = Boolean(post.externalLinks?.[0] ? videoEmbedFromUrl(post.externalLinks[0].external_url) || isShortVideoLink(post.externalLinks[0].external_url) : findVideoEmbeds(post.body, 1).length || findShortVideoLinks(post.body, 1).length);
+  const hasVideoEmbed = postHasVideoLink(post.externalLinks?.[0]?.external_url, post.body);
   const fallbackCover = hasVisualMedia || hasVideoEmbed ? null : getFeedPostCover(post);
   // A video post opens as the player across the screen, with the author and date in one compact line below.
-  const videoLayout = hasVideoEmbed && !hasVisualMedia && !post.projectReview;
+  // An uploaded picture on a video post is its cover: it shows on the player, not above it.
+  const videoLayout = hasVideoEmbed && !post.projectReview && !post.media.some((item) => item.media_type === "video");
   const hasDetailCover = hasVisualMedia || Boolean(fallbackCover) || videoLayout;
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
@@ -730,7 +732,7 @@ export function PostDetailModal({
         ) : null}
         {swipeNotice ? <p className="post-swipe-notice" role="status">{swipeNotice}</p> : null}
         {swipeSignals && showSwipeHint ? <p className="post-swipe-hint">{t("social.feed.swipeHint")}</p> : null}
-        {hasVisualMedia ? <PostMedia media={post.media} locale={locale} showSource /> : null}
+        {hasVisualMedia && !videoLayout ? <PostMedia media={post.media} locale={locale} showSource /> : null}
         {fallbackCover ? <div className="post-detail-cover"><img alt="" src={fallbackCover} /></div> : null}
         {videoLayout ? <div className="post-detail-video"><ExternalLinkPreview post={post} locale={locale} t={t} /></div> : null}
         <div className="post-detail-content">
@@ -867,7 +869,8 @@ export function ExternalLinkPreview({ post, locale, t }: {
 }) {
   const externalLink = post.externalLinks?.[0];
   // TikTok frames expire, so link posts take a fresh one from the thumbnail route.
-  const stillFrame = externalLink?.provider === "tiktok" && post.post_type === "external_link" ? `/api/social/content/${post.id}/thumbnail` : externalLink?.thumbnail_url ?? null;
+  const uploadedCover = post.media.find((item) => item.media_type === "image" && item.media_url && !item.media_url.startsWith("/api/"))?.media_url ?? null;
+  const stillFrame = uploadedCover ?? (externalLink?.provider === "tiktok" && post.post_type === "external_link" ? `/api/social/content/${post.id}/thumbnail` : externalLink?.thumbnail_url ?? null);
   const embed = externalLink ? videoEmbedFromUrl(externalLink.external_url) : findVideoEmbeds(post.body, 1)[0];
   if (embed) {
     return (

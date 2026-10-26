@@ -3287,7 +3287,15 @@ const ru: Record<string, string> = {
   "video.nova.react.fire": "Да, это мощно!",
   "video.nova.react.wow": "Ого, не ожидала!",
   "video.nova.react.love": "Ой, как тепло.",
-  "video.nova.react.dance": "Танцую с тобой!"
+  "video.nova.react.dance": "Танцую с тобой!",
+  "social.blog.videoCover": "Обложка для ленты",
+  "social.blog.videoCoverHint": "Сделай скриншот видео и загрузи его: он будет на плитке в ленте и на плеере, пока видео не запущено.",
+  "social.blog.videoCoverNoFrame": "Эта платформа не даёт картинку по ссылке, поэтому без своей обложки на плитке будет только её логотип. Сделай скриншот видео и загрузи его.",
+  "social.blog.videoCoverEmpty": "Обложки пока нет",
+  "social.blog.videoCoverUpload": "Загрузить скриншот",
+  "social.blog.videoCoverReplace": "Заменить обложку",
+  "social.blog.videoCoverCancel": "Отменить",
+  "social.blog.videoCoverSaveHint": "Обложка сохранится вместе с постом."
 };
 
 export default ru;

@@ -47,6 +47,13 @@ assert.match(read("app/api/social/content/[postId]/thumbnail/route.ts"), /loadTi
 assert.match(read("components/FeedPostGallery.tsx"), /provider === "tiktok"\) return `\/api\/social\/content\/\$\{post\.id\}\/thumbnail`/, "feed tiles ask for a fresh TikTok frame");
 assert.match(read("lib/sharePreview.ts"), /resolveTikTokLink\(source\.externalUrl\)/, "new TikTok posts resolve the short link before oEmbed");
 
+// --- Instagram gives no frame: link posts get the platform's tile and an own cover ---
+const gallery = read("components/FeedPostGallery.tsx");
+assert.match(gallery, /<SourceTile provider=\{source\.provider\}/, "link tiles always have the platform tile underneath");
+const blog = read("components/BlogWorkspace.tsx");
+assert.match(blog, /<VideoCoverField /, "video link posts get a cover picker");
+assert.match(blog, /URL\.createObjectURL\(file\)/, "the chosen cover is previewed before saving");
+
 // --- Vimeo, Rutube, VK ---
 assert.equal(embed("https://vimeo.com/76979871").embedUrl, "https://player.vimeo.com/video/76979871?autoplay=1&dnt=1");
 assert.equal(embed("https://rutube.ru/video/0123456789abcdef0123456789abcdef/").embedUrl, "https://rutube.ru/play/embed/0123456789abcdef0123456789abcdef?autoplay=1");

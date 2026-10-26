@@ -3287,7 +3287,15 @@ const en = {
   "video.nova.react.fire": "Yes, that's strong!",
   "video.nova.react.wow": "Wow, didn't see that coming!",
   "video.nova.react.love": "Aww, that's warm.",
-  "video.nova.react.dance": "Dancing with you!"
+  "video.nova.react.dance": "Dancing with you!",
+  "social.blog.videoCover": "Cover for the feed",
+  "social.blog.videoCoverHint": "Take a screenshot of the video and upload it: it shows on the feed tile and on the player until it starts.",
+  "social.blog.videoCoverNoFrame": "This platform gives no picture for the link, so without your cover the tile shows only its logo. Take a screenshot of the video and upload it.",
+  "social.blog.videoCoverEmpty": "No cover yet",
+  "social.blog.videoCoverUpload": "Upload a screenshot",
+  "social.blog.videoCoverReplace": "Replace cover",
+  "social.blog.videoCoverCancel": "Cancel",
+  "social.blog.videoCoverSaveHint": "The cover is saved together with the post."
 } satisfies Record<string, string>;
 
 export default en;

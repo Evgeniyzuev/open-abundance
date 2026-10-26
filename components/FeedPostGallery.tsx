@@ -68,6 +68,8 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
   const tileRef = useRef<HTMLElement>(null);
   const title = getFeedPostTitle(post, fallbackTitle);
   const cover = getFeedPostCover(post);
+  // A link post always has its platform's tile underneath, so a missing or expired frame never leaves it blank.
+  const source = post.post_type === "external_link" ? post.externalLinks[0] ?? null : null;
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
   const author = getTileAuthor(post);
   const canAddWish = Boolean(onAddStoryWish && recommendedWishIdForStory(post.source_key));
@@ -108,7 +110,8 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
         if (currentUserId) void trackClientEvent("feed_post_opened", { post_id: post.id, post_type: post.post_type });
         onOpen(post);
       }}>
-        {cover ? <FeedCover priority={priority} src={cover} /> : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
+        {source ? <SourceTile provider={source.provider} handle={source.author_name ?? source.author_handle} /> : null}
+        {cover ? <FeedCover priority={priority} src={cover} /> : source ? null : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
         {showAuthor && author ? (
           <span aria-label={author.name} className="feed-post-tile-author">
             <span className="feed-post-tile-avatar">
@@ -122,6 +125,19 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
       </button>
       {currentUserId && t ? <FeedPostSignalMenu currentUserId={currentUserId} onAddStoryWish={canAddWish ? onAddStoryWish : undefined} onSignalChanged={onSignalChanged} post={post} storyWishSaving={adding} t={t} /> : null}
     </article>
+  );
+}
+
+const SOURCE_TILE_LABELS: Record<string, string> = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", telegram: "Telegram", x: "X", website: "" };
+
+/** The platform's own colours, its name and the author, for a link post without a picture of its own. */
+function SourceTile({ provider, handle }: { provider: string; handle: string | null | undefined }) {
+  const label = SOURCE_TILE_LABELS[provider] ?? "";
+  return (
+    <span className={`feed-post-tile-source source-${provider in SOURCE_TILE_LABELS ? provider : "website"}`} aria-hidden="true">
+      <strong>{label || "↗"}</strong>
+      {handle ? <small>{handle}</small> : null}
+    </span>
   );
 }
 

@@ -87,7 +87,7 @@ export function videoEmbedFromUrl(value: unknown): VideoEmbed | null {
   if (host === "tiktok.com") {
     // Short vm./vt. links redirect to an id we cannot know without a request, so they stay links.
     const index = parts.findIndex((part) => part === "video");
-    const id = index >= 0 ? parts[index + 1] : parts[0] === "embed" ? parts.at(-1) : null;
+    const id = index >= 0 ? parts[index + 1] : parts[0] === "embed" ? parts.at(-1) : parts[0] === "v" ? parts[1]?.replace(/\.html$/, "") : null;
     if (!id || !DIGITS.test(id)) return null;
     return { provider: "tiktok", sourceUrl, embedUrl: `https://www.tiktok.com/player/v1/${id}?rel=0&description=1`, shape: "vertical", thumbnailUrl: null };
   }
@@ -154,6 +154,40 @@ export function findVideoEmbeds(text: string | null | undefined, limit = MAX_EMB
     if (!embed || seen.has(embed.embedUrl)) continue;
     seen.add(embed.embedUrl);
     found.push(embed);
+    if (found.length >= limit) break;
+  }
+  return found;
+}
+
+/**
+ * Short share links (TikTok "Share" gives vt.tiktok.com/ZS…) hide the video id behind a
+ * redirect. The client asks /api/video/resolve once, which follows only TikTok's own redirects.
+ */
+export function isShortVideoLink(value: unknown): boolean {
+  if (typeof value !== "string" || value.length > 300) return false;
+  try {
+    const url = new URL(value.trim());
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    if (host === "vm.tiktok.com" || host === "vt.tiktok.com") return /^\/[\w-]{4,20}\/?$/.test(url.pathname);
+    return host === "tiktok.com" && /^\/t\/[\w-]{4,20}\/?$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+export function isTikTokHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === "tiktok.com" || host.endsWith(".tiktok.com");
+}
+
+/** Short links found in free text that may become players after resolving, in order, without repeats. */
+export function findShortVideoLinks(text: string | null | undefined, limit = MAX_EMBEDS_PER_TEXT): string[] {
+  if (!text) return [];
+  const found: string[] = [];
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"'«»]+/gi)) {
+    const link = match[0].replace(/[),.!?;:]+$/, "");
+    if (isShortVideoLink(link) && !found.includes(link)) found.push(link);
     if (found.length >= limit) break;
   }
   return found;

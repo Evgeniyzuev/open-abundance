@@ -1,10 +1,10 @@
 "use client";
 
 import { ExternalLink, Play, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import WatchWithNova from "@/components/WatchWithNova";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
-import { findVideoEmbeds, VIDEO_PROVIDER_LABELS, type VideoEmbed as Embed } from "@/lib/videoEmbed";
+import { findShortVideoLinks, findVideoEmbeds, VIDEO_PROVIDER_LABELS, type VideoEmbed as Embed } from "@/lib/videoEmbed";
 
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -102,13 +102,52 @@ export function VideoEmbedPlayer({ embed, title, author, thumbnailUrl, locale, t
   );
 }
 
+const resolvedShortLinks = new Map<string, Embed | null>();
+
+/**
+ * A short share link (TikTok's vt.tiktok.com/…) becomes a player once the server has
+ * followed its redirect; until then, and if that fails, the fallback (usually the link card) shows.
+ */
+export function ShortLinkVideoEmbed({ url, fallback = null, ...rest }: {
+  url: string;
+  fallback?: ReactNode;
+  title?: string | null;
+  author?: string | null;
+  thumbnailUrl?: string | null;
+  locale: AppLocale;
+  t: Translate;
+}) {
+  const [embed, setEmbed] = useState<Embed | null>(() => resolvedShortLinks.get(url) ?? null);
+
+  useEffect(() => {
+    if (resolvedShortLinks.has(url)) {
+      setEmbed(resolvedShortLinks.get(url) ?? null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/video/resolve?url=${encodeURIComponent(url)}`)
+      .then((response) => response.ok ? response.json() as Promise<{ embed?: Embed | null }> : { embed: null })
+      .then((payload) => {
+        const value = payload.embed?.embedUrl ? payload.embed : null;
+        resolvedShortLinks.set(url, value);
+        if (!cancelled) setEmbed(value);
+      })
+      .catch(() => { /* the link stays a link */ });
+    return () => { cancelled = true; };
+  }, [url]);
+
+  return embed ? <VideoEmbedPlayer embed={embed} {...rest} /> : <>{fallback}</>;
+}
+
 /** Players for the video links inside free text, such as a note or a post body. */
 export function TextVideoEmbeds({ text, locale, t }: { text: string | null | undefined; locale: AppLocale; t: Translate }) {
   const embeds = findVideoEmbeds(text);
-  if (!embeds.length) return null;
+  const shortLinks = findShortVideoLinks(text, Math.max(0, 2 - embeds.length));
+  if (!embeds.length && !shortLinks.length) return null;
   return (
     <div className="video-embed-list">
       {embeds.map((embed) => <VideoEmbedPlayer key={embed.embedUrl} embed={embed} locale={locale} t={t} />)}
+      {shortLinks.map((link) => <ShortLinkVideoEmbed key={link} url={link} locale={locale} t={t} />)}
     </div>
   );
 }

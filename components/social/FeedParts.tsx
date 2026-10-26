@@ -18,8 +18,8 @@ import Skeleton from "@/components/ui/Skeleton";
 import { type FeedFilter } from "@/components/social/useFeed";
 import FollowButton from "@/components/FollowButton";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
-import { VideoEmbedPlayer } from "@/components/VideoEmbed";
-import { findVideoEmbeds, videoEmbedFromUrl } from "@/lib/videoEmbed";
+import { ShortLinkVideoEmbed, VideoEmbedPlayer } from "@/components/VideoEmbed";
+import { findShortVideoLinks, findVideoEmbeds, isShortVideoLink, videoEmbedFromUrl } from "@/lib/videoEmbed";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
@@ -596,9 +596,11 @@ export function PostDetailModal({
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
   const hasVisualMedia = post.media.some((item) => (item.media_type === "image" || item.media_type === "video") && Boolean(item.media_url));
   // A post with a video player shows only the player, not its still frame on top as well.
-  const hasVideoEmbed = Boolean(post.externalLinks?.[0] ? videoEmbedFromUrl(post.externalLinks[0].external_url) : findVideoEmbeds(post.body, 1).length);
+  const hasVideoEmbed = Boolean(post.externalLinks?.[0] ? videoEmbedFromUrl(post.externalLinks[0].external_url) || isShortVideoLink(post.externalLinks[0].external_url) : findVideoEmbeds(post.body, 1).length || findShortVideoLinks(post.body, 1).length);
   const fallbackCover = hasVisualMedia || hasVideoEmbed ? null : getFeedPostCover(post);
-  const hasDetailCover = hasVisualMedia || Boolean(fallbackCover);
+  // A video post opens as the player across the screen, with the author and date in one compact line below.
+  const videoLayout = hasVideoEmbed && !hasVisualMedia && !post.projectReview;
+  const hasDetailCover = hasVisualMedia || Boolean(fallbackCover) || videoLayout;
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const sheetRef = useRef<HTMLElement>(null);
@@ -730,15 +732,16 @@ export function PostDetailModal({
         {swipeSignals && showSwipeHint ? <p className="post-swipe-hint">{t("social.feed.swipeHint")}</p> : null}
         {hasVisualMedia ? <PostMedia media={post.media} locale={locale} showSource /> : null}
         {fallbackCover ? <div className="post-detail-cover"><img alt="" src={fallbackCover} /></div> : null}
+        {videoLayout ? <div className="post-detail-video"><ExternalLinkPreview post={post} locale={locale} t={t} /></div> : null}
         <div className="post-detail-content">
-          <div className="post-detail-author-row">
+          {videoLayout ? null : <div className="post-detail-author-row">
             <PostAuthor detail post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
             {post.author_user_id && currentUserId && post.post_type !== "reality_demo" && post.post_type !== "abundance_story" ? <FollowButton authorId={post.author_user_id} /> : null}
             {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
             {post.post_type === "reality_demo" ? <span className="reality-demo-badge">{t("social.feed.demoBadge")}</span> : null}
             {post.post_type === "abundance_story" ? <span className="system-story-badge">{t("social.feed.systemStoryBadge")}</span> : null}
             {post.post_type === "project_review" ? <span className="project-review-badge">{t("social.review.badge")}</span> : null}
-          </div>
+          </div>}
           {post.system_verified && post.verifiedChallenge ? <VerifiedChallengeMeta locale={locale} post={post} t={t} /> : null}
           {post.projectReview && !editingReview ? (
             <div className="project-review-detail-meta">
@@ -785,9 +788,15 @@ export function PostDetailModal({
                 </button>
               </div>
             </div>
-          ) : <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>}
+          ) : videoLayout && !post.body?.trim() ? null : <p className="post-detail-body">{post.body ?? t("social.post.detail")}</p>}
           {post.projectReview && !editingReview ? <small className="project-review-reward-note">{t("social.review.rewarded", { reward: formatMoney(3, locale) })}</small> : null}
-          <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>
+          {videoLayout ? (
+            <div className="post-detail-video-meta">
+              <PostAuthor post={post} t={t} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+              {post.system_verified ? <span className="system-story-badge">{t("social.feed.verifiedBadge")}</span> : null}
+              <small>{post.status === "published" ? formatPostDate(post, locale) : `${t(postStatusLabelKey(post.status))} - ${formatPostDate(post, locale)}`}</small>
+            </div>
+          ) : <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))} - {formatPostDate(post, locale)}</span>}
           <RepostSourcePreview post={post} locale={locale} t={t} />
           <StatBlockGrid blocks={post.statBlocks} locale={locale} t={t} />
           <WishPostPreview
@@ -799,7 +808,7 @@ export function PostDetailModal({
             t={t}
             onCopyWish={onCopyWish}
           />
-          <ExternalLinkPreview post={post} locale={locale} t={t} />
+          {videoLayout ? null : <ExternalLinkPreview post={post} locale={locale} t={t} />}
           <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
           <FeedPostSignalButtons
             currentUserId={currentUserId}
@@ -870,16 +879,29 @@ export function ExternalLinkPreview({ post, locale, t }: {
       />
     );
   }
-  if (!externalLink) return null;
-
-  return (
+  const shortLink = externalLink ? (isShortVideoLink(externalLink.external_url) ? externalLink.external_url : null) : findShortVideoLinks(post.body, 1)[0];
+  const card = externalLink ? (
     <a className="external-link-preview" href={externalLink.external_url} target="_blank" rel="noreferrer">
       <span>{formatProviderLabel(externalLink.provider)}</span>
       <strong>{externalLink.title ?? externalLink.external_url}</strong>
       {externalLink.author_handle ? <small>{externalLink.author_handle}</small> : null}
       <ExternalLink size={15} />
     </a>
-  );
+  ) : null;
+  if (shortLink) {
+    return (
+      <ShortLinkVideoEmbed
+        url={shortLink}
+        fallback={card}
+        title={externalLink?.title ?? null}
+        author={externalLink?.author_name ?? externalLink?.author_handle ?? null}
+        thumbnailUrl={externalLink?.thumbnail_url ?? null}
+        locale={locale}
+        t={t}
+      />
+    );
+  }
+  return card;
 }
 
 export function RepostSourcePreview({

@@ -37,6 +37,7 @@
     "test:cryptopay": "node --experimental-strip-types scripts/verify-cryptopay-contract.mjs",
     "test:tonconnect": "node --experimental-strip-types scripts/verify-tonconnect-contract.mjs",
     "test:p2p-push": "node scripts/verify-p2p-push-contract.mjs",
+    "test:video-embed": "node --experimental-strip-types scripts/verify-video-embed-contract.mjs",
     "test:qr": "node --experimental-strip-types scripts/verify-qr-payload-contract.mjs",
     "test:nova": "node --experimental-strip-types scripts/verify-nova-cards-contract.mjs",
     "test:launch": "node scripts/verify-launch-decisions-contract.mjs",

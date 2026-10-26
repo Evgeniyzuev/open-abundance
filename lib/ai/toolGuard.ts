@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { AiQuotaServiceError, refundAiChatMessage, reserveAiChatMessage } from "@/lib/ai/serverUsage";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { WATCH_AI_DAY_LIMIT, WATCH_AI_MONTH_LIMIT } from "@/lib/watchCompanion";
 
 /**
  * Sign-in and quota for AI helper tools. Reuses the chat quota tables with a separate
  * capability bucket, so one explicit tap costs one small quota write and no new tables.
  */
 export const AI_TOOL_LIMITS = {
-  "tools.organize": { dayLimit: 30, monthLimit: 300 }
+  "tools.organize": { dayLimit: 30, monthLimit: 300 },
+  "tools.watch": { dayLimit: WATCH_AI_DAY_LIMIT, monthLimit: WATCH_AI_MONTH_LIMIT }
 } as const;
 
 export type AiToolBucket = keyof typeof AI_TOOL_LIMITS;

@@ -3264,7 +3264,30 @@ const en = {
     "quests.continue.option.time": "More time",
     "quests.continue.notePlaceholder": "Or say it in your own words (optional)",
     "quests.continue.send": "Answer",
-    "quests.continue.thanks": "Thank you! I'll take it into account and pick quests for you."
+    "quests.continue.thanks": "Thank you! I'll take it into account and pick quests for you.",
+  "video.embed.playerTitle": "{provider} player",
+  "video.embed.play": "Play the {provider} video here",
+  "video.embed.open": "Open in {provider}",
+  "video.embed.slow": "The {provider} player is taking long. It may be blocked in your region or the post may be private; the link below always works.",
+  "video.nova.start": "Watch with Nova",
+  "video.nova.title": "Watching with Nova",
+  "video.nova.honest": "Nova sees only the title and your words, not the video itself.",
+  "video.nova.hello": "I'm here with you! Tap an emoji when something catches you, or tell me what you think.",
+  "video.nova.placeholder": "What do you think?",
+  "video.nova.send": "Send to Nova",
+  "video.nova.quiet": "I'll keep watching with you quietly now; emoji still work.",
+  "video.nova.quota": "I've talked a lot today, so I'll just react with emoji until tomorrow.",
+  "video.nova.signIn": "Sign in so I can reply in words; emoji work anyway.",
+  "video.nova.offline": "I couldn't think of a reply right now, but I'm still watching with you.",
+  "video.nova.enough": "Enough for today",
+  "video.nova.enoughHint": "We've watched together for about {minutes} minutes today. Maybe a pause, a walk or a message to a friend?",
+  "video.nova.paused": "We agreed on a pause for today. See you tomorrow!",
+  "video.nova.resume": "Turn Nova back on",
+  "video.nova.react.laugh": "Haha, that got me too!",
+  "video.nova.react.fire": "Yes, that's strong!",
+  "video.nova.react.wow": "Wow, didn't see that coming!",
+  "video.nova.react.love": "Aww, that's warm.",
+  "video.nova.react.dance": "Dancing with you!"
 } satisfies Record<string, string>;
 
 export default en;

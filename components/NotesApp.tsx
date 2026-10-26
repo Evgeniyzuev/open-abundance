@@ -23,6 +23,7 @@ import BackupReminder from "@/components/BackupReminder";
 import NotesImport from "@/components/NotesImport";
 import LocalDataNotice from "@/components/LocalDataNotice";
 import NoteImages from "@/components/NoteImages";
+import { TextVideoEmbeds } from "@/components/VideoEmbed";
 import { takeQuickAction } from "@/lib/quickAction";
 import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
 import { NoteAiAnswer, NoteAiBadge, NoteAiMenu } from "@/components/NoteAiPanel";
@@ -558,6 +559,7 @@ function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose
         <input className="notes-detail-title" aria-label={t("notes.titleLabel")} autoFocus={target.isNew} placeholder={t("notes.titlePlaceholder")} value={title} onChange={(event) => setTitle(event.target.value)} />
         <textarea ref={bodyRef} className="notes-detail-text" aria-label={t("notes.bodyLabel")} placeholder={t("notes.bodyPlaceholder")} rows={4} value={body} onChange={(event) => setBody(event.target.value)} />
         <NoteImages images={images} onChange={setImages} />
+        <TextVideoEmbeds text={body} locale={locale} t={t} />
 
         <div className="notes-detail-group">
           <label className="notes-detail-field">

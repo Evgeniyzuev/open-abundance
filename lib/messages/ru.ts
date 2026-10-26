@@ -3264,7 +3264,30 @@ const ru: Record<string, string> = {
     "quests.continue.option.time": "Больше времени",
     "quests.continue.notePlaceholder": "Или напиши своими словами (необязательно)",
     "quests.continue.send": "Ответить",
-    "quests.continue.thanks": "Спасибо! Я учту это и подберу квесты под тебя."
+    "quests.continue.thanks": "Спасибо! Я учту это и подберу квесты под тебя.",
+  "video.embed.playerTitle": "Плеер {provider}",
+  "video.embed.play": "Смотреть видео {provider} здесь",
+  "video.embed.open": "Открыть в {provider}",
+  "video.embed.slow": "Плеер {provider} долго грузится. Возможно, он заблокирован в твоём регионе или пост закрыт; ссылка ниже работает всегда.",
+  "video.nova.start": "Смотреть с Новой",
+  "video.nova.title": "Смотрим с Новой",
+  "video.nova.honest": "Нова видит только название и твои слова, а не само видео.",
+  "video.nova.hello": "Я рядом! Жми эмодзи, когда что-то зацепит, или напиши, что думаешь.",
+  "video.nova.placeholder": "Что думаешь?",
+  "video.nova.send": "Отправить Нове",
+  "video.nova.quiet": "Дальше смотрю с тобой молча, эмодзи по-прежнему работают.",
+  "video.nova.quota": "Я сегодня много говорила, до завтра буду отвечать только эмодзи.",
+  "video.nova.signIn": "Войди, чтобы я могла отвечать словами; эмодзи работают и так.",
+  "video.nova.offline": "Сейчас не получилось ответить, но я всё ещё смотрю с тобой.",
+  "video.nova.enough": "Хватит на сегодня",
+  "video.nova.enoughHint": "Мы сегодня смотрим вместе уже около {minutes} минут. Может, пауза, прогулка или сообщение другу?",
+  "video.nova.paused": "Мы договорились о паузе на сегодня. До завтра!",
+  "video.nova.resume": "Включить Нову снова",
+  "video.nova.react.laugh": "Ха-ха, меня тоже рассмешило!",
+  "video.nova.react.fire": "Да, это мощно!",
+  "video.nova.react.wow": "Ого, не ожидала!",
+  "video.nova.react.love": "Ой, как тепло.",
+  "video.nova.react.dance": "Танцую с тобой!"
 };
 
 export default ru;

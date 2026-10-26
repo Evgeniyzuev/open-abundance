@@ -18,6 +18,8 @@ import Skeleton from "@/components/ui/Skeleton";
 import { type FeedFilter } from "@/components/social/useFeed";
 import FollowButton from "@/components/FollowButton";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
+import { VideoEmbedPlayer } from "@/components/VideoEmbed";
+import { findVideoEmbeds, videoEmbedFromUrl } from "@/lib/videoEmbed";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
@@ -463,7 +465,7 @@ export function PostCard({
         t={t}
         onCopyWish={onCopyWish}
       />
-      <ExternalLinkPreview post={post} />
+      <ExternalLinkPreview post={post} locale={locale} t={t} />
       <footer>
         <span className={`post-status ${post.status}`}>{t(postStatusLabelKey(post.status))}</span>
         <div className="feed-card-actions">
@@ -795,7 +797,7 @@ export function PostDetailModal({
             t={t}
             onCopyWish={onCopyWish}
           />
-          <ExternalLinkPreview post={post} />
+          <ExternalLinkPreview post={post} locale={locale} t={t} />
           <FeedPostInteractions currentUserId={currentUserId} locale={locale} post={post} t={t} onReposted={onReposted} />
           <FeedPostSignalButtons
             currentUserId={currentUserId}
@@ -847,8 +849,25 @@ export function PostDetailModal({
   );
 }
 
-export function ExternalLinkPreview({ post }: { post: FeedPost }) {
+export function ExternalLinkPreview({ post, locale, t }: {
+  post: FeedPost;
+  locale: AppLocale;
+  t: (key: MessageKey, values?: Record<string, string | number>) => string;
+}) {
   const externalLink = post.externalLinks?.[0];
+  const embed = externalLink ? videoEmbedFromUrl(externalLink.external_url) : findVideoEmbeds(post.body, 1)[0];
+  if (embed) {
+    return (
+      <VideoEmbedPlayer
+        embed={embed}
+        title={externalLink?.title ?? null}
+        author={externalLink?.author_name ?? externalLink?.author_handle ?? null}
+        thumbnailUrl={externalLink?.thumbnail_url ?? null}
+        locale={locale}
+        t={t}
+      />
+    );
+  }
   if (!externalLink) return null;
 
   return (

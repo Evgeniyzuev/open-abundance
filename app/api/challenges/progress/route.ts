@@ -18,7 +18,7 @@ type ProgressRequest = {
 };
 
 const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
-  calculate_time_to_goal: ["calculated", "compound_quiz_passed"],
+  calculate_time_to_goal: ["calculated", "compound_quiz_passed", "future_seen"],
   ai_message_sent: ["ai_message_sent"],
   attention_value_audit: ["attention_audit_completed"],
   core_law_understood: ["core_law_understood"],

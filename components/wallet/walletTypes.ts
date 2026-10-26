@@ -8,6 +8,12 @@ export type WalletCalculatorRequest = {
   dailyAdditions?: number;
   nonce: number;
   targetCore?: number;
+  /** "future": how much Core after a term (the "Power of Core" quest); the default opens the target mode. */
+  mode?: "future" | "target";
+  termYears?: number;
+  reinvestPercent?: number;
+  /** Opened from a quest: the calculator marks the quest step and offers the way back. */
+  fromQuest?: boolean;
 };
 
 export type CoreHistoryRow = {

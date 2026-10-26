@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
 import ChannelCodeChallenge from "@/components/ChannelCodeChallenge";
 import { InstallGuideDetails } from "@/components/InstallGuide";
-import { DAILY_CORE_RATE } from "@/lib/coreCalculator";
+import { calculateFutureCore, coreRequiredForDailyIncome, DAILY_CORE_RATE, findDaysToTarget, formatDurationParts } from "@/lib/coreCalculator";
+import { CORE_POWER_EXAMPLE, CORE_POWER_SEEN_EVENT, corePowerSeen, openCoreCalculatorForQuest } from "@/lib/corePowerQuest";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { isStandaloneDisplay } from "@/lib/installPing";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { MOTIVE_NOTE_MAX, QUEST_MOTIVES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
+import { trackProductEvent } from "@/lib/productAnalytics";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -352,6 +354,273 @@ export function GoalPlanQuest({ coreBalance, locale, t, onSaved }: { coreBalance
   );
 }
 
+const CORE_POWER_REACTIONS = ["impressive", "nonsense", "unreal", "small", "explain"] as const;
+const CORE_POWER_DAILY_CHIPS = [5, 10, 20, 50] as const;
+type CorePowerStage = "intro" | "react" | "goal" | "done";
+
+/**
+ * "The power of Core" (founder's scenario, 2026-10-26): (1) the calculator in Wallet shows Core and income after 30
+ * years of $10 a day; it marks the step by itself (lib/corePowerQuest.ts) and the person comes back here; (2) "How do
+ * you like the sum?" in one tap; (3) their own goal, capital or monthly income, with a daily Core target that changes
+ * the term; saving sets the daily goal. Nova closes the quest and the reward follows.
+ */
+export function CorePowerQuest({ coreBalance, locale, t, userId, onSaved }: { coreBalance: number; locale: AppLocale; t: TFunction; userId: string | null; onSaved: () => void }) {
+  const [stage, setStage] = useState<CorePowerStage>("intro");
+  const [reaction, setReaction] = useState<(typeof CORE_POWER_REACTIONS)[number] | null>(null);
+  const [goalKind, setGoalKind] = useState<"capital" | "income">("capital");
+  const [amount, setAmount] = useState("");
+  const [daily, setDaily] = useState("10");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    const sync = () => setStage((current) => (current === "intro" && corePowerSeen(userId) ? "react" : current));
+    sync();
+    window.addEventListener(CORE_POWER_SEEN_EVENT, sync);
+    window.addEventListener("focus", sync);
+    return () => {
+      window.removeEventListener(CORE_POWER_SEEN_EVENT, sync);
+      window.removeEventListener("focus", sync);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const response = await fetchWithSupabaseAuth("/api/wishes?status=active&includeRecommended=false", { cache: "no-store" }, { authRequired: true });
+        const payload = (await response.json().catch(() => ({}))) as { wishes?: Array<{ target_amount?: number | null }> };
+        const wish = (payload.wishes ?? []).find((item) => Number(item.target_amount ?? 0) > 0);
+        if (mounted && wish) setAmount((current) => current || String(Math.round(Number(wish.target_amount))));
+      } catch {
+        // No wish price: the person types it.
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const example = useMemo(() => {
+    const core = calculateFutureCore({ startCore: Math.max(0, coreBalance), dailyAdditions: CORE_POWER_EXAMPLE.dailyAdditions, reinvestPercent: CORE_POWER_EXAMPLE.reinvestPercent, days: CORE_POWER_EXAMPLE.termYears * 365.25 });
+    return { core, yearIncome: core * DAILY_CORE_RATE * 365 };
+  }, [coreBalance]);
+
+  const value = Math.max(0, Number(amount.replace(",", ".")) || 0);
+  const dailyValue = Math.max(0, Number(daily.replace(",", ".")) || 0);
+  const targetCore = goalKind === "capital" ? value : coreRequiredForDailyIncome(value / 30.4375);
+  const start = Math.max(0, coreBalance);
+  const result = useMemo(
+    () => (targetCore > 0 ? findDaysToTarget({ startCore: start, dailyAdditions: dailyValue, reinvestPercent: 100, days: 0, targetCore }) : null),
+    [dailyValue, start, targetCore]
+  );
+  const term = result?.kind === "estimated" ? formatDurationParts(result.days) : null;
+
+  function react(choice: (typeof CORE_POWER_REACTIONS)[number]) {
+    setReaction(choice);
+    trackProductEvent("core_power_reaction", { reaction: choice });
+  }
+
+  async function save() {
+    if (!result || result.kind !== "estimated" || dailyValue <= 0) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const planResponse = await fetchWithSupabaseAuth("/api/core/growth-plan", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          calculatedDaysToGoal: result.days,
+          dailyAdditions: dailyValue,
+          metadata: { source: "quest_core_power", goal_kind: goalKind, goal_value: value },
+          reinvestPercent: 100,
+          startCore: start,
+          targetType: "core_amount",
+          targetValue: targetCore
+        })
+      }, { authRequired: true });
+      const planPayload = (await planResponse.json().catch(() => ({}))) as { error?: string };
+      if (!planResponse.ok || planPayload.error) throw new Error(planPayload.error ?? t("quests.plan.saveFailed"));
+      await fetchWithSupabaseAuth("/api/challenges/progress", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verificationLogic: "calculate_time_to_goal", proofKey: "calculated" })
+      }, { authRequired: true });
+      trackProductEvent("core_power_goal_saved", { goal_kind: goalKind, daily: dailyValue });
+      setStage("done");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : t("quests.plan.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="quest-scene">
+      <span className="quest-scene-step">{t(`quests.corePower.stage.${stage}` as MessageKey)}</span>
+
+      {stage === "intro" ? (
+        <>
+          <p className="quest-scene-text">{t("quests.corePower.intro")}</p>
+          <ol className="quest-steps">
+            <li>{t("quests.corePower.how1")}</li>
+            <li>{t("quests.corePower.how2")}</li>
+            <li>{t("quests.corePower.how3")}</li>
+          </ol>
+          <button className="challenge-primary-action" type="button" onClick={openCoreCalculatorForQuest}>{t("quests.corePower.openCalculator")}</button>
+          <button className="quest-path-toggle" type="button" onClick={() => setStage("react")}>{t("quests.corePower.skipCalculator")}</button>
+        </>
+      ) : null}
+
+      {stage === "react" ? (
+        <>
+          <p className="quest-scene-text">{t("quests.corePower.result", { core: formatRoundedMoney(example.core, locale), income: formatRoundedMoney(example.yearIncome, locale) })}</p>
+          <p className="quest-scene-hint">{t("quests.corePower.resultNote")}</p>
+          {reaction ? (
+            <>
+              <NovaBubble text={t(`quests.corePower.reply.${reaction}` as MessageKey)} t={t} />
+              <button className="challenge-primary-action" type="button" onClick={() => setStage("goal")}>{t("quests.corePower.toGoal")}</button>
+            </>
+          ) : (
+            <>
+              <p className="quest-scene-text"><strong>{t("quests.corePower.question")}</strong></p>
+              <div className="quest-choices" role="group" aria-label={t("quests.corePower.question")}>
+                {CORE_POWER_REACTIONS.map((choice) => (
+                  <button className="quest-choice" key={choice} type="button" onClick={() => react(choice)}>{t(`quests.corePower.option.${choice}` as MessageKey)}</button>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      ) : null}
+
+      {stage === "goal" ? (
+        <div className="quest-plan">
+          <div className="quest-tabs" role="group" aria-label={t("quests.corePower.goalKind")}>
+            {(["capital", "income"] as const).map((kind) => (
+              <button aria-pressed={goalKind === kind} className={goalKind === kind ? "quest-tab selected" : "quest-tab"} key={kind} type="button" onClick={() => setGoalKind(kind)}>
+                {t(`quests.corePower.kind.${kind}` as MessageKey)}
+              </button>
+            ))}
+          </div>
+          <label className="quest-plan-field">
+            <span>{t(goalKind === "capital" ? "quests.corePower.capitalLabel" : "quests.corePower.incomeLabel")}</span>
+            <input inputMode="decimal" placeholder={goalKind === "capital" ? "10000" : "300"} value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^\d.,]/g, "").slice(0, 10))} />
+          </label>
+          <div className="quest-plan-field">
+            <span>{t("quests.corePower.dailyLabel")}</span>
+            <div className="quest-tabs">
+              {CORE_POWER_DAILY_CHIPS.map((chip) => (
+                <button aria-pressed={dailyValue === chip} className={dailyValue === chip ? "quest-tab selected" : "quest-tab"} key={chip} type="button" onClick={() => setDaily(String(chip))}>
+                  {formatRoundedMoney(chip, locale)}
+                </button>
+              ))}
+            </div>
+            <input inputMode="decimal" value={daily} onChange={(event) => setDaily(event.target.value.replace(/[^\d.,]/g, "").slice(0, 8))} />
+          </div>
+          {result ? (
+            result.kind === "estimated" && term ? (
+              <div className="quest-plan-result">
+                <span><small>{t("quests.corePower.term")}</small><strong>{t("quests.corePower.termValue", { years: term.years, months: term.months })}</strong></span>
+                <span><small>{t("quests.plan.futureCore")}</small><strong>{formatRoundedMoney(targetCore, locale)}</strong></span>
+                <span><small>{t("quests.corePower.incomeMonth")}</small><strong>{formatRoundedMoney(targetCore * DAILY_CORE_RATE * 30.4375, locale)}</strong></span>
+              </div>
+            ) : <p className="challenge-note">{t(result.kind === "reached" ? "quests.plan.alreadyReached" : "quests.corePower.tooFar")}</p>
+          ) : null}
+          <p className="challenge-note">{t("quests.corePower.dailyNote")}</p>
+          <button className="challenge-primary-action" type="button" disabled={saving || result?.kind !== "estimated" || dailyValue <= 0} onClick={() => void save()}>
+            {saving ? t("app.common.loading") : t("quests.corePower.save")}
+          </button>
+          {error ? <p className="challenge-error">{error}</p> : null}
+        </div>
+      ) : null}
+
+      {stage === "done" ? (
+        <>
+          <NovaBubble text={t("quests.corePower.final")} t={t} />
+          <button className="challenge-primary-action" type="button" onClick={onSaved}>{t("quests.wish.claim")}</button>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+const CONTINUE_OPTIONS = ["clear_benefit", "bigger_rewards", "friends", "reminders", "simpler", "time"] as const;
+
+/**
+ * Day 3+: Nova asks once "What do you need to keep going?" (several answers and an optional line). The answers go to
+ * the daily analytics; the line also goes to the feedback inbox (app/api/feedback).
+ */
+export function ContinueQuestion({ locale, t, userId, registeredAt }: { locale: AppLocale; t: TFunction; userId: string | null; registeredAt: string | null }) {
+  const storageKey = userId ? `oa-continue-question:${userId}` : null;
+  const [hidden, setHidden] = useState(true);
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [note, setNote] = useState("");
+  const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    if (!storageKey || !registeredAt) return;
+    const age = Date.now() - Date.parse(registeredAt);
+    let answered = false;
+    try {
+      answered = Boolean(window.localStorage.getItem(storageKey));
+    } catch {
+      answered = false;
+    }
+    setHidden(answered || !(age >= 2 * 86_400_000));
+  }, [registeredAt, storageKey]);
+
+  if (hidden) return null;
+
+  function send() {
+    trackProductEvent("quest_continue_answer", { answers: answers.join(",") || null, has_note: note.trim().length > 0 });
+    if (note.trim().length >= 3) {
+      void fetchWithSupabaseAuth("/api/feedback", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: "idea", message: note.trim().slice(0, 2000), screen: "quests.continue", locale })
+      }).catch(() => undefined);
+    }
+    try {
+      if (storageKey) window.localStorage.setItem(storageKey, new Date().toISOString());
+    } catch {
+      // Asked again next time at worst.
+    }
+    setSent(true);
+  }
+
+  return (
+    <section className="quest-scene quest-continue">
+      <NovaBubble text={sent ? t("quests.continue.thanks") : t("quests.continue.question")} t={t} />
+      {sent ? null : (
+        <>
+          <div className="quest-choices" role="group" aria-label={t("quests.continue.question")}>
+            {CONTINUE_OPTIONS.map((option) => (
+              <button
+                aria-pressed={answers.includes(option)}
+                className={answers.includes(option) ? "quest-choice selected" : "quest-choice"}
+                key={option}
+                type="button"
+                onClick={() => setAnswers((current) => (current.includes(option) ? current.filter((item) => item !== option) : [...current, option]))}
+              >
+                {t(`quests.continue.option.${option}` as MessageKey)}
+              </button>
+            ))}
+          </div>
+          <div className="quest-own">
+            <textarea maxLength={500} placeholder={t("quests.continue.notePlaceholder")} value={note} onChange={(event) => setNote(event.target.value)} />
+          </div>
+          <button className="challenge-primary-action" type="button" disabled={answers.length === 0 && note.trim().length < 3} onClick={send}>{t("quests.continue.send")}</button>
+        </>
+      )}
+    </section>
+  );
+}
+
 type LeadersPayload = {
   leaders?: Array<{ rank: number; name: string | null; avatarUrl: string | null; quests: number; isViewer: boolean }>;
   viewer?: { rank: number | null; quests: number | null } | null;
@@ -401,37 +670,32 @@ export function QuestLeaders({ refreshKey, t }: { refreshKey: number; t: TFuncti
   );
 }
 
-type RecommendedWish = { id: string; title: Record<string, string> | string; estimated_cost?: string | null };
+/** The five simple wishes of "First wish": a price for the next quest's calculation and Nova's reaction. */
+export const FIRST_WISHES = [
+  { key: "smartphone", price: 800, motive: "wish" },
+  { key: "income", price: 0, motive: "income" },
+  { key: "travel", price: 1500, motive: "change" },
+  { key: "course", price: 500, motive: "learn" },
+  { key: "health", price: 400, motive: "path" }
+] as const;
+type FirstWish = (typeof FIRST_WISHES)[number];
 
 /**
- * "Choose your main wish": three ready wishes added in one tap, or the person's own in one line. Saving checks the
- * quest at once; the first wish becomes the main one (app/api/wishes).
+ * "First wish": five simple wishes in one tap (the one matching the person's answer in "First step" goes first) or
+ * their own in one line. Nova reacts to the choice, and the reward is taken from there. The first wish becomes the main
+ * one (app/api/wishes).
  */
-export function ChooseWishQuest({ locale, t, onSaved }: { locale: AppLocale; t: TFunction; onSaved: () => void }) {
-  const [ideas, setIdeas] = useState<RecommendedWish[]>([]);
+export function ChooseWishQuest({ locale, motives, t, onSaved }: { locale: AppLocale; motives?: string[]; t: TFunction; onSaved: () => void }) {
   const [own, setOwn] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reaction, setReaction] = useState<string | null>(null);
+  const cards = useMemo(() => {
+    const first = motives?.[0];
+    return [...FIRST_WISHES].sort((a, b) => Number(b.motive === first) - Number(a.motive === first));
+  }, [motives]);
 
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const response = await fetchWithSupabaseAuth("/api/wishes?status=active", { cache: "no-store" }, { authRequired: true });
-        const payload = (await response.json().catch(() => ({}))) as { recommendedWishes?: RecommendedWish[] };
-        if (mounted) setIdeas((payload.recommendedWishes ?? []).slice(0, 3));
-      } catch {
-        // Without ideas the person writes their own.
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const titleOf = (wish: RecommendedWish) => (typeof wish.title === "string" ? wish.title : wish.title[locale] ?? wish.title.en ?? Object.values(wish.title)[0] ?? "");
-
-  async function add(key: string, body: Record<string, unknown>) {
+  async function add(key: string, body: Record<string, unknown>, nextReaction: string) {
     setSaving(key);
     setError(null);
     try {
@@ -443,7 +707,8 @@ export function ChooseWishQuest({ locale, t, onSaved }: { locale: AppLocale; t: 
       }, { authRequired: true });
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("quests.wish.saveFailed"));
-      onSaved();
+      trackProductEvent("first_wish_chosen", { wish: key });
+      setReaction(nextReaction);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : t("quests.wish.saveFailed"));
     } finally {
@@ -451,26 +716,38 @@ export function ChooseWishQuest({ locale, t, onSaved }: { locale: AppLocale; t: 
     }
   }
 
+  function pick(wish: FirstWish) {
+    const title = t(`quests.wish.card.${wish.key}` as MessageKey);
+    void add(wish.key, { title, ...(wish.price > 0 ? { targetAmount: wish.price, targetCurrency: "USD" } : {}) }, t(`quests.wish.react.${wish.key}` as MessageKey));
+  }
+
+  if (reaction) {
+    return (
+      <section className="quest-plan">
+        <NovaBubble text={`${reaction} ${t("quests.wish.reactNext")}`} t={t} />
+        <button className="challenge-primary-action" type="button" onClick={onSaved}>{t("quests.wish.claim")}</button>
+      </section>
+    );
+  }
+
   return (
     <section className="quest-plan">
-      {ideas.length ? (
-        <div className="quest-plan-field">
-          <span>{t("quests.wish.ideas")}</span>
-          <div className="quest-wish-ideas">
-            {ideas.map((wish) => (
-              <button className="quest-wish-idea" disabled={saving !== null} key={wish.id} type="button" onClick={() => void add(wish.id, { sourceRecommendedWishId: wish.id })}>
-                <span>{titleOf(wish)}</span>
-                <b>{saving === wish.id ? t("app.common.loading") : "+"}</b>
-              </button>
-            ))}
-          </div>
+      <div className="quest-plan-field">
+        <span>{t("quests.wish.ideas")}</span>
+        <div className="quest-wish-ideas">
+          {cards.map((wish) => (
+            <button className="quest-wish-idea" disabled={saving !== null} key={wish.key} type="button" onClick={() => pick(wish)}>
+              <span>{t(`quests.wish.card.${wish.key}` as MessageKey)}</span>
+              <b>{saving === wish.key ? t("app.common.loading") : wish.price > 0 ? formatRoundedMoney(wish.price, locale) : "+"}</b>
+            </button>
+          ))}
         </div>
-      ) : null}
+      </div>
       <label className="quest-plan-field">
         <span>{t("quests.wish.own")}</span>
         <input maxLength={120} placeholder={t("quests.wish.ownPlaceholder")} value={own} onChange={(event) => setOwn(event.target.value)} />
       </label>
-      <button className="challenge-primary-action" type="button" disabled={saving !== null || own.trim().length < 2} onClick={() => void add("own", { title: own.trim() })}>
+      <button className="challenge-primary-action" type="button" disabled={saving !== null || own.trim().length < 2} onClick={() => void add("own", { title: own.trim() }, t("quests.wish.react.own", { title: own.trim() }))}>
         {saving === "own" ? t("app.common.loading") : t("quests.wish.save")}
       </button>
       {error ? <p className="challenge-error">{error}</p> : null}

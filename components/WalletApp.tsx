@@ -13,6 +13,7 @@ import CryptoPayDepositModal from "@/components/CryptoPayDepositModal";
 import { TonUsdtDepositModal, TonUsdtWithdrawalModal } from "@/components/TonUsdtWalletModals";
 import { WalletCryptoMethodModal, type WalletCryptoMethod } from "@/components/WalletCryptoMethodModal";
 import { type CoreAccount, useUserContext } from "@/components/UserProvider";
+import { markCorePowerSeen } from "@/lib/corePowerQuest";
 import { calculateDailyIncome, calculateFutureCore, coreRequiredForDailyIncome, daysFromTerm, findDaysToTarget, normalizePercent } from "@/lib/coreCalculator";
 import { GROWTH_POPUP_KEY, GROWTH_POPUP_WINDOW_MS, parseGrowthPopupSetting, shouldShowGrowthPopup, type GrowthAnnouncement } from "@/lib/coreGrowthPopup";
 import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
@@ -99,6 +100,12 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const calculatorRequestNonce = calculatorRequest?.nonce;
   const calculatorRequestDailyAdditions = calculatorRequest?.dailyAdditions;
   const calculatorRequestTargetCore = calculatorRequest?.targetCore;
+  const calculatorRequestMode = calculatorRequest?.mode;
+  const calculatorRequestTermYears = calculatorRequest?.termYears;
+  const calculatorRequestReinvest = calculatorRequest?.reinvestPercent;
+  const calculatorRequestFromQuest = calculatorRequest?.fromQuest === true;
+  const [questReturn, setQuestReturn] = useState(false);
+  const questReturnRef = useRef(false);
 
   // A link /pay/@nickname arrives as ?payto=nickname (kept across sign-in): open the transfer with that person.
   useEffect(() => {
@@ -328,6 +335,8 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   useEffect(() => {
     if (!core) return;
     setReinvestValue(formatInputNumber(core.reinvest_percent));
+    // A quest asked for its own simulation (100% reinvest); a balance refresh must not overwrite it.
+    if (questReturnRef.current) return;
     setSimulationReinvest(formatInputNumber(core.reinvest_percent));
   }, [core?.reinvest_percent, core]);
 
@@ -340,16 +349,55 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     if (!calculatorRequestNonce) return;
 
     setCalculatorOpen(true);
-    setCalculatorMode("target");
-    setTargetKind("core");
-    setTargetCalculationTouched(false);
+    questReturnRef.current = calculatorRequestFromQuest;
+    setQuestReturn(calculatorRequestFromQuest);
     if (typeof calculatorRequestDailyAdditions === "number") {
       setDailyAdditions(formatInputNumber(calculatorRequestDailyAdditions));
     }
+    if (calculatorRequestMode === "future") {
+      setCalculatorMode("future");
+      if (typeof calculatorRequestTermYears === "number") {
+        setTermValue(formatInputNumber(calculatorRequestTermYears));
+        setTermUnit("years");
+      }
+      if (typeof calculatorRequestReinvest === "number") setSimulationReinvest(formatInputNumber(calculatorRequestReinvest));
+      return;
+    }
+    setCalculatorMode("target");
+    setTargetKind("core");
+    setTargetCalculationTouched(false);
     if (typeof calculatorRequestTargetCore === "number") {
       setTargetCore(formatInputNumber(calculatorRequestTargetCore));
     }
-  }, [calculatorRequestDailyAdditions, calculatorRequestNonce, calculatorRequestTargetCore]);
+  }, [calculatorRequestDailyAdditions, calculatorRequestFromQuest, calculatorRequestMode, calculatorRequestNonce, calculatorRequestReinvest, calculatorRequestTargetCore, calculatorRequestTermYears]);
+
+  // "The power of Core": once the 30-year result has been on screen for a moment, the quest step counts as done.
+  useEffect(() => {
+    if (!questReturn || !active || activeTab !== "core" || !calculatorOpen || calculatorMode !== "future" || !user) return;
+    const timer = window.setTimeout(() => {
+      markCorePowerSeen(user.id);
+      void (async () => {
+        try {
+          const token = await getAccessToken();
+          await fetch("/api/challenges/progress", {
+            method: "POST",
+            cache: "no-store",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ verificationLogic: "calculate_time_to_goal", proofKey: "future_seen" })
+          });
+        } catch {
+          // The local mark is enough to continue the quest.
+        }
+      })();
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [active, activeTab, calculatorMode, calculatorOpen, questReturn, user]);
+
+  function returnToQuest() {
+    questReturnRef.current = false;
+    setQuestReturn(false);
+    window.dispatchEvent(new CustomEvent("oa:open-tab", { detail: { main: "challenges" } }));
+  }
 
   useEffect(() => {
     if (!active || activeTab !== "core" || typeof window === "undefined") return;
@@ -843,6 +891,12 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
               onReset={resetReinvestPercent}
               onSave={saveReinvestPercent}
             />
+          ) : null}
+          {questReturn && calculatorOpen ? (
+            <div className="core-quest-return">
+              <p>{t("quests.corePower.calcHint")}</p>
+              <button className="challenge-primary-action" type="button" onClick={returnToQuest}>{t("quests.corePower.backToQuest")}</button>
+            </div>
           ) : null}
           <CoreCalculatorPanel
             open={calculatorOpen}

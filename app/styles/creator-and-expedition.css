@@ -388,3 +388,21 @@
 .invite-quest-qr { justify-self: center; border-radius: 12px; padding: 8px; background: #fff; line-height: 0; }
 .invite-quest-link { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .invite-quest-example { border-radius: 10px; padding: 10px 12px; background: rgba(255, 214, 107, 0.14); font-weight: 800; }
+/* "The power of Core": the way back from the Wallet calculator. */
+.core-quest-return { display: grid; gap: 8px; margin: 0 0 12px; border-radius: 14px; padding: 12px 14px; background: linear-gradient(170deg, #141a33, #0b0f1f); color: #eef1ff; }
+.core-quest-return p { margin: 0; font-weight: 700; }
+/* Quest reward: the amount glows and the Core balance counts up. */
+.quest-reward-burst { display: grid; justify-items: center; gap: 2px; margin: 4px auto 6px; border-radius: 50%; width: 132px; height: 132px; align-content: center; background: radial-gradient(circle, rgba(255, 214, 107, 0.45), rgba(255, 214, 107, 0) 70%); animation: quest-reward-pop 0.7s ease-out; }
+.quest-reward-amount { color: #e0a800; font-size: 1.9rem; font-weight: 900; }
+.quest-reward-burst small { color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
+@keyframes quest-reward-pop { from { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.08); opacity: 1; } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .quest-reward-burst { animation: none; } }
+.quest-rate { display: grid; gap: 8px; margin: 10px 0; text-align: center; }
+.quest-rate p { margin: 0; font-weight: 800; }
+.quest-rate .quest-tabs { justify-content: center; }
+.quest-rate-faces { display: flex; justify-content: center; gap: 6px; }
+.quest-rate-faces button { width: 44px; height: 44px; border-radius: 50%; background: var(--surface-muted); font-size: 1.4rem; line-height: 1; }
+.quest-rate-faces button.selected { background: rgba(255, 214, 107, 0.35); box-shadow: 0 0 0 2px #e0a800; }
+.quest-skip-ask { display: grid; gap: 6px; }
+.quest-skip-ask p { margin: 0; color: var(--muted); font-weight: 800; font-size: 0.85rem; }
+.quest-continue { margin-top: 12px; }

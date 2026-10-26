@@ -24,6 +24,7 @@ import {
 import { guestReview } from "./marketplaceGuestVisibility.ts";
 import { buildPathReport } from "./questPathAnalytics.ts";
 import { buildReferralReport } from "./referralAnalytics.ts";
+import { buildQuestFeedbackReport } from "./questFeedbackAnalytics.ts";
 import { isQaUser } from "./qaAccounts.ts";
 
 export const MIN_GROUP = 5;
@@ -656,6 +657,19 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   out.push(`\nЛидеров недели (2+ квеста за 7 дней): ${path.leaders.length}${path.leaders.length ? `, у первого ${path.leaders[0].quests}` : ""}.`);
   out.push("\n### Предложения по улучшению (решение за Evgen)");
   out.push(path.proposals.length ? path.proposals.map((proposal, index) => `${index + 1}. **${proposal.title}.** ${proposal.why}`).join("\n") : "_сегодня правила ничего не предлагают_");
+  const feedback = buildQuestFeedbackReport(t, { now });
+  Object.assign(metrics, feedback.metrics);
+  out.push("\n### Что говорят по ходу квестов (7 дней)");
+  out.push(feedback.ratings.length
+    ? table(["Квест", "Оценок", "Средняя", "3 и ниже", "Причины"], feedback.ratings.map((row) => [row.quest, row.ratings, row.average, row.low, row.reasons || "—"]))
+    : "_оценок пока нет_");
+  const line = (label: string, rows: Array<[string, number]>) => out.push(`${label}: ${rows.length ? rows.map(([key, count]) => `${key} ${count}`).join(", ") : "—"}.`);
+  line("Причины «Пропустить»", feedback.skipReasons);
+  line("«Как тебе сумма?» в «Сила Core»", feedback.corePowerReactions);
+  line("Первое желание", feedback.firstWishes);
+  line("Что нужно, чтобы продолжать", feedback.continueAnswers);
+  if (feedback.proposals.length) out.push(feedback.proposals.map((proposal) => `- **${proposal.title}.** ${proposal.why}`).join("\n"));
+  details.questFeedback = feedback;
   details.path = { steps: path.steps, firstStepDay1: path.firstStepDay1, nudges: path.nudges, motives: path.motives, leaders: path.leaders, proposals: path.proposals };
 
   // 16. Referral program

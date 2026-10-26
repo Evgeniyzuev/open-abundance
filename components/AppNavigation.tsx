@@ -22,6 +22,7 @@ import KeepAliveView from "@/components/KeepAliveView";
 import Skeleton from "@/components/ui/Skeleton";
 import TasksApp from "@/components/TasksApp";
 import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
+import { OPEN_CORE_CALCULATOR_EVENT } from "@/lib/corePowerQuest";
 import NotesApp from "@/components/NotesApp";
 import { useUserContext } from "@/components/UserProvider";
 import CoreSeedIcon from "@/components/icons/CoreSeedIcon";
@@ -587,6 +588,25 @@ export default function AppNavigation() {
     setActiveSocialTab("blog");
     setActiveMainTab("people");
   }
+
+  // "The power of Core" quest opens the calculator on its 30-year example (lib/corePowerQuest.ts).
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const detail = (event as CustomEvent<{ dailyAdditions?: number; termYears?: number; reinvestPercent?: number; fromQuest?: boolean }>).detail ?? {};
+      setWalletCalculatorRequest((current) => ({
+        nonce: (current?.nonce ?? 0) + 1,
+        mode: "future",
+        dailyAdditions: detail.dailyAdditions,
+        termYears: detail.termYears,
+        reinvestPercent: detail.reinvestPercent,
+        fromQuest: detail.fromQuest === true
+      }));
+      setActiveWalletTab("core");
+      setActiveMainTab("wallet");
+    };
+    window.addEventListener(OPEN_CORE_CALCULATOR_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_CORE_CALCULATOR_EVENT, onOpen);
+  }, []);
 
   function openCalculator(draft: HomePlanDraft | null) {
     setWalletCalculatorRequest((current) => ({

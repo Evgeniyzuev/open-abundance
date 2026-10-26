@@ -80,4 +80,22 @@ assert.ok(partial.summary.includes("Не прочитаны таблицы"));
   assert.ok(report.proposals.some((proposal) => proposal.title.startsWith("Чаще всего просят")), "top survey answer becomes a proposal");
 }
 
+// Quest feedback: low-rated quest becomes a proposal; doubt about the 30-year sum is flagged.
+{
+  const { buildQuestFeedbackReport } = await import("../lib/questFeedbackAnalytics.ts");
+  const T = Date.parse("2026-10-26T12:00:00Z");
+  const ev = (user, name, properties) => ({ user_id: user, event_name: name, occurred_at: new Date(T - 3600_000).toISOString(), properties });
+  const report = buildQuestFeedbackReport({
+    challenges: [{ id: "q1", title: { ru: "Сила Core" } }],
+    product_events: [
+      ...[2, 3, 2].map((rating, i) => ev(`u${i}`, "quest_rated", { challenge_id: "q1", rating, reasons: "unclear" })),
+      ...["unreal", "unreal", "nonsense", "impressive", "small"].map((reaction, i) => ev(`u${i}`, "core_power_reaction", { reaction }))
+    ]
+  }, { now: T });
+  assert.equal(report.ratings[0].quest, "Сила Core");
+  assert.equal(report.ratings[0].low, 3);
+  assert.ok(report.proposals.some((proposal) => proposal.title.includes("Сила Core")));
+  assert.ok(report.proposals.some((proposal) => proposal.title.includes("30 лет")));
+}
+
 console.log("daily analytics contract ok");

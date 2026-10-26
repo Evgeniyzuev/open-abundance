@@ -19,7 +19,7 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
-import { AppInstalledQuest, ChooseWishQuest, FirstStepQuest, GoalPlanQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
+import { AppInstalledQuest, ChooseWishQuest, ContinueQuestion, CorePowerQuest, FirstStepQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, type QuestPlacement } from "@/lib/questPath";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { signInWithGoogle } from "@/lib/supabaseClient";
@@ -40,6 +40,9 @@ type RewardLabel = LocaleText | string | number | null;
 type ChallengeStatus = "accepted" | "completed" | "declined" | "failed";
 type ProjectApplicationStatus = "pending" | "approved" | "rejected" | "withdrawn";
 export type ChallengeTab = "challenges" | "projects";
+/** One-tap reasons asked on "Skip"; they go to the daily analytics (section "Path"). */
+const QUEST_SKIP_REASONS = ["unclear", "boring", "later", "dont_believe", "other"] as const;
+
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 type Challenge = {
@@ -81,6 +84,7 @@ type QuestInfo = {
   pathTotal: number;
   pathDone: number;
   activePathStep: number | null;
+  motives?: string[];
 };
 
 type ChallengesResponse = {
@@ -732,6 +736,8 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           }}
           challenge={challenge}
           coreBalance={Number(core?.balance ?? 0)}
+          questMotives={questInfo?.motives}
+          viewerId={user?.id ?? null}
           isActiveQuest={challenge.id === activeQuest?.id}
           isRegistered={Boolean(user)}
           locale={locale}
@@ -797,6 +803,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
               ) : null}
             </section>
           ) : null}
+          {questInfo && user ? <ContinueQuestion locale={locale} registeredAt={user.created_at ?? null} t={t} userId={user.id} /> : null}
           {questInfo ? <QuestLeaders refreshKey={questInfo.pathDone} t={t} /> : null}
 
           <ChallengeSection
@@ -1209,6 +1216,8 @@ function ChallengeDetailContent({
   author,
   challenge,
   coreBalance,
+  questMotives,
+  viewerId,
   isActiveQuest,
   isRegistered,
   locale,
@@ -1226,6 +1235,8 @@ function ChallengeDetailContent({
   author: { avatarUrl: string | null; displayName: string; level: number };
   challenge: Challenge;
   coreBalance: number;
+  questMotives?: string[];
+  viewerId: string | null;
   isActiveQuest: boolean;
   isRegistered: boolean;
   locale: AppLocale;
@@ -1263,6 +1274,7 @@ function ChallengeDetailContent({
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle");
   const [giveUpStatus, setGiveUpStatus] = useState<"idle" | "loading" | "error">("idle");
   const [activeStatus, setActiveStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [skipAsk, setSkipAsk] = useState(false);
   const [authStatus, setAuthStatus] = useState<"idle" | "loading" | "error">("idle");
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
   const [checkReason, setCheckReason] = useState<ChallengeCheckReasonCode | null>(null);
@@ -1393,7 +1405,9 @@ function ChallengeDetailContent({
     }
   }
 
-  async function handleSkip() {
+  async function handleSkip(reason: string) {
+    setSkipAsk(false);
+    void trackClientEvent("quest_skip_reason", { challenge_id: challenge.id, logic: challenge.verification_logic ?? null, reason });
     setActiveStatus("loading");
     setCheckMessage(null);
     try {
@@ -1540,11 +1554,11 @@ function ChallengeDetailContent({
         <FirstStepQuest question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
 
-      {needsWish ? <ChooseWishQuest locale={locale} t={t} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
+      {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
       {needsAppInstalled ? <AppInstalledQuest challengeId={challenge.id} locale={locale} t={t} onCodeChange={setChannelCode} /> : null}
 
-      {needsGoalPlan ? <GoalPlanQuest coreBalance={coreBalance} locale={locale} t={t} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
+      {needsGoalPlan ? <CorePowerQuest coreBalance={coreBalance} locale={locale} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
       {needsAttentionChallenge ? (
         <AttentionValueChallenge
@@ -1643,9 +1657,20 @@ function ChallengeDetailContent({
       ) : null}
 
       {!completed && accepted && isActiveQuest && isRegistered ? (
-        <button className="challenge-secondary-action" type="button" disabled={activeStatus === "loading"} onClick={() => void handleSkip()}>
-          {activeStatus === "loading" ? t("app.common.loading") : t("quests.skip")}
-        </button>
+        skipAsk ? (
+          <div className="quest-skip-ask">
+            <p>{t("quests.skipWhy")}</p>
+            <div className="quest-tabs">
+              {QUEST_SKIP_REASONS.map((reason) => (
+                <button className="quest-tab" key={reason} type="button" onClick={() => void handleSkip(reason)}>{t(`quests.skipReason.${reason}` as MessageKey)}</button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <button className="challenge-secondary-action" type="button" disabled={activeStatus === "loading"} onClick={() => setSkipAsk(true)}>
+            {activeStatus === "loading" ? t("app.common.loading") : t("quests.skip")}
+          </button>
+        )
       ) : null}
 
       {!completed && accepted && !challenge.is_permanent ? (
@@ -1822,10 +1847,30 @@ function ProjectDetailModal({
 
 function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenFeedDrafts, onOpenCore }: { challenge: Challenge; reward: CompletionReward; locale: AppLocale; t: TFunction; onClose: () => void; onOpenFeedDrafts: () => void; onOpenCore: () => void }) {
   const rewardSummary = formatRewardAmounts(reward.coreAmount, reward.walletAmount, locale);
+  const [rating, setRating] = useState<number | null>(null);
+  const [reasons, setReasons] = useState<string[]>([]);
+  const [ratingSent, setRatingSent] = useState(false);
+  const balanceAfter = typeof reward.coreBalanceAfter === "number" ? reward.coreBalanceAfter : null;
+  const shownBalance = useCountUp(balanceAfter !== null && reward.claimed && reward.coreAmount > 0 ? balanceAfter - reward.coreAmount : balanceAfter, balanceAfter);
+
+  function sendRating(value: number, nextReasons: string[]) {
+    void trackClientEvent("quest_rated", { challenge_id: challenge.id, logic: challenge.verification_logic ?? null, rating: value, reasons: nextReasons.join(",") || null });
+    setRatingSent(true);
+  }
+
+  function rate(value: number) {
+    setRating(value);
+    if (value >= 4) sendRating(value, []);
+  }
 
   return (
     <Sheet bare dismissible={false} className="small challenge-complete-modal" titleId="challenge-receipt-title">
-        <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>
+        {reward.claimed && reward.coreAmount > 0 ? (
+          <div className="quest-reward-burst" aria-hidden="true">
+            <span className="quest-reward-amount">+{formatTodayMoney(reward.coreAmount, locale)}</span>
+            {shownBalance !== null ? <small>Core {formatTodayMoney(shownBalance, locale)}</small> : null}
+          </div>
+        ) : <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>}
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
         <p>{reward.claimed ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : t("challenges.rewardAlreadyClaimed")}</p>
         <div className="challenge-receipt">
@@ -1854,16 +1899,69 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
             </div>
           ) : null}
         </div>
+        <div className="quest-rate">
+          {ratingSent ? <p>{t("quests.rate.thanks")}</p> : (
+            <>
+              <p>{t("quests.rate.question")}</p>
+              <div className="quest-rate-faces" role="group" aria-label={t("quests.rate.question")}>
+                {QUEST_RATING_FACES.map((face, index) => (
+                  <button aria-pressed={rating === index + 1} className={rating === index + 1 ? "selected" : undefined} key={face} type="button" onClick={() => rate(index + 1)}>{face}</button>
+                ))}
+              </div>
+              {rating !== null && rating <= 3 ? (
+                <>
+                  <div className="quest-tabs">
+                    {QUEST_RATING_REASONS.map((reason) => (
+                      <button aria-pressed={reasons.includes(reason)} className={reasons.includes(reason) ? "quest-tab selected" : "quest-tab"} key={reason} type="button" onClick={() => setReasons((current) => (current.includes(reason) ? current.filter((item) => item !== reason) : [...current, reason]))}>
+                        {t(`quests.rate.reason.${reason}` as MessageKey)}
+                      </button>
+                    ))}
+                  </div>
+                  <button className="text-button" type="button" onClick={() => sendRating(rating, reasons)}>{t("quests.rate.send")}</button>
+                </>
+              ) : null}
+            </>
+          )}
+        </div>
         <div className="challenge-complete-actions">
-          <button className="challenge-primary-action" type="button" onClick={() => { onClose(); onOpenFeedDrafts(); }}>
+          <button className="challenge-primary-action" type="button" onClick={onClose}>{t("quests.rate.next")}</button>
+          <button className="challenge-secondary-action" type="button" onClick={() => { onClose(); onOpenFeedDrafts(); }}>
             <Send size={16} />
             {t("social.feed.openDrafts")}
           </button>
-          <button className="challenge-secondary-action" type="button" onClick={onClose}>{t("app.common.excellent")}</button>
           {reward.coreAmount > 0 ? <button className="text-button" type="button" onClick={() => { onClose(); onOpenCore(); }}>{t("journey.viewGrowth")}</button> : null}
         </div>
     </Sheet>
   );
+}
+
+const QUEST_RATING_FACES = ["😕", "🙁", "😐", "🙂", "🤩"] as const;
+/** Reasons offered after a rating of 3 or less; they go to the daily analytics (section "Path"). */
+const QUEST_RATING_REASONS = ["unclear", "boring", "too_long", "dont_believe", "want_other"] as const;
+
+/** Counts a number up from `from` to `to` in about a second (at once when motion is reduced). */
+function useCountUp(from: number | null, to: number | null): number | null {
+  const [value, setValue] = useState(from);
+  useEffect(() => {
+    if (from === null || to === null) {
+      setValue(to);
+      return;
+    }
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || from === to) {
+      setValue(to);
+      return;
+    }
+    const startedAt = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / 1100);
+      setValue(from + (to - from) * (1 - Math.pow(1 - progress, 3)));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [from, to]);
+  return value;
 }
 
 function ChallengeState({ title, description }: { title: string; description: string }) {

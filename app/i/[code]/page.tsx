@@ -9,12 +9,12 @@ type Invite = { name: string | null; locale: "ru" | "en" };
 const TEXT = {
   ru: {
     title: (name: string | null) => (name ? `${name} зовёт тебя в Open Abundance` : "Тебя зовут в Open Abundance"),
-    description: "Новая ИИ-система дохода. Присоединяйся, построим ИИ-изобилие вместе!",
+    description: "Простые действия и достойные награды. Узнай, сколько можно сделать уже сегодня. Построим ИИ-изобилие вместе!",
     open: "Открыть приглашение"
   },
   en: {
     title: (name: string | null) => (name ? `${name} invites you to Open Abundance` : "You are invited to Open Abundance"),
-    description: "A new AI income system. Join us, let's build AI abundance together!",
+    description: "Simple actions, fair rewards. See how much you can do today. Let's build AI abundance together!",
     open: "Open the invitation"
   }
 };
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: { params: { code: string } })
   const invite = await loadInvite(cleanCode(params.code));
   const text = TEXT[invite.locale];
   const title = text.title(invite.name);
-  const image = { url: `/og/invite-${invite.locale}.jpg`, width: 1200, height: 630, alt: text.description };
+  const image = { url: `/og/invite-${invite.locale}.jpg?v=2`, width: 1200, height: 630, alt: text.description };
   return {
     title: { absolute: title },
     description: text.description,

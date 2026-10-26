@@ -3155,7 +3155,7 @@ const en = {
     "quests.invite.send.copied": "Copied",
     "quests.invite.send.showQr": "QR code",
     "quests.invite.send.next": "I've sent it",
-    "quests.invite.shareText": "A new AI income system. Join us, let's build AI abundance together!",
+    "quests.invite.shareText": "Simple actions, fair rewards. See how much you can do today. Let's build AI abundance together!",
     "quests.invite.help.title": "Question",
     "quests.invite.help.text": "What would help you invite more people? You can pick several.",
     "quests.invite.help.option.texts": "More ready texts",

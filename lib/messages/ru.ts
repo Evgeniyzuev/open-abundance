@@ -3155,7 +3155,7 @@ const ru: Record<string, string> = {
     "quests.invite.send.copied": "Скопировано",
     "quests.invite.send.showQr": "QR-код",
     "quests.invite.send.next": "Я отправил(а)",
-    "quests.invite.shareText": "Новая ИИ-система дохода. Присоединяйся, построим ИИ-изобилие вместе!",
+    "quests.invite.shareText": "Простые действия и достойные награды. Узнай, сколько можно сделать уже сегодня. Построим ИИ-изобилие вместе!",
     "quests.invite.help.title": "Вопрос",
     "quests.invite.help.text": "Что помогло бы тебе приглашать больше людей? Можно выбрать несколько.",
     "quests.invite.help.option.texts": "Больше готовых текстов",

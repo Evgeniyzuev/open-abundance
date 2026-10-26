@@ -595,7 +595,9 @@ export function PostDetailModal({
 }) {
   const canDelete = !readOnly && Boolean(post.author_user_id) && post.author_user_id === currentUserId;
   const hasVisualMedia = post.media.some((item) => (item.media_type === "image" || item.media_type === "video") && Boolean(item.media_url));
-  const fallbackCover = hasVisualMedia ? null : getFeedPostCover(post);
+  // A post with a video player shows only the player, not its still frame on top as well.
+  const hasVideoEmbed = Boolean(post.externalLinks?.[0] ? videoEmbedFromUrl(post.externalLinks[0].external_url) : findVideoEmbeds(post.body, 1).length);
+  const fallbackCover = hasVisualMedia || hasVideoEmbed ? null : getFeedPostCover(post);
   const hasDetailCover = hasVisualMedia || Boolean(fallbackCover);
   const [editingReview, setEditingReview] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);

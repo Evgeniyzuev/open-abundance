@@ -53,6 +53,7 @@ assert.equal(normalizeWatchReply("text"), null);
 const feed = read("components/social/FeedParts.tsx");
 assert.match(feed, /videoEmbedFromUrl\(externalLink\.external_url\)/, "feed link posts use the player");
 assert.match(feed, /findVideoEmbeds\(post\.body, 1\)/, "feed text posts use the player");
+assert.match(feed, /hasVisualMedia || hasVideoEmbed ? null/, "an open video post shows the player without the still frame on top");
 assert.match(read("components/NotesApp.tsx"), /<TextVideoEmbeds text=\{body\}/, "notes show players for links");
 const player = read("components/VideoEmbed.tsx");
 assert.match(player, /href=\{embed\.sourceUrl\}/, "the original link is always offered");

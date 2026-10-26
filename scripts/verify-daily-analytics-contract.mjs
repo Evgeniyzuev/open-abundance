@@ -51,4 +51,33 @@ assert.match(renderDeltas({ a: 1 }, null, null), /второго запуска/
 const partial = buildDailyReport({ ...snapshot, missing: ["user_spend_intents: relation does not exist"], tables: { ...snapshot.tables, user_spend_intents: undefined } }, { salt: "test", now: NOW });
 assert.ok(partial.summary.includes("Не прочитаны таблицы"));
 
+// Referral program section: funnel, ways of sharing, survey answers, paid amounts and proposals.
+{
+  const { buildReferralReport } = await import("../lib/referralAnalytics.ts");
+  const T = Date.parse("2026-10-26T12:00:00Z");
+  const at = (hours) => new Date(T - hours * 3600_000).toISOString();
+  const ev = (user, name, properties) => ({ user_id: user, event_name: name, occurred_at: at(5), properties });
+  const report = buildReferralReport({
+    product_events: [
+      ...["a", "b", "c", "d", "e", "f"].map((u) => ev(u, "invite_quest_step", { step: "bonuses" })),
+      ev("a", "invite_quest_step", { step: "send" }),
+      ev("a", "invite_shared", { via: "copy", source: "quest" }),
+      ...["a", "b", "c"].map((u) => ev(u, "invite_help_answer", { answers: "shy,texts" }))
+    ],
+    referral_edges: [{ referrer_user_id: "a", referral_user_id: "x", claimed_at: at(2) }],
+    referral_rewards: [
+      { referrer_user_id: "a", referral_user_id: "x", kind: "signup", amount: 0.1, destination: "core", created_at: at(2) },
+      { referrer_user_id: "a", referral_user_id: "x", kind: "active", amount: 0.55, destination: "core", created_at: at(1) }
+    ],
+    humanity_verifications: []
+  }, { now: T });
+  assert.equal(report.funnel[0].people, 6);
+  assert.equal(report.funnel[2].people, 1);
+  assert.equal(report.invitations.active, 1);
+  assert.equal(report.help[0].people, 3);
+  assert.ok(Math.abs(report.paid.core - 0.65) < 1e-9);
+  assert.ok(report.proposals.some((proposal) => proposal.title.includes("отправки")), "few people reach sending");
+  assert.ok(report.proposals.some((proposal) => proposal.title.startsWith("Чаще всего просят")), "top survey answer becomes a proposal");
+}
+
 console.log("daily analytics contract ok");

@@ -1,0 +1,85 @@
+import type { Metadata } from "next";
+import InviteRedirect from "@/components/InviteRedirect";
+import { createServiceSupabaseClient } from "@/lib/serverSupabase";
+
+export const revalidate = 3600;
+
+type Invite = { name: string | null; locale: "ru" | "en" };
+
+const TEXT = {
+  ru: {
+    title: (name: string | null) => (name ? `${name} зовёт тебя в Open Abundance` : "Тебя зовут в Open Abundance"),
+    description: "Новая ИИ-система дохода. Присоединяйся, построим ИИ-изобилие вместе!",
+    open: "Открыть приглашение"
+  },
+  en: {
+    title: (name: string | null) => (name ? `${name} invites you to Open Abundance` : "You are invited to Open Abundance"),
+    description: "A new AI income system. Join us, let's build AI abundance together!",
+    open: "Open the invitation"
+  }
+};
+
+function cleanCode(raw: string): string | null {
+  const code = decodeURIComponent(raw);
+  return /^[A-Za-z0-9_-]{4,64}$/.test(code) ? code : null;
+}
+
+/** The inviter's name and language for the link preview; an unknown code still gets the generic invitation. */
+async function loadInvite(code: string | null): Promise<Invite> {
+  if (!code) return { name: null, locale: "ru" };
+  try {
+    const db = createServiceSupabaseClient();
+    const { data: row } = await db.from("referral_codes").select("user_id").eq("code", code).eq("is_active", true).maybeSingle();
+    if (!row?.user_id) return { name: null, locale: "ru" };
+    const { data: profile } = await db.from("user_profiles").select("display_name,username,default_locale").eq("user_id", row.user_id).maybeSingle();
+    const name = profile?.display_name?.trim() || (profile?.username ? `@${profile.username}` : null);
+    return { name: name ? name.slice(0, 60) : null, locale: profile?.default_locale === "en" ? "en" : "ru" };
+  } catch {
+    return { name: null, locale: "ru" };
+  }
+}
+
+export async function generateMetadata({ params }: { params: { code: string } }): Promise<Metadata> {
+  const invite = await loadInvite(cleanCode(params.code));
+  const text = TEXT[invite.locale];
+  const title = text.title(invite.name);
+  const image = { url: `/og/invite-${invite.locale}.jpg`, width: 1200, height: 630, alt: text.description };
+  return {
+    title: { absolute: title },
+    description: text.description,
+    robots: { index: false, follow: false },
+    openGraph: { type: "website", siteName: "Open Abundance", title, description: text.description, images: [image] },
+    twitter: { card: "summary_large_image", title, description: text.description, images: [image.url] }
+  };
+}
+
+/**
+ * A short invitation link (/i/<code>) that looks good when shared: the preview names the inviter and shows the
+ * invitation card. A person is sent on to the app with the same referral code (/?ref=<code>).
+ */
+export default async function InvitePage({ params, searchParams }: { params: { code: string }; searchParams: Record<string, string | string[] | undefined> }) {
+  const code = cleanCode(params.code);
+  const invite = await loadInvite(code);
+  const text = TEXT[invite.locale];
+  const target = new URLSearchParams();
+  if (code) target.set("ref", code);
+  for (const key of ["utm_source", "utm_medium", "utm_campaign"]) {
+    const value = searchParams[key];
+    if (typeof value === "string" && value) target.set(key, value);
+  }
+  if (!target.has("utm_medium")) target.set("utm_medium", "invite");
+  const href = `/?${target.toString()}`;
+
+  return (
+    <main className="legal-page" lang={invite.locale}>
+      <article className="legal-document" style={{ textAlign: "center" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img alt="" src={`/og/invite-${invite.locale}.jpg`} style={{ width: "100%", maxWidth: 600, borderRadius: 16 }} />
+        <h1>{text.title(invite.name)}</h1>
+        <p>{text.description}</p>
+        <p><a className="legal-home-link" href={href}>{text.open}</a></p>
+        <InviteRedirect href={href} />
+      </article>
+    </main>
+  );
+}

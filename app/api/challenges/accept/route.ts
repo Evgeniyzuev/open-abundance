@@ -90,12 +90,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (challenge.verification_logic === "has_referral") {
-    if (!hasFirstResult(snapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])) {
-      return NextResponse.json({ error: "Complete your first non-onboarding result before inviting someone." }, { status: 409 });
-    }
-  }
-
   if (challenge.prerequisite_challenge_id) {
     const { data: prerequisite, error: prerequisiteError } = await supabase
       .from("user_challenges")

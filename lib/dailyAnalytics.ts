@@ -23,6 +23,7 @@ import {
 } from "./coordinatorAnalysis.ts";
 import { guestReview } from "./marketplaceGuestVisibility.ts";
 import { buildPathReport } from "./questPathAnalytics.ts";
+import { buildReferralReport } from "./referralAnalytics.ts";
 import { isQaUser } from "./qaAccounts.ts";
 
 export const MIN_GROUP = 5;
@@ -77,6 +78,7 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "peer_review_answers", select: "status,created_at,submitted_at", since: "created_at" },
   { table: "referral_edges", select: "referrer_user_id,referral_user_id,claimed_at,source" },
   { table: "humanity_verifications", select: "user_id,humanity_level,verified_at" },
+  { table: "referral_rewards", select: "referrer_user_id,referral_user_id,kind,amount,destination,created_at" },
   { table: "marketplace_listings", select: "id,seller_user_id,title,status,price_amount,currency_code,sales_count,metadata,created_at" },
   { table: "marketplace_deals", select: "id,listing_id,buyer_user_id,seller_user_id,status,price_amount,currency_code,created_at,completed_at", since: "created_at" },
   { table: "wallet_ledger", select: "user_id,operation_type,direction,amount,created_at", since: "created_at", cap: 50_000 },
@@ -655,6 +657,19 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   out.push("\n### Предложения по улучшению (решение за Evgen)");
   out.push(path.proposals.length ? path.proposals.map((proposal, index) => `${index + 1}. **${proposal.title}.** ${proposal.why}`).join("\n") : "_сегодня правила ничего не предлагают_");
   details.path = { steps: path.steps, firstStepDay1: path.firstStepDay1, nudges: path.nudges, motives: path.motives, leaders: path.leaders, proposals: path.proposals };
+
+  // 16. Referral program
+  const referral = buildReferralReport(t, { now });
+  Object.assign(metrics, referral.metrics);
+  out.push("\n## 16. Реферальная программа (7 дней)");
+  out.push(table(["Этап", "Людей"], referral.funnel.map((row) => [row.stage, row.people])));
+  out.push(`\nПриглашённых всего ${referral.invitations.total}, за 7 дней ${referral.invitations.window}; сделали задание ${referral.invitations.active}, прошли «Я не робот» ${referral.invitations.confirmed}.`);
+  out.push(`Выплачено за 7 дней: ${money(referral.paid.core)} в Core, ${money(referral.paid.wallet)} в Wallet${referral.paid.byKind.length ? ` (${referral.paid.byKind.map((row) => `${row.kind} ×${row.count}`).join(", ")})` : ""}.`);
+  if (referral.shares.length) out.push("Как делятся: " + referral.shares.map((row) => `${row.via} ${row.times} раз (${row.people} чел.)`).join(", ") + ".");
+  out.push(referral.help.length ? "Что поможет приглашать: " + referral.help.map((row) => `${row.answer} ${row.people}`).join(", ") + "." : "Ответов «что поможет приглашать» пока нет.");
+  out.push("\n### Предложения по рефералам (решение за Evgen)");
+  out.push(referral.proposals.length ? referral.proposals.map((proposal, index) => `${index + 1}. **${proposal.title}.** ${proposal.why}`).join("\n") : "_сегодня правила ничего не предлагают_");
+  details.referrals = { funnel: referral.funnel, shares: referral.shares, help: referral.help, paid: referral.paid, invitations: referral.invitations, proposals: referral.proposals };
 
   out.push("\n## Детали");
   out.push("Файлы рядом с этой сводкой (`details/*.json`): " + Object.keys(details).map((key) => `\`${key}\``).join(", ") + ".");

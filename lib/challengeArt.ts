@@ -38,6 +38,8 @@ export const CHALLENGE_GLYPHS: Record<string, string> = {
   "referrals_confirmed_50": "Medal",
   "referrals_confirmed_100": "Crown",
   "has_referral": "Gift",
+  "referrals_active_5": "Sailboat",
+  "referrals_active_10": "Ship",
   "team_contact_active": "Users",
   "team_task_help_completed": "HeartHandshake",
   "trust_event_confirmed:help_given": "HandHelping",

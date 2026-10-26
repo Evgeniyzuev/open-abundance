@@ -7,3 +7,11 @@ export function confirmedReferralsThreshold(logic: string | null | undefined): n
   const value = Number(match[1]);
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
+
+/** The number of active invited people (did any quest besides sign-up) a "referrals_active_N" check asks for. */
+export function activeReferralsThreshold(logic: string | null | undefined): number | null {
+  const match = logic?.match(/^referrals_active_(\d+)$/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}

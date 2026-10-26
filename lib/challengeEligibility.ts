@@ -22,7 +22,8 @@ export const HUMANITY_FREE_REWARD = 1;
 
 /** Challenges that pay more than HUMANITY_FREE_REWARD need a confirmed human before they can be accepted. */
 export function challengeNeedsHumanity(challenge: Pick<ChallengeEligibilityRecord, "category" | "verification_logic" | "core_reward_amount" | "wallet_reward_amount">): boolean {
-  if (challenge.verification_logic === "humanity_confirmed") return false;
+  // The first invitation is for everyone from day one; the 5 and 10 milestones keep the usual rule.
+  if (challenge.verification_logic === "humanity_confirmed" || challenge.verification_logic === "has_referral") return false;
   if (HUMANITY_EXEMPT_CATEGORIES.has(String(challenge.category ?? "").trim().toLowerCase())) return false;
   return Number(challenge.core_reward_amount ?? 0) + Number(challenge.wallet_reward_amount ?? 0) > HUMANITY_FREE_REWARD;
 }

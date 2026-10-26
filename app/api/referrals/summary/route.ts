@@ -8,7 +8,7 @@ export const fetchCache = "force-no-store";
 
 type RewardRow = {
   id: string;
-  kind: "level_2" | "humanity_confirmed";
+  kind: string;
   amount: number | string;
   destination: "wallet" | "core";
   created_at: string;
@@ -27,12 +27,13 @@ export async function GET(request: NextRequest) {
   if (error || !user) return json({ error }, 401);
 
   const db = supabase as any;
-  const [edges, rewards, settings] = await Promise.all([
+  const [edges, rewards, settings, ownHumanity] = await Promise.all([
     db.from("referral_edges").select("referral_user_id").eq("referrer_user_id", user.id),
     db.from("referral_rewards").select("id,kind,amount,destination,created_at,seen_at").eq("referrer_user_id", user.id).order("created_at", { ascending: false }).limit(200),
-    db.from("referral_reward_settings").select("enabled,level_two_core_amount,humanity_amount").eq("id", true).maybeSingle()
+    db.from("referral_reward_settings").select("enabled,level_two_core_amount,humanity_amount,signup_core_amount,active_core_amount,active_wallet_amount,confirmed_multiplier,humanity_core_amount,humanity_wallet_amount").eq("id", true).maybeSingle(),
+    db.from("humanity_verifications").select("humanity_level").eq("user_id", user.id).maybeSingle()
   ]);
-  for (const result of [edges, rewards, settings]) if (result.error) return json({ error: result.error.message }, 500);
+  for (const result of [edges, rewards, settings, ownHumanity]) if (result.error) return json({ error: result.error.message }, 500);
 
   const referralIds = ((edges.data ?? []) as Array<{ referral_user_id: string }>).map((row) => row.referral_user_id);
   let humanCount = 0;
@@ -53,9 +54,18 @@ export async function GET(request: NextRequest) {
     enabled: settings.data?.enabled ?? false,
     amounts: {
       levelTwoCore: Number(settings.data?.level_two_core_amount ?? 0),
-      humanity: Number(settings.data?.humanity_amount ?? 0)
+      humanity: Number(settings.data?.humanity_amount ?? 0),
+      signupCore: Number(settings.data?.signup_core_amount ?? 0),
+      activeCore: Number(settings.data?.active_core_amount ?? 0),
+      activeWallet: Number(settings.data?.active_wallet_amount ?? 0),
+      confirmedMultiplier: Number(settings.data?.confirmed_multiplier ?? 1),
+      humanityCore: Number(settings.data?.humanity_core_amount ?? 0),
+      humanityWallet: Number(settings.data?.humanity_wallet_amount ?? 0),
+      // lib/ai/knowledge.ts: the leader bonus is 10% of the positive Core growth of direct active team members.
+      leaderPercent: 10
     },
-    referrals: { total: referralIds.length, human: humanCount },
+    viewerConfirmed: Number(ownHumanity.data?.humanity_level ?? 0) >= 2,
+    referrals: { total: referralIds.length, active: rows.filter((row) => row.kind === "active").length, human: humanCount },
     rewards: { wallet: sum("wallet"), core: sum("core") },
     unseen: rows.filter((row) => !row.seen_at).map((row) => ({ id: row.id, kind: row.kind, amount: Number(row.amount), destination: row.destination, createdAt: row.created_at }))
   }, 200);

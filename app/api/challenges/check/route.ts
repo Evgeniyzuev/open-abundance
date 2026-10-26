@@ -6,7 +6,7 @@ import { classifyChallengeCheckReason } from "@/lib/challengeCheckReasons";
 import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
-import { confirmedReferralsThreshold } from "@/lib/creatorChallenges";
+import { activeReferralsThreshold, confirmedReferralsThreshold } from "@/lib/creatorChallenges";
 import { BUSINESS_BUYERS_TARGET, BUSINESS_REVIEWS_TARGET, distinctOthers, invitedBuyers, strangerBuyers } from "@/lib/businessChallenges";
 import { GROWTH_TOPUP_MONTHS_TARGET, SPEND_SHIFT_PURCHASES_TARGET, SPEND_SHIFT_WINDOW_DAYS, countWithinDays, distinctMonths, topUpAfterWish } from "@/lib/growthChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
@@ -90,9 +90,7 @@ export async function POST(request: NextRequest) {
   }
 
   const progressStatuses = new Map((progressRows ?? []).map((row) => [row.challenge_id, String(row.status).trim().toLowerCase()]));
-  const prerequisiteCompleted = challenge.verification_logic === "has_referral"
-    ? hasFirstResult(snapshots ?? [], (progressRows ?? []) as unknown as ChallengeProgressWithCategory[])
-    : !challenge.prerequisite_challenge_id || progressStatuses.get(challenge.prerequisite_challenge_id) === "completed";
+  const prerequisiteCompleted = !challenge.prerequisite_challenge_id || progressStatuses.get(challenge.prerequisite_challenge_id) === "completed";
   const accessReasons = getChallengeAccessReasons({ ...challenge, prerequisite_completed: prerequisiteCompleted }, Number(coreAccount?.level ?? 1));
   if (accessReasons.length > 0) {
     const reason = accessReasons.includes("first_result")
@@ -375,6 +373,22 @@ async function verifyChallenge(
     return confirmed >= confirmedTarget
       ? { ok: true }
       : { ok: false, reason: `${confirmed} of ${confirmedTarget} invited people have confirmed they are not a robot.` };
+  }
+
+  // "5/10 friends in action": an invited person is active once the "active" referral reward was paid for them
+  // (any quest besides sign-up, migration 20261026120000).
+  const activeTarget = activeReferralsThreshold(challenge.verification_logic);
+  if (activeTarget !== null) {
+    const { count, error } = await (db as any)
+      .from("referral_rewards")
+      .select("id", { count: "exact", head: true })
+      .eq("referrer_user_id", userId)
+      .eq("kind", "active");
+    if (error) return { ok: false, reason: "Could not check your invitations. Try again." };
+    const active = Number(count ?? 0);
+    return active >= activeTarget
+      ? { ok: true }
+      : { ok: false, reason: `${active} of ${activeTarget} invited people have done a quest.` };
   }
 
   // Sales: any completed Market deal where the person is the seller counts (founder decision 2026-10-17).

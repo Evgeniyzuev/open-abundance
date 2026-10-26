@@ -37,9 +37,8 @@ export async function GET(request: NextRequest) {
     url.searchParams.set("ref", code);
     url.searchParams.set("utm_medium", "blog");
     // The direct link opens the onboarding (the first screens of the app) with the same code; utm_medium tells the two kinds of link apart.
-    const appUrl = new URL("/", request.nextUrl.origin);
-    appUrl.searchParams.set("ref", code);
-    appUrl.searchParams.set("utm_medium", "invite");
+    // It goes through /i/<code>, whose preview names the inviter and shows the invitation card (app/i/[code]).
+    const appUrl = new URL(`/i/${encodeURIComponent(code)}`, request.nextUrl.origin);
 
     // The same invitation as a Telegram Mini App link (t.me/<bot>/<app>?startapp=<code>), when the bot is set up.
     const telegramUrl = telegramMiniAppLink(process.env.TELEGRAM_MINI_APP_URL, code);

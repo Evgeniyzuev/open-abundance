@@ -8,6 +8,7 @@ import InstallPingChallenge from "@/components/InstallPingChallenge";
 import ChannelCodeChallenge from "@/components/ChannelCodeChallenge";
 import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
 import HumanityCard from "@/components/HumanityCard";
+import InviteFriendQuest from "@/components/InviteFriendQuest";
 import InviteKit from "@/components/InviteKit";
 import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import NicheTaskChallenge from "@/components/NicheTaskChallenge";
@@ -1592,7 +1593,7 @@ function ChallengeDetailContent({
         <AcquisitionChallengePanel challenge={challenge} locale={locale} readOnly={completed} onRefresh={onRefreshUserData} onComplete={(reward) => onComplete(challenge, reward)} />
       ) : null}
 
-      {challenge.verification_logic === "has_referral" && accepted && !completed && !locked ? <InviteKit /> : null}
+      {challenge.verification_logic === "has_referral" && accepted && !completed && !locked ? <InviteFriendQuest /> : null}
 
       {challenge.verification_logic === "referral_program" && accepted && !locked ? (
         <>

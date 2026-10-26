@@ -382,3 +382,9 @@
 .quest-wish-ideas { display: grid; gap: 6px; }
 .quest-wish-idea { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface); color: var(--text); font: inherit; font-weight: 800; text-align: start; }
 .quest-wish-idea b { flex: none; display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 999px; background: var(--accent-fill); color: #fff; }
+.invite-quest-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.invite-quest-actions .challenge-primary-action { display: inline-flex; align-items: center; gap: 6px; }
+.invite-quest-actions .quest-path-toggle, .invite-quest .quest-path-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.invite-quest-qr { justify-self: center; border-radius: 12px; padding: 8px; background: #fff; line-height: 0; }
+.invite-quest-link { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.invite-quest-example { border-radius: 10px; padding: 10px 12px; background: rgba(255, 214, 107, 0.14); font-weight: 800; }

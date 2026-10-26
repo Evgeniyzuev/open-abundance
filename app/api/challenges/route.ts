@@ -134,9 +134,7 @@ export async function GET(request: NextRequest) {
     if (userChallenge?.status) userChallengeCount += 1;
     const { user_challenges: _userChallenges, ...publicChallenge } = challenge;
 
-    const prerequisiteCompleted = challenge.verification_logic === "has_referral"
-      ? viewerHasFirstResult
-      : !challenge.prerequisite_challenge_id || prerequisiteStatuses.get(challenge.prerequisite_challenge_id) === "completed";
+    const prerequisiteCompleted = !challenge.prerequisite_challenge_id || prerequisiteStatuses.get(challenge.prerequisite_challenge_id) === "completed";
     const eligibility = {
       ...challenge,
       prerequisite_completed: prerequisiteCompleted,

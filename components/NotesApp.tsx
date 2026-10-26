@@ -686,6 +686,10 @@ function ListModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (form
         {listColors.map((color) => (
           <button className={form.color === color ? "swatch active" : "swatch"} key={color} style={{ backgroundColor: color }} type="button" aria-label={color} onClick={() => setForm((current) => ({ ...current, color }))} />
         ))}
+        <label className={listColors.includes(form.color) ? "swatch swatch-custom" : "swatch swatch-custom active"} title={t("notes.customColor")}>
+          <input type="color" aria-label={t("notes.customColor")} value={form.color} onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))} />
+          {listColors.includes(form.color) ? null : <span className="swatch-custom-dot" style={{ backgroundColor: form.color }} aria-hidden="true" />}
+        </label>
       </div>
     </Sheet>
   );

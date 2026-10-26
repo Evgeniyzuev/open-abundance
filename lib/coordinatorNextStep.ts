@@ -1,6 +1,6 @@
 import type { ParticipantRecord } from "@/lib/coordinatorAnalysis";
 import type { Localized } from "@/lib/locales";
-import { QUEST_NUDGE_WEEK_LIMIT, chooseQuestNudge, weekSends, type QuestNudgeInput, type QuestNudgeKey } from "./questNudges.ts";
+import { QUEST_NUDGE_WEEK_LIMIT, chooseFirstDayHook, chooseQuestNudge, weekSends, type QuestNudgeInput, type QuestNudgeKey } from "./questNudges.ts";
 
 /**
  * Pure rules for the coordinator's daily message. No I/O so a deterministic Node test can check them
@@ -268,6 +268,10 @@ export type NudgeContext = {
  * (twice at most, NUDGE_STEP_GAP_MS apart), then tasks for today.
  */
 export function chooseNudge(participant: ParticipantRecord, past: NudgeHistory | undefined, context: NudgeContext, now: number): NextStep | null {
+  // The first day is quiet except for the path's hook for tomorrow (founder decision 2026-10-26).
+  if (context.quest && now - Date.parse(participant.registeredAt) < NUDGE_MIN_AGE_MS) {
+    return chooseFirstDayHook(context.quest, past?.sends ?? [], Date.parse(participant.registeredAt), context.lastActiveAt, now);
+  }
   if (now - Date.parse(participant.registeredAt) < NUDGE_MIN_AGE_MS) return null;
   const sends = past?.sends ?? [];
   if (sends.length >= NUDGE_MAX_PER_PERSON) return null;

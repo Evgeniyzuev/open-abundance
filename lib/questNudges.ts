@@ -11,7 +11,7 @@ import type { Localized } from "./locales.ts";
 
 const DAY_MS = 86_400_000;
 
-export const QUEST_NUDGE_KEYS = ["quest_first_step", "quest_leader", "quest_comeback", "quest_unlocked", "quest_stalled"] as const;
+export const QUEST_NUDGE_KEYS = ["quest_tomorrow", "quest_first_step", "quest_leader", "quest_comeback", "quest_unlocked", "quest_stalled"] as const;
 export type QuestNudgeKey = (typeof QUEST_NUDGE_KEYS)[number];
 
 export const QUEST_NUDGE_WEEK_LIMIT = 3;
@@ -52,6 +52,10 @@ export type QuestSend = { step: string; at: number };
 export type QuestNudge = { key: QuestNudgeKey; deepLink: string; copy: Localized<QuestCopy> };
 
 const COPY: Record<QuestNudgeKey, Localized<QuestCopy>> = {
+  quest_tomorrow: {
+    ru: { title: "{name}, завтра тебя ждёт новый квест", body: "За возвращение придёт награда в Core, а сам Core растёт, пока тебя нет. До завтра! Нова", button: "Посмотреть квесты" },
+    en: { title: "{name}, a new quest is waiting for you tomorrow", body: "Coming back brings a Core reward, and Core keeps growing while you are away. See you tomorrow! Nova", button: "See quests" }
+  },
   quest_first_step: {
     ru: { title: "{name}, первая звезда ждёт тебя", body: "Одна минута: зачем ты здесь? По ответу я подберу квесты. Нова", button: "Ответить" },
     en: { title: "{name}, your first star is waiting", body: "One minute: why are you here? I'll pick quests from your answer. Nova", button: "Answer" }
@@ -164,4 +168,16 @@ export function chooseQuestNudge(input: QuestNudgeInput, sends: QuestSend[], las
     if (lastAsk < active.updatedAt || now - lastAsk >= 3 * DAY_MS) return nudge("quest_stalled", activeQuest);
   }
   return null;
+}
+
+/**
+ * The hook for tomorrow, the only message on the first day: someone who did a quest today and left the app a couple
+ * of hours ago hears that a new quest and the return reward are waiting tomorrow. Once per person.
+ */
+export function chooseFirstDayHook(input: QuestNudgeInput, sends: QuestSend[], registeredAt: number, lastActiveAt: number | null, now: number): QuestNudge | null {
+  if (now - registeredAt < 3 * 3_600_000 || now - registeredAt >= DAY_MS) return null;
+  if (lastActiveAt === null || now - lastActiveAt < 2 * 3_600_000) return null;
+  if (sends.some((send) => send.step === "quest_tomorrow")) return null;
+  if (!input.rows.some((row) => row.status === "completed")) return null;
+  return nudge("quest_tomorrow", null);
 }

@@ -18,7 +18,7 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
-import { AppInstalledQuest, FirstStepQuest, GoalPlanQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
+import { AppInstalledQuest, ChooseWishQuest, FirstStepQuest, GoalPlanQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, type QuestPlacement } from "@/lib/questPath";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { signInWithGoogle } from "@/lib/supabaseClient";
@@ -552,6 +552,22 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     await loadChallenges();
   }
 
+  /**
+   * "Skip": the quest stays taken and checkable, another one becomes active: the next path quest, otherwise another
+   * taken quest, otherwise the first available one.
+   */
+  async function skipQuest(challenge: Challenge) {
+    const notThis = (item: Challenge) => item.id !== challenge.id;
+    const pathNext = availableChallenges.find((item) => item.quest_placement === "path_next" && notThis(item));
+    const taken = acceptedChallenges.find((item) => notThis(item) && !item.is_permanent && item.verification_logic !== "day_2_return");
+    const available = availableChallenges.find((item) => notThis(item) && item.can_accept !== false);
+    const next = pathNext ?? taken ?? available;
+    if (!next) throw new Error(t("quests.skipNothing"));
+    if (next !== taken) await acceptChallenge(next);
+    await makeQuestActive(next);
+    void trackClientEvent("quest_skipped", { from: challenge.id, to: next.id });
+  }
+
   async function giveUpChallenge(challenge: Challenge) {
     const response = await fetchWithSupabaseAuth("/api/challenges/giveup", {
       method: "POST",
@@ -722,6 +738,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           t={t}
           onAccept={() => acceptChallenge(challenge)}
           onMakeActive={() => makeQuestActive(challenge)}
+          onSkip={() => skipQuest(challenge)}
           onGiveUp={() => giveUpChallenge(challenge)}
           onNavigateTesting={onNavigateTesting}
           onComplete={completeChallenge}
@@ -773,7 +790,10 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
               ) : null}
               {pathMapOpen ? <PathMap items={visiblePath(pathItems).map((item) => ({ ...item, title: displayText(item.title, "", locale) }))} t={t} /> : null}
               <div className="challenge-list">{renderChallenge(activeQuest)}</div>
-              <NovaBubble text={novaLine(activeQuest.verification_logic, t)} t={t} />
+              <NovaBubble askText={t("quests.nova.askPrompt", { title: displayText(activeQuest.title, "", locale) })} text={novaLine(activeQuest.verification_logic, t)} t={t} />
+              {acceptedChallenges.some((challenge) => challenge.verification_logic === "day_2_return" && challenge.user_challenge_status === "accepted") ? (
+                <NovaBubble text={t("quests.nova.tomorrowHook")} t={t} />
+              ) : null}
             </section>
           ) : null}
           {questInfo ? <QuestLeaders refreshKey={questInfo.pathDone} t={t} /> : null}
@@ -1195,6 +1215,7 @@ function ChallengeDetailContent({
   t,
   onAccept,
   onMakeActive,
+  onSkip,
   onGiveUp,
   onNavigateTesting,
   onComplete,
@@ -1211,6 +1232,7 @@ function ChallengeDetailContent({
   t: TFunction;
   onAccept: () => Promise<void>;
   onMakeActive: () => Promise<void>;
+  onSkip: () => Promise<void>;
   onGiveUp: () => Promise<void>;
   onNavigateTesting: (target: AppTestingNavigationTarget) => void;
   onComplete: (challenge: Challenge, reward: CompletionReward) => void;
@@ -1223,6 +1245,7 @@ function ChallengeDetailContent({
   const locked = !accepted && !completed && (challenge.can_accept === false || accessReasons.length > 0);
   const needsGoalPlan = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsFirstStep = challenge.verification_logic === FIRST_STEP_LOGIC && accepted && !completed && !locked;
+  const needsWish = challenge.verification_logic === "has_wish" && accepted && !completed && !locked;
   const needsAppInstalled = challenge.verification_logic === APP_INSTALLED_LOGIC && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
@@ -1369,6 +1392,18 @@ function ChallengeDetailContent({
     }
   }
 
+  async function handleSkip() {
+    setActiveStatus("loading");
+    setCheckMessage(null);
+    try {
+      await onSkip();
+      setActiveStatus("idle");
+    } catch (error) {
+      setCheckMessage(error instanceof Error ? error.message : t("quests.makeActiveFailed"));
+      setActiveStatus("error");
+    }
+  }
+
   async function handleGiveUp() {
     setGiveUpStatus("loading");
     setCheckMessage(null);
@@ -1504,6 +1539,8 @@ function ChallengeDetailContent({
         <FirstStepQuest question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
 
+      {needsWish ? <ChooseWishQuest locale={locale} t={t} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
+
       {needsAppInstalled ? <AppInstalledQuest challengeId={challenge.id} locale={locale} t={t} onCodeChange={setChannelCode} /> : null}
 
       {needsGoalPlan ? <GoalPlanQuest coreBalance={coreBalance} locale={locale} t={t} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
@@ -1601,6 +1638,12 @@ function ChallengeDetailContent({
       {!completed && accepted && !isActiveQuest && isRegistered ? (
         <button className="challenge-secondary-action" type="button" disabled={activeStatus === "loading"} onClick={() => void handleMakeActive()}>
           {activeStatus === "loading" ? t("app.common.loading") : t("quests.makeActive")}
+        </button>
+      ) : null}
+
+      {!completed && accepted && isActiveQuest && isRegistered ? (
+        <button className="challenge-secondary-action" type="button" disabled={activeStatus === "loading"} onClick={() => void handleSkip()}>
+          {activeStatus === "loading" ? t("app.common.loading") : t("quests.skip")}
         </button>
       ) : null}
 

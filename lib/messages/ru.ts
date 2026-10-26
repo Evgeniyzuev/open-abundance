@@ -2333,6 +2333,8 @@ const ru: Record<string, string> = {
   "notes.ai.fromNova": "Нова",
   "notes.ai.again": "Разобрать ещё раз",
   "notes.ai.hide": "Скрыть ответ",
+  "notes.ai.show": "Показать ответ ИИ",
+  "notes.ai.history": "Прошлые ответы: {count}",
   "notes.ai.createTasks": "Создать задачи: {count}",
   "notes.ai.tasksCreated": "Создано задач: {count}. Они в задачах на сегодня.",
   "notes.ai.moveTo": "Перенести в «{title}»",
@@ -3111,6 +3113,17 @@ const ru: Record<string, string> = {
     "quests.active.pathStepShort": "Путь · шаг {step}",
     "quests.path.showShort": "Путь · пройдено {done}",
     "quests.path.more": "Пройди дополнительные задания, чтобы поднять уровень",
+    "quests.nova.tomorrowHook": "«Вернись завтра» уже взят: завтра нажми «Проверить» и забери награду, а тебя будет ждать новый квест.",
+    "quests.install.step1Desktop": "На компьютере ставить ничего не нужно: хватит уведомлений браузера.",
+    "quests.wish.ideas": "Выбери в одно касание",
+    "quests.wish.own": "Или напиши своё",
+    "quests.wish.ownPlaceholder": "Чего ты хочешь?",
+    "quests.wish.save": "Сохранить желание",
+    "quests.wish.saveFailed": "Не получилось сохранить желание. Попробуй ещё раз.",
+    "quests.skip": "Пропустить",
+    "quests.skipNothing": "Пока нет другого квеста, на который можно переключиться.",
+    "quests.nova.askPrompt": "Квест «{title}»: что именно нужно сделать и как это мне поможет?",
+    "quests.nova.ask": "Спросить Нову"
 };
 
 export default ru;

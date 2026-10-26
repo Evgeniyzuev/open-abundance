@@ -41,6 +41,8 @@ export type Note = {
   contexts?: string[];
   /** The latest AI review of this note: waiting, answered or failed. */
   aiReview?: NoteAiReview;
+  /** Earlier answers, newest first: a new review never wipes the previous answer off the device. */
+  aiHistory?: NoteAiReview[];
 };
 
 /** Built-in lists that cannot be deleted. Notes without a list are in the Inbox; "abundance" is a reserved list id. */
@@ -160,7 +162,8 @@ export async function saveNote(input: NoteInput): Promise<Note> {
     processing: input.processing ?? existing?.processing,
     morning: input.morning ?? existing?.morning,
     contexts: input.contexts ?? existing?.contexts,
-    aiReview: existing?.aiReview
+    aiReview: existing?.aiReview,
+    aiHistory: existing?.aiHistory
   };
 
   await withStore<IDBValidKey>(NOTES_STORE, "readwrite", (store) => store.put(note));
@@ -291,11 +294,23 @@ export async function setReflectionFeedback(id: string, feedback: ReflectionFeed
   await updateReflectionProcessing(id, { ...note.processing, feedback });
 }
 
-/** Sets (or with `undefined` clears) the AI review of a note without touching its text or its "updated" time. */
+const AI_HISTORY_LIMIT = 5;
+
+/**
+ * Sets (or with `undefined` clears) the AI review of a note without touching its text or its "updated" time. A ready
+ * answer that is being replaced by another review moves to `aiHistory`, so answers are kept on the device: the server
+ * deletes them once delivered.
+ */
 export async function setNoteAiReview(id: string, aiReview: NoteAiReview | undefined): Promise<Note | undefined> {
   const existing = await getNote(id);
   if (!existing) return undefined;
-  const note: Note = { ...existing, aiReview };
+  const previous = existing.aiReview;
+  let history = existing.aiHistory ?? [];
+  if (previous?.status === "ready" && previous.result && previous.requestedAt !== aiReview?.requestedAt) {
+    history = [{ ...previous, hidden: undefined }, ...history.filter((item) => item.requestedAt !== previous.requestedAt)];
+  }
+  if (aiReview) history = history.filter((item) => item.requestedAt !== aiReview.requestedAt);
+  const note: Note = { ...existing, aiReview, aiHistory: history.length ? history.slice(0, AI_HISTORY_LIMIT) : undefined };
   await withStore<IDBValidKey>(NOTES_STORE, "readwrite", (store) => store.put(note));
   notifyNotesChanged();
   return note;

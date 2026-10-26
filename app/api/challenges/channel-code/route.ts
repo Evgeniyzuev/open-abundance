@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as { challengeId?: unknown; standalone?: unknown } | null;
   const challengeId = typeof body?.challengeId === "string" ? body.challengeId : "";
   const { data: challenge } = await db.from("challenges").select("id,verification_logic").eq("id", challengeId).eq("is_active", true).maybeSingle();
-  // "Install the app" is a push code asked from the app opened from the home screen; the others have one channel each.
+  // "Install the app" is a push code asked from the app opened from the home screen (or a computer browser, where the
+  // install is optional); the others have one channel each.
   const installQuest = challenge?.verification_logic === APP_INSTALLED_LOGIC;
   if (!challenge || (!installQuest && !isChannelCodeLogic(challenge.verification_logic))) return json({ error: "Challenge not found." }, 404);
   if (installQuest && body?.standalone !== true) return json({ error: "Open the installed app from the home screen.", code: "not_installed" }, 409);

@@ -16,7 +16,8 @@ import {
   orderNoteAiActions,
   type NoteAiAction,
   type NoteAiChatAction,
-  type NoteAiMode
+  type NoteAiMode,
+  type NoteAiReview
 } from "@/lib/noteAiReview";
 import { setNoteAiReview, type Note } from "@/lib/notesStore";
 
@@ -173,6 +174,18 @@ export function NoteAiAnswer({ note, moveTarget, onMove, onCreateTasks, onAddWis
     );
   }
 
+  const history = note.aiHistory ?? [];
+  if (review.hidden) {
+    return (
+      <div className="notes-ai-restore">
+        <button type="button" onClick={() => void setNoteAiReview(note.id, { ...review, hidden: undefined })}>
+          <Sparkles size={14} aria-hidden="true" /> {t("notes.ai.show")}
+        </button>
+        <NoteAiHistory history={history} />
+      </div>
+    );
+  }
+
   const { result } = review;
   const items = result.items ?? [];
   return (
@@ -210,10 +223,29 @@ export function NoteAiAnswer({ note, moveTarget, onMove, onCreateTasks, onAddWis
         {moveTarget ? <button type="button" onClick={() => { onMove(moveTarget.id); setDone(t("notes.ai.moved", { title: moveTarget.title })); }}>{t("notes.ai.moveTo", { title: moveTarget.title })}</button> : null}
         {result.kind === "wish" ? <button type="button" onClick={() => void onAddWish().then(() => setDone(t("notes.ai.wishAdded")), () => setDone(t("notes.ai.fail.error")))}>{t("notes.ai.addWish")}</button> : null}
         <button type="button" onClick={onAgain}>{t("notes.ai.again")}</button>
-        <button type="button" aria-label={t("notes.ai.hide")} onClick={() => void setNoteAiReview(note.id, undefined)}><X size={14} aria-hidden="true" /></button>
+        <button type="button" aria-label={t("notes.ai.hide")} onClick={() => void setNoteAiReview(note.id, { ...review, hidden: true })}><X size={14} aria-hidden="true" /></button>
       </div>
       <NoteAiFeedback note={note} onReviewAgain={onReviewAgain} />
+      <NoteAiHistory history={history} />
     </section>
+  );
+}
+
+/** Earlier answers to the same note, folded: they stay on the device after a new review. */
+function NoteAiHistory({ history }: { history: NoteAiReview[] }) {
+  const { t } = useUserContext();
+  if (history.length === 0) return null;
+  return (
+    <details className="notes-ai-history">
+      <summary>{t("notes.ai.history", { count: history.length })}</summary>
+      {history.map((item) => (
+        <article key={item.requestId ?? item.requestedAt}>
+          <time dateTime={item.answeredAt ?? item.requestedAt}>{new Date(item.answeredAt ?? item.requestedAt).toLocaleString()}</time>
+          <p>{item.result?.text}</p>
+          {item.result?.items?.length ? <ul>{item.result.items.map((entry) => <li key={entry}>{entry}</li>)}</ul> : null}
+        </article>
+      ))}
+    </details>
   );
 }
 

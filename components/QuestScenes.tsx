@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
 import ChannelCodeChallenge from "@/components/ChannelCodeChallenge";
 import { InstallGuideDetails } from "@/components/InstallGuide";
 import { DAILY_CORE_RATE } from "@/lib/coreCalculator";
@@ -20,12 +21,21 @@ export function novaLine(verificationLogic: string | null | undefined, t: TFunct
   return line === key ? t("quests.nova.default") : line;
 }
 
-export function NovaBubble({ text, t }: { text: string; t: TFunction }) {
+/** With `askText`, tapping Nova opens her chat with that question ready; the person still presses Send. */
+export function NovaBubble({ text, t, askText }: { text: string; t: TFunction; askText?: string }) {
+  if (!askText) {
+    return (
+      <div className="quest-nova">
+        <img alt="" className="quest-nova-avatar" src="/nova-fox-robot.webp" />
+        <p><strong>{t("quests.nova.name")}</strong>{text}</p>
+      </div>
+    );
+  }
   return (
-    <div className="quest-nova">
+    <button className="quest-nova quest-nova-ask" type="button" onClick={() => window.dispatchEvent(new CustomEvent(OPEN_AI_PROMPT_EVENT, { detail: { text: askText } }))}>
       <img alt="" className="quest-nova-avatar" src="/nova-fox-robot.webp" />
-      <p><strong>{t("quests.nova.name")}</strong>{text}</p>
-    </div>
+      <p><strong>{t("quests.nova.name")}</strong>{text}<span className="quest-nova-cta">{t("quests.nova.ask")} →</span></p>
+    </button>
   );
 }
 
@@ -155,25 +165,28 @@ export function AppInstalledQuest({ challengeId, locale, t, onCodeChange }: { ch
     else window.open(url, "_blank", "noopener");
   }
 
+  // On a computer browser notifications are enough; the phone install is offered there, not required.
+  const ready = standalone || (desktop && !telegram);
+
   return (
     <section className="quest-channel">
       <ol className="quest-steps">
-        <li className={standalone ? "done" : "current"}>{standalone ? t("quests.install.step1Done") : t("quests.install.step1")}</li>
-        <li className={standalone ? "current" : ""}>{t("quests.install.step2")}</li>
+        <li className={ready ? "done" : "current"}>{standalone ? t("quests.install.step1Done") : ready ? t("quests.install.step1Desktop") : t("quests.install.step1")}</li>
+        <li className={ready ? "current" : ""}>{t("quests.install.step2")}</li>
       </ol>
-      {!standalone && telegram ? (
+      {!ready && telegram ? (
         <>
           <p className="challenge-note">{t("quests.install.telegram")}</p>
           <button className="secondary-button" type="button" onClick={openInBrowser}>{t("quests.install.openBrowser")}</button>
         </>
       ) : null}
-      {!standalone ? (
+      {!ready ? (
         <>
           <InstallGuideDetails installPromptAvailable={installPromptAvailable} isDesktop={desktop} locale={locale} t={t} onInstall={() => { void promptPwaInstall(); }} />
           <p className="challenge-note">{t("quests.install.openFromIcon")}</p>
         </>
       ) : (
-        <ChannelCodeChallenge challengeId={challengeId} channel="push" standalone t={t} onCodeChange={onCodeChange} />
+        <ChannelCodeChallenge challengeId={challengeId} channel="push" standalone={ready} t={t} onCodeChange={onCodeChange} />
       )}
     </section>
   );
@@ -384,6 +397,83 @@ export function QuestLeaders({ refreshKey, t }: { refreshKey: number; t: TFuncti
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+type RecommendedWish = { id: string; title: Record<string, string> | string; estimated_cost?: string | null };
+
+/**
+ * "Choose your main wish": three ready wishes added in one tap, or the person's own in one line. Saving checks the
+ * quest at once; the first wish becomes the main one (app/api/wishes).
+ */
+export function ChooseWishQuest({ locale, t, onSaved }: { locale: AppLocale; t: TFunction; onSaved: () => void }) {
+  const [ideas, setIdeas] = useState<RecommendedWish[]>([]);
+  const [own, setOwn] = useState("");
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const response = await fetchWithSupabaseAuth("/api/wishes?status=active", { cache: "no-store" }, { authRequired: true });
+        const payload = (await response.json().catch(() => ({}))) as { recommendedWishes?: RecommendedWish[] };
+        if (mounted) setIdeas((payload.recommendedWishes ?? []).slice(0, 3));
+      } catch {
+        // Without ideas the person writes their own.
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const titleOf = (wish: RecommendedWish) => (typeof wish.title === "string" ? wish.title : wish.title[locale] ?? wish.title.en ?? Object.values(wish.title)[0] ?? "");
+
+  async function add(key: string, body: Record<string, unknown>) {
+    setSaving(key);
+    setError(null);
+    try {
+      const response = await fetchWithSupabaseAuth("/api/wishes", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale, ...body })
+      }, { authRequired: true });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok || payload.error) throw new Error(payload.error ?? t("quests.wish.saveFailed"));
+      onSaved();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : t("quests.wish.saveFailed"));
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  return (
+    <section className="quest-plan">
+      {ideas.length ? (
+        <div className="quest-plan-field">
+          <span>{t("quests.wish.ideas")}</span>
+          <div className="quest-wish-ideas">
+            {ideas.map((wish) => (
+              <button className="quest-wish-idea" disabled={saving !== null} key={wish.id} type="button" onClick={() => void add(wish.id, { sourceRecommendedWishId: wish.id })}>
+                <span>{titleOf(wish)}</span>
+                <b>{saving === wish.id ? t("app.common.loading") : "+"}</b>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <label className="quest-plan-field">
+        <span>{t("quests.wish.own")}</span>
+        <input maxLength={120} placeholder={t("quests.wish.ownPlaceholder")} value={own} onChange={(event) => setOwn(event.target.value)} />
+      </label>
+      <button className="challenge-primary-action" type="button" disabled={saving !== null || own.trim().length < 2} onClick={() => void add("own", { title: own.trim() })}>
+        {saving === "own" ? t("app.common.loading") : t("quests.wish.save")}
+      </button>
+      {error ? <p className="challenge-error">{error}</p> : null}
     </section>
   );
 }

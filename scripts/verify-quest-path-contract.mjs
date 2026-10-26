@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { calculateFutureCore } from "../lib/coreCalculator.ts";
 import { readFileSync } from "node:fs";
-import { buildQuestPath, completedQuestCount, isQuestMotive, parseMotives, requiredDailyAddition } from "../lib/questPath.ts";
-import { chooseQuestNudge, isHoldout, QUEST_NUDGE_WEEK_LIMIT } from "../lib/questNudges.ts";
+import { AUTO_TAKEN_LOGICS, buildQuestPath, completedQuestCount, isQuestMotive, parseMotives, requiredDailyAddition } from "../lib/questPath.ts";
+import { chooseFirstDayHook, chooseQuestNudge, isHoldout, QUEST_NUDGE_WEEK_LIMIT } from "../lib/questNudges.ts";
 import { weeklyLeaders } from "../lib/questLeaders.ts";
 import { buildPathReport } from "../lib/questPathAnalytics.ts";
 import { chooseNudge } from "../lib/coordinatorNextStep.ts";
@@ -136,6 +136,14 @@ const row = (challengeId, status, daysAgo, isActive = false) => ({ challengeId, 
 
   const weekFull = Array.from({ length: QUEST_NUDGE_WEEK_LIMIT }, (_, i) => ({ step: "core", at: NOW - (i + 1) * DAY }));
   assert.equal(chooseQuestNudge(input([row("p1", "accepted", 1, true)]), weekFull, null, NOW), null, "three a week at most");
+  // Day one: an evening hook for tomorrow, once, only after something was done and the person went quiet.
+  const done = input([row("p1", "completed", 0), row("p2", "accepted", 0, true)]);
+  assert.equal(chooseFirstDayHook(done, [], NOW - 5 * 3600_000, NOW - 3 * 3600_000, NOW)?.key, "quest_tomorrow");
+  assert.equal(chooseFirstDayHook(done, [], NOW - 5 * 3600_000, NOW - 3600_000, NOW), null, "still in the app");
+  assert.equal(chooseFirstDayHook(done, [], NOW - 3600_000, null, NOW), null, "too early");
+  assert.equal(chooseFirstDayHook(done, [{ step: "quest_tomorrow", at: NOW - 3600_000 }], NOW - 5 * 3600_000, NOW - 3 * 3600_000, NOW), null, "once");
+  assert.equal(chooseFirstDayHook(input([row("p1", "accepted", 0, true)]), [], NOW - 5 * 3600_000, NOW - 3 * 3600_000, NOW), null, "nothing done yet");
+  assert.deepEqual([...AUTO_TAKEN_LOGICS], ["day_2_return", "has_referral"]);
 }
 // The coordinator lets the path decide and keeps the shared limits.
 {

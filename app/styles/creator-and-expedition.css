@@ -311,6 +311,10 @@
 .quest-nova-avatar { flex: none; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #fff; }
 .quest-nova p { margin: 0; border-radius: 4px 14px 14px 14px; padding: 8px 11px; background: rgba(255, 255, 255, 0.1); color: inherit; font-size: 0.875rem; line-height: 1.35; }
 .quest-nova p strong { display: block; margin-bottom: 2px; color: #ffd66b; font-size: 0.75rem; }
+.quest-nova-ask { width: 100%; border: 0; padding: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.quest-nova-ask p { transition: background 0.15s; }
+.quest-nova-ask:hover p, .quest-nova-ask:focus-visible p { background: rgba(255, 255, 255, 0.18); }
+.quest-nova-cta { display: block; margin-top: 4px; color: #ffd66b; font-size: 0.8125rem; font-weight: 600; }
 .quest-scene { display: grid; gap: 12px; border-radius: 14px; padding: 14px; background: linear-gradient(170deg, #141a33, #0b0f1f); color: #eef1ff; }
 .quest-scene .challenge-note { color: #c8cff5 !important; }
 .quest-scene-art { position: relative; height: 92px; overflow: hidden; border-radius: 10px; background: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.7) 0 1px, transparent 2px), radial-gradient(circle at 70% 20%, rgba(255,255,255,0.6) 0 1px, transparent 2px), radial-gradient(circle at 45% 60%, rgba(255,255,255,0.5) 0 1px, transparent 2px), radial-gradient(circle at 85% 70%, rgba(255,255,255,0.6) 0 1px, transparent 2px), linear-gradient(180deg, #1d2550, #0b0f1f 80%, #10301f); }
@@ -375,3 +379,6 @@
 .quest-leaders-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
 .quest-leaders li small { color: var(--muted); font-weight: 800; }
 .quest-path-item.more { display: block; color: #ffd66b; font-weight: 800; }
+.quest-wish-ideas { display: grid; gap: 6px; }
+.quest-wish-idea { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface); color: var(--text); font: inherit; font-weight: 800; text-align: start; }
+.quest-wish-idea b { flex: none; display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 999px; background: var(--accent-fill); color: #fff; }

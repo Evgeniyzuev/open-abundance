@@ -2333,6 +2333,8 @@ const en = {
   "notes.ai.fromNova": "Nova",
   "notes.ai.again": "Review again",
   "notes.ai.hide": "Hide the answer",
+  "notes.ai.show": "Show the AI answer",
+  "notes.ai.history": "Earlier answers: {count}",
   "notes.ai.createTasks": "Create tasks: {count}",
   "notes.ai.tasksCreated": "Tasks created: {count}. They are in Tasks for today.",
   "notes.ai.moveTo": "Move to «{title}»",
@@ -3111,6 +3113,17 @@ const en = {
     "quests.active.pathStepShort": "Path · step {step}",
     "quests.path.showShort": "Path · {done} done",
     "quests.path.more": "Do extra quests to raise your level",
+    "quests.nova.tomorrowHook": "\"Come back tomorrow\" is already taken: tomorrow press \"Check\" to collect the reward, and a new quest will be waiting.",
+    "quests.install.step1Desktop": "On a computer you don't need to install anything: browser notifications are enough.",
+    "quests.wish.ideas": "Pick one in a tap",
+    "quests.wish.own": "Or write your own",
+    "quests.wish.ownPlaceholder": "What do you want?",
+    "quests.wish.save": "Save wish",
+    "quests.wish.saveFailed": "Could not save the wish. Try again.",
+    "quests.skip": "Skip",
+    "quests.skipNothing": "No other quest to switch to yet.",
+    "quests.nova.askPrompt": "Quest \"{title}\": what exactly should I do, and how will it help me?",
+    "quests.nova.ask": "Ask Nova"
 } satisfies Record<string, string>;
 
 export default en;

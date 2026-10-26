@@ -123,6 +123,14 @@
 .notes-ai-answer-actions button { min-height: 34px; padding: 0 12px; border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: 0.875rem; font-weight: 700; }
 .notes-ai-answer-actions button.primary { background: var(--purple-text); color: #fff; }
 .notes-ai-answer-actions button:disabled { opacity: 0.5; }
+.notes-ai-restore { display: grid; gap: 8px; }
+.notes-ai-restore > button { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: var(--radius-pill); background: var(--surface); color: var(--purple-text); font-size: 0.875rem; font-weight: 700; }
+.notes-ai-history { font-size: 0.875rem; }
+.notes-ai-history summary { cursor: pointer; color: var(--muted); font-weight: 700; }
+.notes-ai-history article { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface-muted); }
+.notes-ai-history time { display: block; color: var(--muted); font-size: 0.75rem; }
+.notes-ai-history p { margin: 4px 0 0; white-space: pre-wrap; }
+.notes-ai-history ul { margin: 4px 0 0; padding-inline-start: 18px; }
 
 /* Built-in lists: hidden with an eye instead of deleted; Abundance explains itself behind (?). */
 .notes-row-eye { width: 28px; height: 28px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; margin-inline-start: 12px; border-radius: var(--radius-pill); background: var(--surface-muted); color: var(--blue); }

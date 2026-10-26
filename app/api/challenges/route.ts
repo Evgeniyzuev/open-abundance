@@ -4,7 +4,8 @@ import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { canAcceptChallenge, getChallengeAccessReasons, hasFirstResult, isChallengeAlmostAvailable, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { activateQuest } from "@/lib/questActivation";
-import { buildQuestPath, parseMotives, type QuestMotive } from "@/lib/questPath";
+import { AUTO_TAKEN_LOGICS, buildQuestPath, parseMotives, type QuestMotive } from "@/lib/questPath";
+import { recordProductEvent } from "@/lib/serverAnalytics";
 import { walletChallengeProgress, walletChallengeRule, walletStats, type StayLedgerRow, type WalletChallengeProgress } from "@/lib/stayStreak";
 
 export const dynamic = "force-dynamic";
@@ -162,6 +163,21 @@ export async function GET(request: NextRequest) {
 
   for (const challenge of data) {
     challenge.almost_eligible = !challenge.can_accept && isChallengeAlmostAvailable(challenge, viewerLevel, data);
+  }
+  // "Come back tomorrow" and "Invite a friend" are taken on the first visit (never over a skip); they are off the path.
+  if (viewerUserId) {
+    const toTake = data.filter((challenge) => (AUTO_TAKEN_LOGICS as readonly string[]).includes(String(challenge.verification_logic)) && !challenge.user_challenge_status && challenge.can_accept !== false);
+    if (toTake.length) {
+      const now = new Date().toISOString();
+      const { error: takeError } = await (supabase as any).from("user_challenges").upsert(
+        toTake.map((challenge) => ({ user_id: viewerUserId, challenge_id: challenge.id, status: "accepted", updated_at: now })),
+        { onConflict: "user_id,challenge_id", ignoreDuplicates: true }
+      );
+      if (!takeError) {
+        for (const challenge of toTake) challenge.user_challenge_status = "accepted";
+        await Promise.all(toTake.map((challenge) => recordProductEvent({ entityId: challenge.id, entityType: "challenge", eventName: "challenge_accepted", properties: { auto: true, via: "auto_taken" }, source: "server", userId: viewerUserId })));
+      }
+    }
   }
   let questPath = buildQuestPath(data, viewerMotives, { signedIn: Boolean(viewerUserId) });
 

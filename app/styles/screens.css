@@ -1279,7 +1279,7 @@
 .feed-post-interest-question button:hover, .feed-post-interest-question button:focus-visible { border-color: var(--accent-fill); color: var(--accent-fill); outline: 0; }
 .ui-skeleton { display: block; border-radius: var(--radius-sm, 8px); background: linear-gradient(110deg, var(--surface-muted) 24%, var(--surface) 42%, var(--surface-muted) 62%); background-size: 260% 100%; animation: feed-tile-loading 1.25s ease-in-out infinite; }
 .feed-post-tile-skeleton { border-radius: 0; }
-.feed-post-hero-skeleton { position: relative; grid-column: 1 / -1; aspect-ratio: 16 / 10; overflow: hidden; border-radius: var(--radius-md, 12px); background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(241,242,247,0.42)), url("/onboarding/people-stories.webp") center / cover; animation: none; }
+.feed-post-hero-skeleton { position: relative; grid-column: 1 / -1; aspect-ratio: 16 / 10; overflow: hidden; border-radius: var(--radius-md, 12px); background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(241,242,247,0.42)), url("/onboarding/people-stories-9-16.jpg") center / cover; animation: none; }
 .feed-post-hero-skeleton::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.45) 48%, transparent 66%); background-size: 260% 100%; animation: feed-tile-loading 1.25s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .ui-skeleton, .feed-post-hero-skeleton::after { animation: none; } }
 .ui-chip-row { display: grid; gap: 7px; min-width: 0; }

@@ -25,6 +25,7 @@ import {
   PRIMARY_WISH_CHANGED_EVENT,
   readPrimaryWish,
   readWishMilestone,
+  storePrimaryWish,
   storeWishMilestone,
   type PrimaryWishSummary
 } from "@/lib/wishJourney";
@@ -171,6 +172,22 @@ export default function HomeTodayApp({
     window.addEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
     return () => window.removeEventListener(PRIMARY_WISH_CHANGED_EVENT, syncPrimaryWish);
   }, [user?.id]);
+
+  // No main wish on this device yet (a new phone, or the wish came from a quest): the earliest active wish becomes it,
+  // instead of asking to choose a wish the person already has.
+  useEffect(() => {
+    if (!active || !user || readPrimaryWish(user.id)) return;
+    let cancelled = false;
+    void fetchWithSupabaseAuth("/api/wishes?status=active&includeRecommended=false", { cache: "no-store" }, { authRequired: true })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: { wishes?: PrimaryWishSummary[] } | null) => {
+        const wishes = payload?.wishes ?? [];
+        const earliest = wishes[wishes.length - 1];
+        if (!cancelled && earliest && !readPrimaryWish(user.id)) storePrimaryWish(user.id, earliest);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [active, user]);
 
   async function addStartStepsAsTask(steps: string[]) {
     if (!primaryWish) return;

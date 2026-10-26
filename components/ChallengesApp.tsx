@@ -1258,6 +1258,9 @@ function ChallengeDetailContent({
   const needsGoalPlan = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsFirstStep = challenge.verification_logic === FIRST_STEP_LOGIC && accepted && !completed && !locked;
   const needsWish = challenge.verification_logic === "has_wish" && accepted && !completed && !locked;
+  // Quests with their own step-by-step scene: the generic instructions from the database would repeat or contradict it.
+  const needsInvite = challenge.verification_logic === "has_referral" && accepted && !completed && !locked;
+  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite;
   const needsAppInstalled = challenge.verification_logic === APP_INSTALLED_LOGIC && accepted && !completed && !locked;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
@@ -1505,14 +1508,14 @@ function ChallengeDetailContent({
         ) : null}
       </div>
 
-      {instructionParts.why && !needsFirstStep ? (
+      {instructionParts.why && !hasOwnScene ? (
         <section>
           <h4>{t("challenges.why")}</h4>
           <p>{instructionParts.why}</p>
         </section>
       ) : null}
 
-      {(instructionParts.steps.length > 0 || instructionParts.note) && !needsFirstStep ? (
+      {(instructionParts.steps.length > 0 || instructionParts.note) && !hasOwnScene ? (
         <section>
           <h4>{instructionParts.steps.length > 0 ? t("challenges.steps") : t("challenges.instructions")}</h4>
           {instructionParts.steps.length > 0 ? (
@@ -1524,7 +1527,7 @@ function ChallengeDetailContent({
         </section>
       ) : null}
 
-      {displayText(challenge.requirements, "", locale) && !needsFirstStep ? (
+      {displayText(challenge.requirements, "", locale) && !hasOwnScene ? (
         <section>
           <h4>{t("challenges.acceptance")}</h4>
           <p>{displayText(challenge.requirements, "", locale)}</p>
@@ -1554,7 +1557,7 @@ function ChallengeDetailContent({
         <FirstStepQuest question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
 
-      {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
+      {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
       {needsAppInstalled ? <AppInstalledQuest challengeId={challenge.id} locale={locale} t={t} onCodeChange={setChannelCode} /> : null}
 
@@ -1607,7 +1610,7 @@ function ChallengeDetailContent({
         <AcquisitionChallengePanel challenge={challenge} locale={locale} readOnly={completed} onRefresh={onRefreshUserData} onComplete={(reward) => onComplete(challenge, reward)} />
       ) : null}
 
-      {challenge.verification_logic === "has_referral" && accepted && !completed && !locked ? <InviteFriendQuest /> : null}
+      {needsInvite ? <InviteFriendQuest /> : null}
 
       {challenge.verification_logic === "referral_program" && accepted && !locked ? (
         <>

@@ -106,6 +106,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
   const calculatorRequestFromQuest = calculatorRequest?.fromQuest === true;
   const [questReturn, setQuestReturn] = useState(false);
   const questReturnRef = useRef(false);
+  const questReturnBannerRef = useRef<HTMLDivElement | null>(null);
 
   // A link /pay/@nickname arrives as ?payto=nickname (kept across sign-in): open the transfer with that person.
   useEffect(() => {
@@ -392,6 +393,13 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [active, activeTab, calculatorMode, calculatorOpen, questReturn, user]);
+
+  // Opened from the quest: bring the hint and the 30-year result into view instead of leaving them below the fold.
+  useEffect(() => {
+    if (!questReturn || !calculatorOpen || !active) return;
+    const frame = window.requestAnimationFrame(() => questReturnBannerRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [active, calculatorOpen, questReturn]);
 
   function returnToQuest() {
     questReturnRef.current = false;
@@ -893,7 +901,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
             />
           ) : null}
           {questReturn && calculatorOpen ? (
-            <div className="core-quest-return">
+            <div className="core-quest-return" ref={questReturnBannerRef}>
               <p>{t("quests.corePower.calcHint")}</p>
               <button className="challenge-primary-action" type="button" onClick={returnToQuest}>{t("quests.corePower.backToQuest")}</button>
             </div>

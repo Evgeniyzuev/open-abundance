@@ -193,7 +193,10 @@ export default function InviteFriendQuest() {
 
       {step === "help" ? (
         helpSent ? (
-          <p className="quest-scene-text">{t("quests.invite.help.thanks")}</p>
+          <>
+            <p className="quest-scene-text">{t("quests.invite.help.thanks")}</p>
+            <button className="quest-path-toggle" type="button" onClick={() => go("send")}>{t("quests.invite.help.back")}</button>
+          </>
         ) : (
           <>
             <p className="quest-scene-text">{t("quests.invite.help.text")}</p>

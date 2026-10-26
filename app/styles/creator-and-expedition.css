@@ -389,7 +389,7 @@
 .invite-quest-link { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .invite-quest-example { border-radius: 10px; padding: 10px 12px; background: rgba(255, 214, 107, 0.14); font-weight: 800; }
 /* "The power of Core": the way back from the Wallet calculator. */
-.core-quest-return { display: grid; gap: 8px; margin: 0 0 12px; border-radius: 14px; padding: 12px 14px; background: linear-gradient(170deg, #141a33, #0b0f1f); color: #eef1ff; }
+.core-quest-return { display: grid; gap: 8px; margin: 0 0 12px; border-radius: 14px; padding: 12px 14px; background: linear-gradient(170deg, #141a33, #0b0f1f); color: #eef1ff; scroll-margin-top: 64px; }
 .core-quest-return p { margin: 0; font-weight: 700; }
 /* Quest reward: the amount glows and the Core balance counts up. */
 .quest-reward-burst { display: grid; justify-items: center; gap: 2px; margin: 4px auto 6px; border-radius: 50%; width: 132px; height: 132px; align-content: center; background: radial-gradient(circle, rgba(255, 214, 107, 0.45), rgba(255, 214, 107, 0) 70%); animation: quest-reward-pop 0.7s ease-out; }

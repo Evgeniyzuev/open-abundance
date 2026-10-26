@@ -12,6 +12,7 @@ import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { MOTIVE_NOTE_MAX, QUEST_MOTIVES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -402,6 +403,20 @@ export function CorePowerQuest({ coreBalance, locale, t, userId, onSaved }: { co
     };
   }, []);
 
+  // The goal was already set from this quest (reload, closed sheet): straight to the reward, not the reaction again.
+  useEffect(() => {
+    let mounted = true;
+    void fetchWithSupabaseAuth("/api/core/growth-plan", { cache: "no-store" }, { authRequired: true })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: { plan?: { metadata?: { source?: string } | null } | null } | null) => {
+        if (mounted && payload?.plan?.metadata?.source === "quest_core_power") setStage("done");
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const example = useMemo(() => {
     const core = calculateFutureCore({ startCore: Math.max(0, coreBalance), dailyAdditions: CORE_POWER_EXAMPLE.dailyAdditions, reinvestPercent: CORE_POWER_EXAMPLE.reinvestPercent, days: CORE_POWER_EXAMPLE.termYears * 365.25 });
     return { core, yearIncome: core * DAILY_CORE_RATE * 365 };
@@ -683,9 +698,9 @@ type FirstWish = (typeof FIRST_WISHES)[number];
 /**
  * "First wish": five simple wishes in one tap (the one matching the person's answer in "First step" goes first) or
  * their own in one line. Nova reacts to the choice, and the reward is taken from there. The first wish becomes the main
- * one (app/api/wishes).
+ * one on this device (lib/wishJourney.ts), so Home shows it right away.
  */
-export function ChooseWishQuest({ locale, motives, t, onSaved }: { locale: AppLocale; motives?: string[]; t: TFunction; onSaved: () => void }) {
+export function ChooseWishQuest({ locale, motives, t, userId, onSaved }: { locale: AppLocale; motives?: string[]; t: TFunction; userId: string | null; onSaved: () => void }) {
   const [own, setOwn] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -694,6 +709,26 @@ export function ChooseWishQuest({ locale, motives, t, onSaved }: { locale: AppLo
     const first = motives?.[0];
     return [...FIRST_WISHES].sort((a, b) => Number(b.motive === first) - Number(a.motive === first));
   }, [motives]);
+
+  // Coming back after a wish is already saved (reload, closed sheet): Nova's reaction and the reward, not the picker
+  // again, so the same wish is not added twice.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchWithSupabaseAuth("/api/wishes?status=active&includeRecommended=false", { cache: "no-store" }, { authRequired: true })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: { wishes?: PrimaryWishSummary[] } | null) => {
+        const wish = payload?.wishes?.[0];
+        const title = wish?.title?.trim();
+        if (cancelled || !wish || !title) return;
+        if (userId && !readPrimaryWish(userId)) storePrimaryWish(userId, wish);
+        const known = FIRST_WISHES.find((wish) => t(`quests.wish.card.${wish.key}` as MessageKey) === title);
+        setReaction((current) => current ?? (known ? t(`quests.wish.react.${known.key}` as MessageKey) : t("quests.wish.react.own", { title })));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [t, userId]);
 
   async function add(key: string, body: Record<string, unknown>, nextReaction: string) {
     setSaving(key);
@@ -705,8 +740,9 @@ export function ChooseWishQuest({ locale, motives, t, onSaved }: { locale: AppLo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ locale, ...body })
       }, { authRequired: true });
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; wish?: PrimaryWishSummary };
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("quests.wish.saveFailed"));
+      if (userId && payload.wish && !readPrimaryWish(userId)) storePrimaryWish(userId, payload.wish);
       trackProductEvent("first_wish_chosen", { wish: key });
       setReaction(nextReaction);
     } catch (saveError) {

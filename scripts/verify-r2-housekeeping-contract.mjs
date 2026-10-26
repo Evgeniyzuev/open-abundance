@@ -32,6 +32,12 @@ assert.equal(summary.freeTierPercent, Math.round((455 / FREE_TIER_BYTES) * 10000
 const avatarKey = `avatars/${user}/cccccccc-cccc-4ccc-8ccc-cccccccccccc.jpg`;
 assert.ok(referencedKeys([{ avatar_url: `https://x.r2.dev/${avatarKey}` }]).has(avatarKey), "an avatar url names its key");
 
+// Wish pictures too: a live wish names its key; an unnamed old wish picture (deleted wish, never saved) is a leftover.
+const wishKey = `wishes/${user}/dddddddd-dddd-4ddd-8ddd-dddddddddddd.jpg`;
+assert.ok(referencedKeys([{ image_url: `https://x.r2.dev/${wishKey}` }]).has(wishKey), "a wish image url names its key");
+assert.equal(findOrphans([{ key: wishKey, size: 1, lastModified: "2026-10-01T00:00:00.000Z" }], new Set(), now).length, 1, "an unnamed old wish picture is a leftover");
+assert.match(read("lib/r2Housekeeping.ts"), /table: "wishes", column: "image_url", extra: "&deleted_at=is\.null"/, "only live wishes keep a picture");
+
 // Listing parses pages and the continuation token, and signs the prefix.
 const pages = [
   `<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>tok&amp;1</NextContinuationToken><Contents><Key>feed/a.jpg</Key><LastModified>2026-10-01T00:00:00.000Z</LastModified><Size>10</Size></Contents></ListBucketResult>`,

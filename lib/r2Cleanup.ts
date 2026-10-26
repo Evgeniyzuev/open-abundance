@@ -8,12 +8,12 @@ export const ORPHAN_GRACE_HOURS = 24;
 /** Cloudflare R2 free tier: 10 GB of storage. */
 export const FREE_TIER_BYTES = 10 * 1024 ** 3;
 
-/** The media and avatar keys named anywhere in the given rows (media url, thumbnail, metadata, avatar url). */
+/** The media, avatar and wish picture keys named anywhere in the given rows (media url, thumbnail, metadata, avatar url, image url). */
 export function referencedKeys(rows: unknown[]): Set<string> {
   const keys = new Set<string>();
   for (const row of rows) {
     const text = JSON.stringify(row ?? "");
-    for (const match of text.matchAll(/(?:feed\/[0-9a-f-]{36}\/[0-9a-f-]{36}|avatars\/[0-9a-f-]{36})\/[0-9a-f-]{8,64}\.(?:jpg|png|webp|mp4)/g)) keys.add(match[0]);
+    for (const match of text.matchAll(/(?:feed\/[0-9a-f-]{36}\/[0-9a-f-]{36}|avatars\/[0-9a-f-]{36}|wishes\/[0-9a-f-]{36})\/[0-9a-f-]{8,64}\.(?:jpg|png|webp|mp4)/g)) keys.add(match[0]);
   }
   return keys;
 }

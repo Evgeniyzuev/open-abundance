@@ -62,6 +62,11 @@ export function buildAvatarKey(userId: string, extension: string, uniqueId: stri
   return `avatars/${userId}/${uniqueId}.${extension}`;
 }
 
+/** Wish pictures uploaded from a phone: wishes/{user}/{uuid}.{ext}. */
+export function buildWishImageKey(userId: string, extension: string, uniqueId: string): string {
+  return `wishes/${userId}/${uniqueId}.${extension}`;
+}
+
 /** The key of an avatar file of this person when the url points into our bucket, otherwise null (an outside link). */
 export function ownAvatarKey(config: Pick<R2Config, "publicBaseUrl">, url: unknown, userId: string): string | null {
   if (typeof url !== "string") return null;

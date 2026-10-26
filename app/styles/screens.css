@@ -1802,3 +1802,7 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .home-goal-head small { color: var(--muted); font-size: 0.75rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; }
 .home-goal-streak { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 9px; background: rgba(255, 150, 50, 0.14); color: #c85a00; font-size: 0.78rem; font-weight: 900; }
 .home-goal-card strong { font-size: 1.1rem; }
+
+.wish-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.wish-photo-button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--blue); font-size: 0.875rem; font-weight: 600; }
+.wish-photo-button:disabled { opacity: 0.6; }

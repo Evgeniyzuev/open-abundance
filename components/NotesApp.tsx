@@ -22,7 +22,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import BackupReminder from "@/components/BackupReminder";
 import NotesImport from "@/components/NotesImport";
 import LocalDataNotice from "@/components/LocalDataNotice";
-import MediaUrlHelp from "@/components/MediaUrlHelp";
+import NoteImages from "@/components/NoteImages";
 import { takeQuickAction } from "@/lib/quickAction";
 import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
 import { NoteAiAnswer, NoteAiBadge, NoteAiMenu } from "@/components/NoteAiPanel";
@@ -432,6 +432,7 @@ function NoteRows({ notes, lists, locale, emptyKey, onComplete, onOpen, onAi }: 
               {note.body && note.body !== note.title ? <small>{note.body}</small> : null}
               {note.reminders.length > 0 ? <em>{note.reminders.map((reminder) => formatReminder(reminder, locale)).join(" · ")}</em> : null}
               {list ? <i>{list.icon} {list.title}</i> : null}
+              {note.images?.length ? <img className="notes-row-thumb" src={note.images[0]} alt="" loading="lazy" /> : null}
             </button>
             <NoteAiBadge note={note} onClick={() => onAi(note)} />
           </article>
@@ -460,6 +461,7 @@ function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose
   const [body, setBody] = useState(note?.body ?? "");
   const [listId, setListId] = useState(note?.listId ?? target.listId ?? "");
   const [reminders, setReminders] = useState<string[]>(note?.reminders ?? []);
+  const [images, setImages] = useState<string[]>(note?.images ?? []);
   const closingRef = useRef(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -481,14 +483,15 @@ function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose
   async function saveDraft(): Promise<Note | undefined> {
     const nextTitle = title.trim();
     const nextBody = body.trim();
-    const changed = !note || nextTitle !== note.title || nextBody !== note.body || (listId || undefined) !== note.listId || reminders.join() !== note.reminders.join();
-    if (!(nextTitle || nextBody) || !changed) return note;
+    const changed = !note || nextTitle !== note.title || nextBody !== note.body || (listId || undefined) !== note.listId || reminders.join() !== note.reminders.join() || images.join() !== (note.images ?? []).join();
+    if (!(nextTitle || nextBody || images.length) || !changed) return note;
     const saved = await saveNote({
       id: target.id,
       title: nextTitle || nextBody.split("\n")[0].slice(0, 80) || t("notes.untitled"),
       body: nextBody,
       listId: listId || undefined,
       reminders,
+      images,
       syncStatus: "local"
     });
     void syncAbundanceNote(saved, note?.listId);
@@ -554,7 +557,7 @@ function NoteDetail({ note, target, lists, abundanceTitle, locale, onAi, onClose
       <div className="notes-detail-body">
         <input className="notes-detail-title" aria-label={t("notes.titleLabel")} autoFocus={target.isNew} placeholder={t("notes.titlePlaceholder")} value={title} onChange={(event) => setTitle(event.target.value)} />
         <textarea ref={bodyRef} className="notes-detail-text" aria-label={t("notes.bodyLabel")} placeholder={t("notes.bodyPlaceholder")} rows={4} value={body} onChange={(event) => setBody(event.target.value)} />
-        <MediaUrlHelp t={t} />
+        <NoteImages images={images} onChange={setImages} />
 
         <div className="notes-detail-group">
           <label className="notes-detail-field">

@@ -9,6 +9,7 @@ import {
 } from "@/lib/reflections";
 import { openOfflineDatabase } from "@/lib/offlineDatabase";
 import type { NoteAiReview } from "@/lib/noteAiReview";
+import { normalizeNoteImages } from "@/lib/noteImages";
 
 export type ReminderList = {
   id: string;
@@ -43,6 +44,8 @@ export type Note = {
   aiReview?: NoteAiReview;
   /** Earlier answers, newest first: a new review never wipes the previous answer off the device. */
   aiHistory?: NoteAiReview[];
+  /** Pictures: a shrunk photo from the device (JPEG data URL) or a link, in the order they were added. */
+  images?: string[];
 };
 
 /** Built-in lists that cannot be deleted. Notes without a list are in the Inbox; "abundance" is a reserved list id. */
@@ -61,6 +64,7 @@ type NoteInput = Pick<Note, "id" | "title" | "body" | "syncStatus"> & {
   processing?: ReflectionProcessing;
   morning?: boolean;
   contexts?: string[];
+  images?: string[];
 };
 
 type ListInput = Pick<ReminderList, "id" | "title" | "icon" | "color" | "syncStatus">;
@@ -162,6 +166,7 @@ export async function saveNote(input: NoteInput): Promise<Note> {
     processing: input.processing ?? existing?.processing,
     morning: input.morning ?? existing?.morning,
     contexts: input.contexts ?? existing?.contexts,
+    images: input.images ? normalizeNoteImages(input.images) : existing?.images,
     aiReview: existing?.aiReview,
     aiHistory: existing?.aiHistory
   };
@@ -351,7 +356,8 @@ function normalizeNote(note: Note): Note {
     completed: Boolean(note.completed),
     syncStatus: "local",
     kind: note.kind ?? "regular",
-    processing: normalizedProcessing
+    processing: normalizedProcessing,
+    images: normalizeNoteImages(note.images)
   };
 }
 

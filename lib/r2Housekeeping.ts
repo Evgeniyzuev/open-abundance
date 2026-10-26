@@ -38,7 +38,10 @@ export async function runHousekeeping(input: { config: R2Config; supabaseUrl: st
   const objects = [...await listObjects(input.config, "feed/"), ...await listObjects(input.config, "avatars/")];
   const referenced = referencedKeys([...await readMediaRows(input.supabaseUrl, input.serviceKey), ...await readAvatarRows(input.supabaseUrl, input.serviceKey)]);
   const orphans = findOrphans(objects, referenced, now);
+  // Wish pictures are counted in the used space but never deleted here: a wish image url is copied into other
+  // tables (recommended wishes, feed links, products), so "no row names it" cannot be checked in one place.
+  const wishObjects = await listObjects(input.config, "wishes/");
   let deleted = 0;
   if (input.apply) for (const orphan of orphans) if (await deleteObject(input.config, orphan.key)) deleted += 1;
-  return { ...summarize(objects, orphans), deleted, applied: input.apply };
+  return { ...summarize([...objects, ...wishObjects], orphans), deleted, applied: input.apply };
 }

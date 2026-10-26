@@ -3,13 +3,15 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
-import { Archive, Check, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
+import { Archive, Check, ImagePlus, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
 import HelpProfileCard from "@/components/HelpProfileCard";
 import WishProducts from "@/components/WishProducts";
 import MediaUrlHelp from "@/components/MediaUrlHelp";
+import { uploadWishPhoto } from "@/lib/wishImageUpload";
+import { WISH_IMAGES_PER_DAY, WISH_IMAGES_TOTAL } from "@/lib/wishImageLimits";
 import type { AppLocale } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { findDaysToTarget, formatDurationParts } from "@/lib/coreCalculator";
@@ -919,6 +921,30 @@ function WishFormModal({
   const [form, setForm] = useState<FormState>(initialState);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  async function uploadPhoto(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await uploadWishPhoto(file);
+      setForm((current) => ({ ...current, imageUrl: url }));
+    } catch (uploadFailure) {
+      const code = uploadFailure instanceof Error ? uploadFailure.message : "";
+      setUploadError(
+        code === "daily_limit" ? t("wishes.photo.dailyLimit", { count: WISH_IMAGES_PER_DAY })
+          : code === "total_limit" ? t("wishes.photo.totalLimit", { count: WISH_IMAGES_TOTAL })
+            : code === "not_configured" ? t("wishes.photo.unavailable")
+              : t("wishes.photo.failed")
+      );
+    } finally {
+      setUploading(false);
+      if (photoRef.current) photoRef.current.value = "";
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -968,6 +994,15 @@ function WishFormModal({
               <input value={form.imageUrl} placeholder={t("wishes.imageUrlPlaceholder")} onChange={(event) => updateField("imageUrl", event.target.value)} />
             </label>
           </div>
+          <div className="wish-photo-actions">
+            <button className="wish-photo-button" type="button" disabled={uploading} onClick={() => photoRef.current?.click()}>
+              <ImagePlus size={17} aria-hidden="true" /> {uploading ? t("wishes.photo.uploading") : t("wishes.photo.upload")}
+            </button>
+            {form.imageUrl ? <button className="text-button" type="button" onClick={() => updateField("imageUrl", "")}>{t("wishes.photo.remove")}</button> : null}
+            <input ref={photoRef} type="file" accept="image/*" hidden onChange={(event) => void uploadPhoto(event.target.files?.[0])} />
+          </div>
+          {uploadError ? <p className="finance-error inline">{uploadError}</p> : null}
+          {form.imageUrl ? <img className="wish-form-preview" alt="" src={form.imageUrl} /> : null}
           <div className="term-row">
             <label className="finance-field">
               <span>{t("wishes.targetAmountLabel")}</span>
@@ -999,7 +1034,6 @@ function WishFormModal({
               <span>{t("wishes.publishToFeed")}</span>
             </label>
           ) : null}
-          {form.imageUrl ? <img className="wish-form-preview" alt="" src={form.imageUrl} /> : null}
           {error ? <p className="finance-error inline">{error}</p> : null}
         </div>
     </Sheet>

@@ -1910,3 +1910,13 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .small-wish-option .secondary-button { min-height: 38px; padding: 0 10px; }
 .small-wish-skip { justify-self: start; min-height: 28px; padding: 0 4px; }
 .wish-price-note { margin: 8px 0 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }
+.change-leader { display: grid; gap: 6px; margin-top: 8px; }
+.change-leader summary { cursor: pointer; font-weight: 800; font-size: .875rem; }
+.change-leader p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }
+.change-leader-list { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.change-leader-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.change-leader-list li span { display: grid; min-width: 0; }
+.change-leader-list strong { overflow: hidden; font-size: .875rem; text-overflow: ellipsis; white-space: nowrap; }
+.change-leader-list small { color: var(--muted); font-size: .78rem; }
+.change-leader-list .secondary-button { min-height: 36px; padding: 0 10px; }
+.change-leader-current { font-weight: 800; }

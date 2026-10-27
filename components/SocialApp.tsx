@@ -24,6 +24,7 @@ import CurrencyDisplayHelp from "@/components/CurrencyDisplayHelp";
 import LocalBackupDialog from "@/components/LocalBackupDialog";
 import { readAttentionSettings, storeAttentionSettings, type AttentionSettings } from "@/lib/attention";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
+import ChangeLeaderPanel from "@/components/social/ChangeLeaderPanel";
 import SkillPassportApp from "@/components/SkillPassportApp";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import AddLoginEmail from "@/components/social/AddLoginEmail";
@@ -1614,6 +1615,7 @@ export default function SocialApp({
                   </button>
                 ) : null}
                 <p>{formatTeamAssignment(teamContext, locale, t)}</p>
+                {teamContext ? <ChangeLeaderPanel onChanged={() => { void loadTeamContext().catch(() => undefined); }} /> : null}
               </div>
               <div className="team-summary">
                 <span>{t("profile.teams.leadership")}</span>

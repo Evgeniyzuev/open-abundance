@@ -146,8 +146,8 @@ export function formatDay(value: string, locale: AppLocale): string {
 }
 
 export function formatLeader(teamContext: TeamContext | null, locale: AppLocale): string {
-  if (!teamContext?.membership) return locale === "ru" ? "Система" : "System";
-  if (teamContext.leader.type === "system") return locale === "ru" ? "Система" : "System";
+  // Without a live lead higher in level, the Open Abundance lead guides the person.
+  if (!teamContext?.membership || teamContext.leader.type === "system") return locale === "ru" ? "Лид Open Abundance" : "Open Abundance lead";
   return formatProfileName(teamContext.leader.profile, teamContext.membership.leader_user_id ?? "");
 }
 

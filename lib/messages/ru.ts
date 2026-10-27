@@ -171,7 +171,7 @@ const ru: Record<string, string> = {
   "profile.teams.memberCost": "−{points} лидерства",
   "profile.teams.overcommitted": "Лидерство временно перегружено.",
   "profile.teams.queued": "Ожидает автоматического распределения.",
-  "profile.teams.system": "Назначен системный лидер.",
+  "profile.teams.system": "Тебя ведёт лид Open Abundance, пока ищем живого лида выше тебя.",
   "profile.teams.missing": "Командная связь восстанавливается.",
   "profile.public.title": "Публичный профиль",
   "profile.public.edit": "Редактировать профиль",
@@ -3338,7 +3338,16 @@ const ru: Record<string, string> = {
   "wishes.price.size.medium": "Твой Core сейчас покрывает его из дохода за месяц ({month}).",
   "wishes.price.size.significant": "Твой Core сейчас покрывает его из дохода за год ({year}).",
   "wishes.price.size.later": "Сейчас твой Core даёт около {year} в год и {month} в месяц.",
-  "wishes.price.formHint": "Уровень считается по цене: при каком Core доход за год покрывает это желание."
+  "wishes.price.formHint": "Уровень считается по цене: при каком Core доход за год покрывает это желание.",
+  "social.teams.changeLeader": "Сменить лида",
+  "social.teams.changeLeaderRule": "Лид всегда выше тебя уровнем. Выбрать другого можно раз в сутки, если у него есть место.",
+  "social.teams.changeLeaderNone": "Сейчас нет свободных лидов выше тебя. Тебя ведёт лид Open Abundance, а живого мы ищем.",
+  "social.teams.changeLeaderNext": "Следующая смена: {time}.",
+  "social.teams.changeLeaderPick": "Выбрать",
+  "social.teams.changeLeaderCurrent": "Твой лид",
+  "social.teams.changeLeaderReferrer": "пригласил тебя",
+  "social.teams.changeLeaderDone": "Лид сменён.",
+  "social.teams.changeLeaderError": "Не получилось. Попробуй позже."
 };
 
 export default ru;

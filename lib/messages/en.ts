@@ -171,7 +171,7 @@ const en = {
   "profile.teams.memberCost": "−{points} Leadership",
   "profile.teams.overcommitted": "Leadership is temporarily overcommitted.",
   "profile.teams.queued": "Waiting for automatic assignment.",
-  "profile.teams.system": "System leader assigned.",
+  "profile.teams.system": "The Open Abundance lead guides you while we look for a live lead above you.",
   "profile.teams.missing": "Team relation is being restored.",
   "profile.public.title": "Public profile",
   "profile.public.edit": "Edit profile",
@@ -3338,7 +3338,16 @@ const en = {
   "wishes.price.size.medium": "Your Core covers it now from one month of income ({month}).",
   "wishes.price.size.significant": "Your Core covers it now from one year of income ({year}).",
   "wishes.price.size.later": "Right now your Core gives about {year} a year and {month} a month.",
-  "wishes.price.formHint": "The level comes from the price: the Core at which a year of income covers this wish."
+  "wishes.price.formHint": "The level comes from the price: the Core at which a year of income covers this wish.",
+  "social.teams.changeLeader": "Change lead",
+  "social.teams.changeLeaderRule": "Your lead is always higher in level. You can choose another one once a day if they have a free place.",
+  "social.teams.changeLeaderNone": "No free lead above you right now. The Open Abundance lead guides you while we look for a live one.",
+  "social.teams.changeLeaderNext": "Next change: {time}.",
+  "social.teams.changeLeaderPick": "Choose",
+  "social.teams.changeLeaderCurrent": "Your lead",
+  "social.teams.changeLeaderReferrer": "invited you",
+  "social.teams.changeLeaderDone": "Lead changed.",
+  "social.teams.changeLeaderError": "That didn't work. Try again later."
 } satisfies Record<string, string>;
 
 export default en;

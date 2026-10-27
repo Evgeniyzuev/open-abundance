@@ -42,3 +42,12 @@ assert.deepEqual(offers, pickSmallWishOffers({ coreBalance: 3, categories: ["Hea
 const owned = pickSmallWishOffers({ coreBalance: 3, categories: ["Health"], ownedKeys: offers.map((wish) => wish.key), seed: "u:2026-10-27" });
 assert.ok(owned.every((wish) => !offers.some((offer) => offer.key === wish.key)), "owned wishes are not offered again");
 console.log("small wishes contract ok");
+
+// Live leads: always higher in level, the follower may choose once a day.
+const { readFileSync } = await import("node:fs");
+const migration = readFileSync(new URL("../supabase/migrations/20261027180000_live_leads_higher_level_member_choice.sql", import.meta.url), "utf8");
+assert.ok(migration.includes("leader.level > greatest(member.level, 0)"), "a lead is strictly higher");
+assert.ok(migration.includes("'member_choice'"), "member choice is recorded");
+assert.ok(migration.includes("interval '1 day'"), "one choice a day");
+assert.ok(migration.includes("detach_team_member_to_system"), "no higher lead -> Open Abundance lead");
+console.log("live leads contract ok");

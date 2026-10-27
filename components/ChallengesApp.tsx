@@ -20,7 +20,7 @@ import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
 import { AppInstalledQuest, ChooseWishQuest, ContinueQuestion, CorePowerQuest, FirstStepQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
-import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, type QuestPlacement } from "@/lib/questPath";
+import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, parseMotives, type QuestPlacement } from "@/lib/questPath";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { signInWithGoogle } from "@/lib/supabaseClient";
 import { type CoreAccount, useUserContext, type WalletAccount } from "@/components/UserProvider";
@@ -1559,7 +1559,7 @@ function ChallengeDetailContent({
       ) : null}
 
       {needsFirstStep ? (
-        <FirstStepQuest question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
+        <FirstStepQuest savedMotives={parseMotives(questMotives)} question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
 
       {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}

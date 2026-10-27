@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notifyFriendJoinedSafely } from "@/lib/friendJoinedNotify";
 import { isQaUser } from "@/lib/qaAccounts";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
     if (!assignment) {
       return NextResponse.json({ error: "Team assignment returned no result." }, { status: 500 });
     }
+
+    if (referralCode) await notifyFriendJoinedSafely(supabase, user.id);
 
     const { data: membership, error: membershipError } = await supabase
       .from("team_memberships")

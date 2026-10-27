@@ -38,6 +38,16 @@ type OnboardingContent = {
     prompt: OnboardingLocalizedText;
     imageAlt: OnboardingLocalizedText;
   };
+  /** The first two quests played before sign-in, and the invitation line for a person who came by a friend's link. */
+  guest: {
+    invitedBy: OnboardingLocalizedText;
+    questEyebrow: OnboardingLocalizedText;
+    question: OnboardingLocalizedText;
+    wishEyebrow: OnboardingLocalizedText;
+    wishTitle: OnboardingLocalizedText;
+    skip: OnboardingLocalizedText;
+    saveGift: OnboardingLocalizedText;
+  };
   auth: {
     eyebrow: OnboardingLocalizedText;
     title: OnboardingLocalizedText;
@@ -204,6 +214,64 @@ export const onboardingContent: OnboardingContent = {
       es: "Un camino de veinte niveles asciende hacia una cumbre radiante",
       hi: "बीस स्तरों का मार्ग एक उज्ज्वल शिखर की ओर बढ़ता है",
       ar: "مسار من عشرين مستوى يصعد نحو قمة متألقة"
+    }
+  },
+  guest: {
+    invitedBy: {
+      ru: "👋 Тебя позвал {name}",
+      en: "👋 {name} invited you",
+      zh: "👋 {name} 邀请了你",
+      es: "👋 {name} te invitó",
+      hi: "👋 {name} ने आपको बुलाया",
+      ar: "👋 دعاك {name}"
+    },
+    questEyebrow: {
+      ru: "Квест 1 · Первый шаг",
+      en: "Quest 1 · First step",
+      zh: "任务 1 · 第一步",
+      es: "Misión 1 · Primer paso",
+      hi: "क्वेस्ट 1 · पहला कदम",
+      ar: "المهمة 1 · الخطوة الأولى"
+    },
+    question: {
+      ru: "Представь, что AI уже сейчас учится исполнять желания людей. А значит, то, что есть у других, может быть и у тебя. Для чего ты здесь?",
+      en: "Imagine that AI is already learning to fulfil people's wishes. That means what others have can be yours too. What are you here for?",
+      zh: "想象一下，AI 已经在学习实现人们的愿望。这意味着别人拥有的，你也可以拥有。你来这里是为了什么？",
+      es: "Imagina que la IA ya está aprendiendo a cumplir los deseos de las personas. Lo que tienen otros también puede ser tuyo. ¿Para qué estás aquí?",
+      hi: "कल्पना करें कि AI अभी से लोगों की इच्छाएँ पूरी करना सीख रहा है। यानी जो दूसरों के पास है, वह आपके पास भी हो सकता है। आप यहाँ किसलिए हैं?",
+      ar: "تخيّل أن الذكاء الاصطناعي يتعلّم الآن تحقيق أمنيات الناس. أي أن ما لدى الآخرين يمكن أن يكون لك أيضًا. لماذا أنت هنا؟"
+    },
+    wishEyebrow: {
+      ru: "Квест 2 · Первое желание",
+      en: "Quest 2 · First wish",
+      zh: "任务 2 · 第一个愿望",
+      es: "Misión 2 · Primer deseo",
+      hi: "क्वेस्ट 2 · पहली इच्छा",
+      ar: "المهمة 2 · الأمنية الأولى"
+    },
+    wishTitle: {
+      ru: "Что ты хочешь получить первым?",
+      en: "What do you want to get first?",
+      zh: "你最想先得到什么？",
+      es: "¿Qué quieres conseguir primero?",
+      hi: "आप सबसे पहले क्या पाना चाहते हैं?",
+      ar: "ما الذي تريد الحصول عليه أولًا؟"
+    },
+    skip: {
+      ru: "Пропустить и войти",
+      en: "Skip and sign in",
+      zh: "跳过并登录",
+      es: "Omitir e iniciar sesión",
+      hi: "छोड़ें और साइन इन करें",
+      ar: "تخطَّ وسجّل الدخول"
+    },
+    saveGift: {
+      ru: "🎁 Ответы сохранятся в аккаунте. $2 за регистрацию придут сразу, а $1 и $2 за эти два квеста заберёшь кнопкой в квестах.",
+      en: "🎁 Your answers will be saved to your account. $2 for signing up arrives right away, and you claim $1 and $2 for these two quests with one tap in Quests.",
+      zh: "🎁 你的回答会保存到账户。注册奖励 $2 立即到账，这两个任务的 $1 和 $2 在任务页一键领取。",
+      es: "🎁 Tus respuestas se guardarán en tu cuenta. Los $2 por registrarte llegan al instante, y los $1 y $2 de estas dos misiones los recoges con un toque en Misiones.",
+      hi: "🎁 आपके जवाब खाते में सहेजे जाएँगे। साइन अप के $2 तुरंत आएँगे, और इन दो क्वेस्ट के $1 और $2 आप क्वेस्ट में एक टैप से लेंगे।",
+      ar: "🎁 ستُحفظ إجاباتك في حسابك. تصل $2 مقابل التسجيل فورًا، وتستلم $1 و$2 عن هاتين المهمتين بنقرة في المهام."
     }
   },
   auth: {

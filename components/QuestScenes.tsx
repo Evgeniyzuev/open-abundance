@@ -14,6 +14,7 @@ import { MOTIVE_NOTE_MAX, QUEST_MOTIVES, requiredDailyAddition, type QuestMotive
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
+import { readInvitedBy, storeGuestQuest } from "@/lib/guestQuest";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -47,11 +48,16 @@ export function NovaBubble({ text, t, askText }: { text: string; t: TFunction; a
  * go to the profile (app/api/challenges/progress) and steer which side quests come first. The second scene sums the
  * answers up, says how many others came for the same, and the reward is taken from there.
  */
-export function FirstStepQuest({ question, t, onAnswered }: { question: string; t: TFunction; onAnswered: (motives: QuestMotive[]) => void }) {
-  const [chosen, setChosen] = useState<QuestMotive[]>([]);
+export function FirstStepQuest({ guest = false, question, savedMotives, t, onAnswered }: { guest?: boolean; question: string; savedMotives?: QuestMotive[]; t: TFunction; onAnswered: (motives: QuestMotive[]) => void }) {
+  // Answers already saved (played as a guest before sign-in, or a reload): the summary and the reward, not the question again.
+  const [chosen, setChosen] = useState<QuestMotive[]>(savedMotives ?? []);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
-  const [peers, setPeers] = useState<Record<string, number> | null>(null);
+  const [peers, setPeers] = useState<Record<string, number> | null>(savedMotives?.length ? {} : null);
+  const [invitedBy, setInvitedBy] = useState<string | null>(null);
+  useEffect(() => {
+    if (!guest) setInvitedBy(readInvitedBy());
+  }, [guest]);
   const [error, setError] = useState<string | null>(null);
   const saved = peers !== null;
   const needsNote = chosen.includes("own") && !note.trim();
@@ -62,6 +68,12 @@ export function FirstStepQuest({ question, t, onAnswered }: { question: string; 
 
   async function save() {
     if (chosen.length === 0 || needsNote) return;
+    if (guest) {
+      storeGuestQuest({ motives: chosen, note: chosen.includes("own") ? note.trim() : undefined });
+      trackProductEvent("guest_quest_motive_chosen", { motives: chosen.join(",") });
+      setPeers({});
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -81,12 +93,13 @@ export function FirstStepQuest({ question, t, onAnswered }: { question: string; 
     }
   }
 
-  const label = (motive: QuestMotive) => (motive === "own" ? note.trim() : t(`quests.firstStep.option.${motive}` as MessageKey));
+  const label = (motive: QuestMotive) => (motive === "own" && note.trim() ? note.trim() : t(`quests.firstStep.option.${motive}` as MessageKey));
 
   return (
     <section className="quest-scene">
       <div className="quest-scene-art" aria-hidden="true"><span className={saved ? "quest-star lit" : "quest-star"} /></div>
       <span className="quest-scene-step">{saved ? t("quests.firstStep.scene2") : t("quests.firstStep.scene1")}</span>
+      {invitedBy && !saved ? <p className="quest-invited">{t("invite.welcome.title", { name: invitedBy })}. {t("invite.welcome.body")}</p> : null}
       {!saved ? (
         <>
           <p className="quest-scene-text">{question}</p>
@@ -128,7 +141,7 @@ export function FirstStepQuest({ question, t, onAnswered }: { question: string; 
           <NovaBubble text={t(`quests.firstStep.reply.${chosen[0]}` as MessageKey)} t={t} />
           <p className="quest-scene-text">{t("quests.firstStep.hook")}</p>
           <button className="challenge-primary-action" type="button" onClick={() => onAnswered(chosen)}>
-            {t("quests.firstStep.claim")}
+            {guest ? t("quests.guest.next") : t("quests.firstStep.claim")}
           </button>
         </>
       )}
@@ -785,7 +798,7 @@ type FirstWish = (typeof FIRST_WISHES)[number];
  * their own in one line. Nova reacts to the choice, and the reward is taken from there. The first wish becomes the main
  * one on this device (lib/wishJourney.ts), so Home shows it right away.
  */
-export function ChooseWishQuest({ locale, motives, t, userId, onSaved }: { locale: AppLocale; motives?: string[]; t: TFunction; userId: string | null; onSaved: () => void }) {
+export function ChooseWishQuest({ guest = false, locale, motives, t, userId, onSaved }: { guest?: boolean; locale: AppLocale; motives?: string[]; t: TFunction; userId: string | null; onSaved: () => void }) {
   const [own, setOwn] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -798,6 +811,7 @@ export function ChooseWishQuest({ locale, motives, t, userId, onSaved }: { local
   // Coming back after a wish is already saved (reload, closed sheet): Nova's reaction and the reward, not the picker
   // again, so the same wish is not added twice.
   useEffect(() => {
+    if (guest) return;
     let cancelled = false;
     void fetchWithSupabaseAuth("/api/wishes?status=active&includeRecommended=false", { cache: "no-store" }, { authRequired: true })
       .then((response) => (response.ok ? response.json() : null))
@@ -813,9 +827,16 @@ export function ChooseWishQuest({ locale, motives, t, userId, onSaved }: { local
     return () => {
       cancelled = true;
     };
-  }, [t, userId]);
+  }, [guest, t, userId]);
 
   async function add(key: string, body: Record<string, unknown>, nextReaction: string) {
+    if (guest) {
+      const targetAmount = typeof body.targetAmount === "number" ? body.targetAmount : undefined;
+      storeGuestQuest({ wish: { key, title: String(body.title ?? ""), ...(targetAmount ? { targetAmount } : {}) } });
+      trackProductEvent("guest_quest_wish_chosen", { wish: key });
+      setReaction(nextReaction);
+      return;
+    }
     setSaving(key);
     setError(null);
     try {
@@ -846,7 +867,7 @@ export function ChooseWishQuest({ locale, motives, t, userId, onSaved }: { local
     return (
       <section className="quest-plan">
         <NovaBubble text={`${reaction} ${t("quests.wish.reactNext")}`} t={t} />
-        <button className="challenge-primary-action" type="button" onClick={onSaved}>{t("quests.wish.claim")}</button>
+        <button className="challenge-primary-action" type="button" onClick={onSaved}>{guest ? t("quests.guest.save") : t("quests.wish.claim")}</button>
       </section>
     );
   }

@@ -3160,6 +3160,8 @@ const ru: Record<string, string> = {
     "quests.wish.saveFailed": "Не получилось сохранить желание. Попробуй ещё раз.",
     "quests.skip": "Пропустить",
     "quests.skipNothing": "Пока нет другого квеста, на который можно переключиться.",
+    "quests.nova.smaller": "Застрял? Давай найдём шаг поменьше, минут на пять.",
+    "quests.nova.smallerPrompt": "Квест «{title}» пока не идёт. Предложи самый маленький первый шаг, который я сделаю за 5 минут прямо сейчас.",
     "quests.nova.askPrompt": "Квест «{title}»: что именно нужно сделать и как это мне поможет?",
     "quests.nova.ask": "Спросить Нову",
     "referral.program.signup": "{core} в Core сразу за каждую регистрацию по твоей ссылке.",

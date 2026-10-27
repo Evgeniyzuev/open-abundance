@@ -74,6 +74,7 @@ type Challenge = {
   is_permanent?: boolean;
   user_challenge_status?: ChallengeStatus | null;
   user_challenge_active?: boolean;
+  user_challenge_updated_at?: string | null;
   path_order?: number | null;
   quest_placement?: QuestPlacement;
   quests_missing?: number | null;
@@ -797,7 +798,11 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
               ) : null}
               {pathMapOpen ? <PathMap items={visiblePath(pathItems).map((item) => ({ ...item, title: displayText(item.title, "", locale) }))} t={t} /> : null}
               <div className="challenge-list">{renderChallenge(activeQuest)}</div>
-              <NovaBubble askText={t("quests.nova.askPrompt", { title: displayText(activeQuest.title, "", locale) })} text={novaLine(activeQuest.verification_logic, t)} t={t} />
+              {questStandsStill(activeQuest) ? (
+                <NovaBubble askText={t("quests.nova.smallerPrompt", { title: displayText(activeQuest.title, "", locale) })} text={t("quests.nova.smaller")} t={t} />
+              ) : (
+                <NovaBubble askText={t("quests.nova.askPrompt", { title: displayText(activeQuest.title, "", locale) })} text={novaLine(activeQuest.verification_logic, t)} t={t} />
+              )}
               {acceptedChallenges.some((challenge) => challenge.verification_logic === "day_2_return" && challenge.user_challenge_status === "accepted") ? (
                 <NovaBubble text={t("quests.nova.tomorrowHook")} t={t} />
               ) : null}
@@ -2175,4 +2180,12 @@ function visiblePath<T extends { state: string }>(items: T[]): T[] {
   const started = items.filter((item) => item.state !== "open" && item.state !== "locked");
   const ahead = items.filter((item) => item.state === "open" || item.state === "locked").slice(0, started.some((item) => item.state === "active") ? 2 : 3);
   return items.filter((item) => started.includes(item) || ahead.includes(item));
+}
+
+const QUEST_STILL_MS = 24 * 60 * 60 * 1000;
+
+/** The active quest has not moved for a day: Nova offers a five-minute first step instead of the usual line. */
+function questStandsStill(challenge: Challenge): boolean {
+  if (challenge.user_challenge_status !== "accepted" || !challenge.user_challenge_updated_at) return false;
+  return Date.now() - Date.parse(challenge.user_challenge_updated_at) > QUEST_STILL_MS;
 }

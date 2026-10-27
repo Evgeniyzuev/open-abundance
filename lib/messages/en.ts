@@ -3160,6 +3160,8 @@ const en = {
     "quests.wish.saveFailed": "Could not save the wish. Try again.",
     "quests.skip": "Skip",
     "quests.skipNothing": "No other quest to switch to yet.",
+    "quests.nova.smaller": "Stuck? Let's find a smaller step, about five minutes.",
+    "quests.nova.smallerPrompt": "The quest \"{title}\" isn't moving. Suggest the smallest first step I can do in 5 minutes right now.",
     "quests.nova.askPrompt": "Quest \"{title}\": what exactly should I do, and how will it help me?",
     "quests.nova.ask": "Ask Nova",
     "referral.program.signup": "{core} to Core at once for every sign-up through your link.",

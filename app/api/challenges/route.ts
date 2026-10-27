@@ -151,6 +151,8 @@ export async function GET(request: NextRequest) {
       ...publicChallenge,
       user_challenge_status: userChallenge?.status ? String(userChallenge.status).trim().toLowerCase() : null,
       user_challenge_active: Boolean(userChallenge?.is_active),
+      // Last movement on the person's copy of the quest: the app offers a smaller step when it stands still.
+      user_challenge_updated_at: userChallenge?.updated_at ? String(userChallenge.updated_at) : null,
       prerequisite_completed: prerequisiteCompleted,
       progress,
       can_accept: canAcceptChallenge(eligibility, viewerLevel),

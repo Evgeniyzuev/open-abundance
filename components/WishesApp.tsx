@@ -31,6 +31,9 @@ import { saveTask } from "@/lib/tasksStore";
 import { todayKey } from "@/lib/taskSchedule";
 import { pick } from "@/lib/locales";
 import { WISH_COMPLETION_STORY_MAX } from "@/lib/growthStories";
+import SmallWishOffer from "@/components/SmallWishOffer";
+import { smallWishText, type SmallWish } from "@/lib/smallWishes";
+import { summarizeWishPrice, wishLevelForPrice } from "@/lib/wishPrice";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -395,6 +398,13 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
           {activeTab === "mine" || activeTab === "recommended" ? <ValuesFeedCard compact locale={locale} t={t} /> : null}
 
           {activeTab === "mine" ? (
+            <SmallWishOffer
+              coreBalance={Math.max(0, core?.balance ?? 0)}
+              wishes={myWishes}
+              onAdd={(wish) => createWish(smallWishToForm(wish, locale)).catch((addError) => setErrorMessage(addError instanceof Error ? addError.message : t("wishes.error")))}
+            />
+          ) : null}
+          {activeTab === "mine" ? (
             <WishSection id="wish-panel-mine" labelledBy="wish-tab-mine" emptyText={t("wishes.emptyMine")} itemsCount={ownWishes.length}>
               <button className="wish-tile wish-add-tile" type="button" onClick={openWishCreation}>
                 <Plus size={28} />
@@ -629,7 +639,7 @@ function FirstWishGuideModal({
               <p>{pick(locale, option.description)}</p>
               <div className="wish-meta">
                 <span>{formatRoundedMoney(option.targetAmount, locale)}</span>
-                <span>{t("wishes.guide.levelNeeded", { level: option.difficultyLevel })}</span>
+                <span>{t("wishes.guide.levelNeeded", { level: wishLevelForPrice(option.targetAmount) })}</span>
               </div>
               {timeLabel ? (
                 <p>{t("wishes.guide.timeToGoal", { daily: formatRoundedMoney(FIRST_WISH_DAILY_ADDITIONS, locale), time: timeLabel })}</p>
@@ -658,11 +668,47 @@ function firstWishToForm(category: FirstWishCategory, option: FirstWishOption, l
     imageUrl: "",
     targetAmount: String(option.targetAmount),
     targetCurrency: "USD",
-    difficultyLevel: String(option.difficultyLevel),
+    difficultyLevel: String(Math.max(1, wishLevelForPrice(option.targetAmount))),
     publishToFeed: false,
     visibility: "private",
     sourceRecommendedWishId: null
   };
+}
+
+function smallWishToForm(wish: SmallWish, locale: AppLocale): FormState {
+  const description = `${smallWishText(wish.description, locale)}\n\n${smallWishText(wish.fulfil, locale)}`;
+  return {
+    title: smallWishText(wish.title, locale),
+    description,
+    category: wish.category,
+    imageUrl: "",
+    targetAmount: wish.price > 0 ? String(wish.price) : "",
+    targetCurrency: "USD",
+    difficultyLevel: String(Math.max(1, wishLevelForPrice(wish.price))),
+    publishToFeed: false,
+    visibility: "private",
+    sourceRecommendedWishId: null
+  };
+}
+
+/** Price -> level and what it means at the person's Core now (one year of income for a significant goal). */
+function WishPriceNote({ price, currency }: { price: number | null; currency: string }) {
+  const { core, locale, t } = useUserContext();
+  if (currency !== "USD") return null;
+  const balance = Math.max(0, core?.balance ?? 0);
+  const summary = summarizeWishPrice(price, balance);
+  if (summary.size === "free") return <p className="wish-price-note">{t("wishes.price.free")}</p>;
+  const values = {
+    core: formatRoundedMoney(summary.coreNeeded, locale),
+    level: summary.level,
+    year: formatRoundedMoney(summary.yearIncome, locale),
+    month: formatRoundedMoney(summary.monthIncome, locale)
+  };
+  return (
+    <p className="wish-price-note">
+      {t("wishes.price.rule", values)} {t(`wishes.price.size.${summary.size}`, values)}
+    </p>
+  );
 }
 
 function WishSection({
@@ -797,6 +843,10 @@ function WishDetailModal({
   const category = selectedWish.wish.category;
   const [stepsAdded, setStepsAdded] = useState(false);
   const [woopOpen, setWoopOpen] = useState(false);
+  const detailPrice = isPersonal
+    ? selectedWish.wish.target_amount
+    : selectedWish.wish.estimated_cost ? Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)) || null : null;
+  const detailCurrency = isPersonal ? selectedWish.wish.target_currency : "USD";
 
   /** Accepted steps toward the wish become one ordinary local task for today. */
   async function addWishSteps(steps: string[]) {
@@ -835,9 +885,10 @@ function WishDetailModal({
           <div className="wish-meta">
             {isPersonal && selectedWish.wish.target_amount ? <span>{formatAmount(selectedWish.wish.target_amount, selectedWish.wish.target_currency, locale)}</span> : null}
             {!isPersonal && selectedWish.wish.estimated_cost ? <span>{formatRoundedMoney(Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)), locale)}</span> : null}
-            <span>{t("wishes.level", { level: selectedWish.wish.difficulty_level })}</span>
+            <span>{t("wishes.level", { level: detailPrice && detailCurrency === "USD" ? wishLevelForPrice(detailPrice) : selectedWish.wish.difficulty_level })}</span>
             {isPersonal ? <span>{visibilityLabel(selectedWish.wish.visibility, t)}</span> : null}
           </div>
+          <WishPriceNote price={detailPrice} currency={detailCurrency} />
           {isPersonal && selectedWish.wish.status === "active" ? (
             stepsAdded
               ? <p className="wish-steps-added" role="status">{t("home.help.taskAdded")}</p>
@@ -1016,7 +1067,9 @@ function WishFormModal({
           <div className="term-row">
             <label className="finance-field">
               <span>{t("wishes.difficultyLabel")}</span>
-              <input inputMode="numeric" value={form.difficultyLevel} onChange={(event) => updateField("difficultyLevel", event.target.value)} />
+              {Number(form.targetAmount) > 0 && form.targetCurrency === "USD"
+                ? <input readOnly aria-describedby="wish-level-auto" value={String(wishLevelForPrice(Number(form.targetAmount)))} />
+                : <input inputMode="numeric" value={form.difficultyLevel} onChange={(event) => updateField("difficultyLevel", event.target.value)} />}
             </label>
             <label className="finance-field">
               <span>{t("wishes.visibilityLabel")}</span>
@@ -1028,6 +1081,7 @@ function WishFormModal({
               </select>
             </label>
           </div>
+          {Number(form.targetAmount) > 0 && form.targetCurrency === "USD" ? <p className="wish-price-note" id="wish-level-auto">{t("wishes.price.formHint")}</p> : null}
           {form.visibility === "public" ? (
             <label className="wish-publish-toggle">
               <input type="checkbox" checked={form.publishToFeed} onChange={(event) => updateField("publishToFeed", event.target.checked)} />

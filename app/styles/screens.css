@@ -1899,3 +1899,14 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .video-cover-field-copy p { margin: 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.3; }
 .video-cover-field-copy small { color: var(--muted); font-size: 0.75rem; }
 .video-cover-field-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.small-wish-offer { display: grid; gap: 8px; margin-bottom: 12px; border: 1px solid var(--line-subtle); }
+.small-wish-offer h3 { margin: 0; font-size: 1rem; line-height: 1.25; }
+.small-wish-offer p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }
+.small-wish-options { display: grid; gap: 8px; }
+.small-wish-option { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.small-wish-emoji { font-size: 1.4rem; line-height: 1; text-align: center; }
+.small-wish-option strong { display: block; font-size: .875rem; line-height: 1.25; }
+.small-wish-option small { display: block; color: var(--muted); font-size: .78rem; }
+.small-wish-option .secondary-button { min-height: 38px; padding: 0 10px; }
+.small-wish-skip { justify-self: start; min-height: 28px; padding: 0 4px; }
+.wish-price-note { margin: 8px 0 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }

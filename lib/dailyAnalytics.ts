@@ -26,6 +26,7 @@ import { buildPathReport } from "./questPathAnalytics.ts";
 import { buildReferralReport } from "./referralAnalytics.ts";
 import { buildQuestFeedbackReport } from "./questFeedbackAnalytics.ts";
 import { isQaUser } from "./qaAccounts.ts";
+import { buildWishDemand, rankWishDemand, WISH_KIND_LABEL } from "./wishDemandAnalytics.ts";
 
 export const MIN_GROUP = 5;
 export const WINDOW_DAYS = 45;
@@ -453,6 +454,29 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   out.push(table(["Категория", "Людей"], categories));
   const copied = countBy(wishes.filter((row) => row.source_recommended_wish_id), (row) => recommended.get(row.source_recommended_wish_id) || "рекомендованное");
   if (copied.length) out.push(`\nЧаще всего берут из рекомендованных: ${copied.slice(0, 5).map(([title, value]) => `«${title}» (${value})`).join(", ")}.`);
+  // What to fulfil first: most common wishes and how many owners can start them now.
+  const coreByUser = new Map<string, number>((t.core_accounts ?? []).map((row) => [row.user_id, num(row.balance)]));
+  const demand = buildWishDemand({ wishes, recommendedTitles: recommended, balances: coreByUser });
+  const smallOwn = demand.filter((row) => row.kind === "own_category" && row.people < minGroup);
+  const demandShown = rankWishDemand(demand.filter((row) => !smallOwn.includes(row)));
+  if (smallOwn.length) {
+    demandShown.push({
+      label: `свои: другое (${smallOwn.length} мелких групп)`, kind: "own_category",
+      people: smallOwn.reduce((sum, row) => sum + row.people, 0), medianPrice: null, level: 0,
+      readyNow: smallOwn.reduce((sum, row) => sum + row.readyNow, 0), completed: smallOwn.reduce((sum, row) => sum + row.completed, 0)
+    });
+  }
+  out.push("\nЧто проще исполнять первым (у скольких владельцев уровень Core уже покрывает цену или желание без денег):");
+  out.push(table(["Желание", "Вид", "Людей", "Медиана цены", "Уровень", "Можно начать сейчас", "Исполнено"], demandShown.slice(0, 12).map((row) => [
+    row.label, WISH_KIND_LABEL[row.kind], row.people, row.medianPrice === null ? "без денег" : money(row.medianPrice), row.level, row.readyNow, row.completed
+  ])));
+  const smallEvents = (name: string) => events.filter((event) => event.event_name === name && within(event.occurred_at, 7));
+  metrics.small_wish_offer_shown_7d = new Set(smallEvents("small_wish_offer_shown").map((event) => event.user_id).filter(Boolean)).size;
+  metrics.small_wish_added_7d = smallEvents("small_wish_added").length;
+  metrics.small_wish_dismissed_7d = smallEvents("small_wish_offer_dismissed").length;
+  const addedKinds = countBy(smallEvents("small_wish_added"), (event) => String(event.properties?.kind ?? ""));
+  out.push(`\nМаленькие желания за 7 дней: карточку видели ${metrics.small_wish_offer_shown_7d} чел., взяли ${metrics.small_wish_added_7d}${addedKinds.length ? ` (${addedKinds.map(([kind, value]) => `${kind} ${value}`).join(", ")})` : ""}, отложили ${metrics.small_wish_dismissed_7d}.`);
+  details.wish_demand = rankWishDemand(demand.filter((row) => row.kind !== "own_category"));
   details.public_wishes = wishes.filter((row) => row.visibility === "public").map((row) => ({
     person: p(row.owner_user_id), title: clip(row.title, 140), category: row.category, status: row.status, target_amount: row.target_amount, created_at: row.created_at
   }));

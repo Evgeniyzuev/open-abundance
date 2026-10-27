@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { publishWishCompletionToFeed, publishWishToFeed } from "@/lib/serverWishFeed";
 import { normalizeLocale, type AppLocale } from "@/lib/locales";
 import { normalizeCompletionStory } from "@/lib/growthStories";
+import { wishLevelForPrice } from "@/lib/wishPrice";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -206,6 +207,11 @@ function normalizePatch(body: WishPatchBody, currentWish: WishRow): TablesUpdate
   if (body.targetCurrency !== undefined || body.target_currency !== undefined) patch.target_currency = normalizeCurrency(body.targetCurrency ?? body.target_currency);
   if (body.difficultyLevel !== undefined || body.difficulty_level !== undefined) patch.difficulty_level = normalizeDifficulty(body.difficultyLevel ?? body.difficulty_level);
   if (body.visibility !== undefined) patch.visibility = normalizeVisibility(body.visibility);
+  const nextAmount = patch.target_amount !== undefined ? patch.target_amount : currentWish.target_amount;
+  const nextCurrency = patch.target_currency ?? currentWish.target_currency;
+  if ((patch.target_amount !== undefined || patch.difficulty_level !== undefined) && nextAmount && nextCurrency === "USD") {
+    patch.difficulty_level = Math.max(1, wishLevelForPrice(nextAmount));
+  }
   if (body.status !== undefined) {
     patch.status = nextStatus;
     if (nextStatus === "completed" && !currentWish.completed_at) patch.completed_at = new Date().toISOString();

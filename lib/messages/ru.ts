@@ -3324,7 +3324,21 @@ const ru: Record<string, string> = {
   "social.blog.videoCoverUpload": "Загрузить скриншот",
   "social.blog.videoCoverReplace": "Заменить обложку",
   "social.blog.videoCoverCancel": "Отменить",
-  "social.blog.videoCoverSaveHint": "Обложка сохранится вместе с постом."
+  "social.blog.videoCoverSaveHint": "Обложка сохранится вместе с постом.",
+  "wishes.small.label": "Маленькое желание",
+  "wishes.small.title": "Начни с маленького желания",
+  "wishes.small.description": "Его можно исполнить уже сейчас: помогут люди, Нова и сообщество. Возьми одно, если хочется.",
+  "wishes.small.kind.help": "Помогут участники",
+  "wishes.small.kind.habit": "Привычка на {days} дн. с Новой",
+  "wishes.small.take": "Взять",
+  "wishes.small.notNow": "Не сейчас",
+  "wishes.price.free": "Без денег: можно начать сразу.",
+  "wishes.price.rule": "Без ущерба для роста исполнимо при Core от {core} (уровень {level}): его доход за год покрывает цену.",
+  "wishes.price.size.small": "Твой Core сейчас покрывает его из дохода за неделю.",
+  "wishes.price.size.medium": "Твой Core сейчас покрывает его из дохода за месяц ({month}).",
+  "wishes.price.size.significant": "Твой Core сейчас покрывает его из дохода за год ({year}).",
+  "wishes.price.size.later": "Сейчас твой Core даёт около {year} в год и {month} в месяц.",
+  "wishes.price.formHint": "Уровень считается по цене: при каком Core доход за год покрывает это желание."
 };
 
 export default ru;

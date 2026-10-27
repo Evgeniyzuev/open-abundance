@@ -7,6 +7,7 @@ import { publishWishToFeed } from "@/lib/serverWishFeed";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
 import type { AppLocale } from "@/lib/locales";
+import { wishLevelForPrice } from "@/lib/wishPrice";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -196,6 +197,8 @@ export async function POST(request: NextRequest) {
       visibility: normalizeVisibility(body.visibility),
       source_recommended_wish_id: sourceRecommendedWishId
     };
+    // A priced wish gets its level from the price: the Core level whose yearly income covers it.
+    if (row.target_amount && row.target_currency === "USD") row.difficulty_level = Math.max(1, wishLevelForPrice(row.target_amount));
 
     if (contentPostId) {
       if (!SHARE_TO_OA_ENABLED) return NextResponse.json({ error: "Sharing saved materials is not enabled yet." }, { status: 404, headers: NO_STORE_HEADERS });

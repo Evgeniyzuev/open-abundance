@@ -3324,7 +3324,21 @@ const en = {
   "social.blog.videoCoverUpload": "Upload a screenshot",
   "social.blog.videoCoverReplace": "Replace cover",
   "social.blog.videoCoverCancel": "Cancel",
-  "social.blog.videoCoverSaveHint": "The cover is saved together with the post."
+  "social.blog.videoCoverSaveHint": "The cover is saved together with the post.",
+  "wishes.small.label": "Small wish",
+  "wishes.small.title": "Start with a small wish",
+  "wishes.small.description": "It can come true now: people, Nova and the community help. Take one if you like.",
+  "wishes.small.kind.help": "Members help",
+  "wishes.small.kind.habit": "A {days}-day habit with Nova",
+  "wishes.small.take": "Take",
+  "wishes.small.notNow": "Not now",
+  "wishes.price.free": "No money needed: you can start right away.",
+  "wishes.price.rule": "Comes true without slowing growth at Core from {core} (level {level}): its yearly income covers the price.",
+  "wishes.price.size.small": "Your Core covers it now from one week of income.",
+  "wishes.price.size.medium": "Your Core covers it now from one month of income ({month}).",
+  "wishes.price.size.significant": "Your Core covers it now from one year of income ({year}).",
+  "wishes.price.size.later": "Right now your Core gives about {year} a year and {month} a month.",
+  "wishes.price.formHint": "The level comes from the price: the Core at which a year of income covers this wish."
 } satisfies Record<string, string>;
 
 export default en;

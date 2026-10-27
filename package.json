@@ -20,6 +20,7 @@
     "test:ai-essay": "node --experimental-strip-types scripts/verify-ai-essay-contract.mjs",
     "test:feed-comments": "node --experimental-strip-types scripts/verify-feed-comments.mjs",
     "test:nova-inbox": "node --experimental-strip-types scripts/verify-nova-inbox-contract.mjs",
+    "test:small-wishes": "node --experimental-strip-types scripts/verify-small-wishes-contract.mjs",
     "test:daily-analytics": "node --experimental-strip-types scripts/verify-daily-analytics-contract.mjs",
     "test:ai": "node scripts/verify-ai-contract.mjs && node scripts/verify-ai-usage-contract.mjs",
     "test:skills": "node scripts/verify-skills-contract.mjs",

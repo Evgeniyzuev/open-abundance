@@ -407,7 +407,7 @@ function OnboardingApp({
   const backdropAlt = storyStep ? onboardingText(onboardingContent[step].imageAlt, locale) : null;
   const previousStep: StepId | null = step === "email" ? "auth"
     : step === "auth" ? (guestPlayed ? "quest" : "program")
-        : step === "quest" ? (inviter ? "mission" : "program")
+        : step === "quest" ? (inviter ? "mission" : "auth")
           : currentIndex > 0 ? steps[currentIndex - 1] : null;
 
   return (
@@ -504,9 +504,6 @@ function OnboardingApp({
                 {onboardingText(onboardingContent.actions.go, locale)}
                 <ArrowRight size={18} />
               </button>
-              <button className="onboarding-secondary-action" type="button" onClick={() => goTo("quest")}>
-                {onboardingText(onboardingContent.guest.start, locale)}
-              </button>
             </div>
           </section>
         ) : null}
@@ -552,6 +549,11 @@ function OnboardingApp({
                 <Mail size={18} />
                 {onboardingText(onboardingContent.actions.signInEmail, locale)}
               </button>
+              {!guestPlayed ? (
+                <button className="onboarding-secondary-action" type="button" onClick={() => goTo("quest")}>
+                  {onboardingText(onboardingContent.guest.start, locale)}
+                </button>
+              ) : null}
               {actionError ? <p className="onboarding-error" role="alert">{actionError}</p> : null}
               <LegalDisclosure
                 acknowledgement={onboardingText(onboardingContent.legal.acknowledgement, locale)}

@@ -7,7 +7,7 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 /**
- * GET /api/nova/inbox — the signed-in person's undelivered messages from Nova, oldest first.
+ * GET /api/nova/inbox — the signed-in person's undelivered messages from Nova, oldest first (?peek=1: only the count).
  * POST /api/nova/inbox { ids } — marks them delivered once the chat saved them on the device.
  * Delivered messages are deleted on the server a day later (cleanup_nova_inbox).
  */
@@ -15,6 +15,16 @@ export async function GET(request: NextRequest) {
   const { user, error } = await getAuthenticatedUser(request);
   if (!user) return json({ error }, 401);
   const db = createServiceSupabaseClient() as any;
+  // ?peek=1: only how many are waiting, for the unread dot on Nova's tab; nothing is marked delivered.
+  if (request.nextUrl.searchParams.get("peek") === "1") {
+    const { count, error: countError } = await db
+      .from("nova_inbox_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .is("delivered_at", null)
+      .gt("expires_at", new Date().toISOString());
+    return json({ count: countError ? 0 : count ?? 0 }, 200);
+  }
   const { data, error: readError } = await db
     .from("nova_inbox_messages")
     .select("id,body,created_at")

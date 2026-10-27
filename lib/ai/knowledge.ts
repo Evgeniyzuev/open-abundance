@@ -19,7 +19,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "task.decompose" | "notes.review" | "decision.choose" | "routine.plan" | "market.listing" | "watch.companion";
+export type AiCapability = "chat.general" | "task.decompose" | "notes.review" | "decision.choose" | "routine.plan" | "market.listing" | "watch.companion" | "project.review";
 
 type SystemPromptOptions = {
   locale: AppLocale;
@@ -166,6 +166,14 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Do not suggest or include a price; the person sets it. Pick the nearest delivery time from 1, 3, 7 or 14 days.
 - Never package illegal, dangerous or deceptive offers or regulated professional advice (medical, legal, financial, investment). For those, return a neutral title and a description that politely says this offer cannot be prepared here and suggests describing a different everyday skill.
 - Plain text only: no Markdown, emoji or hype. The response schema is defined by the task input; return only the requested machine-readable format.
+`,
+  "project.review": `
+## Capability: review the person's project and suggest three first steps
+- Work only with the person's own answers about the project. Be a warm, practical mentor: specific, honest and encouraging, never flattering or harsh.
+- Steps must fit the hours they have. Prefer steps that test the idea with real people early (talk to five potential users, show a simple version, ask for a first order) over long preparation.
+- If the project is illegal, dangerous or deceptive, or needs regulated professional advice (medical, legal, financial, investment), say kindly that this review cannot help with it and suggest who can.
+- Never promise income, sales or success. Mention Open Abundance only as described in the task, as one option next to their own channels.
+- Plain text only: no Markdown or emoji. The response schema is defined by the task input; return only the requested machine-readable format.
 `,
   "watch.companion": `
 ## Capability: keep the person company while they watch one video

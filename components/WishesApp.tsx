@@ -3,7 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
-import { Archive, Check, ImagePlus, Pencil, Plus, Send, Target, Trash2, X } from "lucide-react";
+import { Archive, Check, ImagePlus, Pencil, Plus, Send, Sparkles, Target, Trash2, X } from "lucide-react";
 import type { Json, Tables } from "@/lib/database.types";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { useUserContext } from "@/components/UserProvider";
@@ -32,6 +32,8 @@ import { todayKey } from "@/lib/taskSchedule";
 import { pick } from "@/lib/locales";
 import { WISH_COMPLETION_STORY_MAX } from "@/lib/growthStories";
 import SmallWishOffer from "@/components/SmallWishOffer";
+import ProjectReviewSheet from "@/components/ProjectReviewSheet";
+import { isProjectWish } from "@/lib/projectReview";
 import { smallWishText, type SmallWish } from "@/lib/smallWishes";
 import { summarizeWishPrice, wishLevelForPrice } from "@/lib/wishPrice";
 
@@ -843,6 +845,7 @@ function WishDetailModal({
   const category = selectedWish.wish.category;
   const [stepsAdded, setStepsAdded] = useState(false);
   const [woopOpen, setWoopOpen] = useState(false);
+  const [projectReviewOpen, setProjectReviewOpen] = useState(false);
   const detailPrice = isPersonal
     ? selectedWish.wish.target_amount
     : selectedWish.wish.estimated_cost ? Number(estimatedCostToAmount(selectedWish.wish.estimated_cost)) || null : null;
@@ -893,12 +896,21 @@ function WishDetailModal({
             stepsAdded
               ? <p className="wish-steps-added" role="status">{t("home.help.taskAdded")}</p>
               : <>
+                {isProjectWish(title) ? (
+                  <button className="task-done-primary-button wish-woop-button" type="button" onClick={() => setProjectReviewOpen(true)}>
+                    <Sparkles size={16} />
+                    {t("projectReview.open")}
+                  </button>
+                ) : null}
                 <button className="secondary-button wish-woop-button" type="button" onClick={() => setWoopOpen(true)}>
                   <Target size={16} />
                   {t("woop.start")}
                 </button>
                 <TaskStepSuggester title={title} description={description ?? ""} existingSteps={[]} onAccept={addWishSteps} />
               </>
+          ) : null}
+          {projectReviewOpen && isPersonal ? (
+            <ProjectReviewSheet wishId={selectedWish.wish.id} wishTitle={title} onClose={() => setProjectReviewOpen(false)} />
           ) : null}
           {woopOpen && isPersonal ? (
             <WishWoopSheet wishId={selectedWish.wish.id} wishTitle={title} onClose={() => setWoopOpen(false)} onSaved={() => { setWoopOpen(false); setStepsAdded(true); }} />

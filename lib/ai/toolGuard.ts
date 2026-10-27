@@ -10,7 +10,8 @@ import { WATCH_AI_DAY_LIMIT, WATCH_AI_MONTH_LIMIT } from "@/lib/watchCompanion";
  */
 export const AI_TOOL_LIMITS = {
   "tools.organize": { dayLimit: 30, monthLimit: 300 },
-  "tools.watch": { dayLimit: WATCH_AI_DAY_LIMIT, monthLimit: WATCH_AI_MONTH_LIMIT }
+  "tools.watch": { dayLimit: WATCH_AI_DAY_LIMIT, monthLimit: WATCH_AI_MONTH_LIMIT },
+  "tools.project": { dayLimit: 3, monthLimit: 20 }
 } as const;
 
 export type AiToolBucket = keyof typeof AI_TOOL_LIMITS;

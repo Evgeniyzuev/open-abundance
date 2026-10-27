@@ -265,7 +265,8 @@ export default function AppNavigation() {
     ? readDailyUnreadState(user.id)
     : { dateKey: "guest", challengesViewed: true, todayViewed: true };
   const challengesUnread = Boolean(user) && !dailyUnread.challengesViewed;
-  const todayUnread = Boolean(user) && !dailyUnread.todayViewed;
+  const novaUnread = useNovaInboxUnread(user?.id ?? null, activeMainTab === "home" && activeHomeTab === "ideas");
+  const todayUnread = Boolean(user) && (!dailyUnread.todayViewed || novaUnread);
 
   const markChallengesSeen = useCallback(() => {
     if (!user) return;
@@ -687,6 +688,7 @@ export default function AppNavigation() {
         t={t}
         unreadChallenges={challengesUnread}
         unreadToday={todayUnread}
+        unreadNova={novaUnread}
         onExpand={() => setTopNavExpanded(true)}
         onTabChange={handleTopTabChange}
       />
@@ -832,11 +834,12 @@ type TopTabBarProps = {
   t: TFunction;
   unreadChallenges: boolean;
   unreadToday: boolean;
+  unreadNova: boolean;
   onExpand: () => void;
   onTabChange: (tab: string) => void;
 };
 
-function TopTabBar({ activeMainTab, activeTab, collapsed, tabs, t, unreadChallenges, unreadToday, onExpand, onTabChange }: TopTabBarProps) {
+function TopTabBar({ activeMainTab, activeTab, collapsed, tabs, t, unreadChallenges, unreadToday, unreadNova, onExpand, onTabChange }: TopTabBarProps) {
   const unread = Boolean(
     (activeMainTab === "challenges" && tabs.some((tab) => tab.id === "challenges") && unreadChallenges) ||
       (activeMainTab === "home" && tabs.some((tab) => tab.id === "home") && unreadToday)
@@ -859,7 +862,7 @@ function TopTabBar({ activeMainTab, activeTab, collapsed, tabs, t, unreadChallen
             icon={tab.icon}
             key={tab.id}
             title={t(tab.titleKey)}
-            unread={(activeMainTab === "challenges" && tab.id === "challenges" && unreadChallenges) || (activeMainTab === "home" && tab.id === "home" && unreadToday)}
+            unread={(activeMainTab === "challenges" && tab.id === "challenges" && unreadChallenges) || (activeMainTab === "home" && tab.id === "home" && unreadToday) || (activeMainTab === "home" && tab.id === "ideas" && unreadNova)}
             unreadLabel={t("app.nav.newActivity")}
             onClick={() => onTabChange(tab.id)}
           />
@@ -1139,4 +1142,45 @@ function isWalletTabId(value: string | undefined): value is WalletTabId {
 
 function isSocialTabId(value: string | undefined): value is SocialTabId {
   return value === "feed" || value === "people" || value === "blog" || value === "teams" || value === "profile";
+}
+
+const NOVA_INBOX_POLL_MS = 5 * 60_000;
+
+/**
+ * True while Nova has written first and the person has not opened the chat yet: the chat picks the messages up
+ * when it is open, so the dot goes away there. Checks on start, every few minutes and when the app comes back.
+ */
+function useNovaInboxUnread(userId: string | null, viewingChat: boolean): boolean {
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    if (!userId) {
+      setWaiting(false);
+      return;
+    }
+    if (viewingChat) {
+      setWaiting(false);
+      return;
+    }
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const response = await fetchWithSupabaseAuth("/api/nova/inbox?peek=1", { cache: "no-store" }, { authRequired: true });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { count?: number };
+        if (!cancelled) setWaiting((payload.count ?? 0) > 0);
+      } catch {
+        // Offline: keep the last known state.
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), NOVA_INBOX_POLL_MS);
+    const onVisible = () => { if (document.visibilityState === "visible") void check(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [userId, viewingChat]);
+  return waiting;
 }

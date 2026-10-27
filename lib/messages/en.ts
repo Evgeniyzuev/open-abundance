@@ -1666,6 +1666,8 @@ const en = {
   "challenges.code.label": "Code",
   "challenges.code.required": "Enter the 6-digit code first.",
   "telegramBot.prompt.title": "Notifications in Telegram too",
+  "telegramBot.prompt.bodyAllow": "Allow the Open Abundance bot to message you, so you don't miss new rewards and your Core income.",
+  "telegramBot.prompt.allow": "Allow",
   "telegramBot.prompt.bodyStart": "Every push is also sent by the Open Abundance bot. Press Start in the bot so it can write to you.",
   "telegramBot.prompt.bodyLink": "Link Telegram and every push also comes from the Open Abundance bot.",
   "challenges.explainer.title": "Quests: your growth path",

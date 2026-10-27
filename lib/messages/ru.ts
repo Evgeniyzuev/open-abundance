@@ -1666,6 +1666,8 @@ const ru: Record<string, string> = {
   "challenges.code.label": "\u041a\u043e\u0434",
   "challenges.code.required": "\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u0434 \u0438\u0437 6 \u0446\u0438\u0444\u0440.",
   "telegramBot.prompt.title": "\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f \u0438 \u0432 Telegram",
+  "telegramBot.prompt.bodyAllow": "Разреши боту Open Abundance писать тебе: так ты не пропустишь новые награды и доход в Core.",
+  "telegramBot.prompt.allow": "Разрешить",
   "telegramBot.prompt.bodyStart": "\u041a\u0430\u0436\u0434\u044b\u0439 \u043f\u0443\u0448 \u0434\u0443\u0431\u043b\u0438\u0440\u0443\u0435\u0442 \u0431\u043e\u0442 Open Abundance. \u041d\u0430\u0436\u043c\u0438\u0442\u0435 Start \u0432 \u0431\u043e\u0442\u0435, \u0447\u0442\u043e\u0431\u044b \u043e\u043d \u043c\u043e\u0433 \u0432\u0430\u043c \u043f\u0438\u0441\u0430\u0442\u044c.",
   "telegramBot.prompt.bodyLink": "\u041f\u0440\u0438\u0432\u044f\u0436\u0438\u0442\u0435 Telegram, \u0438 \u043a\u0430\u0436\u0434\u044b\u0439 \u043f\u0443\u0448 \u0431\u0443\u0434\u0435\u0442 \u043f\u0440\u0438\u0445\u043e\u0434\u0438\u0442\u044c \u0435\u0449\u0451 \u0438 \u043e\u0442 \u0431\u043e\u0442\u0430 Open Abundance.",
   "challenges.explainer.title": "Квесты: ваш путь роста",

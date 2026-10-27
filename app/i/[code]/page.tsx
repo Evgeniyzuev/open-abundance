@@ -24,18 +24,18 @@ function cleanCode(raw: string): string | null {
   return /^[A-Za-z0-9_-]{4,64}$/.test(code) ? code : null;
 }
 
-/** The inviter's name and language for the link preview; an unknown code still gets the generic invitation. */
+/** The inviter's name for the link preview (always in English, founder decision 2026-10-27); an unknown code still gets the generic invitation. */
 async function loadInvite(code: string | null): Promise<Invite> {
-  if (!code) return { name: null, locale: "ru" };
+  if (!code) return { name: null, locale: "en" };
   try {
     const db = createServiceSupabaseClient();
     const { data: row } = await db.from("referral_codes").select("user_id").eq("code", code).eq("is_active", true).maybeSingle();
-    if (!row?.user_id) return { name: null, locale: "ru" };
-    const { data: profile } = await db.from("user_profiles").select("display_name,username,default_locale").eq("user_id", row.user_id).maybeSingle();
+    if (!row?.user_id) return { name: null, locale: "en" };
+    const { data: profile } = await db.from("user_profiles").select("display_name,username").eq("user_id", row.user_id).maybeSingle();
     const name = profile?.display_name?.trim() || (profile?.username ? `@${profile.username}` : null);
-    return { name: name ? name.slice(0, 60) : null, locale: profile?.default_locale === "en" ? "en" : "ru" };
+    return { name: name ? name.slice(0, 60) : null, locale: "en" };
   } catch {
-    return { name: null, locale: "ru" };
+    return { name: null, locale: "en" };
   }
 }
 
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: { params: { code: string } })
   const invite = await loadInvite(cleanCode(params.code));
   const text = TEXT[invite.locale];
   const title = text.title(invite.name);
-  const image = { url: `/og/invite-${invite.locale}.jpg?v=2`, width: 1200, height: 630, alt: text.description };
+  const image = { url: `/og/invite-${invite.locale}.jpg?v=3`, width: 1200, height: 630, alt: text.description };
   return {
     title: { absolute: title },
     description: text.description,

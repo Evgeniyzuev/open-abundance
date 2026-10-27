@@ -374,6 +374,7 @@ function OnboardingApp({
               <span>{onboardingText(onboardingContent.mission.eyebrow, locale)}</span>
               <h1>{onboardingText(onboardingContent.mission.title, locale)}</h1>
               <p>{onboardingText(onboardingContent.mission.body, locale)}</p>
+              <strong className="onboarding-gift">{onboardingText(onboardingContent.mission.gift, locale)}</strong>
             </div>
             <button className="onboarding-primary-action" type="button" onClick={() => goTo("stories")}>
               {onboardingText(onboardingContent.actions.continue, locale)}

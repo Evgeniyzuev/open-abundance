@@ -21,6 +21,8 @@ type OnboardingContent = {
     eyebrow: OnboardingLocalizedText;
     title: OnboardingLocalizedText;
     body: OnboardingLocalizedText;
+    /** The sign-up gift line on the first screen (the "signup" quest pays $2 to Core). */
+    gift: OnboardingLocalizedText;
     imageAlt: OnboardingLocalizedText;
   };
   stories: {
@@ -110,6 +112,14 @@ export const onboardingContent: OnboardingContent = {
       es: "Elige tus deseos: Open Abundance los convertirá en una ruta clara. Avanza hacia tus objetivos más rápido y con más confianza ✈️",
       hi: "अपनी इच्छाएं चुनें — Open Abundance उन्हें एक स्पष्ट मार्ग में बदलेगा। अपने लक्ष्यों की ओर तेज़ी और भरोसे के साथ बढ़ें ✈️",
       ar: "اختر أمنياتك — وسيحوّلها Open Abundance إلى مسار واضح. تقدّم نحو أهدافك بسرعة أكبر وثقة أعلى ✈️"
+    },
+    gift: {
+      ru: "🎁 Акция: $2 в Core за регистрацию",
+      en: "🎁 Offer: $2 in Core when you sign up",
+      zh: "🎁 活动：注册即得 $2 Core",
+      es: "🎁 Promoción: $2 en Core al registrarte",
+      hi: "🎁 ऑफ़र: साइन अप पर Core में $2",
+      ar: "🎁 عرض: ‎$2 في Core عند التسجيل"
     },
     imageAlt: {
       ru: "Светящийся ИИ превращает желания человека в маршрут возможностей",

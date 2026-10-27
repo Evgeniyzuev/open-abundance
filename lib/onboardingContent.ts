@@ -43,8 +43,8 @@ type OnboardingContent = {
     invitedBy: OnboardingLocalizedText;
     questEyebrow: OnboardingLocalizedText;
     question: OnboardingLocalizedText;
-    wishEyebrow: OnboardingLocalizedText;
-    wishTitle: OnboardingLocalizedText;
+    start: OnboardingLocalizedText;
+    reward: OnboardingLocalizedText;
     skip: OnboardingLocalizedText;
     saveGift: OnboardingLocalizedText;
   };
@@ -241,21 +241,21 @@ export const onboardingContent: OnboardingContent = {
       hi: "कल्पना करें कि AI अभी से लोगों की इच्छाएँ पूरी करना सीख रहा है। यानी जो दूसरों के पास है, वह आपके पास भी हो सकता है। आप यहाँ किसलिए हैं?",
       ar: "تخيّل أن الذكاء الاصطناعي يتعلّم الآن تحقيق أمنيات الناس. أي أن ما لدى الآخرين يمكن أن يكون لك أيضًا. لماذا أنت هنا؟"
     },
-    wishEyebrow: {
-      ru: "Квест 2 · Первое желание",
-      en: "Quest 2 · First wish",
-      zh: "任务 2 · 第一个愿望",
-      es: "Misión 2 · Primer deseo",
-      hi: "क्वेस्ट 2 · पहली इच्छा",
-      ar: "المهمة 2 · الأمنية الأولى"
+    start: {
+      ru: "Вход без регистрации",
+      en: "Try without signing up",
+      zh: "免注册体验",
+      es: "Probar sin registrarse",
+      hi: "बिना रजिस्ट्रेशन के आज़माएँ",
+      ar: "جرّب دون تسجيل"
     },
-    wishTitle: {
-      ru: "Что ты хочешь получить первым?",
-      en: "What do you want to get first?",
-      zh: "你最想先得到什么？",
-      es: "¿Qué quieres conseguir primero?",
-      hi: "आप सबसे पहले क्या पाना चाहते हैं?",
-      ar: "ما الذي تريد الحصول عليه أولًا؟"
+    reward: {
+      ru: "Твоя награда за первый шаг: +$1 в Core. Зарегистрируйся, чтобы забрать её, и получи ещё $2 за регистрацию.",
+      en: "Your reward for the first step: +$1 to Core. Sign up to claim it, and get $2 more for signing up.",
+      zh: "第一步奖励：Core +$1。注册即可领取，另外注册还送 $2。",
+      es: "Tu recompensa por el primer paso: +$1 en Core. Regístrate para recogerla y recibe $2 más por registrarte.",
+      hi: "पहले कदम का इनाम: Core में +$1। इसे लेने के लिए साइन अप करें, और साइन अप के $2 और पाएँ।",
+      ar: "مكافأتك على الخطوة الأولى: ‎+$1 في Core. سجّل لتستلمها واحصل على $2 إضافية مقابل التسجيل."
     },
     skip: {
       ru: "Пропустить и войти",
@@ -266,12 +266,12 @@ export const onboardingContent: OnboardingContent = {
       ar: "تخطَّ وسجّل الدخول"
     },
     saveGift: {
-      ru: "🎁 Ответы сохранятся в аккаунте. $2 за регистрацию придут сразу, а $1 и $2 за эти два квеста заберёшь кнопкой в квестах.",
-      en: "🎁 Your answers will be saved to your account. $2 for signing up arrives right away, and you claim $1 and $2 for these two quests with one tap in Quests.",
-      zh: "🎁 你的回答会保存到账户。注册奖励 $2 立即到账，这两个任务的 $1 和 $2 在任务页一键领取。",
-      es: "🎁 Tus respuestas se guardarán en tu cuenta. Los $2 por registrarte llegan al instante, y los $1 y $2 de estas dos misiones los recoges con un toque en Misiones.",
-      hi: "🎁 आपके जवाब खाते में सहेजे जाएँगे। साइन अप के $2 तुरंत आएँगे, और इन दो क्वेस्ट के $1 और $2 आप क्वेस्ट में एक टैप से लेंगे।",
-      ar: "🎁 ستُحفظ إجاباتك في حسابك. تصل $2 مقابل التسجيل فورًا، وتستلم $1 و$2 عن هاتين المهمتين بنقرة في المهام."
+      ru: "🎁 $2 за регистрацию придут сразу, а $1 за первый шаг заберёшь кнопкой в квестах: ответ уже сохранён.",
+      en: "🎁 $2 for signing up arrives right away, and you claim $1 for the first step with one tap in Quests: your answer is saved.",
+      zh: "🎁 注册奖励 $2 立即到账，第一步的 $1 在任务页一键领取：你的回答已保存。",
+      es: "🎁 Los $2 por registrarte llegan al instante, y el $1 del primer paso lo recoges con un toque en Misiones: tu respuesta ya está guardada.",
+      hi: "🎁 साइन अप के $2 तुरंत आएँगे, और पहले कदम का $1 आप क्वेस्ट में एक टैप से लेंगे: आपका जवाब सहेजा गया है।",
+      ar: "🎁 تصل $2 مقابل التسجيل فورًا، وتستلم $1 عن الخطوة الأولى بنقرة في المهام: إجابتك محفوظة."
     }
   },
   auth: {

@@ -48,7 +48,7 @@ export function NovaBubble({ text, t, askText }: { text: string; t: TFunction; a
  * go to the profile (app/api/challenges/progress) and steer which side quests come first. The second scene sums the
  * answers up, says how many others came for the same, and the reward is taken from there.
  */
-export function FirstStepQuest({ guest = false, question, savedMotives, t, onAnswered }: { guest?: boolean; question: string; savedMotives?: QuestMotive[]; t: TFunction; onAnswered: (motives: QuestMotive[]) => void }) {
+export function FirstStepQuest({ guest = false, guestReward, question, savedMotives, t, onAnswered }: { guest?: boolean; guestReward?: string; question: string; savedMotives?: QuestMotive[]; t: TFunction; onAnswered: (motives: QuestMotive[]) => void }) {
   // Answers already saved (played as a guest before sign-in, or a reload): the summary and the reward, not the question again.
   const [chosen, setChosen] = useState<QuestMotive[]>(savedMotives ?? []);
   const [note, setNote] = useState("");
@@ -139,7 +139,7 @@ export function FirstStepQuest({ guest = false, question, savedMotives, t, onAns
             ))}
           </ul>
           <NovaBubble text={t(`quests.firstStep.reply.${chosen[0]}` as MessageKey)} t={t} />
-          <p className="quest-scene-text">{t("quests.firstStep.hook")}</p>
+          <p className="quest-scene-text">{guest && guestReward ? <strong>{guestReward}</strong> : t("quests.firstStep.hook")}</p>
           <button className="challenge-primary-action" type="button" onClick={() => onAnswered(chosen)}>
             {guest ? t("quests.guest.next") : t("quests.firstStep.claim")}
           </button>

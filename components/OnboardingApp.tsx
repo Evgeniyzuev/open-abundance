@@ -29,7 +29,7 @@ import {
   type OnboardingLocale
 } from "@/lib/onboardingContent";
 import { trackProductEvent } from "@/lib/productAnalytics";
-import { ChooseWishQuest, FirstStepQuest } from "@/components/QuestScenes";
+import { FirstStepQuest } from "@/components/QuestScenes";
 import { readLocalGuest } from "@/lib/guestIdentity";
 import {
   clearGuestQuest,
@@ -44,8 +44,8 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 
 type StoryStepId = "mission" | "stories" | "program";
-// "quest" and "wish": the first two quests played as a guest before sign-in (lib/guestQuest.ts).
-type StepId = StoryStepId | "quest" | "wish" | "auth" | "email";
+// "quest": "Try without signing up" plays the first quest as a guest, then the sign-up claims its reward (lib/guestQuest.ts).
+type StepId = StoryStepId | "quest" | "auth" | "email";
 type OnboardingState = Record<string, unknown> & {
   firstExperienceCompleted?: boolean;
   firstPlanDraft?: OnboardingDraft;
@@ -256,7 +256,6 @@ function OnboardingApp({
   const { locale: appLocale, t } = useUserContext();
   const [inviter, setInviter] = useState<string | null>(null);
   const [guestPlayed, setGuestPlayed] = useState(false);
-  const [guestMotives, setGuestMotives] = useState<string[]>([]);
 
   // Came by a friend's link: the first screen names the friend and leads straight to the first quest.
   useEffect(() => {
@@ -407,8 +406,7 @@ function OnboardingApp({
   const backdropSrc = storyStep ? STORY_ARTWORK[step] : null;
   const backdropAlt = storyStep ? onboardingText(onboardingContent[step].imageAlt, locale) : null;
   const previousStep: StepId | null = step === "email" ? "auth"
-    : step === "auth" ? (guestPlayed ? "wish" : "program")
-      : step === "wish" ? "quest"
+    : step === "auth" ? (guestPlayed ? "quest" : "program")
         : step === "quest" ? (inviter ? "mission" : "program")
           : currentIndex > 0 ? steps[currentIndex - 1] : null;
 
@@ -502,9 +500,12 @@ function OnboardingApp({
               <p className="onboarding-program-prompt">{onboardingText(onboardingContent.program.prompt, locale)}</p>
             </div>
             <div className="onboarding-final-actions">
-              <button className="onboarding-primary-action" type="button" onClick={() => goTo("quest")}>
+              <button className="onboarding-primary-action" type="button" onClick={openAuthScreen}>
                 {onboardingText(onboardingContent.actions.go, locale)}
                 <ArrowRight size={18} />
+              </button>
+              <button className="onboarding-secondary-action" type="button" onClick={() => goTo("quest")}>
+                {onboardingText(onboardingContent.guest.start, locale)}
               </button>
             </div>
           </section>
@@ -517,30 +518,10 @@ function OnboardingApp({
             </div>
             <FirstStepQuest
               guest
+              guestReward={onboardingText(onboardingContent.guest.reward, locale)}
               question={onboardingText(onboardingContent.guest.question, locale)}
               t={t}
-              onAnswered={(motives) => {
-                setGuestMotives(motives);
-                goTo("wish");
-              }}
-            />
-            <button className="onboarding-text-action" type="button" onClick={openAuthScreen}>{onboardingText(onboardingContent.guest.skip, locale)}</button>
-          </section>
-        ) : null}
-
-        {step === "wish" ? (
-          <section className="onboarding-slide onboarding-guest-slide">
-            <div className="onboarding-copy">
-              <span>{onboardingText(onboardingContent.guest.wishEyebrow, locale)}</span>
-              <h1>{onboardingText(onboardingContent.guest.wishTitle, locale)}</h1>
-            </div>
-            <ChooseWishQuest
-              guest
-              locale={appLocale}
-              motives={guestMotives}
-              t={t}
-              userId={null}
-              onSaved={() => {
+              onAnswered={() => {
                 setGuestPlayed(true);
                 openAuthScreen();
               }}

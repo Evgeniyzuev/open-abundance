@@ -3221,7 +3221,7 @@ const en = {
     "quests.wish.react.own": "Looks like this matters to you now: \"{title}\".",
     "quests.wish.reactNext": "Let's find out next how to make it happen!",
     "quests.wish.claim": "Claim the reward",
-    "quests.guest.next": "Next: your first wish",
+    "quests.guest.next": "Claim the reward",
     "quests.guest.save": "Save and claim the rewards",
     "invite.welcome.title": "{name} invited you",
     "invite.welcome.body": "Start with the first quest: it takes a minute, and +$1 goes to your Core.",

@@ -3221,7 +3221,7 @@ const ru: Record<string, string> = {
     "quests.wish.react.own": "Похоже, тебе сейчас важно: «{title}».",
     "quests.wish.reactNext": "Давай дальше узнаем, как это сделать!",
     "quests.wish.claim": "Забрать награду",
-    "quests.guest.next": "Дальше: первое желание",
+    "quests.guest.next": "Забрать награду",
     "quests.guest.save": "Сохранить и забрать награды",
     "invite.welcome.title": "Тебя позвал {name}",
     "invite.welcome.body": "Начни с первого квеста: это одна минута, а в Core придёт +$1.",

@@ -3347,7 +3347,32 @@ const ru: Record<string, string> = {
   "social.teams.changeLeaderCurrent": "Твой лид",
   "social.teams.changeLeaderReferrer": "пригласил тебя",
   "social.teams.changeLeaderDone": "Лид сменён.",
-  "social.teams.changeLeaderError": "Не получилось. Попробуй позже."
+  "social.teams.changeLeaderError": "Не получилось. Попробуй позже.",
+  "leadWeek.labelOaLead": "Лид Open Abundance",
+  "leadWeek.labelPractice": "Практика недели",
+  "leadWeek.title": "Твоя неделя",
+  "leadWeek.goalLabel": "Одна цель на эту неделю",
+  "leadWeek.goalPlaceholder": "Например: показать проект трём людям",
+  "leadWeek.shareWithLead": "Показать цель и итог моему лиду",
+  "leadWeek.saveGoal": "Поставить цель",
+  "leadWeek.yourGoal": "Цель недели:",
+  "leadWeek.midweekQuestion": "Как идёт?",
+  "leadWeek.midweek.going": "Идёт",
+  "leadWeek.midweek.stuck": "Застрял",
+  "leadWeek.midweek.need_help": "Нужна помощь",
+  "leadWeek.stuckHint": "Сделай версию шага на две минуты. Если не ясно, с чего начать, спроси Нову.",
+  "leadWeek.helpHint": "Напиши Нове, в чём нужна помощь: она подскажет или найдёт участника, который поможет.",
+  "leadWeek.reviewQuestion": "Что получилось за неделю?",
+  "leadWeek.notePlaceholder": "Одна строка: что помогло или помешало (по желанию)",
+  "leadWeek.review.done": "Сделал",
+  "leadWeek.review.partly": "Частично",
+  "leadWeek.review.not_yet": "Пока нет",
+  "leadWeek.reviewed": "Итог недели записан. В понедельник новая цель и новая практика.",
+  "leadWeek.kitTitle": "Набор недели для твоих людей ({count})",
+  "leadWeek.kitCopy": "Скопировать текст",
+  "leadWeek.kitCopied": "Скопировано",
+  "leadWeek.kitNoShared": "Пока никто из твоих людей не поделился целью на эту неделю.",
+  "leadWeek.follower": "Участник"
 };
 
 export default ru;

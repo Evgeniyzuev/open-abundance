@@ -22,6 +22,7 @@ import {
 import type { Localized } from "@/lib/locales";
 import { HOLDOUT_EVENT, isHoldout, type QuestCatalogItem, type QuestNudgeInput, type QuestUserRow } from "@/lib/questNudges";
 import { weeklyLeaders } from "@/lib/questLeaders";
+import { weekStart } from "@/lib/leadPractices";
 import { isQaUser } from "@/lib/qaAccounts";
 
 type AnyDb = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
@@ -324,8 +325,33 @@ async function loadQuestInputs(db: AnyDb, userIds: string[], now: number): Promi
     list.push({ challengeId: row.challenge_id, status: String(row.status ?? "").toLowerCase(), isActive: row.is_active === true, updatedAt: Date.parse(row.updated_at ?? "") || 0 });
     rowsByUser.set(row.user_id, list);
   }
+  const leadWeekGoals = await loadLeadWeekGoals(db, userIds, now);
   for (const userId of userIds) {
-    result.set(userId, { catalog, rows: rowsByUser.get(userId) ?? [], leaderRank: rank.get(userId)?.rank ?? null, weekQuests: rank.get(userId)?.quests ?? 0 });
+    result.set(userId, {
+      catalog,
+      rows: rowsByUser.get(userId) ?? [],
+      leaderRank: rank.get(userId)?.rank ?? null,
+      weekQuests: rank.get(userId)?.quests ?? 0,
+      leadWeekGoalSet: leadWeekGoals.get(userId) ?? null
+    });
+  }
+  return result;
+}
+
+/**
+ * For people led by the Open Abundance lead (no live lead): whether this week's goal is set. Others and everyone,
+ * when the table is not there yet, are left out (null), so Nova does not write about the week to them.
+ */
+async function loadLeadWeekGoals(db: AnyDb, userIds: string[], now: number): Promise<Map<string, boolean>> {
+  const result = new Map<string, boolean>();
+  const [memberships, weeks] = await Promise.all([
+    db.from("team_memberships").select("member_user_id,leader_user_id").eq("is_active", true).in("member_user_id", userIds),
+    db.from("lead_week_checkins").select("user_id,goal").eq("week_start", weekStart(now)).in("user_id", userIds)
+  ]);
+  if (memberships.error || weeks.error) return result;
+  const withGoal = new Set(((weeks.data ?? []) as any[]).filter((row) => row.goal).map((row) => row.user_id));
+  for (const row of (memberships.data ?? []) as any[]) {
+    if (!row.leader_user_id) result.set(row.member_user_id, withGoal.has(row.member_user_id));
   }
   return result;
 }

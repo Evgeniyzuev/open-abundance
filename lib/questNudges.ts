@@ -2,16 +2,17 @@
 // (lib/coordinatorNudges.ts) loads the data, `chooseNudge` in lib/coordinatorNextStep.ts calls `chooseQuestNudge`
 // unless QUEST_NUDGES_ENABLED=0, and the daily analytics compare the outcome with the control group.
 //
-// Rules, first match wins: the first step is not done; the person is among the leaders of the week (praise); they have
-// not opened the app for 7+ days; a side quest has just opened; the active quest has not moved for 2+ days. When
+// Rules, first match wins: the first step is not done; the person is among the leaders of the week (praise); on Monday
+// or Tuesday a person led by the Open Abundance lead has no goal for the week yet; they have not opened the app for 7+ days; a side quest has just opened; the active quest has not moved for 2+ days. When
 // everything goes well Nova does not write. Limits on top of the coordinator's own (one a day, quiet after three
 // unanswered): three a week. Copy says only what the person sees about themselves in the app.
 
 import type { Localized } from "./locales.ts";
+import { weekPhase } from "./leadPractices.ts";
 
 const DAY_MS = 86_400_000;
 
-export const QUEST_NUDGE_KEYS = ["quest_tomorrow", "quest_first_step", "quest_leader", "quest_comeback", "quest_unlocked", "quest_stalled"] as const;
+export const QUEST_NUDGE_KEYS = ["quest_tomorrow", "quest_first_step", "quest_leader", "quest_comeback", "quest_unlocked", "quest_stalled", "lead_week_goal"] as const;
 export type QuestNudgeKey = (typeof QUEST_NUDGE_KEYS)[number];
 
 export const QUEST_NUDGE_WEEK_LIMIT = 3;
@@ -45,6 +46,8 @@ export type QuestNudgeInput = {
   leaderRank: number | null;
   /** Quests done in the last 7 days (for the praise text). */
   weekQuests: number;
+  /** Whether this week's goal with the Open Abundance lead is set; null when unknown (docs/SMALL_WISHES_AND_LEADS_PLAN.md). */
+  leadWeekGoalSet?: boolean | null;
 };
 
 export type QuestSend = { step: string; at: number };
@@ -72,6 +75,10 @@ const COPY: Record<QuestNudgeKey, Localized<QuestCopy>> = {
     ru: { title: "{name}, открылся новый квест", body: "«{quest}» уже доступен: это награда за пройденные шаги. Нова", button: "Посмотреть" },
     en: { title: "{name}, a new quest has opened", body: "\"{quest}\" is open now: a reward for the steps you have done. Nova", button: "Take a look" }
   },
+  lead_week_goal: {
+    ru: { title: "{name}, какая у тебя цель на эту неделю?", body: "Одна строка во вкладке команды. В середине недели спрошу, как идёт, а в конце посмотрим итог. Без давления. Нова", button: "Поставить цель" },
+    en: { title: "{name}, what is your goal for this week?", body: "One line in the team tab. Mid-week I'll ask how it goes, and at the end we'll look at the result. No pressure. Nova", button: "Set a goal" }
+  },
   quest_stalled: {
     ru: { title: "{name}, квест «{quest}» ждёт", body: "Сделай сегодня один маленький шаг. Если что-то не получается, спроси меня, разберём вместе. Нова", button: "Открыть квест" },
     en: { title: "{name}, the quest \"{quest}\" is waiting", body: "Take one small step today. If something doesn't work, ask me and we'll sort it out together. Nova", button: "Open the quest" }
@@ -79,6 +86,7 @@ const COPY: Record<QuestNudgeKey, Localized<QuestCopy>> = {
 };
 
 const DEEP_LINK = "/?view=challenges";
+const TEAM_DEEP_LINK = "/?view=people.teams";
 
 /** Stable 1-in-10 control group by user id (FNV-1a), the same on every run. */
 export function isHoldout(userId: string): boolean {
@@ -110,7 +118,7 @@ function fill(copy: Localized<QuestCopy>, values: { quest: Localized<string> | n
 }
 
 function nudge(key: QuestNudgeKey, quest: QuestCatalogItem | null, count = 0): QuestNudge {
-  return { key, deepLink: DEEP_LINK, copy: fill(COPY[key], { quest: quest?.title ?? null, count }) };
+  return { key, deepLink: key === "lead_week_goal" ? TEAM_DEEP_LINK : DEEP_LINK, copy: fill(COPY[key], { quest: quest?.title ?? null, count }) };
 }
 
 /** Path quests the person has started; the first open one decides "first step done". */
@@ -140,6 +148,11 @@ export function chooseQuestNudge(input: QuestNudgeInput, sends: QuestSend[], las
   // 2. Praise for the leaders of the week, once a week.
   if (input.leaderRank !== null && input.leaderRank <= QUEST_LEADER_PRAISE_TOP && !sentSince("quest_leader", now - 7 * DAY_MS)) {
     return nudge("quest_leader", null, input.weekQuests);
+  }
+
+  // 2a. The weekly goal with the Open Abundance lead: on Monday or Tuesday, once a week, only while it is not set.
+  if (input.leadWeekGoalSet === false && weekPhase(now) === "goal" && !sentSince("lead_week_goal", now - 5 * DAY_MS)) {
+    return nudge("lead_week_goal", null);
   }
 
   const active = input.rows.find((row) => row.isActive && (row.status === "accepted" || row.status === "failed")) ?? null;

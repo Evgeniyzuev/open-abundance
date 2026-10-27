@@ -1920,3 +1920,19 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .change-leader-list small { color: var(--muted); font-size: .78rem; }
 .change-leader-list .secondary-button { min-height: 36px; padding: 0 10px; }
 .change-leader-current { font-weight: 800; }
+.lead-week { display: grid; gap: 8px; margin-bottom: 12px; border: 1px solid var(--line-subtle); }
+.lead-week h3 { margin: 0; font-size: 1rem; line-height: 1.25; }
+.lead-week p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }
+.lead-week-practice { display: grid; gap: 3px; border-radius: 10px; padding: 10px; background: var(--accent-soft); }
+.lead-week-practice strong { font-size: .875rem; }
+.lead-week-practice small { color: var(--muted); font-size: .72rem; }
+.lead-week-goal, .lead-week-step { display: grid; gap: 8px; }
+.lead-week-goal .secondary-button { justify-self: start; }
+.lead-week-current { color: var(--text) !important; }
+.lead-week-note { min-width: 0; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--surface-soft); color: var(--text); font-size: 1rem; }
+.lead-week-kit { display: grid; gap: 8px; }
+.lead-week-kit summary { cursor: pointer; font-weight: 800; font-size: .875rem; }
+.lead-week-kit .secondary-button { justify-self: start; }
+.lead-week-followers { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lead-week-followers li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: 8px; align-items: center; font-size: .84rem; }
+.lead-week-followers li span { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }

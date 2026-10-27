@@ -3347,7 +3347,32 @@ const en = {
   "social.teams.changeLeaderCurrent": "Your lead",
   "social.teams.changeLeaderReferrer": "invited you",
   "social.teams.changeLeaderDone": "Lead changed.",
-  "social.teams.changeLeaderError": "That didn't work. Try again later."
+  "social.teams.changeLeaderError": "That didn't work. Try again later.",
+  "leadWeek.labelOaLead": "Open Abundance lead",
+  "leadWeek.labelPractice": "Practice of the week",
+  "leadWeek.title": "Your week",
+  "leadWeek.goalLabel": "One goal for this week",
+  "leadWeek.goalPlaceholder": "For example: show my project to three people",
+  "leadWeek.shareWithLead": "Show my goal and result to my lead",
+  "leadWeek.saveGoal": "Set the goal",
+  "leadWeek.yourGoal": "Goal of the week:",
+  "leadWeek.midweekQuestion": "How is it going?",
+  "leadWeek.midweek.going": "Going well",
+  "leadWeek.midweek.stuck": "Stuck",
+  "leadWeek.midweek.need_help": "Need help",
+  "leadWeek.stuckHint": "Do a two-minute version of the step. If it's unclear where to start, ask Nova.",
+  "leadWeek.helpHint": "Tell Nova what you need help with: she'll suggest something or find a member who can help.",
+  "leadWeek.reviewQuestion": "What worked this week?",
+  "leadWeek.notePlaceholder": "One line: what helped or got in the way (optional)",
+  "leadWeek.review.done": "Done",
+  "leadWeek.review.partly": "Partly",
+  "leadWeek.review.not_yet": "Not yet",
+  "leadWeek.reviewed": "Your week's result is saved. On Monday, a new goal and a new practice.",
+  "leadWeek.kitTitle": "This week's kit for your people ({count})",
+  "leadWeek.kitCopy": "Copy the text",
+  "leadWeek.kitCopied": "Copied",
+  "leadWeek.kitNoShared": "None of your people has shared a goal for this week yet.",
+  "leadWeek.follower": "Member"
 } satisfies Record<string, string>;
 
 export default en;

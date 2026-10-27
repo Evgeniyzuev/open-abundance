@@ -25,6 +25,7 @@ import LocalBackupDialog from "@/components/LocalBackupDialog";
 import { readAttentionSettings, storeAttentionSettings, type AttentionSettings } from "@/lib/attention";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import ChangeLeaderPanel from "@/components/social/ChangeLeaderPanel";
+import LeadWeekCard from "@/components/social/LeadWeekCard";
 import SkillPassportApp from "@/components/SkillPassportApp";
 import { useUserContext, type UserProfile } from "@/components/UserProvider";
 import AddLoginEmail from "@/components/social/AddLoginEmail";
@@ -1580,6 +1581,7 @@ export default function SocialApp({
           {!user && !loading ? <p>{t("profile.registrationRequired")}</p> : null}
           {user ? (
             <>
+              <LeadWeekCard />
               <TeamsGrowthHero
                 currentUserId={user.id}
                 context={teamContext}

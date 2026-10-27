@@ -27,6 +27,7 @@ import { buildReferralReport } from "./referralAnalytics.ts";
 import { buildQuestFeedbackReport } from "./questFeedbackAnalytics.ts";
 import { isQaUser } from "./qaAccounts.ts";
 import { buildWishDemand, rankWishDemand, WISH_KIND_LABEL } from "./wishDemandAnalytics.ts";
+import { buildLeadWeekReport, practiceLabel } from "./leadWeekAnalytics.ts";
 
 export const MIN_GROUP = 5;
 export const WINDOW_DAYS = 45;
@@ -91,6 +92,8 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "telegram_notification_deliveries", select: "status,created_at,notification_recipients(user_id)", since: "created_at" },
   { table: "direct_messages", select: "sender_user_id,conversation_id,created_at", since: "created_at", cap: 50_000 },
   { table: "user_follows", select: "follower_user_id,followee_user_id,created_at" },
+  { table: "team_memberships", select: "member_user_id,leader_user_id,is_active" },
+  { table: "lead_week_checkins", select: "user_id,week_start,practice_key,goal,midweek_status,review_status,created_at", since: "created_at" },
   { table: "telegram_accounts", select: "user_id" },
   { table: "notification_events", select: "idempotency_key,created_at", since: "created_at", eq: ["event_type", "coach.next_step"] },
   { table: "coordinator_recommendations", select: "kind,status,source,outcome,created_at,decided_at", since: "created_at" }
@@ -529,6 +532,32 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   details.public_comments_7d = comments.filter((row) => within(row.created_at, 7) && publicPost.has(row.post_id)).map((row) => ({
     person: p(row.user_id), post_id: row.post_id, post_type: publicPost.get(row.post_id)?.post_type, body: clip(row.body), created_at: row.created_at
   }));
+
+  // 6a. Leads and the week with the Open Abundance lead
+  const leadWeek = buildLeadWeekReport({
+    memberships: t.team_memberships ?? [],
+    checkins: t.lead_week_checkins ?? [],
+    userChallenges: t.user_challenges ?? [],
+    events,
+    now
+  });
+  metrics.lead_live_led = leadWeek.liveLed;
+  metrics.lead_oa_led = leadWeek.oaLed;
+  metrics.lead_week_goals = leadWeek.thisWeek.goals;
+  metrics.lead_week_reviews = leadWeek.thisWeek.reviews;
+  out.push("\n### Лиды и неделя с лидом Open Abundance");
+  out.push(table(["Показатель", "Значение"], [
+    ["Ведёт живой лид / лид Open Abundance (людей)", `${leadWeek.liveLed} / ${leadWeek.oaLed}`],
+    ["Цель на эту неделю поставили (из них ведёт лид OA)", `${leadWeek.thisWeek.goals} (${leadWeek.thisWeek.goalsOaLed})`],
+    ["Ответили в середине недели / подвели итог / «сделал»", `${leadWeek.thisWeek.midweek} / ${leadWeek.thisWeek.reviews} / ${leadWeek.thisWeek.done}`],
+    ["Живые лиды скопировали набор недели (7 дней)", leadWeek.kitCopies7d]
+  ]));
+  if (leadWeek.practices.length) {
+    out.push("\nПрактики за окно (недели с целью; «сделал» и квесты за неделю, сравнивать с контролем):");
+    out.push(table(["Практика", "Недель", "Сделал", "Частично", "Медиана квестов за неделю"], leadWeek.practices.map((row) => [
+      practiceLabel(row.practice), row.weeks, `${row.done} (${pct(row.done, row.weeks)})`, row.partly, row.medianQuests
+    ])));
+  }
 
   // 7. Challenges and verification
   const challenges = new Map((t.challenges ?? []).map((row) => [row.id, row]));

@@ -3069,6 +3069,7 @@ const en = {
     "quests.nova.attention_value_audit": "Let's see what your attention is worth. The number often surprises.",
     "quests.nova.today_core_target_reached": "Reach today's goal. Small steps every day add up.",
     "quests.nova.core_law_understood": "Compound growth is Core's main strength. Let's look at it together.",
+    "quests.nova.wallet_deposit_or_withdrawal": "Top up your Wallet or withdraw any amount: you'll see the money here is real.",
     "quests.nova.humanity_confirmed": "Complete \"I'm not a robot\": it opens rewards meant for real people.",
     "quests.nova.first_growth_post_published": "Share your first result. It helps others start.",
     "quests.nova.has_referral": "Invite one person you'd like to grow with.",

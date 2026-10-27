@@ -14,8 +14,14 @@ assert.equal(walletChallengeRule("daily_goal_half_streak_3"), null);
 assert.equal(walletChallengeRule(null), null);
 
 let stats = walletStats([], now);
-assert.deepEqual(stats, { streakDays: 0, netDeposit: 0, hasDeposit: false }, "no deposit, nothing counted");
+assert.deepEqual(stats, { streakDays: 0, netDeposit: 0, hasDeposit: false, hasWithdrawal: false }, "no deposit, nothing counted");
 assert.equal(walletChallengeDone({ kind: "first_deposit" }, stats), false);
+assert.equal(walletChallengeDone({ kind: "deposit_or_withdrawal" }, stats), false);
+
+// «Вывод и пополнение»: any top-up or any withdrawal.
+assert.deepEqual(walletChallengeRule("wallet_deposit_or_withdrawal"), { kind: "deposit_or_withdrawal" });
+assert.equal(walletChallengeDone({ kind: "deposit_or_withdrawal" }, walletStats([wd(0.5, "2026-10-10T12:00:00Z")], now)), true, "a withdrawal alone is enough");
+assert.equal(walletChallengeDone({ kind: "deposit_or_withdrawal" }, walletStats([dep(0.1, "2026-10-10T12:00:00Z")], now)), true, "a top-up alone is enough");
 
 stats = walletStats([dep(15, "2026-10-10T12:00:00Z")], now);
 assert.equal(walletChallengeDone({ kind: "first_deposit" }, stats), true);

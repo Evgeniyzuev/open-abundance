@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { firstWithdrawalBlock } from "@/lib/withdrawalGate";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { broadcastTonUsdtWithdrawal, loadTonUsdtConfig, normalizeTonUsdtAddress, resolveTonUsdtWithdrawalQuote, TonUsdtWithdrawalBroadcastError } from "@/lib/tonUsdt";
 import { loadTonWithdrawalConfig } from "@/lib/tonWithdrawals";
@@ -46,6 +47,8 @@ export async function POST(request: NextRequest) {
     const idempotencyKey = `ton_usdt_withdrawal:${user.id}:${idempotencySuffix}`;
     const quote = await resolveTonUsdtWithdrawalQuote(config, amountUsdt);
     if (!quote.amountUsdt || !quote.amountUnits || !quote.payoutWalletAmount || !quote.serviceFeeAmount || !quote.networkFeeReserveAmount || !quote.totalWalletDebitAmount) return jsonResponse({ error: "Could not calculate TON USDT withdrawal fees." }, { status: 422 });
+    const gate = await firstWithdrawalBlock(supabase, user.id, Number(quote.payoutWalletAmount));
+    if (gate) return jsonResponse({ error: gate, code: "first_withdrawal_min" }, { status: 400 });
     const withdrawalId = crypto.randomUUID();
     const db = supabase as any;
     const { data: reserveRows, error: reserveError } = await db.rpc("reserve_ton_usdt_withdrawal", {

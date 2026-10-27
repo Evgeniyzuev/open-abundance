@@ -2074,6 +2074,7 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "reinvest_enabled":
     case "today_core_target_reached":
     case "wallet_first_deposit":
+    case "wallet_deposit_or_withdrawal":
     case "wallet_net_deposit_20":
     case "stay_streak_7":
     case "stay_streak_15":

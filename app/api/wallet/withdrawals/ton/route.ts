@@ -7,6 +7,7 @@ import {
   resolveTonWithdrawalQuote,
   TonWithdrawalBroadcastError
 } from "@/lib/tonWithdrawals";
+import { firstWithdrawalBlock } from "@/lib/withdrawalGate";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,8 @@ export async function POST(request: NextRequest) {
     if (!quote.amountTon || !quote.amountNano || !quote.payoutUsd || !quote.serviceFeeUsd || !quote.networkFeeReserveUsd || !quote.totalWalletDebitUsd) {
       return jsonResponse({ error: "Could not calculate TON withdrawal fees." }, { status: 422 });
     }
+    const gate = await firstWithdrawalBlock(supabase, user.id, Number(quote.payoutUsd));
+    if (gate) return jsonResponse({ error: gate, code: "first_withdrawal_min" }, { status: 400 });
 
     const withdrawalId = crypto.randomUUID();
     const { data: reserveRows, error: reserveError } = await supabase.rpc("reserve_ton_withdrawal", {

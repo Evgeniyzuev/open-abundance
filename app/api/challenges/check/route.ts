@@ -797,6 +797,7 @@ async function verifyChallenge(
     const stats = walletStats(ledger ?? [], new Date(), since);
     if (walletChallengeDone(walletRule, stats)) return { ok: true };
     if (walletRule.kind === "first_deposit") return { ok: false, reason: "Top up your Wallet first." };
+    if (walletRule.kind === "deposit_or_withdrawal") return { ok: false, reason: "Top up your Wallet or withdraw any amount first." };
     if (walletRule.kind === "net_deposit") return { ok: false, reason: `Net top-ups so far: $${stats.netDeposit.toFixed(2)} of $${walletRule.amount}.` };
     return { ok: false, reason: `Keep your abundance in the app for ${walletRule.days} days without withdrawals. Days so far: ${stats.streakDays}.` };
   }

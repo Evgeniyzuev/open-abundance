@@ -3398,7 +3398,27 @@ const en = {
   "projectReview.goalSet": "Goal of the week is set",
   "projectReview.addSteps": "Add the steps to tasks",
   "projectReview.again": "Review again",
-  "projectReview.note": "The review is made by AI. It's a suggestion, not a promised result. The decisions are yours."
+  "projectReview.note": "The review is made by AI. It's a suggestion, not a promised result. The decisions are yours.",
+  "leadMeeting.label": "Meeting with your lead",
+  "leadMeeting.chooseTitle": "How often should you meet your lead?",
+  "leadMeeting.chooseBody": "Two minutes in the app: what moved, your question and one goal for the next meeting. You choose the pace; change it in the team tab.",
+  "leadMeeting.rhythm.daily": "Every day",
+  "leadMeeting.rhythm.three": "3 times a week",
+  "leadMeeting.rhythm.weekly": "Once a week",
+  "leadMeeting.rhythm.off": "Not now",
+  "leadMeeting.title": "Our meeting",
+  "leadMeeting.progress": "Quests done since the last meeting: {count} ({list}). Great!",
+  "leadMeeting.noProgress": "No new quests since the last meeting. That's fine: let's pick one small step.",
+  "leadMeeting.weekGoal": "Goal of the week: {goal}",
+  "leadMeeting.lastGoal": "Goal from the last meeting: \"{goal}\". How did it go?",
+  "leadMeeting.question": "A question or wish (optional)",
+  "leadMeeting.questionPlaceholder": "What's unclear or what you'd like",
+  "leadMeeting.nextGoal": "Goal for the next meeting",
+  "leadMeeting.nextGoalPlaceholder": "One small step",
+  "leadMeeting.finish": "Finish the meeting",
+  "leadMeeting.done": "Meeting saved. Next one: {day}.",
+  "leadMeeting.discuss": "Discuss with Nova",
+  "leadMeeting.settingsTitle": "Meetings with your lead"
 } satisfies Record<string, string>;
 
 export default en;

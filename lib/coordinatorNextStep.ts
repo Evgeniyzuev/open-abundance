@@ -1,6 +1,7 @@
 import type { ParticipantRecord } from "@/lib/coordinatorAnalysis";
 import type { Localized } from "@/lib/locales";
 import { QUEST_NUDGE_WEEK_LIMIT, chooseFirstDayHook, chooseQuestNudge, weekSends, type QuestNudgeInput, type QuestNudgeKey } from "./questNudges.ts";
+import { MEETING_DEEP_LINK, meetingInviteCopy, shouldInviteToMeeting, type MeetingInviteInput } from "./leadMeetings.ts";
 
 /**
  * Pure rules for the coordinator's daily message. No I/O so a deterministic Node test can check them
@@ -14,7 +15,7 @@ import { QUEST_NUDGE_WEEK_LIMIT, chooseFirstDayHook, chooseQuestNudge, weekSends
 
 export type BasicStepKey = "core" | "wish" | "calculator" | "accept_challenge" | "finish_challenge" | "invite" | "tasks";
 /** Basic steps plus Nova's messages about the growth path (lib/questNudges.ts). */
-export type NextStepKey = BasicStepKey | QuestNudgeKey;
+export type NextStepKey = BasicStepKey | QuestNudgeKey | "lead_meeting";
 
 export type NextStepCopy = { title: string; body: string; button: string };
 
@@ -262,6 +263,8 @@ export type NudgeContext = {
   lastActiveAt: number | null;
   /** Set unless QUEST_NUDGES_ENABLED=0: the path decides, three messages a week at most, no separate basic steps. */
   quest?: QuestNudgeInput | null;
+  /** Set for people who chose a rhythm of meetings with the lead (lib/leadMeetings.ts). */
+  meeting?: (MeetingInviteInput & { lastMeetingAt: number | null }) | null;
 };
 
 /**
@@ -281,6 +284,11 @@ export function chooseNudge(participant: ParticipantRecord, past: NudgeHistory |
   if (last && now - last.at < NUDGE_COOLDOWN_MS) return null;
   const unanswered = sends.filter((send) => context.lastActiveAt === null || send.at > context.lastActiveAt).length;
   if (unanswered >= NUDGE_PAUSE_AFTER) return null;
+
+  // The person asked for meetings with the lead: on a meeting day the invitation comes first.
+  if (context.meeting && shouldInviteToMeeting(context.meeting, sends, context.meeting.lastMeetingAt, now)) {
+    return { key: "lead_meeting", deepLink: MEETING_DEEP_LINK, copy: meetingInviteCopy(context.meeting) };
+  }
 
   if (context.quest) {
     // The path covers the basic steps (wish, calculator, first quest), so only Core and tasks for today remain.

@@ -46,3 +46,30 @@ assert.deepEqual(report.practices[0], { practice: "woop", weeks: 1, done: 1, par
 const migration = readFileSync(new URL("../supabase/migrations/20261027190000_lead_week_checkins.sql", import.meta.url), "utf8");
 assert.ok(migration.includes("visibility = 'lead'"), "a lead sees only weeks shared with them");
 console.log("lead week contract ok");
+
+// Meetings with the lead: the person's rhythm, back-off after two unanswered invitations, Monday only then.
+const { isMeetingDay, isMeetingDue, nextMeetingDay, shouldInviteToMeeting, meetingInviteCopy, meetingChatPrompt } = await import("../lib/leadMeetings.ts");
+const { chooseNudge } = await import("../lib/coordinatorNextStep.ts");
+const tue = Date.parse("2026-10-27T12:00:00Z");
+const wed = Date.parse("2026-10-28T12:00:00Z");
+const nextMon = Date.parse("2026-11-02T12:00:00Z");
+assert.ok(isMeetingDay("daily", tue) && !isMeetingDay("three", tue) && isMeetingDay("three", wed) && !isMeetingDay("weekly", wed));
+assert.ok(!isMeetingDue("daily", "2026-10-27", tue), "already met today");
+assert.ok(!isMeetingDue("off", null, tue) && !isMeetingDue(null, null, tue));
+assert.equal(nextMeetingDay("three", tue), "2026-10-28");
+assert.equal(nextMeetingDay("weekly", tue), "2026-11-02");
+const meet = { rhythm: "daily", lastMeetingDay: "2026-10-20", motive: "income", lastGoal: "Позвонить клиенту" };
+assert.ok(shouldInviteToMeeting(meet, [], Date.parse("2026-10-20T10:00:00Z"), tue));
+assert.ok(!shouldInviteToMeeting(meet, [{ step: "lead_meeting", at: tue - 3_600_000 }], null, tue), "once a day");
+const twoMissed = [{ step: "lead_meeting", at: tue - 2 * 86_400_000 }, { step: "lead_meeting", at: tue - 86_400_000 }];
+assert.ok(!shouldInviteToMeeting(meet, twoMissed, Date.parse("2026-10-20T10:00:00Z"), tue), "backs off after two unanswered");
+assert.ok(shouldInviteToMeeting({ ...meet, lastMeetingDay: "2026-10-20" }, twoMissed, Date.parse("2026-10-20T10:00:00Z"), nextMon), "still invites on Monday");
+assert.ok(meetingInviteCopy(meet).ru.body.includes("Позвонить клиенту") && meetingInviteCopy(meet).ru.body.includes("доход"));
+assert.ok(meetingChatPrompt({ progress: ["Первый шаг"], lastGoal: "x", status: "done", question: "Как?", nextGoal: "y" }, "ru").includes("Мой вопрос: Как?"));
+
+const participant = { id: "11111111-1111-4111-8111-111111111111", registeredAt: "2026-10-01T00:00:00Z", coreBalance: 0, lastActiveAt: null };
+const step = chooseNudge(participant, { sends: [] }, { tasks: null, lastActiveAt: tue - 3_600_000, quest: null, meeting: { ...meet, lastMeetingAt: null } }, tue);
+assert.equal(step?.key, "lead_meeting", "the meeting invitation comes first on a meeting day");
+const migration2 = readFileSync(new URL("../supabase/migrations/20261027200000_lead_meetings.sql", import.meta.url), "utf8");
+assert.ok(migration2.includes("unique (user_id, meeting_day)"));
+console.log("lead meetings contract ok");

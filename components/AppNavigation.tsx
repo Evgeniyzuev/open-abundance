@@ -15,6 +15,7 @@ import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import InstallPingAck from "@/components/InstallPingAck";
 import NicknameNotice from "@/components/NicknameNotice";
 import NovaDailyCard from "@/components/NovaDailyCard";
+import LeadMeetingCard from "@/components/LeadMeetingCard";
 import SelfServeCheckIn from "@/components/SelfServeCheckIn";
 import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
@@ -700,6 +701,7 @@ export default function AppNavigation() {
             onOpenChat={() => { setVisitedHomeViews((current) => ({ ...current, ideas: true })); setActiveHomeTab("ideas"); setActiveMainTab("home"); }}
             onOpenCore={openCore}
           />
+          <LeadMeetingCard active={showHome} />
           <HomeTodayApp
             active={showHome}
             onOpenCalculator={openCalculator}

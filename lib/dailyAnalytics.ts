@@ -93,6 +93,8 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "direct_messages", select: "sender_user_id,conversation_id,created_at", since: "created_at", cap: 50_000 },
   { table: "user_follows", select: "follower_user_id,followee_user_id,created_at" },
   { table: "team_memberships", select: "member_user_id,leader_user_id,is_active" },
+  { table: "lead_meeting_settings", select: "user_id,rhythm" },
+  { table: "lead_meetings", select: "user_id,meeting_day,last_goal_status,question,next_goal,created_at", since: "created_at" },
   { table: "lead_week_checkins", select: "user_id,week_start,practice_key,goal,midweek_status,review_status,created_at", since: "created_at" },
   { table: "telegram_accounts", select: "user_id" },
   { table: "notification_events", select: "idempotency_key,created_at", since: "created_at", eq: ["event_type", "coach.next_step"] },
@@ -552,6 +554,13 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
     ["Ответили в середине недели / подвели итог / «сделал»", `${leadWeek.thisWeek.midweek} / ${leadWeek.thisWeek.reviews} / ${leadWeek.thisWeek.done}`],
     ["Живые лиды скопировали набор недели (7 дней)", leadWeek.kitCopies7d]
   ]));
+  const meetingSettings = t.lead_meeting_settings ?? [];
+  const meetings7d = (t.lead_meetings ?? []).filter((row) => within(row.created_at, 7));
+  metrics.lead_meetings_7d = meetings7d.length;
+  metrics.lead_meeting_people_7d = new Set(meetings7d.map((row) => row.user_id)).size;
+  const rhythms = countBy(meetingSettings, (row) => row.rhythm);
+  const goalStatuses = countBy(meetings7d.filter((row) => row.last_goal_status), (row) => row.last_goal_status);
+  out.push(`\nВстречи с лидом: ритм выбрали ${meetingSettings.length} чел. (${rhythms.map(([rhythm, value]) => `${rhythm} ${value}`).join(", ") || "—"}); за 7 дней встреч ${meetings7d.length} у ${metrics.lead_meeting_people_7d} чел., с вопросом ${meetings7d.filter((row) => row.question).length}, с целью на следующую ${meetings7d.filter((row) => row.next_goal).length}; прошлая цель: ${goalStatuses.map(([status, value]) => `${status} ${value}`).join(", ") || "—"}.`);
   if (leadWeek.practices.length) {
     out.push("\nПрактики за окно (недели с целью; «сделал» и квесты за неделю, сравнивать с контролем):");
     out.push(table(["Практика", "Недель", "Сделал", "Частично", "Медиана квестов за неделю"], leadWeek.practices.map((row) => [

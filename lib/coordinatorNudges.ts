@@ -23,6 +23,7 @@ import type { Localized } from "@/lib/locales";
 import { HOLDOUT_EVENT, isHoldout, type QuestCatalogItem, type QuestNudgeInput, type QuestUserRow } from "@/lib/questNudges";
 import { weeklyLeaders } from "@/lib/questLeaders";
 import { weekStart } from "@/lib/leadPractices";
+import { isMeetingRhythm, type MeetingInviteInput } from "@/lib/leadMeetings";
 import { isQaUser } from "@/lib/qaAccounts";
 
 type AnyDb = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
@@ -85,10 +86,16 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
 
   const tasks = await loadTodayTasks(db, participants.map((participant) => participant.id));
   const quests = questMode ? await loadQuestInputs(db, participants.map((participant) => participant.id), now) : null;
+  const meetings = await loadMeetingInputs(db, participants.map((participant) => participant.id));
   const byId = new Map(participants.map((participant) => [participant.id, participant]));
   const contextFor = (userId: string) => {
     const lastActiveAt = byId.get(userId)?.lastActiveAt;
-    return { tasks: tasks.get(userId) ?? null, lastActiveAt: lastActiveAt ? Date.parse(lastActiveAt) : null, quest: quests?.get(userId) ?? null };
+    return {
+      tasks: tasks.get(userId) ?? null,
+      lastActiveAt: lastActiveAt ? Date.parse(lastActiveAt) : null,
+      quest: quests?.get(userId) ?? null,
+      meeting: meetings.get(userId) ?? null
+    };
   };
 
   // Plan wider than one run, then keep the people for whom it is daytime now: the job runs every hour and picks up
@@ -114,7 +121,8 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
   const botToken = pushCopiedToTelegram ? null : process.env.TELEGRAM_BOT_TOKEN ?? null;
 
   for (const { userId, step } of planned) {
-    if (questMode && isHoldout(userId)) {
+    // Meetings are the person's own choice, so the control group does not apply to them.
+    if (questMode && step.key !== "lead_meeting" && isHoldout(userId)) {
       // Control group: nothing is sent; the event says what would have gone out, for the analytics.
       await db.from("product_events").insert({ event_name: HOLDOUT_EVENT, user_id: userId, source: "server", properties: { step: step.key } });
       summary.holdout += 1;
@@ -141,6 +149,11 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
       continue;
     }
     summary.sent += 1;
+    if (step.key === "lead_meeting") {
+      // The invitation also waits in the Nova chat, so the unread dot shows on her tab.
+      const text = (profile?.locale === "ru" ? copy.ru : null) ?? copy.en;
+      await db.from("nova_inbox_messages").insert({ user_id: userId, body: `${text.title}\n\n${text.body}`.slice(0, 800), source: "claude", reason: "lead_meeting" });
+    }
     if (botToken) {
       const result = await sendNudgeToTelegram(db, botToken, userId, step.deepLink, copy, profile?.locale ?? "en");
       if (result === "sent") summary.telegramSent += 1;
@@ -352,6 +365,34 @@ async function loadLeadWeekGoals(db: AnyDb, userIds: string[], now: number): Pro
   const withGoal = new Set(((weeks.data ?? []) as any[]).filter((row) => row.goal).map((row) => row.user_id));
   for (const row of (memberships.data ?? []) as any[]) {
     if (!row.leader_user_id) result.set(row.member_user_id, withGoal.has(row.member_user_id));
+  }
+  return result;
+}
+
+/** Meeting rhythm, the last meeting and the person's motive, for people who chose a rhythm. Missing tables: none. */
+async function loadMeetingInputs(db: AnyDb, userIds: string[]): Promise<Map<string, MeetingInviteInput & { lastMeetingAt: number | null }>> {
+  const result = new Map<string, MeetingInviteInput & { lastMeetingAt: number | null }>();
+  if (userIds.length === 0) return result;
+  const settings = await db.from("lead_meeting_settings").select("user_id,rhythm").in("user_id", userIds).neq("rhythm", "off");
+  if (settings.error || !(settings.data ?? []).length) return result;
+  const ids = (settings.data as any[]).map((row) => row.user_id);
+  const [meetings, profiles] = await Promise.all([
+    db.from("lead_meetings").select("user_id,meeting_day,next_goal,created_at").in("user_id", ids).order("created_at", { ascending: false }),
+    db.from("user_profiles").select("user_id,quest_motive").in("user_id", ids)
+  ]);
+  const last = new Map<string, any>();
+  for (const row of (meetings.data ?? []) as any[]) if (!last.has(row.user_id)) last.set(row.user_id, row);
+  const motives = new Map(((profiles.data ?? []) as any[]).map((row) => [row.user_id, row.quest_motive ?? null]));
+  for (const row of settings.data as any[]) {
+    if (!isMeetingRhythm(row.rhythm)) continue;
+    const meeting = last.get(row.user_id);
+    result.set(row.user_id, {
+      rhythm: row.rhythm,
+      lastMeetingDay: meeting?.meeting_day ?? null,
+      lastMeetingAt: meeting ? Date.parse(meeting.created_at) : null,
+      lastGoal: meeting?.next_goal ?? null,
+      motive: motives.get(row.user_id) ?? null
+    });
   }
   return result;
 }

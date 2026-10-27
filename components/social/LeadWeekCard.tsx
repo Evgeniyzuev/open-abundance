@@ -5,6 +5,7 @@ import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import LeadMeetingSettings from "@/components/social/LeadMeetingSettings";
 import {
   CONTROL_PRACTICE,
   MIDWEEK_STATUSES,
@@ -162,6 +163,8 @@ export default function LeadWeekCard() {
         </div>
       ) : null}
       {week?.review_status ? <p role="status">{t("leadWeek.reviewed")}</p> : null}
+
+      <LeadMeetingSettings />
 
       {data.lead && kit ? (
         <details className="lead-week-kit">

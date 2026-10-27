@@ -3398,7 +3398,27 @@ const ru: Record<string, string> = {
   "projectReview.goalSet": "Цель недели поставлена",
   "projectReview.addSteps": "Добавить шаги в задачи",
   "projectReview.again": "Разобрать заново",
-  "projectReview.note": "Разбор делает ИИ. Это подсказка, а не обещание результата. Решения за тобой."
+  "projectReview.note": "Разбор делает ИИ. Это подсказка, а не обещание результата. Решения за тобой.",
+  "leadMeeting.label": "Встреча с лидом",
+  "leadMeeting.chooseTitle": "Как часто встречаться с лидом?",
+  "leadMeeting.chooseBody": "Две минуты в приложении: что сдвинулось, твой вопрос и одна цель к следующей встрече. Темп выбираешь ты, поменять можно во вкладке команды.",
+  "leadMeeting.rhythm.daily": "Каждый день",
+  "leadMeeting.rhythm.three": "3 раза в неделю",
+  "leadMeeting.rhythm.weekly": "Раз в неделю",
+  "leadMeeting.rhythm.off": "Не сейчас",
+  "leadMeeting.title": "Наша встреча",
+  "leadMeeting.progress": "С прошлой встречи пройдено квестов: {count} ({list}). Отлично!",
+  "leadMeeting.noProgress": "С прошлой встречи новых квестов нет. Это нормально: давай выберем один маленький шаг.",
+  "leadMeeting.weekGoal": "Цель недели: {goal}",
+  "leadMeeting.lastGoal": "Цель с прошлой встречи: «{goal}». Как прошло?",
+  "leadMeeting.question": "Вопрос или пожелание (по желанию)",
+  "leadMeeting.questionPlaceholder": "Что непонятно или чего хочется",
+  "leadMeeting.nextGoal": "Цель к следующей встрече",
+  "leadMeeting.nextGoalPlaceholder": "Один маленький шаг",
+  "leadMeeting.finish": "Завершить встречу",
+  "leadMeeting.done": "Встреча записана. Следующая: {day}.",
+  "leadMeeting.discuss": "Обсудить с Новой",
+  "leadMeeting.settingsTitle": "Встречи с лидом"
 };
 
 export default ru;

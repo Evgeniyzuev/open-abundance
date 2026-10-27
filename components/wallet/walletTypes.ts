@@ -236,6 +236,9 @@ export type MarketplaceDeal = {
   delivery_due_at?: string | null;
   delivered_at?: string | null;
   disputed_at?: string | null;
+  listing_title?: string | null;
+  /** Set for an Open Abundance product: the buyer opens it on /products/<key>. */
+  product_key?: string | null;
   events?: MarketplaceDealEvent[];
 };
 

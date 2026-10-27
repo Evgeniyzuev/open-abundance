@@ -55,7 +55,16 @@ export async function GET(request: NextRequest) {
       list.push(event);
       eventsByDeal.set(event.deal_id, list);
     }
-    const dealsWithEvents = uniqueDeals.map((deal: any) => ({ ...deal, events: eventsByDeal.get(deal.id) ?? [] }));
+    // The listing title, and the product key of an Open Abundance product so the buyer gets an "Open the product" link.
+    const listingIds = Array.from(new Set(uniqueDeals.map((deal: any) => deal.listing_id).filter(Boolean)));
+    const { data: listingRows } = listingIds.length
+      ? await (supabase as any).from("marketplace_listings").select("id,title,metadata").in("id", listingIds)
+      : { data: [] };
+    const listingById = new Map<string, any>((listingRows ?? []).map((row: any) => [row.id, row]));
+    const dealsWithEvents = uniqueDeals.map((deal: any) => {
+      const listing = listingById.get(deal.listing_id);
+      return { ...deal, listing_title: listing?.title ?? null, product_key: productKeyOf(listing?.metadata), events: eventsByDeal.get(deal.id) ?? [] };
+    });
 
     return NextResponse.json(
       {
@@ -133,6 +142,8 @@ async function autoServeOaProduct(dealId: unknown, idempotent: boolean): Promise
     const accepted = await db.rpc("accept_marketplace_deal", { p_deal_id: dealId, p_actor_user_id: sellerId });
     if (accepted.error || accepted.data?.error) return;
     await db.rpc("deliver_marketplace_deal", { p_deal_id: dealId, p_actor_user_id: sellerId });
+    // A product is sold in any number of copies: the listing stays open for the next buyer.
+    await db.from("marketplace_listings").update({ status: "active" }).eq("id", deal.listing_id).in("status", ["reserved", "sold"]);
   } catch {
     // The deal stays awaiting the seller.
   }

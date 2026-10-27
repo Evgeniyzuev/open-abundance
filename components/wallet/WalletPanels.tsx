@@ -673,6 +673,7 @@ export function MarketplacePanel({
             return (
               <article className="market-card" key={deal.id}>
                 <div className="market-card-body">
+                  {deal.listing_title ? <strong>{deal.listing_title}</strong> : null}
                   <strong>{t("market.dealStatus", { status: deal.status })}</strong>
                   <span>{formatAdaptiveMoney(Number(deal.price_amount), locale)}</span>
                   {deal.status === "awaiting_seller" && deal.expires_at ? <small>{t("market.timer")}: {new Date(deal.expires_at).toLocaleString(locale === "ru" ? "ru-RU" : "en-US")}</small> : null}
@@ -681,6 +682,7 @@ export function MarketplacePanel({
                   <div className="market-card-actions">
                     {deal.status === "awaiting_seller" && !buying ? <button className="text-button" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "accept")}>{t("market.accept")}</button> : null}
                     {deal.status === "accepted" && !buying ? <button className="text-button" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "deliver")}>{t("market.deliver")}</button> : null}
+                    {buying && deal.product_key && ["accepted", "delivered", "completed"].includes(deal.status) ? <a className="text-button" href={`/products/${deal.product_key}`}>{t("market.openProduct")}</a> : null}
                     {deal.status === "delivered" && buying ? <button className="text-button" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "confirm")}>{t("market.confirm")}</button> : null}
                     {deal.status === "completed" && buying ? <button className="text-button" type="button" disabled={dealSavingId === deal.id} onClick={() => onReview(deal.id)}>{t("market.review")}</button> : null}
                     {(deal.status === "accepted" || deal.status === "delivered") ? <button className="text-button danger" type="button" disabled={dealSavingId === deal.id} onClick={() => onDealAction(deal.id, "dispute")}>{t("market.dispute")}</button> : null}

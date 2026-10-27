@@ -3070,6 +3070,8 @@ const ru: Record<string, string> = {
     "quests.nova.today_core_target_reached": "Собери цель дня. Маленькие шаги каждый день складываются.",
     "quests.nova.core_law_understood": "Сложный рост — главная сила Core. Разберёмся вместе.",
     "quests.nova.wallet_deposit_or_withdrawal": "Пополни Wallet или выведи любую сумму: так ты увидишь, что деньги здесь настоящие.",
+    "quests.nova.wallet_first_withdrawal": "Выведи любую сумму на свой кошелёк: так ты увидишь, что деньги здесь настоящие.",
+    "quests.nova.wallet_topup_bonus": "Пополни Wallet на любую сумму: 10% от неё сразу придут в Core, до $5.",
     "quests.nova.humanity_confirmed": "Пройди «Я не робот»: это откроет награды для настоящих людей.",
     "quests.nova.first_growth_post_published": "Поделись первым результатом. Другим это помогает начать.",
     "quests.nova.has_referral": "Позови одного человека, с которым хочется расти вместе.",

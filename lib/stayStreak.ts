@@ -1,6 +1,8 @@
 // Rules of the Wallet chain challenges (no imports, tested directly by node):
 //   wallet_first_deposit   any deposit
-//   wallet_deposit_or_withdrawal   any deposit or any withdrawal («Вывод и пополнение»)
+//   wallet_deposit_or_withdrawal   any deposit or any withdrawal
+//   wallet_first_withdrawal   any withdrawal («Первый вывод», path step)
+//   wallet_topup_bonus     a top-up after the first withdrawal; pays 10% of it to Core, at most $5 (SQL settle_topup_bonus_challenge)
 //   wallet_net_deposit_N   deposits minus withdrawals reach N dollars
 //   stay_streak_N          N days without a crypto withdrawal, counted from the previous step of the chain
 // Wallet spending inside the app and Core top-ups never break a streak.
@@ -8,13 +10,18 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type StayLedgerRow = { operation_type: string; direction: string; amount: number | string; created_at: string };
-export type WalletChallengeRule = { kind: "first_deposit" } | { kind: "deposit_or_withdrawal" } | { kind: "net_deposit"; amount: number } | { kind: "stay"; days: number };
+export const TOPUP_BONUS_LOGIC = "wallet_topup_bonus";
+export const TOPUP_BONUS_PERCENT = 10;
+export const TOPUP_BONUS_MAX_USD = 5;
+
+export type WalletChallengeRule = { kind: "first_deposit" } | { kind: "first_withdrawal" } | { kind: "deposit_or_withdrawal" } | { kind: "net_deposit"; amount: number } | { kind: "stay"; days: number };
 export type WalletChallengeProgress = { current: number; target: number; unit: "usd" | "days" };
 export type WalletStats = { streakDays: number; netDeposit: number; hasDeposit: boolean; hasWithdrawal: boolean };
 
 export function walletChallengeRule(logic: string | null | undefined): WalletChallengeRule | null {
   if (logic === "wallet_first_deposit") return { kind: "first_deposit" };
   if (logic === "wallet_deposit_or_withdrawal") return { kind: "deposit_or_withdrawal" };
+  if (logic === "wallet_first_withdrawal") return { kind: "first_withdrawal" };
   const net = logic?.match(/^wallet_net_deposit_(\d+)$/);
   if (net && Number(net[1]) > 0) return { kind: "net_deposit", amount: Number(net[1]) };
   const stay = logic?.match(/^stay_streak_(\d+)$/);
@@ -56,6 +63,7 @@ export function walletChallengeProgress(rule: WalletChallengeRule, stats: Wallet
 export function walletChallengeDone(rule: WalletChallengeRule, stats: WalletStats): boolean {
   if (rule.kind === "first_deposit") return stats.hasDeposit;
   if (rule.kind === "deposit_or_withdrawal") return stats.hasDeposit || stats.hasWithdrawal;
+  if (rule.kind === "first_withdrawal") return stats.hasWithdrawal;
   if (rule.kind === "net_deposit") return stats.netDeposit >= rule.amount;
   return stats.hasDeposit && stats.streakDays >= rule.days;
 }

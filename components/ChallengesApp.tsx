@@ -20,6 +20,7 @@ import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
 import { AppInstalledQuest, ChooseWishQuest, ContinueQuestion, CorePowerQuest, FirstStepQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
+import { TOPUP_BONUS_LOGIC, TOPUP_BONUS_MAX_USD, TOPUP_BONUS_PERCENT } from "@/lib/stayStreak";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, parseMotives, type QuestPlacement } from "@/lib/questPath";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
 import { signInWithGoogle } from "@/lib/supabaseClient";
@@ -2010,7 +2011,9 @@ function projectRewardText(value: RewardLabel, locale: AppLocale): string {
   return amount === null ? "" : formatTodayMoney(amount, locale);
 }
 
-function challengeRewardText(challenge: Pick<Challenge, "core_reward_amount" | "wallet_reward_amount">, locale: AppLocale): string {
+function challengeRewardText(challenge: Pick<Challenge, "core_reward_amount" | "wallet_reward_amount" | "verification_logic">, locale: AppLocale): string {
+  // The top-up quest pays a share of the top-up, not a fixed amount (lib/stayStreak.ts).
+  if (challenge.verification_logic === TOPUP_BONUS_LOGIC) return `Core +${TOPUP_BONUS_PERCENT}% (≤ ${formatTodayMoney(TOPUP_BONUS_MAX_USD, locale)})`;
   return formatRewardAmounts(challenge.core_reward_amount, challenge.wallet_reward_amount, locale);
 }
 
@@ -2075,6 +2078,8 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "today_core_target_reached":
     case "wallet_first_deposit":
     case "wallet_deposit_or_withdrawal":
+    case "wallet_first_withdrawal":
+    case "wallet_topup_bonus":
     case "wallet_net_deposit_20":
     case "stay_streak_7":
     case "stay_streak_15":

@@ -10,7 +10,7 @@ import { activeReferralsThreshold, confirmedReferralsThreshold } from "@/lib/cre
 import { BUSINESS_BUYERS_TARGET, BUSINESS_REVIEWS_TARGET, distinctOthers, invitedBuyers, strangerBuyers } from "@/lib/businessChallenges";
 import { GROWTH_TOPUP_MONTHS_TARGET, SPEND_SHIFT_PURCHASES_TARGET, SPEND_SHIFT_WINDOW_DAYS, countWithinDays, distinctMonths, topUpAfterWish } from "@/lib/growthChallenges";
 import { dailyGoalRule, dayCreditStats } from "@/lib/dayCredit";
-import { walletChallengeDone, walletChallengeRule, walletStats } from "@/lib/stayStreak";
+import { TOPUP_BONUS_LOGIC, TOPUP_BONUS_MAX_USD, TOPUP_BONUS_PERCENT, walletChallengeDone, walletChallengeRule, walletStats } from "@/lib/stayStreak";
 import { hasThreeSteps } from "@/lib/wishSteps";
 import { VALUES_CHALLENGE_SWIPES, valuesChallengeDone } from "@/lib/lifeValues";
 import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
@@ -144,10 +144,10 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const { data: completion, error: completionError } = await supabase.rpc("settle_user_challenge_rewards", {
-    p_user_id: user.id,
-    p_challenge_id: challenge.id
-  });
+  const { data: completion, error: completionError } = await (supabase as any).rpc(
+    challenge.verification_logic === TOPUP_BONUS_LOGIC ? "settle_topup_bonus_challenge" : "settle_user_challenge_rewards",
+    { p_user_id: user.id, p_challenge_id: challenge.id }
+  );
 
   if (completionError) {
     return NextResponse.json({ error: completionError.message }, { status: 500 });
@@ -779,6 +779,17 @@ async function verifyChallenge(
     }
   }
 
+  if (challenge.verification_logic === TOPUP_BONUS_LOGIC) {
+    // Only a top-up made after the first withdrawal step counts; the bonus itself is computed by the SQL settlement.
+    const { data: since, error: sinceError } = await db.rpc("topup_bonus_since", { p_user_id: userId, p_challenge_id: challenge.id });
+    if (sinceError) return { ok: false, reason: "Could not check the Wallet history. Try again." };
+    const { count, error: depositError } = await db.from("wallet_ledger").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("operation_type", "crypto_deposit").eq("direction", "credit").gt("created_at", since);
+    if (depositError) return { ok: false, reason: "Could not check the Wallet history. Try again." };
+    if (Number(count ?? 0) > 0) return { ok: true };
+    return { ok: false, reason: `Top up your Wallet with any amount: ${TOPUP_BONUS_PERCENT}% of it goes to Core (up to $${TOPUP_BONUS_MAX_USD}).` };
+  }
+
   const walletRule = walletChallengeRule(challenge.verification_logic);
   if (walletRule) {
     const { data: ledger, error: ledgerError } = await supabase
@@ -797,6 +808,7 @@ async function verifyChallenge(
     const stats = walletStats(ledger ?? [], new Date(), since);
     if (walletChallengeDone(walletRule, stats)) return { ok: true };
     if (walletRule.kind === "first_deposit") return { ok: false, reason: "Top up your Wallet first." };
+    if (walletRule.kind === "first_withdrawal") return { ok: false, reason: "Withdraw any amount from your Wallet first. Without «I'm not a robot» the first withdrawal starts at $1." };
     if (walletRule.kind === "deposit_or_withdrawal") return { ok: false, reason: "Top up your Wallet or withdraw any amount first." };
     if (walletRule.kind === "net_deposit") return { ok: false, reason: `Net top-ups so far: $${stats.netDeposit.toFixed(2)} of $${walletRule.amount}.` };
     return { ok: false, reason: `Keep your abundance in the app for ${walletRule.days} days without withdrawals. Days so far: ${stats.streakDays}.` };

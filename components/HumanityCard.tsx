@@ -15,9 +15,14 @@ type HumanityStatus = {
 };
 
 const POLL_INTERVAL_MS = 10_000;
-const POLL_MAX_MS = 180_000;
+const POLL_MAX_MS = 600_000;
 // An attempt older than this counts as unfinished and the user may start a new one.
 const ATTEMPT_FRESH_MS = 10 * 60_000;
+
+function telegramWebApp(): { initData?: string; openLink?: (url: string) => void } | null {
+  const webApp = (window as unknown as { Telegram?: { WebApp?: { initData?: string; openLink?: (url: string) => void } } }).Telegram?.WebApp;
+  return webApp?.initData ? webApp : null;
+}
 
 /**
  * Optional card on Home: confirm that you are a person (short face check by an external provider,
@@ -33,6 +38,9 @@ export default function HumanityCard({ active, showWhenVerified = false }: { act
   const [returned, setReturned] = useState(false);
   const [pollExpired, setPollExpired] = useState(false);
   const [restart, setRestart] = useState(false);
+  const [inTelegram, setInTelegram] = useState(false);
+
+  useEffect(() => setInTelegram(Boolean(telegramWebApp())), []);
 
   const load = useCallback(async () => {
     try {
@@ -85,6 +93,15 @@ export default function HumanityCard({ active, showWhenVerified = false }: { act
       const payload = (await response.json()) as { url?: string; code?: string };
       if (!response.ok || !payload.url) {
         setError(payload.code === "rate_limited" ? t("humanity.rateLimited") : payload.code === "in_review" ? t("humanity.inReview") : t("humanity.startFailed"));
+        return;
+      }
+      // Inside Telegram the in-app view often has no camera (10 of 11 unfinished checks by Oct 27 were Telegram
+      // accounts), so the check opens in the phone's browser and this card waits for the result.
+      const webApp = telegramWebApp();
+      if (webApp?.openLink) {
+        webApp.openLink(payload.url);
+        setPollExpired(false);
+        setReturned(true);
         return;
       }
       window.location.assign(payload.url);
@@ -142,6 +159,7 @@ export default function HumanityCard({ active, showWhenVerified = false }: { act
           <button className="challenge-primary-action" type="button" disabled={!consent || starting} onClick={() => void start()}>
             {starting ? t("app.common.loading") : t("humanity.start")}
           </button>
+          {inTelegram ? <p className="transfer-muted" style={{ marginTop: 8 }}>{t("humanity.telegramBrowser")}</p> : null}
           <p className="transfer-muted" style={{ marginTop: 8 }}>{t("humanity.alternative")}</p>
         </>
       ) : null}

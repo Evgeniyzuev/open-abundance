@@ -1806,6 +1806,7 @@ const en = {
   "humanity.rejected": "The check did not pass. You can try again later.",
   "humanity.rateLimited": "Too many attempts today. Try again tomorrow.",
   "humanity.startFailed": "Could not start the check. Try again later.",
+  "humanity.telegramBrowser": "The check opens in your phone's browser, where the camera works. Come back to Telegram afterwards: the result shows up here.",
   "humanity.alternative": "Prefer not to do this online, or it does not work? Write to us through \"Suggest an improvement\" and we will confirm manually.",
   "social.teams.bonus.note": "The leader bonus is credited to Wallet only if both you and your team member are confirmed as people. Otherwise it is credited to Core.",
   "social.teams.bonus.toWallet": "to Wallet",

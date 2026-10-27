@@ -8,7 +8,7 @@ export type QuestMotive = (typeof QUEST_MOTIVES)[number];
 const DAILY_CORE_RATE = 0.000633;
 
 export const FIRST_STEP_LOGIC = "first_step_motive";
-/** Path step 3: a push code that only the installed app asks for (the Telegram bot is step 4, "code_telegram"). */
+/** Path step 5, after "The power of Core": a push code that only the installed app asks for (the Telegram bot is step 3). */
 export const APP_INSTALLED_LOGIC = "app_installed";
 export const MOTIVE_NOTE_MAX = 200;
 /**

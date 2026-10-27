@@ -3071,7 +3071,7 @@ const en = {
     "quests.nova.core_law_understood": "Compound growth is Core's main strength. Let's look at it together.",
     "quests.nova.wallet_deposit_or_withdrawal": "Top up your Wallet or withdraw any amount: you'll see the money here is real.",
     "quests.nova.wallet_first_withdrawal": "Withdraw any amount to your own wallet: you'll see the money here is real.",
-    "quests.nova.wallet_topup_bonus": "Top up your Wallet with any amount: 10% of it goes straight to Core, up to $5.",
+    "quests.nova.wallet_withdraw_then_topup": "Two steps: withdraw any amount, then top up your Wallet. The quest pays +$1 to Core plus 10% of the top-up, up to $5.",
     "quests.nova.humanity_confirmed": "Complete \"I'm not a robot\": it opens rewards meant for real people.",
     "quests.nova.first_growth_post_published": "Share your first result. It helps others start.",
     "quests.nova.has_referral": "Invite one person you'd like to grow with.",

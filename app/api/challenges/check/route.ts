@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: completion, error: completionError } = await (supabase as any).rpc(
-    challenge.verification_logic === TOPUP_BONUS_LOGIC ? "settle_topup_bonus_challenge" : "settle_user_challenge_rewards",
+    challenge.verification_logic === TOPUP_BONUS_LOGIC ? "settle_withdraw_topup_challenge" : "settle_user_challenge_rewards",
     { p_user_id: user.id, p_challenge_id: challenge.id }
   );
 
@@ -780,14 +780,15 @@ async function verifyChallenge(
   }
 
   if (challenge.verification_logic === TOPUP_BONUS_LOGIC) {
-    // Only a top-up made after the first withdrawal step counts; the bonus itself is computed by the SQL settlement.
-    const { data: since, error: sinceError } = await db.rpc("topup_bonus_since", { p_user_id: userId, p_challenge_id: challenge.id });
+    // Step 1 a withdrawal, step 2 a top-up after it; the bonus itself is computed by the SQL settlement.
+    const { data: since, error: sinceError } = await db.rpc("first_wallet_withdrawal_at", { p_user_id: userId });
     if (sinceError) return { ok: false, reason: "Could not check the Wallet history. Try again." };
+    if (!since) return { ok: false, reason: "Step 1 of 2: withdraw any amount from your Wallet. Without «I'm not a robot» the first withdrawal starts at $1." };
     const { count, error: depositError } = await db.from("wallet_ledger").select("id", { count: "exact", head: true })
       .eq("user_id", userId).eq("operation_type", "crypto_deposit").eq("direction", "credit").gt("created_at", since);
     if (depositError) return { ok: false, reason: "Could not check the Wallet history. Try again." };
     if (Number(count ?? 0) > 0) return { ok: true };
-    return { ok: false, reason: `Top up your Wallet with any amount: ${TOPUP_BONUS_PERCENT}% of it goes to Core (up to $${TOPUP_BONUS_MAX_USD}).` };
+    return { ok: false, reason: `Step 2 of 2: top up your Wallet with any amount. ${TOPUP_BONUS_PERCENT}% of it is added to the Core reward (up to $${TOPUP_BONUS_MAX_USD}).` };
   }
 
   const walletRule = walletChallengeRule(challenge.verification_logic);

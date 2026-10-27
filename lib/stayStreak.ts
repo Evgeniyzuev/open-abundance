@@ -1,8 +1,9 @@
 // Rules of the Wallet chain challenges (no imports, tested directly by node):
 //   wallet_first_deposit   any deposit
 //   wallet_deposit_or_withdrawal   any deposit or any withdrawal
-//   wallet_first_withdrawal   any withdrawal («Первый вывод», path step)
-//   wallet_topup_bonus     a top-up after the first withdrawal; pays 10% of it to Core, at most $5 (SQL settle_topup_bonus_challenge)
+//   wallet_first_withdrawal   any withdrawal
+//   wallet_withdraw_then_topup   «Вывод и пополнение»: a withdrawal, then a top-up after it; pays the fixed reward plus 10% of
+//                          those top-ups to Core, the bonus at most $5 (SQL settle_withdraw_topup_challenge)
 //   wallet_net_deposit_N   deposits minus withdrawals reach N dollars
 //   stay_streak_N          N days without a crypto withdrawal, counted from the previous step of the chain
 // Wallet spending inside the app and Core top-ups never break a streak.
@@ -10,7 +11,7 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type StayLedgerRow = { operation_type: string; direction: string; amount: number | string; created_at: string };
-export const TOPUP_BONUS_LOGIC = "wallet_topup_bonus";
+export const TOPUP_BONUS_LOGIC = "wallet_withdraw_then_topup";
 export const TOPUP_BONUS_PERCENT = 10;
 export const TOPUP_BONUS_MAX_USD = 5;
 

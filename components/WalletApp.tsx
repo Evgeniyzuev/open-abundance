@@ -1008,7 +1008,12 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           onExchange={myActiveListings.length ? (listingId) => setExchangeTargetId(listingId) : undefined}
           exchangeRefreshKey={exchangeRefreshKey}
           onExchangeChanged={() => { void reloadMarketAfterExchange(); }}
-          onView={(listingId) => { void handleViewListing(listingId); }}
+          onView={(listingId) => {
+            // From the full-screen listing card the seller goes straight to editing.
+            const listing = (marketListings ?? []).find((item) => item.id === listingId);
+            if (listing) setMarketEditListing(listing);
+            else void handleViewListing(listingId);
+          }}
           onDealAction={(dealId, action) => { void handleDealAction(dealId, action); }}
           onReview={(dealId) => { void handleReviewDeal(dealId); }}
           onSell={() => setSellModalOpen(true)}

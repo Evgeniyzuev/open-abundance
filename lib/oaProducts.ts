@@ -37,6 +37,12 @@ export const OA_PRODUCTS: OaProduct[] = [
   }
 ];
 
+/** Cover picture of a product (public/oa-products/<key>.svg), used when its listing has no own image. */
+export function oaProductCover(metadata: unknown): string | null {
+  const key = productKeyOf(metadata);
+  return key && OA_PRODUCTS.some((product) => product.key === key) ? `/oa-products/${key}.svg` : null;
+}
+
 export function findOaProduct(key: unknown): OaProduct | null {
   return typeof key === "string" ? OA_PRODUCTS.find((product) => product.key === key) ?? null : null;
 }

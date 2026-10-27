@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Calculator, Check, ChevronDown, ChevronUp, RotateCcw, TrendingUp } from "lucide-react";
-import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import { type CoreAccount } from "@/components/UserProvider";
 import { calculateDailyIncome, daysFromTerm, findDaysToTarget, normalizePercent } from "@/lib/coreCalculator";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -11,9 +10,9 @@ import { formatAdaptiveMoney, formatMoney } from "@/lib/moneyFormat";
 import { ExchangeOffers, MutualBalanceCard } from "@/components/MarketExchange";
 import { SacredShop } from "@/components/SacredShop";
 import SpendIntentCard from "@/components/SpendIntentCard";
-import ConfirmPurchase from "@/components/ConfirmPurchase";
+import { MarketListingSheet, MarketListingTile } from "@/components/wallet/MarketListingSheet";
 import type { CalculatorMode, TargetKind, TermUnit, TFunction, MarketplaceListing, MarketplaceDeal, EconomyPeriodType, EconomyMetricRow } from "@/components/wallet/walletTypes";
-import { buildComparisonSeries, linePath, xForDay, yForValue, formatIndexTick, formatIndexValue, formatAnnualReturn, formatChartTick, formatPercentCompact, sellerName, artifactInitial, parseNumber, clamp, unitLabel, formatDuration, formatTargetDate } from "@/components/wallet/walletHelpers";
+import { buildComparisonSeries, linePath, xForDay, yForValue, formatIndexTick, formatIndexValue, formatAnnualReturn, formatChartTick, formatPercentCompact, parseNumber, clamp, unitLabel, formatDuration, formatTargetDate } from "@/components/wallet/walletHelpers";
 import { ComparisonInfoModal, FinanceState } from "@/components/wallet/WalletModals";
 
 export function EconomyMetricsPanel({
@@ -588,7 +587,8 @@ export function MarketplacePanel({
   onSell: () => void;
 }) {
   const canCreate = openListingCount < listingLimit;
-  const [confirmListing, setConfirmListing] = useState<MarketplaceListing | null>(null);
+  const [openListingId, setOpenListingId] = useState<string | null>(null);
+  const openListing = listings.find((listing) => listing.id === openListingId) ?? null;
 
   return (
     <section className="market-panel">
@@ -609,60 +609,25 @@ export function MarketplacePanel({
       {loading && listings.length === 0 ? <FinanceState title={t("app.common.loading")} description={t("market.loading")} /> : null}
       {!loading && listings.length === 0 ? <FinanceState title={t("market.emptyTitle")} description={canCreate ? t("market.emptyWithItems") : t("market.limitReached")} /> : null}
       {listings.length > 0 ? (
-        <div className="market-grid">
-          {listings.map((listing) => {
-            const own = listing.seller_user_id === userId;
-            return (
-              <article className="market-card" key={listing.id}>
-                <div className="market-card-image">
-                  {listing.image_url ?? listing.artifact?.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={listing.image_url ?? listing.artifact?.image_url ?? ""} alt="" />
-                  ) : (
-                    <span>{artifactInitial(listing)}</span>
-                  )}
-                  <small>{listing.artifact?.rarity ?? "common"}</small>
-                </div>
-                <div className="market-card-body">
-                  <strong>{listing.title}</strong>
-                  {listing.description ? <p>{listing.description}</p> : null}
-                  <div className="market-card-meta">
-                    <span>{formatAdaptiveMoney(Number(listing.price_amount), locale)}</span>
-                    <small>{listing.sales_count ?? 0} · ★ {listing.rating_count ? (Number(listing.rating_sum ?? 0) / Number(listing.rating_count)).toFixed(1) : "—"}</small>
-                    <small>
-                      {own ? t("market.yours") : (
-                        <UserNameWithLevel
-                          label={listing.sellerProfile ? t("profile.levelBadge", { level: listing.sellerProfile.level }) : undefined}
-                          level={listing.sellerProfile?.level}
-                        >
-                          {sellerName(listing)}
-                        </UserNameWithLevel>
-                      )}
-                    </small>
-                  </div>
-                  {own ? (
-                    <div className="market-card-actions">
-                      <button className="text-button" type="button" onClick={() => onView(listing.id)}>{t("market.details")}</button>
-                      <button className="text-button danger" type="button" disabled={savingId === listing.id} onClick={() => onCancel(listing.id)}>
-                        {savingId === listing.id ? t("app.common.loading") : t("market.cancel")}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="market-card-actions">
-                      <button className="text-button" type="button" onClick={() => onView(listing.id)}>{t("market.details")}</button>
-                      <button className="text-button" type="button" disabled={dealSavingId === listing.id} onClick={() => setConfirmListing(listing)}>
-                        {dealSavingId === listing.id ? t("app.common.loading") : t("market.buy")}
-                      </button>
-                      {onExchange ? (
-                        <button className="text-button" type="button" onClick={() => onExchange(listing.id)}>{t("market.exchange.short")}</button>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
+        <div className="wish-grid market-tiles">
+          {listings.map((listing) => (
+            <MarketListingTile key={listing.id} listing={listing} locale={locale} own={listing.seller_user_id === userId} t={t} onOpen={() => setOpenListingId(listing.id)} />
+          ))}
         </div>
+      ) : null}
+      {openListing ? (
+        <MarketListingSheet
+          listing={openListing}
+          locale={locale}
+          own={openListing.seller_user_id === userId}
+          t={t}
+          busy={savingId === openListing.id || dealSavingId === openListing.id}
+          onClose={() => setOpenListingId(null)}
+          onBuy={() => { setOpenListingId(null); onBuy(openListing.id); }}
+          onExchange={onExchange ? () => { setOpenListingId(null); onExchange(openListing.id); } : undefined}
+          onEdit={() => { setOpenListingId(null); onView(openListing.id); }}
+          onCancel={() => { setOpenListingId(null); onCancel(openListing.id); }}
+        />
       ) : null}
       <ExchangeOffers refreshKey={exchangeRefreshKey} onChanged={() => onExchangeChanged?.()} />
       {deals.length > 0 ? (
@@ -706,16 +671,6 @@ export function MarketplacePanel({
             );
           })}
         </div>
-      ) : null}
-      {confirmListing ? (
-        <ConfirmPurchase
-          title={confirmListing.title}
-          price={formatAdaptiveMoney(Number(confirmListing.price_amount), locale)}
-          note="purchase.confirm.noteMarket"
-          busy={dealSavingId === confirmListing.id}
-          onConfirm={() => { const id = confirmListing.id; setConfirmListing(null); onBuy(id); }}
-          onCancel={() => setConfirmListing(null)}
-        />
       ) : null}
     </section>
   );

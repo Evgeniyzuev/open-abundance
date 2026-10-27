@@ -1,3 +1,4 @@
+import { oaProductCover } from "@/lib/oaProducts";
 import { personLabel } from "@/lib/personName";
 import { DAILY_CORE_RATE, calculateFutureCore, findDaysToTarget, formatDurationParts, normalizePercent } from "@/lib/coreCalculator";
 import { pick, type AppLocale, type MessageKey } from "@/lib/i18n";
@@ -346,6 +347,11 @@ export function contactInitial(contact: WalletTransferContact): string {
 
 export function sellerName(listing: MarketplaceListing): string {
   return personLabel(listing.sellerProfile, shortId(listing.seller_user_id));
+}
+
+/** The picture of a listing: its own image, the sold artifact's, or an Open Abundance product cover. */
+export function listingImage(listing: MarketplaceListing): string | null {
+  return listing.image_url ?? listing.artifact?.image_url ?? oaProductCover(listing.metadata);
 }
 
 export function artifactInitial(listing: MarketplaceListing): string {

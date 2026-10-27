@@ -1260,8 +1260,8 @@ function ChallengeDetailContent({
   const needsWish = challenge.verification_logic === "has_wish" && accepted && !completed && !locked;
   // Quests with their own step-by-step scene: the generic instructions from the database would repeat or contradict it.
   const needsInvite = challenge.verification_logic === "has_referral" && accepted && !completed && !locked;
-  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite;
   const needsAppInstalled = challenge.verification_logic === APP_INSTALLED_LOGIC && accepted && !completed && !locked;
+  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite || needsAppInstalled;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
   const needsValuesChallenge = challenge.verification_logic === "values_goals_defined" && accepted && !completed && !locked;
@@ -1324,7 +1324,7 @@ function ChallengeDetailContent({
       return;
     }
 
-    if ((codeChannel || needsAppInstalled) && channelCode.length !== 6) {
+    if (codeChannel && channelCode.length !== 6) {
       setCheckMessage(t("challenges.code.required"));
       setCheckStatus("idle");
       return;
@@ -1346,7 +1346,7 @@ function ChallengeDetailContent({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(codeChannel || needsAppInstalled ? { challengeId: challenge.id, code: channelCode } : { challengeId: challenge.id })
+        body: JSON.stringify(codeChannel ? { challengeId: challenge.id, code: channelCode } : { challengeId: challenge.id })
       }, { authRequired: true });
       const payload = (await response.json()) as CheckChallengeResponse;
 
@@ -1559,7 +1559,7 @@ function ChallengeDetailContent({
 
       {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
-      {needsAppInstalled ? <AppInstalledQuest challengeId={challenge.id} locale={locale} t={t} onCodeChange={setChannelCode} /> : null}
+      {needsAppInstalled ? <AppInstalledQuest locale={locale} t={t} /> : null}
 
       {needsGoalPlan ? <CorePowerQuest coreBalance={coreBalance} locale={locale} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 

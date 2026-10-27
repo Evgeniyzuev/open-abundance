@@ -249,8 +249,8 @@ assert.match(read("components/FeedPostGallery.tsx"), /hasBeenSeen/, "story impre
   assert.equal(formatUsd(3.456), "$3.46");
   assert.equal(formatUsd(4), "$4");
   const coreCopy = fillNudgeCopy(NEXT_STEPS.core.copy, { name: "Аня", core: 12.5, tasks: null });
-  assert.equal(coreCopy.ru.title, "Аня, у тебя есть $12.50 в Core");
-  assert.equal(coreCopy.ru.button, "Узнать подробнее");
+  assert.equal(coreCopy.ru.title, "Аня, у тебя $12.50 в Core");
+  assert.equal(coreCopy.ru.button, "Открыть квесты");
   assert.equal(coreCopy.en.title, "Аня, you have $12.50 in Core");
   const taskCopy = fillNudgeCopy(NEXT_STEPS.tasks.copy, { name: null, core: 0, tasks: { count: 3, amount: 4, challengeIds: [] } });
   assert.equal(taskCopy.ru.title, "На сегодня для тебя 3 задания", "without a name the sentence starts with a capital");

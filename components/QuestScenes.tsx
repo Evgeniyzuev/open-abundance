@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
-import ChannelCodeChallenge from "@/components/ChannelCodeChallenge";
 import { InstallGuideDetails } from "@/components/InstallGuide";
 import { calculateFutureCore, coreRequiredForDailyIncome, DAILY_CORE_RATE, findDaysToTarget, formatDurationParts } from "@/lib/coreCalculator";
 import { CORE_POWER_EXAMPLE, CORE_POWER_SEEN_EVENT, corePowerSeen, openCoreCalculatorForQuest } from "@/lib/corePowerQuest";
@@ -10,6 +9,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { isStandaloneDisplay } from "@/lib/installPing";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
+import { enableDailyPush, isPushSupported, registerPushDevice } from "@/lib/pushReminders";
 import { MOTIVE_NOTE_MAX, QUEST_MOTIVES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
@@ -142,23 +142,49 @@ function inTelegramMiniApp(): boolean {
   return Boolean((window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData);
 }
 
+const PUSH_TIMEOUT_MS = 20_000;
+
+type TelegramStatus = { configured: boolean; linked: boolean; canWrite: boolean; botUrl: string | null };
+
 /**
- * "Install the app": the install steps until the app runs from the home screen, then a push code that only the
- * installed app can ask for. Inside Telegram the app cannot be installed, so the scene sends the person to a browser.
+ * "Turn on notifications" (path step 5, verification_logic app_installed). The quest description says why (Core rewards
+ * are income for life, some rewards go straight to Wallet); the scene has three steps: the Telegram bot's Start if the
+ * person uses Telegram, installing the web app on iPhone or Android, and the notifications button right here. The quest
+ * counts once this account has an enabled push subscription and the person taps "Check" (app/api/challenges/check).
  */
-export function AppInstalledQuest({ challengeId, locale, t, onCodeChange }: { challengeId: string; locale: string; t: TFunction; onCodeChange: (code: string) => void }) {
+export function AppInstalledQuest({ locale, t }: { locale: string; t: TFunction }) {
   const [standalone, setStandalone] = useState(false);
   const [telegram, setTelegram] = useState(false);
   const [desktop, setDesktop] = useState(false);
+  const [ios, setIos] = useState(false);
   const [installPromptAvailable, setInstallPromptAvailable] = useState(false);
+  const [bot, setBot] = useState<TelegramStatus | null>(null);
+  const [push, setPush] = useState<"idle" | "busy" | "on" | "denied" | "unsupported" | "failed">("idle");
 
   useEffect(() => {
     setStandalone(isStandaloneDisplay());
     setTelegram(inTelegramMiniApp());
     setDesktop(!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    setIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
+    if (!isPushSupported()) setPush("unsupported");
+    else if (Notification.permission === "denied") setPush("denied");
+    else if (Notification.permission === "granted") void registerPushDevice().then((ok) => setPush(ok ? "on" : "idle"));
     const update = () => setInstallPromptAvailable(canPromptPwaInstall());
     update();
     return subscribeToPwaInstallPrompt(update);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchWithSupabaseAuth("/api/telegram/status", { cache: "no-store" }, { authRequired: true })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((status: TelegramStatus | null) => {
+        if (!cancelled && status?.configured) setBot(status);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function openInBrowser() {
@@ -168,29 +194,88 @@ export function AppInstalledQuest({ challengeId, locale, t, onCodeChange }: { ch
     else window.open(url, "_blank", "noopener");
   }
 
-  // On a computer browser notifications are enough; the phone install is offered there, not required.
-  const ready = standalone || (desktop && !telegram);
+  async function openBot() {
+    trackProductEvent("notify_quest_step", { step: "telegram", linked: Boolean(bot?.linked) });
+    if (bot?.linked && bot.botUrl) {
+      window.open(bot.botUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    // Not linked yet: the one-time link opens the Mini App, which links the account and asks to let the bot write.
+    const response = await fetchWithSupabaseAuth("/api/auth/telegram/link", { method: "POST", cache: "no-store" }, { authRequired: true }).catch(() => null);
+    const payload = response?.ok ? ((await response.json()) as { url?: string }) : null;
+    if (payload?.url) window.location.href = payload.url;
+  }
+
+  async function turnOn() {
+    setPush("busy");
+    try {
+      // A browser without a reachable push service never answers the subscribe call; give up instead of spinning.
+      const enabled = await Promise.race([enableDailyPush(), new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), PUSH_TIMEOUT_MS))]);
+      if (!enabled) {
+        setPush(Notification.permission === "denied" ? "denied" : "failed");
+        return;
+      }
+      const registered = await registerPushDevice();
+      setPush(registered ? "on" : "failed");
+      trackProductEvent("notify_quest_step", { step: "push", ok: registered });
+    } catch {
+      setPush("failed");
+    }
+  }
+
+  // On iPhone notifications come only to the app added to the home screen; Android and computers can use the browser.
+  const iosBrowser = ios && !standalone && !telegram;
+  const canTurnOn = !telegram && push !== "unsupported" && !iosBrowser;
 
   return (
     <section className="quest-channel">
       <ol className="quest-steps">
-        <li className={ready ? "done" : "current"}>{standalone ? t("quests.install.step1Done") : ready ? t("quests.install.step1Desktop") : t("quests.install.step1")}</li>
-        <li className={ready ? "current" : ""}>{t("quests.install.step2")}</li>
+        <li className={bot?.canWrite ? "done" : ""}>
+          <b>{t("quests.notify.step1")}</b>
+          {bot?.canWrite ? <span> {t("quests.notify.botReady")}</span> : null}
+        </li>
       </ol>
-      {!ready && telegram ? (
+      {bot && !bot.canWrite ? (
+        <button className="secondary-button" type="button" onClick={() => void openBot()}>
+          {t(bot.linked ? "quests.notify.openBot" : "quests.notify.linkTelegram")}
+        </button>
+      ) : null}
+      {!bot ? <p className="challenge-note">{t("quests.notify.noTelegram")}</p> : null}
+
+      <ol className="quest-steps" start={2}>
+        <li className={standalone ? "done" : desktop ? "done" : "current"}>
+          <b>{t("quests.notify.step2")}</b>
+          {standalone ? <span> {t("quests.install.step1Done")}</span> : desktop ? <span> {t("quests.install.step1Desktop")}</span> : null}
+        </li>
+      </ol>
+      {telegram ? (
         <>
           <p className="challenge-note">{t("quests.install.telegram")}</p>
           <button className="secondary-button" type="button" onClick={openInBrowser}>{t("quests.install.openBrowser")}</button>
         </>
-      ) : null}
-      {!ready ? (
+      ) : !standalone && !desktop ? (
         <>
-          <InstallGuideDetails installPromptAvailable={installPromptAvailable} isDesktop={desktop} locale={locale} t={t} onInstall={() => { void promptPwaInstall(); }} />
-          <p className="challenge-note">{t("quests.install.openFromIcon")}</p>
+          <InstallGuideDetails open installPromptAvailable={installPromptAvailable} isDesktop={false} locale={locale} t={t} onInstall={() => { void promptPwaInstall(); }} />
+          {!ios ? <p className="challenge-note">{t("quests.notify.androidBrowser")}</p> : null}
         </>
-      ) : (
-        <ChannelCodeChallenge challengeId={challengeId} channel="push" standalone={ready} t={t} onCodeChange={onCodeChange} />
-      )}
+      ) : null}
+
+      <ol className="quest-steps" start={3}>
+        <li className={push === "on" ? "done" : canTurnOn ? "current" : ""}>
+          <b>{t("quests.notify.step3")}</b>
+          {push === "on" ? <span> {t("quests.notify.pushOn")}</span> : null}
+        </li>
+      </ol>
+      {push === "on" ? <p className="challenge-note">{t("quests.notify.check")}</p> : iosBrowser ? (
+        <p className="challenge-note">{t("quests.notify.iosFromIcon")}</p>
+      ) : canTurnOn ? (
+        <button className="challenge-primary-action" type="button" disabled={push === "busy"} onClick={() => void turnOn()}>
+          {push === "busy" ? t("app.common.loading") : t("quests.notify.turnOn")}
+        </button>
+      ) : null}
+      {!iosBrowser && !telegram && push === "denied" ? <p className="challenge-error">{t("quests.notify.denied")}</p> : null}
+      {push === "failed" ? <p className="challenge-error">{t("quests.notify.failed")}</p> : null}
+      {!iosBrowser && !telegram && push === "unsupported" ? <p className="challenge-note">{t("quests.notify.unsupported")}</p> : null}
     </section>
   );
 }

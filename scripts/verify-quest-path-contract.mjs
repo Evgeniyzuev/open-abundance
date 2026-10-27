@@ -153,6 +153,12 @@ const row = (challengeId, status, daysAgo, isActive = false) => ({ challengeId, 
   assert.equal(chooseNudge(participant, { sends: [{ step: "core", at: NOW - 3600_000 }] }, { tasks: null, lastActiveAt: null, quest: input([]) }, NOW), null, "one a day");
   const basic = chooseNudge(participant, { sends: [] }, { tasks: null, lastActiveAt: null }, NOW);
   assert.equal(basic.key, "wish", "without quest mode the basic steps stay");
+  // The Core balance comes back every few days while nothing on the path needs a word.
+  const holder = { ...participant, coreBalance: 4 };
+  const idle = { tasks: null, lastActiveAt: NOW - 2 * DAY, quest: input([row("p1", "completed", 3), row("p2", "completed", 3), row("side1", "completed", 3)]) };
+  assert.equal(chooseNudge(holder, { sends: [] }, idle, NOW)?.key, "core");
+  assert.equal(chooseNudge(holder, { sends: [{ step: "core", at: NOW - 2 * DAY }] }, idle, NOW), null, "not again within 3 days");
+  assert.equal(chooseNudge(holder, { sends: [{ step: "core", at: NOW - 4 * DAY }] }, { ...idle, lastActiveAt: NOW - DAY }, NOW)?.key, "core", "again after 3 days");
 }
 // About one in ten is in the control group, always the same people.
 {

@@ -38,6 +38,8 @@ export const NUDGE_STEP_REPEATS = 2;
 export const NUDGE_STEP_GAP_MS = 3 * DAY_MS;
 /** Safety cap on coordinator messages per person, for the whole pilot. */
 export const NUDGE_MAX_PER_PERSON = 30;
+/** In quest mode the Core balance message comes back after this gap (within the weekly limit). */
+export const CORE_REPEAT_GAP_MS = 3 * DAY_MS;
 /** "Tasks for today" add up to at most this many dollars of rewards (founder decision 2026-10-24). */
 export const TODAY_TASKS_MAX_USD = 10;
 export const TODAY_TASKS_MAX_COUNT = 6;
@@ -45,14 +47,14 @@ export const TODAY_TASKS_MAX_COUNT = 6;
 export const NEXT_STEPS: Record<BasicStepKey, NextStep> = {
   core: {
     key: "core",
-    deepLink: "/?view=wallet.core",
+    deepLink: "/?view=challenges",
     copy: {
-      ru: { title: "{name}, у тебя есть {core} в Core", body: "Core растёт каждый день, даже когда ты не в приложении. Загляни, сколько он принесёт за год и как его ускорить.", button: "Узнать подробнее" },
-      en: { title: "{name}, you have {core} in Core", body: "Core grows every day, even while you are away. See what it brings in a year and how to speed it up.", button: "Learn more" },
-      es: { title: "{name}, tienes {core} en Core", body: "Core crece cada día, incluso cuando no estás en la app. Mira cuánto te dará en un año y cómo acelerarlo.", button: "Saber más" },
-      zh: { title: "{name}，你的 Core 里有 {core}", body: "Core 每天都在增长，即使你不在应用里。看看一年后会带来多少，以及如何让它更快。", button: "了解更多" },
-      hi: { title: "{name}, आपके Core में {core} हैं", body: "Core हर दिन बढ़ता है, तब भी जब आप ऐप में नहीं होते। देखें कि एक साल में यह कितना देगा और इसे तेज़ कैसे करें।", button: "और जानें" },
-      ar: { title: "{name}، لديك {core} في Core", body: "ينمو Core كل يوم، حتى عندما لا تكون في التطبيق. اطّلع على ما سيمنحك خلال عام وكيف تسرّعه.", button: "اعرف المزيد" }
+      ru: { title: "{name}, у тебя {core} в Core", body: "Core приносит доход каждый день. Загляни за доходом и новыми наградами.", button: "Открыть квесты" },
+      en: { title: "{name}, you have {core} in Core", body: "Core brings income every day. Come in for your income and new rewards.", button: "Open quests" },
+      es: { title: "{name}, tienes {core} en Core", body: "Core te da ingresos cada día. Entra a ver tus ingresos y nuevas recompensas.", button: "Abrir misiones" },
+      zh: { title: "{name}，你的 Core 里有 {core}", body: "Core 每天都带来收入。来看看你的收入和新的奖励。", button: "打开任务" },
+      hi: { title: "{name}, आपके Core में {core} हैं", body: "Core हर दिन आय देता है। अपनी आय और नए इनाम देखने आइए।", button: "क्वेस्ट खोलें" },
+      ar: { title: "{name}، لديك {core} في Core", body: "يجلب Core دخلًا كل يوم. ادخل لترى دخلك ومكافآت جديدة.", button: "افتح المهام" }
     }
   },
   wish: {
@@ -285,7 +287,8 @@ export function chooseNudge(participant: ParticipantRecord, past: NudgeHistory |
     const questNudge = chooseQuestNudge(context.quest, sends, context.lastActiveAt, now);
     if (questNudge) return questNudge;
     if (weekSends(sends, now) >= QUEST_NUDGE_WEEK_LIMIT) return null;
-    if (participant.coreBalance >= 0.01 && !sends.some((send) => send.step === "core")) return NEXT_STEPS.core;
+    // The Core balance with an invitation to come for income and new rewards, again every few days (Evgen, 2026-10-27).
+    if (participant.coreBalance >= 0.01 && sends.every((send) => send.step !== "core" || now - send.at >= CORE_REPEAT_GAP_MS)) return NEXT_STEPS.core;
     return context.tasks && context.tasks.count > 0 ? NEXT_STEPS.tasks : null;
   }
   if (participant.coreBalance >= 0.01 && !sends.some((send) => send.step === "core")) return NEXT_STEPS.core;

@@ -97,12 +97,15 @@ export function InstallGuide({
  * stays short.
  */
 export function InstallGuideDetails({
+  open,
   installPromptAvailable,
   isDesktop,
   locale,
   t,
   onInstall
 }: {
+  /** Shown unfolded, for a scene where the guide is the step itself. */
+  open?: boolean;
   installPromptAvailable: boolean;
   isDesktop: boolean;
   locale: string;
@@ -113,7 +116,7 @@ export function InstallGuideDetails({
   const screenshot = platform === "ios" ? STEP_SCREENSHOTS.ios?.home : undefined;
 
   return (
-    <details className="install-guide-details">
+    <details className="install-guide-details" open={open}>
       <summary>{t("installGuide.summary")}</summary>
       <InstallGuide
         installPromptAvailable={installPromptAvailable}

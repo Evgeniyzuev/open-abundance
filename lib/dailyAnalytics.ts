@@ -86,7 +86,8 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "product_events", select: "user_id,anonymous_id,event_name,occurred_at,properties", since: "occurred_at", cap: 100_000 },
   { table: "ai_usage_events", select: "user_id,capability,status,created_at", since: "created_at", cap: 50_000 },
   { table: "user_feedback", select: "user_id,category,message,screen,created_at", since: "created_at" },
-  { table: "push_subscriptions", select: "enabled" },
+  { table: "push_subscriptions", select: "owner_key,enabled" },
+  { table: "telegram_notification_deliveries", select: "status,created_at,notification_recipients(user_id)", since: "created_at" },
   { table: "direct_messages", select: "sender_user_id,conversation_id,created_at", since: "created_at", cap: 50_000 },
   { table: "user_follows", select: "follower_user_id,followee_user_id,created_at" },
   { table: "telegram_accounts", select: "user_id" },
@@ -362,6 +363,25 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   metrics.active_all_1d = activeIn(1);
   metrics.active_all_7d = activeIn(7);
 
+  // Notification reach, the key number while channels are thin (Evgen, 2026-10-27): active people a push or the
+  // Telegram bot actually reaches. The bot counts when its latest copy to the person was delivered, not blocked.
+  const pushUsers = new Set((t.push_subscriptions ?? []).filter((row) => row.enabled && String(row.owner_key ?? "").startsWith("user:"))
+    .map((row) => String(row.owner_key).slice(5)).filter((id) => !isQaUser(id)));
+  const latestBot = new Map<string, { at: number; status: string }>();
+  for (const row of t.telegram_notification_deliveries ?? []) {
+    const userId = row.notification_recipients?.user_id as string | undefined;
+    if (!userId || isQaUser(userId) || (row.status !== "sent" && row.status !== "blocked")) continue;
+    const at = Date.parse(row.created_at);
+    if (at > (latestBot.get(userId)?.at ?? 0)) latestBot.set(userId, { at, status: row.status });
+  }
+  const botUsers = new Set([...latestBot].filter(([, value]) => value.status === "sent").map(([userId]) => userId));
+  const active7 = new Set(events.filter((event) => event.user_id && within(event.occurred_at, 7)).map((event) => event.user_id as string));
+  const reachable = new Set([...pushUsers, ...botUsers]);
+  metrics.notify_push_users = pushUsers.size;
+  metrics.notify_bot_delivered_users = botUsers.size;
+  metrics.notify_bot_blocked_users = [...latestBot.values()].filter((value) => value.status === "blocked").length;
+  metrics.notify_reach_active_7d = [...active7].filter((userId) => reachable.has(userId)).length;
+
   out.push(`# Ежедневная сводка Open Abundance — ${dateKey}`);
   out.push("");
   out.push(`Снимок на ${snapshot.asOf}. Окно событий ${snapshot.windowDays} дней. Группы личных признаков меньше ${minGroup} человек объединены в «другое». Люди в файлах деталей названы псевдонимами.`);
@@ -377,7 +397,9 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
     ["Новых за сутки / 7 дней", `${metrics.users_new_1d} / ${metrics.users_new_7d}`],
     ["Активных аккаунтов за сутки / 7 / 30 дней", `${metrics.active_accounts_1d} / ${metrics.active_accounts_7d} / ${metrics.active_accounts_30d}`],
     ["Активных вместе с гостями за сутки / 7 дней", `${metrics.active_all_1d} / ${metrics.active_all_7d}`],
-    ["Залипание (активные за сутки / за 30 дней)", pct(metrics.active_accounts_1d, metrics.active_accounts_30d)]
+    ["Залипание (активные за сутки / за 30 дней)", pct(metrics.active_accounts_1d, metrics.active_accounts_30d)],
+    ["**Охват уведомлениями**: активных за 7 дней, до кого доходит пуш или бот", `${metrics.notify_reach_active_7d} из ${metrics.active_accounts_7d} (${pct(metrics.notify_reach_active_7d, metrics.active_accounts_7d)})`],
+    ["Пуш включён / бот доставляет / бот заблокирован (людей)", `${metrics.notify_push_users} / ${metrics.notify_bot_delivered_users} / ${metrics.notify_bot_blocked_users}`]
   ]));
 
   // 2. Funnel

@@ -249,9 +249,10 @@ async function verifyChallenge(
     return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
   }
   if (challenge.verification_logic === APP_INSTALLED_LOGIC) {
-    // The push code; the channel-code route sends it only to the app opened from the home screen.
-    const valid = isChannelCodeValid(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "", userId, "push", code, Date.now());
-    return valid ? { ok: true } : { ok: false, reason: "Enter the code from the notification." };
+    // "Turn on notifications": this account has a working push subscription on some device.
+    const { count, error } = await db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("owner_key", `user:${userId}`).eq("enabled", true);
+    if (error) return { ok: false, reason: "Could not check notifications. Try again." };
+    return Number(count ?? 0) > 0 ? { ok: true } : { ok: false, reason: "Turn on notifications in this quest first." };
   }
   if (challenge.verification_logic === FIRST_STEP_LOGIC) {
     const progress = await getChallengeProgressProof(supabase, userId, challenge, "motive_chosen");

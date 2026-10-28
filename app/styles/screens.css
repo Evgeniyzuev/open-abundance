@@ -1951,3 +1951,6 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .word-pledge-body { display: grid; gap: 8px; margin-top: 8px; justify-items: start; }
 .word-pledge-body .finance-field, .word-pledge-body .finance-field select { width: 100%; }
 .word-pledge-rules { display: block; color: var(--muted); font-size: .75rem; }
+.lead-meeting-stuck { display: grid; gap: 6px; justify-items: start; padding: 8px 10px; border-radius: 12px; background: var(--surface-muted, rgba(0,0,0,.03)); }
+.lead-meeting-small-wish { display: grid; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line-subtle); }
+.lead-week-people { display: grid; gap: 6px; }

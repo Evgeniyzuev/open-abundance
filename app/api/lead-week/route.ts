@@ -41,22 +41,38 @@ export async function GET(request: NextRequest) {
   if (weekResult.error) return NextResponse.json({ error: weekResult.error.message, available: false }, { status: 200, headers: NO_STORE_HEADERS });
 
   const followerIds = (followersResult.data ?? []).map((row) => row.member_user_id);
-  let followers: Array<{ userId: string; name: string | null; goal: string | null; midweek: string | null; review: string | null }> = [];
+  let followers: Array<{
+    userId: string; name: string | null; goal: string | null; midweek: string | null; review: string | null;
+    metRecently: boolean; wordGiven: boolean; stuck: boolean;
+  }> = [];
   if (followerIds.length) {
-    const [weeks, profiles] = await Promise.all([
-      db.from("lead_week_checkins").select(COLUMNS).eq("week_start", start).in("user_id", followerIds),
-      supabase.from("user_profiles").select("user_id,display_name,username").in("user_id", followerIds)
-    ]);
+    // Only the weeks a follower chose to share with the lead; for them, also whether they met their lead recently,
+    // gave their word, or got stuck, so the lead knows whom to write to first.
+    const weeks = await db.from("lead_week_checkins").select(COLUMNS).eq("week_start", start).eq("visibility", "lead").in("user_id", followerIds);
+    const sharedIds = ((weeks.data ?? []) as CheckinRow[]).map((row) => row.user_id);
+    const since = new Date(now - 3 * 86_400_000).toISOString().slice(0, 10);
+    const [profiles, meetings, pledges] = sharedIds.length ? await Promise.all([
+      supabase.from("user_profiles").select("user_id,display_name,username").in("user_id", sharedIds),
+      db.from("lead_meetings").select("user_id,meeting_day,last_goal_status").in("user_id", sharedIds).gte("meeting_day", since),
+      db.from("word_pledges").select("user_id").eq("status", "active").in("user_id", sharedIds)
+    ]) : [{ data: [] }, { data: [] }, { data: [] }];
+    const meetingRows = (meetings.data ?? []) as Array<{ user_id: string; meeting_day: string; last_goal_status: string | null }>;
+    const pledgeIds = new Set(((pledges.data ?? []) as Array<{ user_id: string }>).map((row) => row.user_id));
     followers = ((weeks.data ?? []) as CheckinRow[]).map((row) => {
-      const profile = (profiles.data ?? []).find((item) => item.user_id === row.user_id);
+      const profile = ((profiles.data ?? []) as Array<{ user_id: string; display_name: string | null; username: string | null }>).find((item) => item.user_id === row.user_id);
+      const own = meetingRows.filter((item) => item.user_id === row.user_id).sort((a, b) => b.meeting_day.localeCompare(a.meeting_day));
+      const midweek = (row.midweek_status as string | null) ?? null;
       return {
         userId: row.user_id,
         name: profile?.display_name || (profile?.username ? `@${profile.username}` : null),
         goal: (row.goal as string | null) ?? null,
-        midweek: (row.midweek_status as string | null) ?? null,
-        review: (row.review_status as string | null) ?? null
+        midweek,
+        review: (row.review_status as string | null) ?? null,
+        metRecently: own.length > 0,
+        wordGiven: pledgeIds.has(row.user_id),
+        stuck: midweek === "stuck" || midweek === "need_help" || own[0]?.last_goal_status === "not_yet"
       };
-    });
+    }).sort((left, right) => Number(right.stuck) - Number(left.stuck));
   }
 
   return NextResponse.json({

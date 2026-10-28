@@ -3,6 +3,7 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { weekStart } from "@/lib/leadPractices";
+import { matchSmallWish, pickSmallWishOffers } from "@/lib/smallWishes";
 import {
   MEETING_GOAL_STATUSES,
   MEETING_TEXT_MAX,
@@ -10,6 +11,7 @@ import {
   isMeetingDue,
   isMeetingRhythm,
   nextMeetingDay,
+  stuckInboxText,
   suggestMeetingRhythm,
   type MeetingRhythm,
   type RhythmSuggestion
@@ -62,10 +64,32 @@ export async function GET(request: NextRequest) {
     suggestion = suggestMeetingRhythm({ motive: (profile.data?.quest_motive as string | null) ?? null, questsLast7: Number(week.count ?? 0) });
   }
 
+  // A gentle nudge to a small wish (help or habit, never money): only for someone with no small wish in progress.
+  let smallWish: { key: string } | null = null;
+  if (rhythm && rhythm !== "off") {
+    const [wishes, core] = await Promise.all([
+      supabase.from("wishes").select("title,category,status").eq("owner_user_id", user.id).is("deleted_at", null),
+      supabase.from("core_accounts").select("balance").eq("user_id", user.id).maybeSingle()
+    ]);
+    const rows = (wishes.data ?? []) as Array<{ title: string; category: string | null; status: string }>;
+    const owned = rows.map((row) => matchSmallWish(row.title)).filter((wish): wish is NonNullable<typeof wish> => Boolean(wish));
+    const smallInProgress = rows.some((row) => row.status !== "completed" && matchSmallWish(row.title));
+    if (!smallInProgress) {
+      const offer = pickSmallWishOffers({
+        coreBalance: Number(core.data?.balance ?? 0),
+        categories: rows.map((row) => row.category ?? "").filter(Boolean),
+        ownedKeys: owned.map((wish) => wish.key),
+        seed: `${user.id}:${dayKey(now)}`
+      }).find((wish) => wish.kind !== "money");
+      smallWish = offer ? { key: offer.key } : null;
+    }
+  }
+
   return NextResponse.json({
     available: true,
     rhythm,
     suggestion,
+    smallWish,
     due: isMeetingDue(rhythm, last?.meeting_day ?? null, now),
     metToday: last?.meeting_day === dayKey(now),
     nextDay: nextMeetingDay(rhythm, now),
@@ -100,8 +124,19 @@ export async function POST(request: NextRequest) {
       next_goal: text(body.nextGoal) || null,
       quests_since: Math.max(0, Math.min(1000, Math.round(Number(body.questsSince) || 0)))
     };
+    // The goal this meeting looked back on and how the meeting before went, for the "stuck" reaction below.
+    const { data: previous } = await db.from("lead_meetings").select("next_goal,last_goal_status")
+      .eq("user_id", user.id).lt("meeting_day", row.meeting_day).order("meeting_day", { ascending: false }).limit(2);
     const { error: saveError } = await db.from("lead_meetings").upsert(row, { onConflict: "user_id,meeting_day" });
     if (saveError) return NextResponse.json({ error: saveError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    // Stuck twice in a row: Nova writes first and offers to split the goal into tiny steps.
+    const before = (previous ?? []) as Array<{ next_goal: string | null; last_goal_status: string | null }>;
+    if (status === "not_yet" && before[0]?.last_goal_status === "not_yet") {
+      const { data: profile } = await db.from("user_profiles").select("default_locale").eq("user_id", user.id).maybeSingle();
+      const locale = profile?.default_locale === "ru" ? "ru" : "en";
+      await db.from("nova_inbox_messages").insert({ user_id: user.id, body: stuckInboxText(before[0]?.next_goal ?? null, locale), source: "system", reason: "lead_stuck" }).then(() => undefined, () => undefined);
+      await recordProductEvent({ eventName: "lead_stuck_reaction", userId: user.id, properties: {} }).catch(() => undefined);
+    }
     await recordProductEvent({
       eventName: "lead_meeting_done",
       userId: user.id,

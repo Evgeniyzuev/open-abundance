@@ -97,3 +97,12 @@ const pledgeSql = readFileSync(new URL("../supabase/migrations/20261028090000_wo
 assert.ok(pledgeSql.includes("uc.status = 'completed'") && pledgeSql.includes("v_done <= v_pledge.deadline_at"), "kept only when the quest is completed in time");
 assert.ok(pledgeSql.includes("round(p_amount, 2), 10, p_deadline_at"), "bonus is fixed in the database, not by the client");
 console.log("word pledge contract ok");
+
+// Stuck reaction, kept word in the feed.
+const { stuckSplitPrompt, stuckInboxText } = await import("../lib/leadMeetings.ts");
+assert.ok(stuckSplitPrompt("Позвонить", "ru").includes("10 минут") && stuckInboxText("Позвонить", "ru").includes("второй раз"));
+const { keptPostText } = await import("../lib/wordPledge.ts");
+assert.ok(keptPostText("Первая продажа", 0.5, "ru").includes("+$0.50"));
+const leadWeekRoute = readFileSync(new URL("../app/api/lead-week/route.ts", import.meta.url), "utf8");
+assert.ok(leadWeekRoute.includes('.eq("visibility", "lead")'), "a lead sees only weeks shared with them");
+console.log("stuck and share contract ok");

@@ -7,11 +7,13 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import WordPledgePanel from "@/components/WordPledgePanel";
+import { SMALL_WISHES, smallWishText } from "@/lib/smallWishes";
 import {
   MEETING_GOAL_STATUSES,
   MEETING_RHYTHMS,
   MEETING_TEXT_MAX,
   meetingChatPrompt,
+  stuckSplitPrompt,
   type MeetingGoalStatus,
   type MeetingRhythm,
   type RhythmSuggestion
@@ -27,6 +29,7 @@ type MeetingState = {
   lastGoal: string | null;
   weekGoal: string | null;
   questsSince: string[];
+  smallWish: { key: string } | null;
 };
 
 async function loadMeeting(locale: string): Promise<MeetingState | null> {
@@ -80,6 +83,78 @@ export function MeetingRhythmPicker({ current, onPicked }: { current: MeetingRhy
           {t(`leadMeeting.rhythm.${rhythm}` as MessageKey)}
         </button>
       ))}
+    </div>
+  );
+}
+
+const SMALL_WISH_DISMISS_KEY = "oa.meetingSmallWish.until";
+
+/**
+ * A gentle nudge after the meeting: one small wish (help from people or a habit) for the week, for someone without one
+ * in progress. One tap adds it to their wishes; "Not now" hides it for a week.
+ */
+function MeetingSmallWish({ offerKey }: { offerKey: string | null }) {
+  const { locale, t } = useUserContext();
+  const [state, setState] = useState<"idle" | "adding" | "added" | "hidden">(() => {
+    try {
+      return Number(window.localStorage.getItem(SMALL_WISH_DISMISS_KEY) ?? 0) > Date.now() ? "hidden" : "idle";
+    } catch {
+      return "idle";
+    }
+  });
+  const wish = SMALL_WISHES.find((item) => item.key === offerKey);
+  if (!wish || state === "hidden") return null;
+
+  async function add() {
+    if (!wish) return;
+    setState("adding");
+    const response = await fetchWithSupabaseAuth("/api/wishes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: smallWishText(wish.title, locale),
+        description: `${smallWishText(wish.description, locale)}\n\n${smallWishText(wish.fulfil, locale)}`,
+        category: wish.category,
+        imageUrl: "",
+        targetAmount: "",
+        targetCurrency: "USD",
+        difficultyLevel: "1",
+        visibility: "private",
+        publishToFeed: false,
+        sourceRecommendedWishId: null
+      })
+    }, { authRequired: true }).catch(() => null);
+    if (response?.ok) {
+      trackProductEvent("small_wish_added", { key: wish.key, kind: wish.kind, price: 0, source: "lead_meeting" });
+      setState("added");
+    } else {
+      setState("idle");
+    }
+  }
+
+  return (
+    <div className="lead-meeting-small-wish">
+      <p>{state === "added" ? t("leadMeeting.smallWishAdded") : t("leadMeeting.smallWishOffer", { wish: `${wish.emoji} ${smallWishText(wish.title, locale)}` })}</p>
+      {state === "added" ? null : (
+        <div className="chips">
+          <button className="chip" type="button" disabled={state === "adding"} onClick={() => void add()}>{t("leadMeeting.smallWishAdd")}</button>
+          <button
+            className="chip"
+            type="button"
+            onClick={() => {
+              try {
+                window.localStorage.setItem(SMALL_WISH_DISMISS_KEY, String(Date.now() + 7 * 86_400_000));
+              } catch {
+                // Hidden for this visit only.
+              }
+              trackProductEvent("small_wish_offer_dismissed", { key: wish.key, source: "lead_meeting" });
+              setState("hidden");
+            }}
+          >
+            {t("leadMeeting.smallWishLater")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -179,6 +254,7 @@ export default function LeadMeetingCard({ active }: { active: boolean }) {
           {t("leadMeeting.discuss")}
         </button>
         <WordPledgePanel mode="offer" nextMeetingDay={state.nextDay} />
+        <MeetingSmallWish offerKey={state.smallWish?.key ?? null} />
       </section>
     );
   }
@@ -211,6 +287,21 @@ export default function LeadMeetingCard({ active }: { active: boolean }) {
               </button>
             ))}
           </div>
+          {status === "not_yet" || status === "partly" ? (
+            <div className="lead-meeting-stuck">
+              <p>{t("leadMeeting.stuckHelp")}</p>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => {
+                  trackProductEvent("lead_stuck_split", { status });
+                  window.dispatchEvent(new CustomEvent(OPEN_AI_PROMPT_EVENT, { detail: { text: stuckSplitPrompt(state.lastGoal, locale) } }));
+                }}
+              >
+                {t("leadMeeting.stuckSplit")}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
       <label className="finance-field">

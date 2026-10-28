@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { recordProductEvent } from "@/lib/serverAnalytics";
-import { PLEDGE_MAX, PLEDGE_MIN, affordableAmounts, pledgeDeadline } from "@/lib/wordPledge";
+import { PLEDGE_MAX, PLEDGE_MIN, affordableAmounts, keptPostText, pledgeDeadline } from "@/lib/wordPledge";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +52,38 @@ export async function GET(request: NextRequest) {
   }, { headers: NO_STORE_HEADERS });
 }
 
-/** { userChallengeId, amount, nextMeetingDay }: puts the deposit on one accepted quest until the next meeting. */
+/**
+ * { userChallengeId, amount, nextMeetingDay }: puts the deposit on one accepted quest until the next meeting.
+ * { action: "share", pledgeId }: publishes a kept word to the feed once, as proof that words here are kept.
+ */
 export async function POST(request: NextRequest) {
   const { supabase, user, error } = await getAuthenticatedUser(request);
   if (error || !user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const db = supabase as unknown as LooseDb;
+
+  if (body.action === "share") {
+    const pledgeId = String(body.pledgeId ?? "");
+    const { data: pledge } = await db.from("word_pledges").select("id,goal,bonus_amount,status").eq("id", pledgeId).eq("user_id", user.id).maybeSingle();
+    if (!pledge || pledge.status !== "kept") return NextResponse.json({ error: "Not kept." }, { status: 400, headers: NO_STORE_HEADERS });
+    const sourceKey = `word_pledge:${pledge.id}`;
+    const { data: existing } = await db.from("feed_posts").select("id").eq("source_key", sourceKey).maybeSingle();
+    if (existing) return NextResponse.json({ ok: true, postId: existing.id }, { headers: NO_STORE_HEADERS });
+    const { data: profile } = await db.from("user_profiles").select("default_locale").eq("user_id", user.id).maybeSingle();
+    const now = new Date().toISOString();
+    const { data: post, error: postError } = await db.from("feed_posts").insert({
+      author_user_id: user.id,
+      post_type: "manual",
+      status: "published",
+      visibility: "public",
+      source_key: sourceKey,
+      published_at: now,
+      body: keptPostText(String(pledge.goal), Number(pledge.bonus_amount) || 0, profile?.default_locale === "ru" ? "ru" : "en")
+    }).select("id").single();
+    if (postError) return NextResponse.json({ error: postError.message }, { status: 500, headers: NO_STORE_HEADERS });
+    await recordProductEvent({ eventName: "word_pledge_shared", userId: user.id, properties: {} }).catch(() => undefined);
+    return NextResponse.json({ ok: true, postId: post.id }, { headers: NO_STORE_HEADERS });
+  }
   const amount = Number(body.amount);
   if (!Number.isFinite(amount) || amount < PLEDGE_MIN || amount > PLEDGE_MAX) {
     return NextResponse.json({ error: "Bad amount." }, { status: 400, headers: NO_STORE_HEADERS });

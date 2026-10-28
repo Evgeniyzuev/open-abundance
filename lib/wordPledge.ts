@@ -33,3 +33,10 @@ export function pledgeDeadline(nextMeetingDay: string | null, now: number): stri
   const at = Number.isFinite(base) && base - now >= MIN_LEAD_MS ? base : now + DAY_MS;
   return new Date(at).toISOString();
 }
+
+/** The feed post text for a kept word: what was promised and that it was kept in time. */
+export function keptPostText(goal: string, bonus: number, locale: string): string {
+  const amount = `$${bonus.toFixed(2)}`;
+  if (locale === "ru") return `Слово сдержано: квест «${goal}» выполнен в срок. Залог вернулся, и +${amount} в Core. В Open Abundance можно дать слово на свою цель и подкрепить его залогом.`;
+  return `Word kept: the quest "${goal}" is done on time. The deposit is back, plus ${amount} to Core. In Open Abundance you can give your word on a goal and back it with a deposit.`;
+}

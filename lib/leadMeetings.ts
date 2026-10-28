@@ -152,3 +152,28 @@ export function meetingChatPrompt(input: { progress: string[]; lastGoal: string 
   ];
   return lines.filter(Boolean).join("\n");
 }
+
+/** A ready chat message when a goal did not move: Nova splits it into two or three tiny steps. */
+export function stuckSplitPrompt(goal: string | null, locale: string): string {
+  const ru = locale === "ru";
+  const target = goal?.trim();
+  if (ru) {
+    return [
+      target ? `Цель «${target}» не сдвинулась.` : "Я застрял с целью.",
+      "Помоги разбить её на 2–3 шага, первый не дольше 10 минут. Спроси, что мешает, и предложи шаг, который я сделаю сегодня. Без давления."
+    ].join(" ");
+  }
+  return [
+    target ? `The goal "${target}" didn't move.` : "I'm stuck with my goal.",
+    "Help me split it into 2–3 steps, the first no longer than 10 minutes. Ask what's in the way and suggest a step I can do today. No pressure."
+  ].join(" ");
+}
+
+/** Nova's note after the same goal stayed "not yet" at two meetings in a row. */
+export function stuckInboxText(goal: string | null, locale: string): string {
+  const target = goal?.trim();
+  if (locale === "ru") {
+    return `${target ? `Вижу, цель «${target}» второй раз подряд не сдвинулась.` : "Вижу, цель второй раз подряд не сдвинулась."} Это нормально, значит шаг великоват. Напиши мне, что мешает, и разобьём его на 2–3 шага, первый на 10 минут. Нова`;
+  }
+  return `${target ? `I see the goal "${target}" didn't move twice in a row.` : "I see the goal didn't move twice in a row."} That's normal: the step is just too big. Tell me what's in the way and we'll split it into 2–3 steps, the first one 10 minutes. Nova`;
+}

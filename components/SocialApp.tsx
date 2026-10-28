@@ -1581,7 +1581,7 @@ export default function SocialApp({
           {!user && !loading ? <p>{t("profile.registrationRequired")}</p> : null}
           {user ? (
             <>
-              <LeadWeekCard />
+              <LeadWeekCard onMessage={(userId) => { void openDirectMessage(userId); }} />
               <TeamsGrowthHero
                 currentUserId={user.id}
                 context={teamContext}

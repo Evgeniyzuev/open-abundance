@@ -6,6 +6,8 @@ import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import LeadMeetingSettings from "@/components/social/LeadMeetingSettings";
+import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
+import { stuckSplitPrompt } from "@/lib/leadMeetings";
 import {
   CONTROL_PRACTICE,
   MIDWEEK_STATUSES,
@@ -31,7 +33,7 @@ type Payload = {
   practiceKey: string;
   week: Week | null;
   hasLiveLead: boolean;
-  lead: { followers: number; kitPracticeKey: string; shared: Array<{ userId: string; name: string | null; goal: string | null; midweek: string | null; review: string | null }> } | null;
+  lead: { followers: number; kitPracticeKey: string; shared: Array<{ userId: string; name: string | null; goal: string | null; midweek: string | null; review: string | null; metRecently: boolean; wordGiven: boolean; stuck: boolean }> } | null;
 };
 
 const STATUS_ICON: Record<string, string> = { going: "🟢", stuck: "🟡", need_help: "🆘", done: "✅", partly: "◐", not_yet: "○" };
@@ -41,7 +43,7 @@ const STATUS_ICON: Record<string, string> = { going: "🟢", stuck: "🟡", need
  * with this week's practice card. No pressure: every step is optional and the person picks who sees it.
  * For live leads, also the practice of the week as a ready message for their followers.
  */
-export default function LeadWeekCard() {
+export default function LeadWeekCard({ onMessage }: { onMessage?: (userId: string) => void }) {
   const { locale, t, user } = useUserContext();
   const [data, setData] = useState<Payload | null>(null);
   const [goal, setGoal] = useState("");
@@ -146,7 +148,21 @@ export default function LeadWeekCard() {
           </div>
         </div>
       ) : null}
-      {week?.midweek_status === "stuck" && !week.review_status ? <p>{t("leadWeek.stuckHint")}</p> : null}
+      {week?.midweek_status === "stuck" && !week.review_status ? (
+        <div className="lead-meeting-stuck">
+          <p>{t("leadWeek.stuckHint")}</p>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => {
+              trackProductEvent("lead_stuck_split", { status: "week_stuck" });
+              window.dispatchEvent(new CustomEvent(OPEN_AI_PROMPT_EVENT, { detail: { text: stuckSplitPrompt(week.goal, locale) } }));
+            }}
+          >
+            {t("leadMeeting.stuckSplit")}
+          </button>
+        </div>
+      ) : null}
       {week?.midweek_status === "need_help" && !week.review_status ? <p>{t("leadWeek.helpHint")}</p> : null}
 
       {week?.goal && !week.review_status && data.phase === "review" ? (
@@ -166,22 +182,38 @@ export default function LeadWeekCard() {
 
       <LeadMeetingSettings />
 
+      {data.lead?.shared.length ? (
+        <div className="lead-week-people">
+          <strong>{t("leadWeek.peopleTitle")}</strong>
+          <ul className="lead-week-followers">
+            {data.lead.shared.map((item) => (
+              <li key={item.userId}>
+                <strong>{item.name ?? t("leadWeek.follower")}</strong>
+                <span>{item.goal ?? "—"} <span aria-hidden="true">{[item.midweek, item.review].filter(Boolean).map((status) => STATUS_ICON[String(status)] ?? "").join(" ")}</span></span>
+                <span>
+                  {[
+                    item.stuck ? t("leadWeek.people.stuck") : null,
+                    item.metRecently ? t("leadWeek.people.met") : t("leadWeek.people.notMet"),
+                    item.wordGiven ? t("leadWeek.people.word") : null
+                  ].filter(Boolean).join(" · ")}
+                </span>
+                {onMessage ? (
+                  <button className="text-button" type="button" onClick={() => { trackProductEvent("lead_people_message", { stuck: item.stuck }); onMessage(item.userId); }}>
+                    {item.stuck ? t("leadWeek.people.helpButton") : t("leadWeek.people.writeButton")}
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {data.lead && kit ? (
         <details className="lead-week-kit">
           <summary>{t("leadWeek.kitTitle", { count: data.lead.followers })}</summary>
           <p>{kitText}</p>
           <button className="secondary-button" type="button" onClick={() => void copyKit()}>{copied ? t("leadWeek.kitCopied") : t("leadWeek.kitCopy")}</button>
-          {data.lead.shared.length ? (
-            <ul className="lead-week-followers">
-              {data.lead.shared.map((item) => (
-                <li key={item.userId}>
-                  <strong>{item.name ?? t("leadWeek.follower")}</strong>
-                  <span>{item.goal ?? "—"}</span>
-                  <span aria-hidden="true">{[item.midweek, item.review].filter(Boolean).map((status) => STATUS_ICON[String(status)] ?? "").join(" ")}</span>
-                </li>
-              ))}
-            </ul>
-          ) : <p>{t("leadWeek.kitNoShared")}</p>}
+          {data.lead.shared.length ? null : <p>{t("leadWeek.kitNoShared")}</p>}
         </details>
       ) : null}
     </section>

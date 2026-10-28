@@ -24,6 +24,7 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
   const [amount, setAmount] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [shared, setShared] = useState(false);
   const userId = user?.id ?? null;
 
   const load = useCallback(async () => {
@@ -48,7 +49,23 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
   if (state.pledge?.status === "active") {
     content = <p>{t("wordPledge.active", { goal: state.pledge.goal, day: deadline, amount: money(state.pledge.amount), bonus: money(pledgeBonus(state.pledge.amount, Number(state.pledge.bonus_percent))) })}</p>;
   } else if (state.pledge?.status === "kept") {
-    content = <p role="status">{t("wordPledge.kept", { amount: money(state.pledge.amount), bonus: money(state.pledge.bonus_amount) })}</p>;
+    const pledgeId = state.pledge.id;
+    const share = async () => {
+      const response = await fetchWithSupabaseAuth(
+        "/api/word-pledge",
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "share", pledgeId }) },
+        { authRequired: true }
+      ).catch(() => null);
+      if (response?.ok) setShared(true);
+    };
+    content = (
+      <>
+        <p role="status">{t("wordPledge.kept", { amount: money(state.pledge.amount), bonus: money(state.pledge.bonus_amount) })}</p>
+        <button className="secondary-button" type="button" disabled={shared} onClick={() => void share()}>
+          {shared ? t("wordPledge.shared") : t("wordPledge.share")}
+        </button>
+      </>
+    );
   } else if (state.pledge?.status === "missed") {
     content = <p role="status">{t("wordPledge.missed", { amount: money(state.pledge.amount) })}</p>;
   } else if (mode === "offer" && state.quests.length) {

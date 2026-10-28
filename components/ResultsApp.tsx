@@ -3,6 +3,7 @@
 import { BookOpen, X } from "lucide-react";
 import { useState } from "react";
 import Sheet from "@/components/ui/Sheet";
+import AchievementsPanel from "@/components/AchievementsPanel";
 import ArtifactPassport from "@/components/ArtifactPassport";
 import FutureBoard from "@/components/FutureBoard";
 import SacredInventory from "@/components/SacredInventory";
@@ -31,6 +32,7 @@ export default function ResultsApp() {
           </button>
         </SacredInventory>
         <ArtifactPassport />
+        <AchievementsPanel />
       </section>
 
       {introOpen ? (

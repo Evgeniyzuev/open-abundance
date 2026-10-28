@@ -873,6 +873,7 @@ const es: Record<string, string> = {
   "social.feed.novaQuestion.name": "Nova · IA",
   "social.feed.novaQuestion.answer": "Responder",
   "social.feed.novaQuestion.reward": "Si a tres personas les resulta útil tu relato (▲), recibes la recompensa de la misión «Cuenta cómo fue para ti».",
+  "achievements.ready": "Para cobrar: {count}",
   "achievements.title": "Logros",
   "achievements.claimFailed": "No se pudo cobrar la recompensa. Inténtalo de nuevo.",
   "achievements.series.comments": "Comentarios",

@@ -143,7 +143,7 @@ const row = (challengeId, status, daysAgo, isActive = false) => ({ challengeId, 
   assert.equal(chooseFirstDayHook(done, [], NOW - 3600_000, null, NOW), null, "too early");
   assert.equal(chooseFirstDayHook(done, [{ step: "quest_tomorrow", at: NOW - 3600_000 }], NOW - 5 * 3600_000, NOW - 3 * 3600_000, NOW), null, "once");
   assert.equal(chooseFirstDayHook(input([row("p1", "accepted", 0, true)]), [], NOW - 5 * 3600_000, NOW - 3 * 3600_000, NOW), null, "nothing done yet");
-  assert.deepEqual([...AUTO_TAKEN_LOGICS], ["day_2_return", "has_referral"]);
+  assert.deepEqual([...AUTO_TAKEN_LOGICS], ["day_2_return"]);
 }
 // The coordinator lets the path decide and keeps the shared limits.
 {

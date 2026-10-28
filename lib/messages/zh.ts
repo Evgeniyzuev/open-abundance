@@ -873,6 +873,7 @@ const zh: Record<string, string> = {
   "social.feed.novaQuestion.name": "Nova · AI",
   "social.feed.novaQuestion.answer": "回答",
   "social.feed.novaQuestion.reward": "如果有三个人觉得你的经历有用（▲），你将获得任务“讲讲你的经历”的奖励。",
+  "achievements.ready": "可领取：{count}",
   "achievements.title": "成就",
   "achievements.claimFailed": "领取奖励失败，请再试一次。",
   "achievements.series.comments": "评论",

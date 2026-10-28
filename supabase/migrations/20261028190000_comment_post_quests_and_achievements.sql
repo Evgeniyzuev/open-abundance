@@ -1,6 +1,5 @@
 -- Comments, posts and reactions (Evgen, 2026-10-28): the first comment and the first post are growth-path quests,
--- placed after «Сила Core» by difficulty (comment, then post; the invitation stays an always-open side quest so it
--- never blocks the path). After them come achievement chains 5/10/20/50/100/200/500/1000 with the same reward per
+-- placed after «Сила Core» by difficulty: comment, post, then the invitation. After them come achievement chains 5/10/20/50/100/200/500/1000 with the same reward per
 -- milestone: a comment $0.1 Core + $0.01 Wallet, a post $0.5 + $0.05. Reactions (♥ on posts, ▲ on comments), given
 -- and received, are chains from 1 paying ten times less ($0.01 Core; Wallet keeps two decimals). Achievements are
 -- rows with category 'achievement' (hidden from the Quests list, shown on the Achievements screen, lib/achievements.ts).
@@ -62,20 +61,22 @@ set title = excluded.title,
     wallet_reward_amount = excluded.wallet_reward_amount,
     is_active = excluded.is_active;
 
--- The path: 1 First step, 2 First wish, 3 Telegram, 4 Сила Core, 5 First comment, 6 First post, 7 Notifications,
--- 8 Daily target, 9 «Я не робот», 10 Withdraw and top up, 11 First result. path_order is unique: move out of the way first.
+-- The path (Evgen, 2026-10-28): 1 First step, 2 First wish, 3 Telegram, 4 Notifications, 5 Сила Core, 6 First comment,
+-- 7 First post, 8 Invite a friend, 9 Daily target, 10 «Я не робот», 11 Withdraw and top up, 12 First result. Any path
+-- quest can be skipped (it stays taken, the next one becomes active). path_order is unique: move out of the way first.
 update public.challenges set path_order = path_order + 100 where path_order is not null;
 update public.challenges set path_order = case verification_logic
     when 'first_step_motive' then 1
     when 'has_wish' then 2
     when 'code_telegram' then 3
-    when 'calculate_time_to_goal' then 4
-    when 'first_comment_posted' then 5
-    when 'first_post_published' then 6
-    when 'app_installed' then 7
-    when 'today_core_target_reached' then 8
-    when 'humanity_confirmed' then 9
-    when 'wallet_withdraw_then_topup' then 10
-    when 'first_growth_post_published' then 11
+    when 'app_installed' then 4
+    when 'calculate_time_to_goal' then 5
+    when 'first_comment_posted' then 6
+    when 'first_post_published' then 7
+    when 'has_referral' then 8
+    when 'today_core_target_reached' then 9
+    when 'humanity_confirmed' then 10
+    when 'wallet_withdraw_then_topup' then 11
+    when 'first_growth_post_published' then 12
   end
-where path_order is not null or verification_logic in ('first_comment_posted', 'first_post_published');
+where path_order is not null or verification_logic in ('first_comment_posted', 'first_post_published', 'has_referral');

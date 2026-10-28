@@ -2159,6 +2159,7 @@ const ru: Record<string, string> = {
   "social.feed.novaQuestion.name": "Нова · ИИ",
   "social.feed.novaQuestion.answer": "Ответить",
   "social.feed.novaQuestion.reward": "Если трём людям твой рассказ окажется полезным (▲), получишь награду за квест «Расскажи, как у тебя было».",
+  "achievements.ready": "Можно забрать: {count}",
   "achievements.title": "Ачивки",
   "achievements.claimFailed": "Не получилось забрать награду. Попробуй ещё раз.",
   "achievements.series.comments": "Комментарии",

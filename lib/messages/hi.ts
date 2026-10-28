@@ -873,6 +873,7 @@ const hi: Record<string, string> = {
   "social.feed.novaQuestion.name": "Nova · AI",
   "social.feed.novaQuestion.answer": "जवाब दें",
   "social.feed.novaQuestion.reward": "अगर तीन लोगों को आपकी कहानी उपयोगी लगे (▲), तो आपको काम “बताइए, आपके साथ कैसा रहा” का इनाम मिलेगा।",
+  "achievements.ready": "लेने के लिए तैयार: {count}",
   "achievements.title": "उपलब्धियाँ",
   "achievements.claimFailed": "इनाम नहीं मिल सका। फिर से कोशिश करें।",
   "achievements.series.comments": "टिप्पणियाँ",

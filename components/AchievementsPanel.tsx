@@ -20,7 +20,7 @@ const ICONS: Record<AchievementSeries, LucideIcon> = {
 };
 
 /**
- * Achievements on the Growth screen: one row of round badges per chain (comments, posts, reactions received and
+ * Achievements on the Results screen (Wishes), next to the artifacts: one row of round badges per chain (comments, posts, reactions received and
  * given). A reached badge shows "Claim +$…"; the server recounts before paying, once.
  */
 export default function AchievementsPanel() {
@@ -68,10 +68,16 @@ export default function AchievementsPanel() {
 
   if (!user || !payload) return null;
   const money = (value: number) => formatRoundedMoney(value, locale);
+  const readyCount = payload.achievements.filter((item) => item.status === "ready").length;
+  const claimedCount = payload.achievements.filter((item) => item.status === "claimed").length;
 
   return (
-    <section className="achievements-panel" aria-labelledby="achievements-title">
-      <h2 id="achievements-title">{t("achievements.title")}</h2>
+    // Collapsed like the artifacts next to it; a reward waiting to be claimed opens it.
+    <details className="artifact-passport achievements-panel" open={readyCount > 0 || undefined}>
+      <summary>
+        <strong>{t("achievements.title")}</strong>
+        <small>{readyCount > 0 ? t("achievements.ready", { count: readyCount }) : t("artifact.count", { count: claimedCount, total: payload.achievements.length })}</small>
+      </summary>
       {failed ? <p className="achievements-error">{t("achievements.claimFailed")}</p> : null}
       {ACHIEVEMENT_SERIES.map((series) => {
         const items = payload.achievements.filter((item) => item.series === series);
@@ -121,6 +127,6 @@ export default function AchievementsPanel() {
           </div>
         );
       })}
-    </section>
+    </details>
   );
 }

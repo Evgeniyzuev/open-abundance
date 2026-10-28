@@ -16,9 +16,10 @@ export const APP_INSTALLED_LOGIC = "app_installed";
 export const MOTIVE_NOTE_MAX = 200;
 /**
  * Side quests the app takes for the person on their first visit: they cannot be done on the spot, so they stay off the
- * path and never hold it up, but the return reward and the invitation are waiting from day one.
+ * path and never hold it up, but the return reward is waiting from day one. The invitation is a path step since
+ * 2026-10-28 (after the first post); like any path step it can be skipped and stays taken.
  */
-export const AUTO_TAKEN_LOGICS = ["day_2_return", "has_referral"] as const;
+export const AUTO_TAKEN_LOGICS = ["day_2_return"] as const;
 export const AVAILABLE_LIMIT = 4;
 export const ALMOST_LIMIT = 3;
 

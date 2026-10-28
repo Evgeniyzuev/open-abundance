@@ -2159,6 +2159,7 @@ const en = {
   "social.feed.novaQuestion.name": "Nova · AI",
   "social.feed.novaQuestion.answer": "Answer",
   "social.feed.novaQuestion.reward": "If three people find your story useful (▲), you get the reward for the quest “Tell how it was for you”.",
+  "achievements.ready": "Ready to claim: {count}",
   "achievements.title": "Achievements",
   "achievements.claimFailed": "Could not claim the reward. Try again.",
   "achievements.series.comments": "Comments",

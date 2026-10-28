@@ -873,6 +873,7 @@ const ar: Record<string, string> = {
   "social.feed.novaQuestion.name": "Nova · ذكاء اصطناعي",
   "social.feed.novaQuestion.answer": "أجب",
   "social.feed.novaQuestion.reward": "إذا وجد ثلاثة أشخاص قصتك مفيدة (▲) تحصل على مكافأة مهمة «احكِ كيف كان الأمر معك».",
+  "achievements.ready": "جاهزة للاستلام: {count}",
   "achievements.title": "الإنجازات",
   "achievements.claimFailed": "تعذر استلام المكافأة. حاول مرة أخرى.",
   "achievements.series.comments": "التعليقات",

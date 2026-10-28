@@ -2042,8 +2042,8 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .feed-nova-question small { color: var(--muted); font-size: 0.75rem; line-height: 1.35; }
 
 /* Achievements on the Growth screen: a row of round badges per chain. */
-.achievements-panel { display: grid; gap: 14px; margin-top: 18px; }
-.achievements-panel > h2 { margin: 0; font-size: 1.25rem; }
+.achievements-panel[open] > summary { margin-bottom: 4px; }
+.achievements-panel .achievements-series { margin-top: 10px; }
 .achievements-error { margin: 0; color: var(--danger, #c0392b); font-size: 0.85rem; }
 .achievements-series { display: grid; gap: 8px; border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08)); padding-top: 12px; }
 .achievements-series-head { display: grid; gap: 2px; }

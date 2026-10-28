@@ -1,5 +1,6 @@
 // The Open Abundance lead in the daily analytics: who is led by whom, how the weekly rhythm goes, and which practice
 // gives more results than the control group (docs/SMALL_WISHES_AND_LEADS_PLAN.md, stage 5). Counts only.
+import { isOaLed } from "./qaAccounts.ts";
 import { CONTROL_PRACTICE, practiceByKey, weekStart } from "./leadPractices.ts";
 
 type Row = Record<string, any>;
@@ -24,7 +25,7 @@ const median = (values: number[]) => {
 
 export function buildLeadWeekReport(input: { memberships: Row[]; checkins: Row[]; userChallenges: Row[]; events: Row[]; now: number }): LeadWeekReport {
   const active = input.memberships.filter((row) => row.is_active);
-  const oaLedIds = new Set(active.filter((row) => !row.leader_user_id).map((row) => row.member_user_id));
+  const oaLedIds = new Set(active.filter((row) => isOaLed(row.leader_user_id)).map((row) => row.member_user_id));
   const current = weekStart(input.now);
   const thisWeek = input.checkins.filter((row) => row.week_start === current && row.goal);
 
@@ -51,7 +52,7 @@ export function buildLeadWeekReport(input: { memberships: Row[]; checkins: Row[]
   })).sort((left, right) => right.weeks - left.weeks || left.practice.localeCompare(right.practice));
 
   return {
-    liveLed: active.filter((row) => row.leader_user_id).length,
+    liveLed: active.filter((row) => !isOaLed(row.leader_user_id)).length,
     oaLed: oaLedIds.size,
     thisWeek: {
       goals: thisWeek.length,

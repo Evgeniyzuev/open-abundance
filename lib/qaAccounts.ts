@@ -12,3 +12,15 @@ export const QA_USER_IDS: ReadonlySet<string> = new Set([
 export function isQaUser(userId: string | null | undefined): boolean {
   return Boolean(userId && QA_USER_IDS.has(userId));
 }
+
+/**
+ * The relay of the Open Abundance lead (Evgen, 2026-10-28): qa-claude@example.com leads real members and passes on
+ * everything the Open Abundance lead does; the team and leadership tools are tested and grown on it. Its followers
+ * count as led by the Open Abundance lead, and their rows stay in the analytics.
+ */
+export const OA_RELAY_LEAD_ID = "3dbbec5f-2f5a-4004-80cd-210405e24113";
+
+/** Led by the Open Abundance lead: no live lead, or the relay account. */
+export function isOaLed(leaderUserId: string | null | undefined): boolean {
+  return !leaderUserId || leaderUserId === OA_RELAY_LEAD_ID;
+}

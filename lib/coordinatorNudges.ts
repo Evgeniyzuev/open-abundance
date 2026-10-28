@@ -24,7 +24,7 @@ import { HOLDOUT_EVENT, isHoldout, type QuestCatalogItem, type QuestNudgeInput, 
 import { weeklyLeaders } from "@/lib/questLeaders";
 import { weekStart } from "@/lib/leadPractices";
 import { isMeetingRhythm, type MeetingInviteInput } from "@/lib/leadMeetings";
-import { isQaUser } from "@/lib/qaAccounts";
+import { isOaLed, isQaUser } from "@/lib/qaAccounts";
 
 type AnyDb = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
 
@@ -370,7 +370,7 @@ async function loadLeadWeekGoals(db: AnyDb, userIds: string[], now: number): Pro
   if (memberships.error || weeks.error) return result;
   const withGoal = new Set(((weeks.data ?? []) as any[]).filter((row) => row.goal).map((row) => row.user_id));
   for (const row of (memberships.data ?? []) as any[]) {
-    if (!row.leader_user_id) result.set(row.member_user_id, withGoal.has(row.member_user_id));
+    if (isOaLed(row.leader_user_id)) result.set(row.member_user_id, withGoal.has(row.member_user_id));
   }
   return result;
 }

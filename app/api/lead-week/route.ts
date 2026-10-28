@@ -1,3 +1,4 @@
+import { isOaLed } from "@/lib/qaAccounts";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
@@ -81,7 +82,8 @@ export async function GET(request: NextRequest) {
     phase: weekPhase(now),
     practiceKey: (weekResult.data?.practice_key as string | undefined) ?? practiceKeyFor(user.id, start),
     week: weekResult.data ?? null,
-    hasLiveLead: Boolean(membershipResult.data?.leader_user_id),
+    // The relay account passes on the Open Abundance lead, so its people get the Open Abundance lead's week.
+    hasLiveLead: !isOaLed(membershipResult.data?.leader_user_id),
     lead: followerIds.length ? { followers: followerIds.length, kitPracticeKey: kitPracticeFor(start).key, shared: followers } : null
   }, { headers: NO_STORE_HEADERS });
 }

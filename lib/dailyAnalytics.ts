@@ -25,7 +25,7 @@ import { guestReview } from "./marketplaceGuestVisibility.ts";
 import { buildPathReport } from "./questPathAnalytics.ts";
 import { buildReferralReport } from "./referralAnalytics.ts";
 import { buildQuestFeedbackReport } from "./questFeedbackAnalytics.ts";
-import { isQaUser } from "./qaAccounts.ts";
+import { isQaUser, OA_RELAY_LEAD_ID } from "./qaAccounts.ts";
 import { buildWishDemand, rankWishDemand, WISH_KIND_LABEL } from "./wishDemandAnalytics.ts";
 import { buildWishCandidates, pickWishProposals } from "./wishFulfilmentCandidates.ts";
 import { buildLeadWeekReport, practiceLabel } from "./leadWeekAnalytics.ts";
@@ -134,6 +134,8 @@ export async function loadAnalyticsSnapshot(db: AnyDb, now = Date.now()): Promis
 /** A row that belongs to a QA test account (lib/qaAccounts.ts) in any of its person columns. */
 function isQaRow(row: Row): boolean {
   for (const [key, value] of Object.entries(row)) {
+    // The relay of the Open Abundance lead leads real people; their memberships stay in the numbers.
+    if (key === "leader_user_id" && value === OA_RELAY_LEAD_ID) continue;
     if ((key === "user_id" || key.endsWith("_user_id")) && isQaUser(value as string | null)) return true;
   }
   return false;

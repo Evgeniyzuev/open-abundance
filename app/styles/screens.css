@@ -2006,3 +2006,17 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .lead-meeting-stuck { display: grid; gap: 6px; justify-items: start; padding: 8px 10px; border-radius: 12px; background: var(--surface-muted, rgba(0,0,0,.03)); }
 .lead-meeting-small-wish { display: grid; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line-subtle); }
 .lead-week-people { display: grid; gap: 6px; }
+
+/* Feed → quests: the similar first step at the end of a story and the quest of the day on top of "All". */
+.feed-quest-card { display: flex; align-items: center; gap: 12px; width: 100%; margin: 12px 0 4px; border: 1px solid color-mix(in srgb, var(--blue) 22%, transparent); border-radius: 16px; padding: 12px 14px; background: var(--accent-soft); color: var(--text); text-align: left; cursor: pointer; }
+.feed-quest-card > svg { flex: none; color: var(--blue); }
+.feed-quest-text { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.feed-quest-text em { color: var(--blue); font-size: 0.75rem; font-style: normal; font-weight: 850; letter-spacing: 0.02em; text-transform: uppercase; }
+.feed-quest-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.feed-quest-line strong { font-size: 0.95rem; line-height: 1.3; }
+.feed-quest-line small { color: #b98900; font-weight: 850; white-space: nowrap; }
+.feed-quest-of-day { margin: 2px 0 10px; padding: 0; }
+.feed-quest-main { display: flex; flex: 1; align-items: center; gap: 12px; min-width: 0; border: 0; padding: 12px 0 12px 14px; background: none; color: inherit; text-align: left; cursor: pointer; }
+.feed-quest-main > svg { flex: none; color: var(--blue); }
+.feed-quest-hide { flex: none; align-self: stretch; border: 0; padding: 0 12px; background: none; color: var(--muted); cursor: pointer; }
+.post-swipe-quest { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 8px auto 0; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--accent-soft); color: var(--blue); font-weight: 850; cursor: pointer; }

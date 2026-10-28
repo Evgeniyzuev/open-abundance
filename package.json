@@ -66,6 +66,7 @@
     "test:market-listing-check": "node --experimental-strip-types scripts/verify-market-listing-check-contract.mjs",
     "test:quest-path": "node --experimental-strip-types scripts/verify-quest-path-contract.mjs",
     "test:system-feed": "node --experimental-strip-types scripts/verify-system-feed-contract.mjs",
+    "test:feed-quests": "node --experimental-strip-types scripts/verify-feed-quests-contract.mjs",
     "test:external-image-copy": "node --experimental-strip-types scripts/verify-external-image-copy-contract.mjs",
     "test:creator-challenges": "node --experimental-strip-types scripts/verify-creator-challenges-contract.mjs",
     "test:growth-stories": "node --experimental-strip-types scripts/verify-growth-stories-contract.mjs",

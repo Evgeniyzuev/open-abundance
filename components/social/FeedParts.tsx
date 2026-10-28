@@ -13,6 +13,8 @@ import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import { celebrate } from "@/lib/ui/feedback";
 import FeedStoryRings from "@/components/social/FeedStoryRings";
+import { openFeedQuest, QuestOfDayCard, SimilarQuestCard, useSimilarQuest } from "@/components/social/FeedQuestBridge";
+import type { FeedQuest } from "@/lib/feedQuests";
 import ChipRow from "@/components/ui/ChipRow";
 import Skeleton from "@/components/ui/Skeleton";
 import { type FeedFilter } from "@/components/social/useFeed";
@@ -196,6 +198,7 @@ export function FeedView({
       {filter === "stories" ? (
         <FeedStoryRings currentUserId={currentUserId} label={t("social.feed.rings")} open posts={ringPosts} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
       ) : null}
+      {filter === "all" ? <QuestOfDayCard currentUserId={currentUserId} locale={locale} t={t} /> : null}
       {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
@@ -622,6 +625,9 @@ export function PostDetailModal({
   const edgeSwipe = useEdgeSwipeBack(closeLayer);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const [swipeNotice, setSwipeNotice] = useState<string | null>(null);
+  // After a right swipe the notice offers the swiped story's similar first step (and stays a little longer).
+  const [swipeQuest, setSwipeQuest] = useState<FeedQuest | null>(null);
+  const similarQuest = useSimilarQuest(readOnly ? null : currentUserId);
   const [sequenceEnded, setSequenceEnded] = useState(false);
   const swipeSignals = Boolean(sequence && sequence.index >= 0 && canUseFeedSignals(currentUserId, post));
   const [showSwipeHint] = useState(() => typeof window !== "undefined" && !hasBeenSeen("feed-swipe-hint", "v1"));
@@ -642,15 +648,19 @@ export function PostDetailModal({
 
   useEffect(() => {
     if (!swipeNotice) return;
-    const timer = window.setTimeout(() => setSwipeNotice(null), 1800);
+    const timer = window.setTimeout(() => {
+      setSwipeNotice(null);
+      setSwipeQuest(null);
+    }, swipeQuest ? 6000 : 1800);
     return () => window.clearTimeout(timer);
-  }, [swipeNotice]);
+  }, [swipeNotice, swipeQuest]);
 
   function handleSwipe(direction: "left" | "right") {
     if (!sequence || sequence.index < 0) return;
     if (swipeSignals && currentUserId) {
       recordFeedSwipeSignal(currentUserId, post, direction === "right" ? "interest" : "not_for_me");
       setSwipeNotice(t(direction === "right" ? "social.feed.interestSaved" : "social.feed.notForMeSaved"));
+      setSwipeQuest(direction === "right" ? similarQuest(post) : null);
       if (direction === "right") celebrate(sheetRef.current);
       moveSequence(1);
       return;
@@ -742,6 +752,11 @@ export function PostDetailModal({
           </div>
         ) : null}
         {swipeNotice ? <p className="post-swipe-notice" role="status">{swipeNotice}</p> : null}
+        {swipeNotice && swipeQuest ? (
+          <button className="post-swipe-quest" type="button" onClick={() => { onClose(); openFeedQuest(swipeQuest, "swipe"); }}>
+            {t("social.feed.similarStep")} <ArrowRight size={15} aria-hidden="true" />
+          </button>
+        ) : null}
         {swipeSignals && showSwipeHint ? <p className="post-swipe-hint">{t("social.feed.swipeHint")}</p> : null}
         {hasVisualMedia && !videoLayout ? <PostMedia media={post.media} locale={locale} showSource /> : null}
         {fallbackCover ? <div className="post-detail-cover"><img alt="" src={fallbackCover} /></div> : null}
@@ -831,8 +846,9 @@ export function PostDetailModal({
             storyWishSaving={storyWishSaving}
             t={t}
           />
+          {readOnly ? null : <SimilarQuestCard currentUserId={currentUserId} locale={locale} post={post} t={t} onBeforeOpen={onClose} />}
           <div className="post-detail-actions">
-            {post.system_verified && post.verifiedChallenge ? (
+            {readOnly && post.system_verified && post.verifiedChallenge ? (
               <button className="primary-button" type="button" onClick={() => { onClose(); onOpenChallenge(); }}>
                 <Check size={15} />
                 {t("social.feed.openChallenge")}

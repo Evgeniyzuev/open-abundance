@@ -306,7 +306,7 @@ export default function AppNavigation() {
   // The "Artifact opened" window (and other places) ask to open a screen by name.
   useEffect(() => {
     const openTab = (event: Event) => {
-      const detail = (event as CustomEvent<{ main?: string; sub?: string }>).detail;
+      const detail = (event as CustomEvent<{ main?: string; sub?: string; challengeId?: string }>).detail;
       const main = detail?.main;
       if (main !== "home" && main !== "goals" && main !== "challenges" && main !== "wallet" && main !== "people") return;
       const sub = detail?.sub;
@@ -319,6 +319,11 @@ export default function AppNavigation() {
         socialTab: main === "people" && sub ? (sub as SocialTabId) : current.socialTab
       });
       if (main === "challenges") setActiveChallengeTab("challenges");
+      // The feed opens a quest from a story or the quest of the day.
+      if (main === "challenges" && detail?.challengeId) {
+        setChallengeFocusId(detail.challengeId);
+        setChallengeFocusNonce((value) => value + 1);
+      }
     };
     window.addEventListener("oa:open-tab", openTab);
     return () => window.removeEventListener("oa:open-tab", openTab);

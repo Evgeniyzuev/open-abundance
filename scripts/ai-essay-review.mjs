@@ -24,7 +24,7 @@ if (existsSync(envFile)) {
 const base = (env.ANALYTICS_URL || "https://open-abundance.vercel.app").replace(/\/$/, "");
 const endpoint = `${base}/api/internal/challenges/essay-review`;
 // Without a local token a cloud session's network secret adds the Authorization header on the way out.
-const headers = { ...(env.CLAUDE_ACTIONS_TOKEN ? { authorization: `Bearer ${env.CLAUDE_ACTIONS_TOKEN}` } : {}), "content-type": "application/json" };
+const headers = { ...(env.CLAUDE_ACTIONS_TOKEN ? { authorization: `Bearer ${env.CLAUDE_ACTIONS_TOKEN}`, "x-claude-actions-token": env.CLAUDE_ACTIONS_TOKEN } : {}), "content-type": "application/json" };
 // Base reward of the challenge (Core 1.6 + Wallet 0.4 at 100%).
 const BASE = 2;
 

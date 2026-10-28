@@ -20,7 +20,7 @@ if (existsSync(envFile)) {
 }
 
 export const appBase = (env.ANALYTICS_URL || "https://open-abundance.vercel.app").replace(/\/$/, "");
-export const actionHeaders = { ...(env.CLAUDE_ACTIONS_TOKEN ? { authorization: `Bearer ${env.CLAUDE_ACTIONS_TOKEN}` } : {}), "content-type": "application/json" };
+export const actionHeaders = { ...(env.CLAUDE_ACTIONS_TOKEN ? { authorization: `Bearer ${env.CLAUDE_ACTIONS_TOKEN}`, "x-claude-actions-token": env.CLAUDE_ACTIONS_TOKEN } : {}), "content-type": "application/json" };
 
 export async function getJson(path) {
   const response = await fetch(`${appBase}${path}`, { headers: actionHeaders });

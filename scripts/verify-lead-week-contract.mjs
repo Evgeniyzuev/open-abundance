@@ -87,8 +87,10 @@ assert.ok(meetingInviteCopy(meet).ru.body.includes("когда будет вре
 const { pledgeBonus, pledgeDeadline, affordableAmounts } = await import("../lib/wordPledge.ts");
 assert.equal(pledgeBonus(5, 10), 0.5);
 const valueSql = readFileSync(new URL("../supabase/migrations/20261028120000_word_pledge_value_bonus.sql", import.meta.url), "utf8");
-assert.ok(valueSql.includes("v_percent <= 0") && valueSql.includes("word_pledges_user_challenge_once_idx"), "no bonus on onboarding steps, one word per quest ever");
+assert.ok(valueSql.includes("v_share <= 0") && valueSql.includes("word_pledges_user_challenge_once_idx"), "no word on onboarding steps, one word per quest ever");
+assert.ok(valueSql.includes("v_floor + greatest(v_pool, 0)") && valueSql.includes("amount_cap"), "bonus above the floor comes from missed deposits; deposit capped by quest value");
 assert.deepEqual(affordableAmounts(4), [1, 3]);
+assert.deepEqual(affordableAmounts(50, 10), [1, 3, 5, 10], "deposit capped by the quest");
 assert.equal(pledgeDeadline("2026-10-28", tue), "2026-10-28T23:59:00.000Z");
 assert.equal(pledgeDeadline("2026-10-27", Date.parse("2026-10-27T20:00:00Z")), "2026-10-28T20:00:00.000Z", "at least 12 hours ahead");
 const pledgeSql = readFileSync(new URL("../supabase/migrations/20261028090000_word_pledges.sql", import.meta.url), "utf8");

@@ -10,7 +10,7 @@ const DAY_MS = 86_400_000;
 // The table and functions come from migration 20261028090000 and are not in the generated types yet.
 type LooseDb = { from: (table: string) => any; rpc: (fn: string, args?: Record<string, unknown>) => any };
 
-type QuoteRow = { user_challenge_id: string; title: Record<string, string> | null; bonus_percent: number | string };
+type QuoteRow = { user_challenge_id: string; title: Record<string, string> | null; max_percent: number | string; max_amount: number | string };
 
 const titleOf = (title: Record<string, string> | null | undefined, locale: string) => title?.[locale] ?? title?.en ?? title?.ru ?? "";
 
@@ -41,8 +41,13 @@ export async function GET(request: NextRequest) {
     walletBalance: balance,
     amounts: affordableAmounts(balance),
     quests: ((quotes.data ?? []) as QuoteRow[])
-      .map((row) => ({ id: row.user_challenge_id, title: titleOf(row.title, locale), percent: Number(row.bonus_percent) || 0 }))
-      .filter((row) => row.title && row.percent > 0)
+      .map((row) => ({
+        id: row.user_challenge_id,
+        title: titleOf(row.title, locale),
+        percent: Number(row.max_percent) || 0,
+        amounts: affordableAmounts(balance, Number(row.max_amount) || PLEDGE_MIN)
+      }))
+      .filter((row) => row.title && row.percent > 0 && row.amounts.length)
       .slice(0, 20)
   }, { headers: NO_STORE_HEADERS });
 }
@@ -67,11 +72,11 @@ export async function POST(request: NextRequest) {
     p_amount: amount,
     p_deadline_at: pledgeDeadline(nextDay, Date.now())
   });
-  const result = (data ?? {}) as { pledge_id?: string; error?: string; bonus_percent?: number };
+  const result = (data ?? {}) as { pledge_id?: string; error?: string; max_percent?: number };
   if (rpcError || !result.pledge_id) {
     // result.error is a short code (amount, deadline, quest, quest_used, active, balance); the panel shows its text.
     return NextResponse.json({ error: result.error ?? "save" }, { status: 400, headers: NO_STORE_HEADERS });
   }
-  await recordProductEvent({ eventName: "word_pledge_created", userId: user.id, properties: { amount, bonus_percent: Number(result.bonus_percent ?? 0) } }).catch(() => undefined);
+  await recordProductEvent({ eventName: "word_pledge_created", userId: user.id, properties: { amount, max_percent: Number(result.max_percent ?? 0) } }).catch(() => undefined);
   return NextResponse.json({ ok: true, pledgeId: result.pledge_id }, { headers: NO_STORE_HEADERS });
 }

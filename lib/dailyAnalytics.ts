@@ -89,7 +89,9 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "ai_usage_events", select: "user_id,capability,status,created_at", since: "created_at", cap: 50_000 },
   { table: "user_feedback", select: "user_id,category,message,screen,created_at", since: "created_at" },
   { table: "push_subscriptions", select: "owner_key,enabled" },
-  { table: "telegram_notification_deliveries", select: "status,created_at,notification_recipients(user_id)", since: "created_at" },
+  // Plain columns only (the Management API loader takes no embeds): the recipient's user comes from its own table.
+  { table: "telegram_notification_deliveries", select: "status,created_at,recipient_id", since: "created_at" },
+  { table: "notification_recipients", select: "id,user_id", since: "created_at", cap: 100_000 },
   { table: "direct_messages", select: "sender_user_id,conversation_id,created_at", since: "created_at", cap: 50_000 },
   { table: "user_follows", select: "follower_user_id,followee_user_id,created_at" },
   { table: "team_memberships", select: "member_user_id,leader_user_id,is_active" },
@@ -375,8 +377,9 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   const pushUsers = new Set((t.push_subscriptions ?? []).filter((row) => row.enabled && String(row.owner_key ?? "").startsWith("user:"))
     .map((row) => String(row.owner_key).slice(5)).filter((id) => !isQaUser(id)));
   const latestBot = new Map<string, { at: number; status: string }>();
+  const recipientUser = new Map((t.notification_recipients ?? []).map((row) => [String(row.id), String(row.user_id)]));
   for (const row of t.telegram_notification_deliveries ?? []) {
-    const userId = row.notification_recipients?.user_id as string | undefined;
+    const userId = recipientUser.get(String(row.recipient_id));
     if (!userId || isQaUser(userId) || (row.status !== "sent" && row.status !== "blocked")) continue;
     const at = Date.parse(row.created_at);
     if (at > (latestBot.get(userId)?.at ?? 0)) latestBot.set(userId, { at, status: row.status });

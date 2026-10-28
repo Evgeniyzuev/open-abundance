@@ -1947,3 +1947,7 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .lead-meeting-step { display: grid; gap: 6px; }
 .lead-meeting .secondary-button, .lead-meeting .task-done-primary-button { justify-self: start; }
 .lead-meeting-rhythm .chip[aria-pressed="true"] { background: var(--blue); color: #fff; }
+.word-pledge-offer summary { cursor: pointer; font-weight: 600; font-size: .9rem; }
+.word-pledge-body { display: grid; gap: 8px; margin-top: 8px; justify-items: start; }
+.word-pledge-body .finance-field, .word-pledge-body .finance-field select { width: 100%; }
+.word-pledge-rules { display: block; color: var(--muted); font-size: .75rem; }

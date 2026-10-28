@@ -76,6 +76,7 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
     content = (
       <details className="word-pledge-offer">
         <summary>{t("wordPledge.offerTitle")}</summary>
+        <div className="word-pledge-body">
         <p>{t("wordPledge.offerBody")}</p>
         <label className="finance-field">
           <span>{t("wordPledge.quest")}</span>
@@ -93,6 +94,7 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
         {failure ? <p className="finance-error inline">{failure}</p> : null}
         <button className="secondary-button" type="button" disabled={saving || !amount} onClick={() => void submit()}>{t("wordPledge.submit")}</button>
         <small className="word-pledge-rules">{t("wordPledge.rules")}</small>
+        </div>
       </details>
     );
   }

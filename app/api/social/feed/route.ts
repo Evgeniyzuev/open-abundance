@@ -4,6 +4,7 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Database, Tables } from "@/lib/database.types";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import type { FeedCategory, FeedRepostSource } from "@/lib/socialFeed";
+import { AUTO_POST_TYPES, isSystemFeedPost } from "@/lib/socialFeed";
 import { storyWishSourceKeys } from "@/lib/wishJourney";
 import { decodeBlogCursor, encodeBlogCursor, isPublicBlogPost } from "@/lib/blogWorkspace";
 import { normalizeProfileVisibilitySettings } from "@/lib/socialProfile";
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest) {
       if (postType) query = query.eq("post_type", postType);
       if (category === "stories") query = query.in("post_type", ["manual", "external_link", "wish", "reality_demo", "abundance_story"]);
       if (category === "opportunities") query = query.in("source_key", storyWishSourceKeys());
-      if (category === "system") query = query.in("post_type", ["daily_progress", "level_up", "wish_completed", "challenge"]);
+      if (category === "system") query = query.in("post_type", [...AUTO_POST_TYPES]);
       if (category === "reviews") query = query.eq("post_type", "project_review");
       if (category === "following") {
         const followeeIds = await loadFolloweeIds(supabase, viewerId);
@@ -235,7 +236,14 @@ export async function GET(request: NextRequest) {
           completed_at: snapshot.completed_at
         }])
     );
-    const visiblePostRows = postRows.filter((post) => post.post_type !== "wish" || wishPosts.has(post.id));
+    // Auto posts with the standard picture live in the "System" feed, not in the main one (lib/socialFeed.ts).
+    const splitAutoPosts = scope === "feed" && !postType && (category === "all" || category === "system");
+    const visiblePostRows = postRows.filter((post) => {
+      if (post.post_type === "wish" && !wishPosts.has(post.id)) return false;
+      if (!splitAutoPosts) return true;
+      const inSystemFeed = isSystemFeedPost(post.post_type, media.filter((item) => item.post_id === post.id));
+      return category === "system" ? inSystemFeed : !inSystemFeed;
+    });
 
     const authorProfile = authorUserId ? profiles.find((item) => item.user_id === authorUserId) ?? null : null;
     const blogHeader = publicBlog && authorUserId ? await loadPublicBlogHeader(supabase, authorUserId) : null;

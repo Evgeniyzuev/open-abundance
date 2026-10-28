@@ -2,6 +2,22 @@ import type { Json } from "@/lib/database.types";
 
 export type FeedCategory = "all" | "following" | "stories" | "opportunities" | "system" | "reviews";
 
+/** Posts the app writes from a person's progress (day results, level, fulfilled wish, finished challenge). */
+export const AUTO_POST_TYPES = ["daily_progress", "level_up", "wish_completed", "challenge"] as const;
+
+/**
+ * Where an auto post belongs: with the standard picture it goes to the "System" feed; once its author put their own
+ * picture on it (any media that is not a system template), it is the author's post and goes to the main feed.
+ * Other posts are not auto posts and always stay in the main feed.
+ */
+export function isSystemFeedPost(postType: string, media: Array<{ metadata: Json | null }>): boolean {
+  if (!(AUTO_POST_TYPES as readonly string[]).includes(postType)) return false;
+  return !media.some((item) => {
+    const origin = item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata) ? item.metadata.origin : null;
+    return origin !== "system_template";
+  });
+}
+
 export type FeedAuthor = {
   user_id: string;
   username: string | null;

@@ -111,6 +111,16 @@ export function FeedView({
 }) {
   const posts = feedPayload?.posts ?? [];
   const hasMore = Boolean(feedPayload?.nextCursor);
+  // "Stories" opens with the round faces of everyone who posted, so the authors met in any feed tab are collected here.
+  const [ringPosts, setRingPosts] = useState<FeedPost[]>([]);
+  useEffect(() => {
+    if (!posts.length) return;
+    setRingPosts((current) => {
+      const byId = new Map(current.map((post) => [post.id, post]));
+      for (const post of posts) byId.set(post.id, post);
+      return [...byId.values()].sort((left, right) => (right.published_at ?? "").localeCompare(left.published_at ?? ""));
+    });
+  }, [posts]);
   const [layout, setLayout] = useState<"grid" | "reels">("grid");
   useEffect(() => {
     try {
@@ -169,11 +179,9 @@ export function FeedView({
           primary={[
             { value: "all", label: t("social.feed.filter.all") },
             { value: "following", label: t("social.feed.filter.following") },
-            { value: "stories", label: t("social.feed.filter.stories") }
-          ]}
-          more={[
-            { value: "opportunities", label: t("social.feed.filter.opportunities") },
+            { value: "stories", label: t("social.feed.filter.stories") },
             { value: "system", label: t("social.feed.filter.system") },
+            { value: "opportunities", label: t("social.feed.filter.opportunities") },
             { value: "reviews", label: t("social.feed.filter.reviews") }
           ]}
           value={filter}
@@ -184,7 +192,9 @@ export function FeedView({
         </button>
       </div>
       {hasNew ? <button className="feed-new-banner" type="button" onClick={onRefreshNew}>{t("social.feed.newStories")}</button> : null}
-      <FeedStoryRings currentUserId={currentUserId} label={t("social.feed.rings")} posts={posts} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+      {filter === "stories" ? (
+        <FeedStoryRings currentUserId={currentUserId} label={t("social.feed.rings")} open posts={ringPosts} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
+      ) : null}
       {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />

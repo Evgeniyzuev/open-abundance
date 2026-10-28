@@ -23,16 +23,21 @@ function ringFor(post: FeedPost): Ring | null {
   return null;
 }
 
-/** Instagram-style row of authors in the current feed; an unseen author gets a coloured ring. */
+/**
+ * Instagram-style row of authors; an unseen author gets a coloured ring. `open` shows the full row at once (the
+ * "Stories" tab); otherwise it starts as a thin strip of overlapping faces that opens on tap.
+ */
 export default function FeedStoryRings({
   currentUserId,
   label,
+  open = false,
   posts,
   onOpenAuthor,
   onOpenSystemAccount
 }: {
   currentUserId: string;
   label: string;
+  open?: boolean;
   posts: FeedPost[];
   onOpenAuthor: (userId: string) => void;
   onOpenSystemAccount: (accountKey: string) => void;
@@ -67,13 +72,13 @@ export default function FeedStoryRings({
     return [...byId.values()];
   }, [currentUserId, posts]);
 
-  if (rings.length < 2) return null;
+  if (rings.length < (open ? 1 : 2)) return null;
   const scope = `story-ring.${currentUserId}`;
   const unseenCount = rings.filter((ring) => !hasBeenSeen(scope, ring.id)).length;
 
   return (
     <div className="feed-story-rings-wrap" data-seen={seenVersion}>
-      <button aria-expanded={expanded} className="feed-story-strip" type="button" onClick={toggle}>
+      {open ? null : <button aria-expanded={expanded} className="feed-story-strip" type="button" onClick={toggle}>
         <span className="feed-story-strip-faces" aria-hidden="true">
           {rings.slice(0, PEEK_AVATARS).map((ring) => (
             <span className={`feed-story-strip-face ${hasBeenSeen(scope, ring.id) ? "seen" : ""}`} key={ring.id}>
@@ -83,8 +88,8 @@ export default function FeedStoryRings({
         </span>
         <span className="feed-story-strip-label">{label}{unseenCount ? <i>{unseenCount}</i> : null}</span>
         {expanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
-      </button>
-      {expanded ? (
+      </button>}
+      {open || expanded ? (
         <nav aria-label={label} className="feed-story-rings">
           {rings.map((ring) => {
             const seen = hasBeenSeen(scope, ring.id);

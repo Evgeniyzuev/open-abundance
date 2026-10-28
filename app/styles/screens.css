@@ -1338,6 +1338,14 @@
 .feed-layout-toggle { width: var(--control-md, 40px); height: var(--control-md, 40px); display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: var(--radius-pill, 999px); background: var(--surface); color: var(--muted); cursor: pointer; }
 .feed-layout-toggle:focus-visible, .feed-story-ring:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .feed-story-rings-wrap { display: grid; gap: 4px; min-width: 0; }
+/* Feed controls: one row of round chips that scrolls sideways (no "More" second row), sitting closer to the top bar so
+   the first posts come up a little higher. */
+.feed-layout { margin-top: -6px; }
+.feed-toolbar { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.feed-toolbar .feed-filter-row { flex-wrap: nowrap; scrollbar-width: none; padding: 2px 0; }
+.feed-toolbar .feed-filter-row::-webkit-scrollbar { display: none; }
+.feed-toolbar .feed-filter-row button { min-height: 34px; border-radius: 999px; padding: 0 14px; font-size: 0.875rem; }
+.feed-toolbar .feed-layout-toggle { width: 34px; height: 34px; }
 .feed-story-strip { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 6px; background: transparent; color: var(--muted); font-size: 0.8125rem; font-weight: 800; cursor: pointer; }
 .feed-story-strip-faces { display: inline-flex; }
 .feed-story-strip-face { width: 24px; height: 24px; display: grid; place-items: center; overflow: hidden; margin-inline-start: -7px; border: 2px solid transparent; border-radius: 50%; background: linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(135deg, #0a84ff, #675dff 55%, #ff6b6b) border-box; color: var(--blue); font-size: 0.65rem; }

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const db = supabase as unknown as LooseDb;
   const locale = request.nextUrl.searchParams.get("locale") === "ru" ? "ru" : "en";
 
-  const settled = await db.rpc("settle_word_pledges", {});
+  const settled = await db.rpc("settle_word_pledges", { p_user_id: user.id });
   if (settled.error) return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
 
   const [latest, wallet, quests, used] = await Promise.all([
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
   const goal = typeof body.goal === "string" ? body.goal.replace(/\s+/g, " ").trim().slice(0, 300) : "";
 
   const { data, error: rpcError } = await db.rpc("create_word_pledge", {
+    p_user_id: user.id,
     p_user_challenge_id: String(body.userChallengeId ?? ""),
     p_goal: goal || "—",
     p_amount: amount,
@@ -69,7 +70,8 @@ export async function POST(request: NextRequest) {
   });
   const result = (data ?? {}) as { pledge_id?: string; error?: string };
   if (rpcError || !result.pledge_id) {
-    return NextResponse.json({ error: result.error ?? rpcError?.message ?? "Could not save." }, { status: 400, headers: NO_STORE_HEADERS });
+    // result.error is a short code (amount, deadline, quest, quest_used, active, balance); the panel shows its text.
+    return NextResponse.json({ error: result.error ?? "save" }, { status: 400, headers: NO_STORE_HEADERS });
   }
   await recordProductEvent({ eventName: "word_pledge_created", userId: user.id, properties: { amount, bonus: pledgeBonus(amount) } }).catch(() => undefined);
   return NextResponse.json({ ok: true, pledgeId: result.pledge_id }, { headers: NO_STORE_HEADERS });

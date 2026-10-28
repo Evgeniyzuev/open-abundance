@@ -3434,6 +3434,12 @@ const en = {
   "wordPledge.active": "You gave your word: \"{goal}\" by the end of {day}. The {amount} deposit comes back, plus {bonus} to Core, when the quest is done.",
   "wordPledge.kept": "Word kept! The {amount} deposit is back in your Wallet, +{bonus} to Core.",
   "wordPledge.missed": "Not this time; the {amount} deposit went to the reward fund. That's fine: at the meeting we'll take a smaller step.",
+  "wordPledge.error.amount": "The deposit must be from $1 to $20.",
+  "wordPledge.error.deadline": "The deadline must be from 12 hours to 15 days ahead.",
+  "wordPledge.error.quest": "Pick one of your started quests.",
+  "wordPledge.error.quest_used": "This quest already had a promise.",
+  "wordPledge.error.active": "You already have an active promise.",
+  "wordPledge.error.balance": "Not enough in your Wallet for the deposit.",
   "wordPledge.error": "Could not save. Try again.",
   "leadMeeting.settingsTitle": "Meetings with your lead"
 } satisfies Record<string, string>;

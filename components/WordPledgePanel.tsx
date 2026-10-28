@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
+import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { pledgeBonus } from "@/lib/wordPledge";
@@ -68,7 +69,8 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
         await load();
       } else {
         const payload = response ? ((await response.json().catch(() => ({}))) as { error?: string }) : {};
-        setFailure(payload.error ?? t("wordPledge.error"));
+        const known = ["amount", "deadline", "quest", "quest_used", "active", "balance"];
+        setFailure(t((payload.error && known.includes(payload.error) ? `wordPledge.error.${payload.error}` : "wordPledge.error") as MessageKey));
       }
     };
     content = (
@@ -90,7 +92,7 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
         </div>
         {failure ? <p className="finance-error inline">{failure}</p> : null}
         <button className="secondary-button" type="button" disabled={saving || !amount} onClick={() => void submit()}>{t("wordPledge.submit")}</button>
-        <small>{t("wordPledge.rules")}</small>
+        <small className="word-pledge-rules">{t("wordPledge.rules")}</small>
       </details>
     );
   }

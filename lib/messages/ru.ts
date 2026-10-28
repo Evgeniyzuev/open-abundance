@@ -3434,6 +3434,12 @@ const ru: Record<string, string> = {
   "wordPledge.active": "Слово дано: «{goal}» до конца дня {day}. Залог {amount} вернётся, и +{bonus} в Core, когда квест будет выполнен.",
   "wordPledge.kept": "Слово сдержано! Залог {amount} вернулся в кошелёк, +{bonus} в Core.",
   "wordPledge.missed": "В этот раз не получилось, залог {amount} ушёл в фонд наград. Ничего страшного: на встрече возьмём шаг поменьше.",
+  "wordPledge.error.amount": "Залог должен быть от $1 до $20.",
+  "wordPledge.error.deadline": "Срок должен быть от 12 часов до 15 дней.",
+  "wordPledge.error.quest": "Выбери один из своих начатых квестов.",
+  "wordPledge.error.quest_used": "На этот квест слово уже давали.",
+  "wordPledge.error.active": "У тебя уже есть данное слово.",
+  "wordPledge.error.balance": "В кошельке не хватает на залог.",
   "wordPledge.error": "Не получилось сохранить. Попробуй ещё раз.",
   "leadMeeting.settingsTitle": "Встречи с лидом"
 };

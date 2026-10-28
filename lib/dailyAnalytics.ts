@@ -27,6 +27,7 @@ import { buildReferralReport } from "./referralAnalytics.ts";
 import { buildQuestFeedbackReport } from "./questFeedbackAnalytics.ts";
 import { isQaUser } from "./qaAccounts.ts";
 import { buildWishDemand, rankWishDemand, WISH_KIND_LABEL } from "./wishDemandAnalytics.ts";
+import { buildWishCandidates, pickWishProposals } from "./wishFulfilmentCandidates.ts";
 import { buildLeadWeekReport, practiceLabel } from "./leadWeekAnalytics.ts";
 
 export const MIN_GROUP = 5;
@@ -485,6 +486,27 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   metrics.small_wish_dismissed_7d = smallEvents("small_wish_offer_dismissed").length;
   const addedKinds = countBy(smallEvents("small_wish_added"), (event) => String(event.properties?.kind ?? ""));
   out.push(`\nМаленькие желания за 7 дней: карточку видели ${metrics.small_wish_offer_shown_7d} чел., взяли ${metrics.small_wish_added_7d}${addedKinds.length ? ` (${addedKinds.map(([kind, value]) => `${kind} ${value}`).join(", ")})` : ""}, отложили ${metrics.small_wish_dismissed_7d}.`);
+  // Proposals: whose wish to fulfil next (one wish per person; money up to $30 only after contribution).
+  const wishCandidates = buildWishCandidates({
+    wishes,
+    userChallenges: t.user_challenges ?? [],
+    humanity: new Map((t.humanity_verifications ?? []).map((row) => [row.user_id, num(row.humanity_level)])),
+    lastActive,
+    now
+  });
+  const wishProposals = pickWishProposals(wishCandidates, 3);
+  metrics.wish_candidates = wishCandidates.length;
+  const kindLabel = { help: "помощь", habit: "привычка", money: "сумма", free: "без денег" } as const;
+  out.push(`\n### Предложения: чьи желания исполнить (кандидатов ${wishCandidates.length})`);
+  if (wishProposals.length) {
+    out.push(table(["Человек", "Желание", "Вид", "Цена", "Квестов", "Я не робот", "Был(а) дней назад", "Как исполнить"], wishProposals.map((row) => [
+      p(row.userId), row.label, kindLabel[row.kind], row.price ? money(row.price) : "—", row.questsDone, row.notRobot ? "да" : "нет", row.daysSinceActive ?? "—", row.action
+    ])));
+    out.push("Отправить человеку предложение (Нова, входящие по псевдониму) только после одобрения текста Евгением.");
+  } else {
+    out.push("Сегодня нет подходящих: нужны активные за 7 дней, для сумм ещё «Я не робот» и 3+ квеста.");
+  }
+  details.wish_candidates = wishCandidates.slice(0, 20).map((row) => ({ ...row, userId: undefined, person: p(row.userId) }));
   details.wish_demand = rankWishDemand(demand.filter((row) => row.kind !== "own_category"));
   details.public_wishes = wishes.filter((row) => row.visibility === "public").map((row) => ({
     person: p(row.owner_user_id), title: clip(row.title, 140), category: row.category, status: row.status, target_amount: row.target_amount, created_at: row.created_at

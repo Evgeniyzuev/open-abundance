@@ -51,3 +51,27 @@ assert.ok(migration.includes("'member_choice'"), "member choice is recorded");
 assert.ok(migration.includes("interval '1 day'"), "one choice a day");
 assert.ok(migration.includes("detach_team_member_to_system"), "no higher lead -> Open Abundance lead");
 console.log("live leads contract ok");
+
+// Daily wish proposals: money only after contribution, active people only, a mix of kinds.
+const { buildWishCandidates, pickWishProposals } = await import("../lib/wishFulfilmentCandidates.ts");
+const nowMs = Date.parse("2026-10-28T08:00:00Z");
+const act = new Map([["a", nowMs - 3_600_000], ["b", nowMs - 3_600_000], ["c", nowMs - 20 * 86_400_000]]);
+const done = (user, n) => Array.from({ length: n }, () => ({ user_id: user, status: "completed" }));
+const cands = buildWishCandidates({
+  wishes: [
+    { id: "w1", owner_user_id: "a", title: "Купить книгу", target_amount: 20, status: "active" },
+    { id: "w2", owner_user_id: "b", title: "Купить книгу", target_amount: 20, status: "active" },
+    { id: "w3", owner_user_id: "c", title: "Что-то", target_amount: 0, status: "active" },
+    { id: "w4", owner_user_id: "b", title: "Своё", target_amount: 0, status: "active", category: "health" }
+  ],
+  userChallenges: [...done("a", 4), ...done("b", 4)],
+  humanity: new Map([["a", 2]]),
+  lastActive: act,
+  now: nowMs
+});
+assert.deepEqual(cands.map((row) => row.userId).sort(), ["a", "b"], "inactive c is skipped");
+assert.equal(cands.find((row) => row.userId === "a").kind, "money");
+assert.equal(cands.find((row) => row.userId === "b").kind, "free", "b has no «Я не робот», so no money wish");
+assert.ok(!cands.some((row) => row.label === "Своё"), "private titles never leave");
+assert.equal(pickWishProposals(cands, 3).length, 2);
+console.log("wish proposals contract ok");

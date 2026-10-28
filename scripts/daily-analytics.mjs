@@ -39,7 +39,7 @@ if (source === "api") {
   const base = (env.ANALYTICS_URL || "https://open-abundance.vercel.app").replace(/\/$/, "");
   const token = env.ANALYTICS_READ_TOKEN || env.CLAUDE_ACTIONS_TOKEN;
   const response = await fetch(`${base}/api/internal/analytics/daily${minGroup ? `?minGroup=${minGroup}` : ""}`, {
-    headers: token ? { authorization: `Bearer ${token}` } : {}
+    headers: token ? { authorization: `Bearer ${token}`, "x-claude-actions-token": token } : {}
   });
   if (!response.ok) throw new Error(`${base} answered ${response.status}: ${(await response.text()).slice(0, 200)}`);
   report = await response.json();

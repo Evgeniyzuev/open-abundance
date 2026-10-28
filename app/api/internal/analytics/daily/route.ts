@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { providedActionsToken } from "@/lib/claudeActionsAuth";
 import { analyticsSalt, buildDailyReport, loadAnalyticsSnapshot, MIN_GROUP } from "@/lib/dailyAnalytics";
 import { isGrowthOperator } from "@/lib/growthOperator";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
@@ -20,7 +21,7 @@ export const maxDuration = 60;
  */
 export async function GET(request: NextRequest) {
   // The read-only token, or the actions token (a cloud session's network secret can hold one token per host).
-  const provided = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
+  const provided = providedActionsToken(request);
   const byToken = [process.env.ANALYTICS_READ_TOKEN, process.env.CLAUDE_ACTIONS_TOKEN]
     .map((value) => value?.trim())
     .some((expected) => Boolean(expected && expected.length >= 32 && safeEqual(provided, expected)));

@@ -15,13 +15,10 @@ export function emptyFeedPreferenceState(): FeedPreferenceState {
   return { interestedTopics: [], mutedTopics: [], helpTopics: [] };
 }
 
-// A wish category is a real topic. Other posts stand for themselves: an older version grouped them by source prefix or
-// post type, so one "Not for me" (also a left swipe in the post view) on one editorial story hid all of them, and on
-// one member post hid every member post. Keys stored by that version simply no longer match anything.
+// "Not for me" (also a left swipe in the post view) hides only that post. An older version grouped posts by wish
+// category, source prefix or post type, so one swipe on an editorial story hid all of them, and one on a member post
+// hid every member post. Keys stored by that version no longer match anything, so those posts come back.
 export function getFeedTopicKey(post: FeedPost): string {
-  const category = post.wish?.category?.trim().toLocaleLowerCase();
-  if (category) return `category:${category}`;
-
   const sourceKey = post.source_key?.trim().toLocaleLowerCase();
   if (sourceKey) return `source_key:${sourceKey}`;
 

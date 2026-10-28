@@ -2140,7 +2140,7 @@ const ru: Record<string, string> = {
   "social.feed.interest": "Интересно",
   "social.feed.interestSaved": "Сохранили интерес. Похожие идеи будут ближе.",
   "social.feed.notForMe": "Не моё",
-  "social.feed.notForMeSaved": "Будем показывать меньше похожего.",
+  "social.feed.notForMeSaved": "Скрыли этот пост.",
   "social.feed.previousStory": "Предыдущая история",
   "social.feed.nextStory": "Следующая история",
   "social.feed.sequenceEnd": "Это все истории подборки. На сегодня достаточно — или загрузите ещё в ленте.",

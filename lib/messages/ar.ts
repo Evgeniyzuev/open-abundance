@@ -854,7 +854,7 @@ const ar: Record<string, string> = {
   "social.feed.interest": "مثير للاهتمام",
   "social.feed.interestSaved": "تم حفظ اهتمامك. ستقترب منك أفكار مشابهة.",
   "social.feed.notForMe": "ليس لي",
-  "social.feed.notForMeSaved": "سنعرض لك أفكارًا مشابهة أقل.",
+  "social.feed.notForMeSaved": "تم إخفاء هذا المنشور.",
   "social.feed.previousStory": "القصة السابقة",
   "social.feed.nextStory": "القصة التالية",
   "social.feed.sequenceEnd": "هذه كل القصص في هذه المجموعة. يكفي لليوم — أو حمّل المزيد في الموجز.",

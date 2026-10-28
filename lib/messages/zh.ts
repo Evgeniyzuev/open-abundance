@@ -854,7 +854,7 @@ const zh: Record<string, string> = {
   "social.feed.interest": "有意思",
   "social.feed.interestSaved": "已记录你的兴趣。类似的想法会更多地出现。",
   "social.feed.notForMe": "不适合我",
-  "social.feed.notForMeSaved": "我们会减少类似的内容。",
+  "social.feed.notForMeSaved": "已隐藏这条帖子。",
   "social.feed.previousStory": "上一个故事",
   "social.feed.nextStory": "下一个故事",
   "social.feed.sequenceEnd": "这组故事就这些了。今天够了，或者在动态里加载更多。",

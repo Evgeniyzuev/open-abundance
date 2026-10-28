@@ -2140,7 +2140,7 @@ const en = {
   "social.feed.interest": "Interesting",
   "social.feed.interestSaved": "Interest saved. Similar ideas will come closer.",
   "social.feed.notForMe": "Not for me",
-  "social.feed.notForMeSaved": "We will show fewer similar ideas.",
+  "social.feed.notForMeSaved": "This post is hidden.",
   "social.feed.previousStory": "Previous story",
   "social.feed.nextStory": "Next story",
   "social.feed.sequenceEnd": "That's every story in this selection. Enough for today — or load more in the feed.",

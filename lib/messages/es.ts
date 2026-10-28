@@ -854,7 +854,7 @@ const es: Record<string, string> = {
   "social.feed.interest": "Interesante",
   "social.feed.interestSaved": "Interés guardado. Verás ideas parecidas más a menudo.",
   "social.feed.notForMe": "No es para mí",
-  "social.feed.notForMeSaved": "Te mostraremos menos ideas parecidas.",
+  "social.feed.notForMeSaved": "Ocultamos esta publicación.",
   "social.feed.previousStory": "Historia anterior",
   "social.feed.nextStory": "Historia siguiente",
   "social.feed.sequenceEnd": "Esas son todas las historias de esta selección. Suficiente por hoy, o carga más en el feed.",

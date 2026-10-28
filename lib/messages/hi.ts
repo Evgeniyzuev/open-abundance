@@ -854,7 +854,7 @@ const hi: Record<string, string> = {
   "social.feed.interest": "दिलचस्प",
   "social.feed.interestSaved": "रुचि सहेजी गई। मिलते-जुलते विचार आपके और क़रीब आएँगे।",
   "social.feed.notForMe": "मेरे लिए नहीं",
-  "social.feed.notForMeSaved": "हम मिलते-जुलते विचार कम दिखाएँगे।",
+  "social.feed.notForMeSaved": "यह पोस्ट छिपा दी गई।",
   "social.feed.previousStory": "पिछली कहानी",
   "social.feed.nextStory": "अगली कहानी",
   "social.feed.sequenceEnd": "इस चयन की सभी कहानियाँ यही हैं। आज के लिए काफ़ी है — या फ़ीड में और लोड करें।",

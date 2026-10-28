@@ -1891,7 +1891,28 @@ const zh: Record<string, string> = {
   "appTesting.installStep.android.install": "选择“安装应用”",
   "appTesting.installStep.android.open": "确认并打开图标",
   "appTesting.installNow": "安装应用",
-  "wishes.fromValues": "来自“价值观与目标” · {count}"
+  "wishes.fromValues": "来自“价值观与目标” · {count}",
+  "quests.nova.name": "Nova",
+  "quests.nova.ask": "问问 Nova",
+  "quests.firstStep.option.wish": "我有一个梦想，但还不知道怎么实现",
+  "quests.firstStep.option.path": "已经在朝目标前进，想更快一些",
+  "quests.firstStep.option.income": "多赚点钱，少听点闹钟 ⏰",
+  "quests.firstStep.option.change": "好奇别人是怎么做的 👀",
+  "quests.firstStep.option.learn": "我只是看看",
+  "quests.firstStep.option.own": "其他",
+  "quests.firstStep.ownPlaceholder": "写下你来这里的原因",
+  "quests.firstStep.save": "继续",
+  "quests.firstStep.saveFailed": "无法保存回答，请再试一次。",
+  "quests.firstStep.reply.income": "说实话，这里没有快钱。但有按贡献获得的收入。我来告诉你它从哪里来。",
+  "quests.firstStep.reply.wish": "很多人都是这样。把梦想写下来，我帮你找到迈向它的第一步。",
+  "quests.firstStep.reply.change": "我会带你看看别人怎样走向自己的愿望，并建议你从哪里开始。",
+  "quests.firstStep.reply.learn": "想看多久都行，不着急。任务会展示这里的一切如何运作，有问题随时问我。",
+  "quests.firstStep.reply.path": "太好了。我会告诉你在这里如何加速，每一步都陪着你。",
+  "quests.firstStep.reply.own": "记下了。推荐任务时我会考虑这一点。",
+  "quests.firstStep.summaryTitle": "你的回答：",
+  "quests.firstStep.peers": "相同回答的人：{count}",
+  "quests.firstStep.claim": "领取奖励",
+  "quests.guest.next": "领取奖励"
 };
 
 export default zh;

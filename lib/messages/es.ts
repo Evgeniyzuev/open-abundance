@@ -1891,7 +1891,28 @@ const es: Record<string, string> = {
   "appTesting.installStep.android.install": "Elige Instalar app",
   "appTesting.installStep.android.open": "Confirma y abre el icono",
   "appTesting.installNow": "Instalar la app",
-  "wishes.fromValues": "De Valores y metas · {count}"
+  "wishes.fromValues": "De Valores y metas · {count}",
+  "quests.nova.name": "Nova",
+  "quests.nova.ask": "Pregunta a Nova",
+  "quests.firstStep.option.wish": "Tengo un sueño. Aún no sé cómo llegar a él",
+  "quests.firstStep.option.path": "Ya voy hacia una meta. Quiero ir más rápido",
+  "quests.firstStep.option.income": "Más dinero, menos despertador ⏰",
+  "quests.firstStep.option.change": "Me da curiosidad cómo lo hacen otros 👀",
+  "quests.firstStep.option.learn": "Solo quiero mirar",
+  "quests.firstStep.option.own": "Otro",
+  "quests.firstStep.ownPlaceholder": "Escribe para qué estás aquí",
+  "quests.firstStep.save": "Siguiente",
+  "quests.firstStep.saveFailed": "No se pudo guardar la respuesta. Inténtalo de nuevo.",
+  "quests.firstStep.reply.income": "Sinceramente, aquí no hay dinero rápido. Pero sí hay ingresos por tu aporte. Te muestro de dónde salen.",
+  "quests.firstStep.reply.wish": "A muchos les pasa. Anotemos tu sueño y te ayudo a encontrar el primer paso hacia él.",
+  "quests.firstStep.reply.change": "Te mostraré cómo otros avanzan hacia sus deseos y te sugeriré por dónde empezar.",
+  "quests.firstStep.reply.learn": "Mira todo lo que quieras, sin prisa. Las misiones muestran cómo funciona todo aquí y yo respondo cualquier pregunta.",
+  "quests.firstStep.reply.path": "Genial. Te mostraré cómo acelerar aquí y te acompañaré en cada paso.",
+  "quests.firstStep.reply.own": "Anotado. Lo tendré en cuenta al proponerte misiones.",
+  "quests.firstStep.summaryTitle": "Tu respuesta:",
+  "quests.firstStep.peers": "Con la misma respuesta: {count}",
+  "quests.firstStep.claim": "Recoger la recompensa",
+  "quests.guest.next": "Recoger la recompensa"
 };
 
 export default es;

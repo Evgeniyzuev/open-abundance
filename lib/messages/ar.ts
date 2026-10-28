@@ -1891,7 +1891,28 @@ const ar: Record<string, string> = {
   "appTesting.installStep.android.install": "اختر «تثبيت التطبيق»",
   "appTesting.installStep.android.open": "أكّد وافتح الأيقونة",
   "appTesting.installNow": "تثبيت التطبيق",
-  "wishes.fromValues": "من القيم والأهداف · {count}"
+  "wishes.fromValues": "من القيم والأهداف · {count}",
+  "quests.nova.name": "Nova",
+  "quests.nova.ask": "اسأل Nova",
+  "quests.firstStep.option.wish": "لديّ حلم. لا أعرف بعد كيف أصل إليه",
+  "quests.firstStep.option.path": "أتقدّم نحو هدف بالفعل. أريد أن أسرع",
+  "quests.firstStep.option.income": "مال أكثر، منبّه أقل ⏰",
+  "quests.firstStep.option.change": "فضولي لأرى كيف يفعلها الآخرون 👀",
+  "quests.firstStep.option.learn": "أريد أن ألقي نظرة فقط",
+  "quests.firstStep.option.own": "آخر",
+  "quests.firstStep.ownPlaceholder": "اكتب لماذا أنت هنا",
+  "quests.firstStep.save": "التالي",
+  "quests.firstStep.saveFailed": "تعذّر حفظ الإجابة. حاول مرة أخرى.",
+  "quests.firstStep.reply.income": "بصراحة، لا يوجد مال سريع هنا. لكن يوجد دخل مقابل المساهمة. سأريك من أين يأتي.",
+  "quests.firstStep.reply.wish": "كثيرون يشعرون بذلك. لنكتب حلمك، وسأساعدك في إيجاد الخطوة الأولى نحوه.",
+  "quests.firstStep.reply.change": "سأريك كيف يتقدّم الآخرون نحو أمنياتهم، وأقترح من أين تبدأ أنت.",
+  "quests.firstStep.reply.learn": "انظر كما تشاء، لا عجلة. المهام تُظهر كيف يعمل كل شيء هنا، وسأجيب عن أي سؤال.",
+  "quests.firstStep.reply.path": "رائع. سأريك كيف تُسرع هنا وسأكون معك في كل خطوة.",
+  "quests.firstStep.reply.own": "سجّلت ذلك. سأراعيه عندما أقترح المهام.",
+  "quests.firstStep.summaryTitle": "إجابتك:",
+  "quests.firstStep.peers": "بالإجابة نفسها: {count}",
+  "quests.firstStep.claim": "استلم المكافأة",
+  "quests.guest.next": "استلم المكافأة"
 };
 
 export default ar;

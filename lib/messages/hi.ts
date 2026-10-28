@@ -1891,7 +1891,28 @@ const hi: Record<string, string> = {
   "appTesting.installStep.android.install": "ऐप इंस्टॉल करें चुनें",
   "appTesting.installStep.android.open": "पुष्टि करें और आइकन खोलें",
   "appTesting.installNow": "ऐप इंस्टॉल करें",
-  "wishes.fromValues": "मूल्य और लक्ष्य से · {count}"
+  "wishes.fromValues": "मूल्य और लक्ष्य से · {count}",
+  "quests.nova.name": "Nova",
+  "quests.nova.ask": "Nova से पूछें",
+  "quests.firstStep.option.wish": "मेरा एक सपना है। अभी नहीं पता कि वहाँ कैसे पहुँचूँ",
+  "quests.firstStep.option.path": "लक्ष्य की ओर बढ़ रहा हूँ। और तेज़ जाना चाहता हूँ",
+  "quests.firstStep.option.income": "ज़्यादा पैसा, कम अलार्म ⏰",
+  "quests.firstStep.option.change": "जानना है कि दूसरे कैसे करते हैं 👀",
+  "quests.firstStep.option.learn": "बस देखना है",
+  "quests.firstStep.option.own": "कुछ और",
+  "quests.firstStep.ownPlaceholder": "लिखें कि आप यहाँ किसलिए हैं",
+  "quests.firstStep.save": "आगे",
+  "quests.firstStep.saveFailed": "जवाब सहेजा नहीं जा सका। फिर कोशिश करें।",
+  "quests.firstStep.reply.income": "सच कहूँ तो यहाँ जल्दी पैसा नहीं है। लेकिन योगदान के बदले आय है। मैं दिखाती हूँ कि वह कहाँ से आती है।",
+  "quests.firstStep.reply.wish": "बहुतों के साथ ऐसा होता है। अपना सपना लिख लें, मैं उसकी ओर पहला कदम ढूँढने में मदद करूँगी।",
+  "quests.firstStep.reply.change": "मैं दिखाऊँगी कि दूसरे अपनी इच्छाओं की ओर कैसे बढ़ते हैं, और सुझाऊँगी कि आप कहाँ से शुरू करें।",
+  "quests.firstStep.reply.learn": "जितना चाहें देखें, कोई जल्दी नहीं। क्वेस्ट दिखाएँगे कि यहाँ सब कैसे चलता है, और मैं हर सवाल का जवाब दूँगी।",
+  "quests.firstStep.reply.path": "बढ़िया। मैं दिखाऊँगी कि यहाँ रफ़्तार कैसे बढ़ाएँ, और हर कदम पर साथ रहूँगी।",
+  "quests.firstStep.reply.own": "लिख लिया। क्वेस्ट सुझाते समय इसका ध्यान रखूँगी।",
+  "quests.firstStep.summaryTitle": "आपका जवाब:",
+  "quests.firstStep.peers": "यही जवाब देने वाले: {count}",
+  "quests.firstStep.claim": "इनाम लें",
+  "quests.guest.next": "इनाम लें"
 };
 
 export default hi;

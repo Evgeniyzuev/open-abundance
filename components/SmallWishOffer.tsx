@@ -54,7 +54,7 @@ export default function SmallWishOffer({ coreBalance, onAdd, wishes }: { coreBal
     <section className={`small-wish-offer${open ? " open" : ""}`} aria-label={t("wishes.small.title")}>
       <button className="values-feed-card compact" type="button" aria-expanded={open} onClick={toggle}>
         <span className="values-feed-emoji" aria-hidden="true">🌱</span>
-        <span className="values-feed-copy"><strong>{t("wishes.small.title")}</strong></span>
+        <span className="values-feed-copy"><strong>{t("wishes.dock.small")}</strong></span>
         <span className="values-feed-open">{open ? t("wishes.small.hide") : t("values.feed.open")}</span>
       </button>
       {open ? (

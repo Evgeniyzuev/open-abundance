@@ -400,7 +400,7 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
           {activeTab === "recommended" ? (
             // Always at hand at the bottom of Recommended: both collapsed into one line each.
             <div className="wish-dock">
-              <ValuesFeedCard compact locale={locale} t={t} />
+              <ValuesFeedCard compact locale={locale} t={t} title={t("wishes.dock.values")} />
               <SmallWishOffer
                 coreBalance={Math.max(0, core?.balance ?? 0)}
                 wishes={myWishes}

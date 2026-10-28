@@ -303,7 +303,7 @@ function CardsStep({ locale, profile, t, onProfile }: { locale: AppLocale; profi
 }
 
 /** The entry in the feed: a short card that opens the activity in a sheet. */
-export function ValuesFeedCard({ locale, t, compact = false }: { locale: AppLocale; t: TFunction; compact?: boolean }) {
+export function ValuesFeedCard({ locale, t, compact = false, title }: { locale: AppLocale; t: TFunction; compact?: boolean; title?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -311,7 +311,7 @@ export function ValuesFeedCard({ locale, t, compact = false }: { locale: AppLoca
         <span className="values-feed-emoji" aria-hidden="true">🧭</span>
         <span className="values-feed-copy">
           <small>{t("values.feed.eyebrow")}</small>
-          <strong>{t("values.feed.title")}</strong>
+          <strong>{title ?? t("values.feed.title")}</strong>
           <span>{t("values.feed.text")}</span>
         </span>
         <span className="values-feed-open">{t("values.feed.open")}</span>

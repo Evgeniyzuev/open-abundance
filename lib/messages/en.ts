@@ -3330,6 +3330,8 @@ const en = {
   "wishes.small.description": "It can come true now: people, Nova and the community help. Take one if you like.",
   "wishes.small.kind.help": "Members help",
   "wishes.small.kind.habit": "A {days}-day habit with Nova",
+  "wishes.dock.values": "What do I want?",
+  "wishes.dock.small": "Small wish",
   "wishes.small.hide": "Hide",
   "wishes.small.take": "Take",
   "wishes.small.notNow": "Not now",

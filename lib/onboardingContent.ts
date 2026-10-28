@@ -234,12 +234,12 @@ export const onboardingContent: OnboardingContent = {
       ar: "المهمة 1 · الخطوة الأولى"
     },
     question: {
-      ru: "Представь, что ИИ учится исполнять желания и начинает менять жизнь людей к лучшему. Думаю, ты тут не случайно. Почему ты здесь?",
-      en: "Imagine AI learning to fulfil wishes and starting to change people's lives for the better. I don't think you're here by chance. Why are you here?",
-      zh: "想象一下，AI 正在学习实现愿望，并开始让人们的生活变得更好。我想你来这里不是偶然。你为什么来这里？",
-      es: "Imagina que la IA aprende a cumplir deseos y empieza a cambiar la vida de las personas para mejor. Creo que no estás aquí por casualidad. ¿Por qué estás aquí?",
-      hi: "कल्पना करें कि AI इच्छाएँ पूरी करना सीख रहा है और लोगों की ज़िंदगी बेहतर बनाने लगा है। मुझे लगता है, आप यहाँ संयोग से नहीं हैं। आप यहाँ क्यों हैं?",
-      ar: "تخيّل أن الذكاء الاصطناعي يتعلّم تحقيق الأمنيات ويبدأ بتغيير حياة الناس إلى الأفضل. أظن أنك لست هنا صدفة. لماذا أنت هنا؟"
+      ru: "Представь, ИИ уже учится исполнять желания.\nИ помогает людям менять жизнь к лучшему.\nДумаю, ты тут не случайно. Почему ты здесь?",
+      en: "Imagine: AI is already learning to fulfil wishes.\nAnd helping people change their lives for the better.\nI don't think you're here by chance. Why are you here?",
+      zh: "想象一下，AI 已经在学习实现愿望。\n并帮助人们让生活变得更好。\n我想你来这里不是偶然。你为什么来这里？",
+      es: "Imagina: la IA ya está aprendiendo a cumplir deseos.\nY ayuda a las personas a cambiar su vida para mejor.\nCreo que no estás aquí por casualidad. ¿Por qué estás aquí?",
+      hi: "कल्पना करें, AI इच्छाएँ पूरी करना सीख रहा है।\nऔर लोगों को अपनी ज़िंदगी बेहतर बनाने में मदद करता है।\nमुझे लगता है, आप यहाँ संयोग से नहीं हैं। आप यहाँ क्यों हैं?",
+      ar: "تخيّل: الذكاء الاصطناعي يتعلّم الآن تحقيق الأمنيات.\nويساعد الناس على تغيير حياتهم إلى الأفضل.\nأظن أنك لست هنا صدفة. لماذا أنت هنا؟"
     },
     start: {
       ru: "Вход без регистрации",

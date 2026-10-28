@@ -128,7 +128,7 @@
 @media (max-width: 620px) {
   .onboarding-theme-quest .quest-scene-photo { width: calc(100% + 28px); margin-inline: -14px; border-radius: 0; }
 }
-.onboarding-theme-quest .quest-scene-text { color: var(--text); font-size: 1.05rem; }
+.onboarding-theme-quest .quest-scene-text { color: var(--text); font-size: 1.05rem; white-space: pre-line; }
 .onboarding-theme-quest .quest-choice, .onboarding-theme-quest .quest-own textarea { border-color: var(--line); background: var(--surface); color: var(--text); }
 .onboarding-theme-quest .quest-choice::before { color: var(--accent-fill); }
 .onboarding-theme-quest .quest-choice.selected { border-color: var(--accent-fill); background: var(--accent-soft); }

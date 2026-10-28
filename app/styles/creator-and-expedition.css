@@ -330,7 +330,6 @@
 .quest-choice.selected { border-color: #ffd66b; background: rgba(255, 214, 107, 0.14); }
 .quest-own { display: grid; gap: 8px; }
 .quest-own textarea { min-height: 72px; border: 1px solid rgba(159, 176, 255, 0.35); border-radius: 10px; padding: 10px; background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; resize: vertical; }
-.quest-own-link { justify-self: start; min-height: 36px; border: 0; background: none; padding: 4px 2px; color: inherit; font: inherit; font-size: 0.92rem; font-weight: 700; opacity: 0.72; text-decoration: underline; }
 .quest-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .quest-tab { min-height: 36px; border-radius: 999px; padding: 0 14px; background: var(--surface-muted); color: var(--text); font-weight: 800; }
 .quest-tab.selected { background: var(--accent-fill); color: #fff; }

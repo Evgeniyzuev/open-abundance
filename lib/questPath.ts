@@ -3,9 +3,9 @@
 
 export const QUEST_MOTIVES = ["income", "wish", "change", "learn", "path", "own"] as const;
 export type QuestMotive = (typeof QUEST_MOTIVES)[number];
-/** The answers offered on the first screen, one tap each; "own" is a small link under them and "change" stays readable
- * for older answers only. */
-export const QUEST_MOTIVE_CHOICES: readonly QuestMotive[] = ["income", "wish", "path", "learn"];
+/** The answers offered on the first screen, one tap each, in this order; "own" ("Other") comes last and asks for a few
+ * words. Since Oct 28 2026 "change" is shown as "Curious how others do it" (before: "To change my life"). */
+export const QUEST_MOTIVE_CHOICES: readonly QuestMotive[] = ["income", "wish", "path", "change", "learn"];
 
 // Same rate as lib/coreCalculator.ts; kept here so this file has no imports and runs in the node contract test.
 const DAILY_CORE_RATE = 0.000633;

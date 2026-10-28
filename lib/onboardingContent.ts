@@ -43,8 +43,6 @@ type OnboardingContent = {
     invitedBy: OnboardingLocalizedText;
     questEyebrow: OnboardingLocalizedText;
     question: OnboardingLocalizedText;
-    /** Under the first question: opens the three story slides about what Open Abundance is. */
-    whatIsThis: OnboardingLocalizedText;
     start: OnboardingLocalizedText;
     reward: OnboardingLocalizedText;
     skip: OnboardingLocalizedText;
@@ -242,14 +240,6 @@ export const onboardingContent: OnboardingContent = {
       es: "Imagina que la IA aprende a cumplir deseos y empieza a cambiar la vida de las personas para mejor. Creo que no estás aquí por casualidad. ¿Por qué estás aquí?",
       hi: "कल्पना करें कि AI इच्छाएँ पूरी करना सीख रहा है और लोगों की ज़िंदगी बेहतर बनाने लगा है। मुझे लगता है, आप यहाँ संयोग से नहीं हैं। आप यहाँ क्यों हैं?",
       ar: "تخيّل أن الذكاء الاصطناعي يتعلّم تحقيق الأمنيات ويبدأ بتغيير حياة الناس إلى الأفضل. أظن أنك لست هنا صدفة. لماذا أنت هنا؟"
-    },
-    whatIsThis: {
-      ru: "Что это такое?",
-      en: "What is this?",
-      zh: "这是什么？",
-      es: "¿Qué es esto?",
-      hi: "यह क्या है?",
-      ar: "ما هذا؟"
     },
     start: {
       ru: "Вход без регистрации",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
 import { InstallGuideDetails } from "@/components/InstallGuide";
 import { calculateFutureCore, coreRequiredForDailyIncome, DAILY_CORE_RATE, findDaysToTarget, formatDurationParts } from "@/lib/coreCalculator";
@@ -48,7 +49,7 @@ export function NovaBubble({ text, t, askText }: { text: string; t: TFunction; a
  * answer); the answer goes to the profile (app/api/challenges/progress) and steers which side quests come first. The
  * second scene sums it up, says how many others came for the same, and the reward is taken from there.
  */
-export function FirstStepQuest({ guest = false, guestReward, question, savedMotives, t, onAnswered }: { guest?: boolean; guestReward?: string; question: string; savedMotives?: QuestMotive[]; t: TFunction; onAnswered: (motives: QuestMotive[]) => void }) {
+export function FirstStepQuest({ artSrc, guest = false, guestReward, question, savedMotives, t, onAnswered, onSaved }: { artSrc?: string; guest?: boolean; guestReward?: string; question: string; savedMotives?: QuestMotive[]; t: TFunction; onAnswered: (motives: QuestMotive[]) => void; onSaved?: () => void }) {
   // Answers already saved (played as a guest before sign-in, or a reload): the summary and the reward, not the question again.
   const [chosen, setChosen] = useState<QuestMotive[]>(savedMotives ?? []);
   const [note, setNote] = useState("");
@@ -69,6 +70,7 @@ export function FirstStepQuest({ guest = false, guestReward, question, savedMoti
       storeGuestQuest({ motives, note: motives.includes("own") ? ownNote : undefined });
       trackProductEvent("guest_quest_motive_chosen", { motives: motives.join(",") });
       setPeers({});
+      onSaved?.();
       return;
     }
     setSaving(true);
@@ -83,6 +85,7 @@ export function FirstStepQuest({ guest = false, guestReward, question, savedMoti
       const payload = (await response.json().catch(() => ({}))) as { error?: string; motivePeers?: Record<string, number> };
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("quests.firstStep.saveFailed"));
       setPeers(payload.motivePeers ?? {});
+      onSaved?.();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : t("quests.firstStep.saveFailed"));
     } finally {
@@ -94,7 +97,11 @@ export function FirstStepQuest({ guest = false, guestReward, question, savedMoti
 
   return (
     <section className="quest-scene">
-      <div className="quest-scene-art" aria-hidden="true"><span className={saved ? "quest-star lit" : "quest-star"} /></div>
+      {artSrc ? (
+        <div className="quest-scene-art quest-scene-photo" aria-hidden="true"><Image alt="" fill sizes="(max-width: 620px) 100vw, 560px" src={artSrc} priority /></div>
+      ) : (
+        <div className="quest-scene-art" aria-hidden="true"><span className={saved ? "quest-star lit" : "quest-star"} /></div>
+      )}
       <span className="quest-scene-step">{saved ? t("quests.firstStep.scene2") : t("quests.firstStep.scene1")}</span>
       {invitedBy && !saved ? <p className="quest-invited">{t("invite.welcome.title", { name: invitedBy })}. {t("invite.welcome.body")}</p> : null}
       {!saved ? (
@@ -121,7 +128,7 @@ export function FirstStepQuest({ guest = false, guestReward, question, savedMoti
               </button>
             </div>
           ) : (
-            <button className="quest-own-link" type="button" disabled={saving} onClick={() => setWritingOwn(true)}>
+            <button className="quest-choice" type="button" disabled={saving} onClick={() => setWritingOwn(true)}>
               {t("quests.firstStep.option.own")}
             </button>
           )}

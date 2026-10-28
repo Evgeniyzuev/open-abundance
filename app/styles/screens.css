@@ -115,6 +115,14 @@
 .onboarding-guest-slide { gap: 14px; }
 .onboarding-guest-slide .quest-scene { border-radius: 22px; padding: 16px; }
 .onboarding-guest-slide .quest-plan { border-radius: 22px; padding: 16px; background: rgba(255,255,255,0.94); box-shadow: 0 9px 22px rgba(55,47,122,0.09); }
+/* The first quest is the opening screen: one plain app-style page (app background, no glass card, no colour blobs). */
+.onboarding-theme-quest { background: var(--bg); }
+.onboarding-theme-quest::before, .onboarding-theme-quest::after { display: none; }
+.onboarding-theme-quest .onboarding-shell { min-height: auto; border: 0; padding: 4px 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+.onboarding-theme-quest .onboarding-brand-row strong { color: var(--text); }
+.onboarding-quest-skip { width: 100%; min-height: 46px; border: 1px solid var(--line, rgba(127,127,127,0.25)); border-radius: 14px; background: var(--surface); }
+.quest-scene-art.quest-scene-photo { width: 100%; height: auto; aspect-ratio: 2 / 1; background: #1d2550; }
+.quest-scene-photo img { object-fit: cover; }
 .onboarding-text-action { justify-self: center; border: 0; background: none; padding: 8px 12px; color: inherit; opacity: 0.72; font-size: 0.92rem; font-weight: 700; text-decoration: underline; }
 .quest-invited { margin: 0 0 8px; font-weight: 800; }
 .onboarding-copy .onboarding-program-prompt { color: #312875; font-size: 0.875rem; font-weight: 850; }

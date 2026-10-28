@@ -45,7 +45,7 @@ import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/li
 
 type StoryStepId = "mission" | "stories" | "program";
 // "quest": the opening screen for a new guest. The first quest is played before sign-in and the sign-up claims its reward
-// (lib/guestQuest.ts); "What is this?" under it opens the three story slides, which lead to sign-in as before.
+// (lib/guestQuest.ts). The three story slides stay reachable with "back" from the sign-in screen.
 type StepId = StoryStepId | "quest" | "auth" | "email";
 type OnboardingState = Record<string, unknown> & {
   firstExperienceCompleted?: boolean;
@@ -66,6 +66,8 @@ const STORY_ARTWORK: Record<StoryStepId, string> = {
   stories: "/onboarding/people-stories-9-16.jpg",
   program: "/onboarding/twenty-levels-9-16.jpg"
 };
+// The growth path (wide version of the "program" slide art) over the first quest.
+const GUEST_QUEST_ART = "/onboarding/growth-path-wide.webp";
 const PENDING_EMAIL_OTP_STORAGE_KEY = "openAbundancePendingEmailOtp";
 const PENDING_EMAIL_OTP_TTL_MS = 15 * 60 * 1000;
 const EMAIL_OTP_RESEND_SECONDS = 60;
@@ -259,6 +261,8 @@ function OnboardingApp({
   const [guestPlayed, setGuestPlayed] = useState(false);
   // Answered as a guest before a reload: the quest opens on its summary and reward, not on the question again.
   const [guestMotives] = useState(() => readGuestQuest()?.motives);
+  // Once answered, the reward button leads on; "skip" would only compete with it.
+  const [questAnswered, setQuestAnswered] = useState(() => Boolean(guestMotives?.length));
 
   // Came by a friend's link: the first screen names the friend and leads straight to the first quest.
   useEffect(() => {
@@ -519,8 +523,10 @@ function OnboardingApp({
               {inviter ? <strong className="onboarding-invited">{onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)}</strong> : null}
             </div>
             <FirstStepQuest
+              artSrc={GUEST_QUEST_ART}
               guest
               savedMotives={guestMotives}
+              onSaved={() => setQuestAnswered(true)}
               guestReward={onboardingText(onboardingContent.guest.reward, locale)}
               question={onboardingText(onboardingContent.guest.question, locale)}
               t={t}
@@ -529,8 +535,7 @@ function OnboardingApp({
                 openAuthScreen();
               }}
             />
-            <button className="onboarding-text-action" type="button" onClick={() => goTo("mission")}>{onboardingText(onboardingContent.guest.whatIsThis, locale)}</button>
-            <button className="onboarding-text-action" type="button" onClick={openAuthScreen}>{onboardingText(onboardingContent.guest.skip, locale)}</button>
+            {questAnswered ? null : <button className="challenge-secondary-action onboarding-quest-skip" type="button" onClick={openAuthScreen}>{onboardingText(onboardingContent.guest.skip, locale)}</button>}
           </section>
         ) : null}
 

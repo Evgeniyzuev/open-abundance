@@ -21,7 +21,7 @@ type OnboardingContent = {
     eyebrow: OnboardingLocalizedText;
     title: OnboardingLocalizedText;
     body: OnboardingLocalizedText;
-    /** The sign-up gift line on the first screen (the "signup" quest pays $2 to Core). */
+    /** The sign-up gift line on the first screen (the "signup" quest pays $1 to Core). */
     gift: OnboardingLocalizedText;
     imageAlt: OnboardingLocalizedText;
   };
@@ -38,11 +38,13 @@ type OnboardingContent = {
     prompt: OnboardingLocalizedText;
     imageAlt: OnboardingLocalizedText;
   };
-  /** The first two quests played before sign-in, and the invitation line for a person who came by a friend's link. */
+  /** The first quest, the opening screen for a new guest, played before sign-in, and the invitation line for a person who came by a friend's link. */
   guest: {
     invitedBy: OnboardingLocalizedText;
     questEyebrow: OnboardingLocalizedText;
     question: OnboardingLocalizedText;
+    /** Under the first question: opens the three story slides about what Open Abundance is. */
+    whatIsThis: OnboardingLocalizedText;
     start: OnboardingLocalizedText;
     reward: OnboardingLocalizedText;
     skip: OnboardingLocalizedText;
@@ -124,12 +126,12 @@ export const onboardingContent: OnboardingContent = {
       ar: "اختر أمنياتك — وسيحوّلها Open Abundance إلى مسار واضح. تقدّم نحو أهدافك بسرعة أكبر وثقة أعلى ✈️"
     },
     gift: {
-      ru: "🎁 Акция: $2 в Core за регистрацию",
-      en: "🎁 Offer: $2 in Core when you sign up",
-      zh: "🎁 活动：注册即得 $2 Core",
-      es: "🎁 Promoción: $2 en Core al registrarte",
-      hi: "🎁 ऑफ़र: साइन अप पर Core में $2",
-      ar: "🎁 عرض: ‎$2 في Core عند التسجيل"
+      ru: "🎁 Акция: $1 в Core за регистрацию",
+      en: "🎁 Offer: $1 in Core when you sign up",
+      zh: "🎁 活动：注册即得 $1 Core",
+      es: "🎁 Promoción: $1 en Core al registrarte",
+      hi: "🎁 ऑफ़र: साइन अप पर Core में $1",
+      ar: "🎁 عرض: ‎$1 في Core عند التسجيل"
     },
     imageAlt: {
       ru: "Светящийся ИИ превращает желания человека в маршрут возможностей",
@@ -234,12 +236,20 @@ export const onboardingContent: OnboardingContent = {
       ar: "المهمة 1 · الخطوة الأولى"
     },
     question: {
-      ru: "Представь, что AI уже сейчас учится исполнять желания людей. А значит, то, что есть у других, может быть и у тебя. Для чего ты здесь?",
-      en: "Imagine that AI is already learning to fulfil people's wishes. That means what others have can be yours too. What are you here for?",
-      zh: "想象一下，AI 已经在学习实现人们的愿望。这意味着别人拥有的，你也可以拥有。你来这里是为了什么？",
-      es: "Imagina que la IA ya está aprendiendo a cumplir los deseos de las personas. Lo que tienen otros también puede ser tuyo. ¿Para qué estás aquí?",
-      hi: "कल्पना करें कि AI अभी से लोगों की इच्छाएँ पूरी करना सीख रहा है। यानी जो दूसरों के पास है, वह आपके पास भी हो सकता है। आप यहाँ किसलिए हैं?",
-      ar: "تخيّل أن الذكاء الاصطناعي يتعلّم الآن تحقيق أمنيات الناس. أي أن ما لدى الآخرين يمكن أن يكون لك أيضًا. لماذا أنت هنا؟"
+      ru: "Представь, что ИИ учится исполнять желания и начинает менять жизнь людей к лучшему. Думаю, ты тут не случайно. Почему ты здесь?",
+      en: "Imagine AI learning to fulfil wishes and starting to change people's lives for the better. I don't think you're here by chance. Why are you here?",
+      zh: "想象一下，AI 正在学习实现愿望，并开始让人们的生活变得更好。我想你来这里不是偶然。你为什么来这里？",
+      es: "Imagina que la IA aprende a cumplir deseos y empieza a cambiar la vida de las personas para mejor. Creo que no estás aquí por casualidad. ¿Por qué estás aquí?",
+      hi: "कल्पना करें कि AI इच्छाएँ पूरी करना सीख रहा है और लोगों की ज़िंदगी बेहतर बनाने लगा है। मुझे लगता है, आप यहाँ संयोग से नहीं हैं। आप यहाँ क्यों हैं?",
+      ar: "تخيّل أن الذكاء الاصطناعي يتعلّم تحقيق الأمنيات ويبدأ بتغيير حياة الناس إلى الأفضل. أظن أنك لست هنا صدفة. لماذا أنت هنا؟"
+    },
+    whatIsThis: {
+      ru: "Что это такое?",
+      en: "What is this?",
+      zh: "这是什么？",
+      es: "¿Qué es esto?",
+      hi: "यह क्या है?",
+      ar: "ما هذا؟"
     },
     start: {
       ru: "Вход без регистрации",
@@ -250,12 +260,12 @@ export const onboardingContent: OnboardingContent = {
       ar: "جرّب دون تسجيل"
     },
     reward: {
-      ru: "Твоя награда за первый шаг: +$1 в Core. Зарегистрируйся, чтобы забрать её, и получи ещё $2 за регистрацию.",
-      en: "Your reward for the first step: +$1 to Core. Sign up to claim it, and get $2 more for signing up.",
-      zh: "第一步奖励：Core +$1。注册即可领取，另外注册还送 $2。",
-      es: "Tu recompensa por el primer paso: +$1 en Core. Regístrate para recogerla y recibe $2 más por registrarte.",
-      hi: "पहले कदम का इनाम: Core में +$1। इसे लेने के लिए साइन अप करें, और साइन अप के $2 और पाएँ।",
-      ar: "مكافأتك على الخطوة الأولى: ‎+$1 في Core. سجّل لتستلمها واحصل على $2 إضافية مقابل التسجيل."
+      ru: "Твоя награда за первый шаг: +$1 в Core. Войди, чтобы забрать её, и получи ещё +$1 за вход. Вместе это твой первый уровень.",
+      en: "Your reward for the first step: +$1 to Core. Sign in to claim it and get +$1 more for signing in. Together that's your first level.",
+      zh: "第一步奖励：Core +$1。登录即可领取，登录再送 +$1。两者加起来就是你的第一级。",
+      es: "Tu recompensa por el primer paso: +$1 en Core. Inicia sesión para recogerla y recibe +$1 más por entrar. Juntos son tu primer nivel.",
+      hi: "पहले कदम का इनाम: Core में +$1। इसे लेने के लिए साइन इन करें और साइन इन के +$1 और पाएँ। दोनों मिलकर आपका पहला स्तर हैं।",
+      ar: "مكافأتك على الخطوة الأولى: ‎+$1 في Core. سجّل الدخول لتستلمها واحصل على ‎+$1 إضافي مقابل الدخول. معًا هذا مستواك الأول."
     },
     skip: {
       ru: "Пропустить и войти",
@@ -266,12 +276,12 @@ export const onboardingContent: OnboardingContent = {
       ar: "تخطَّ وسجّل الدخول"
     },
     saveGift: {
-      ru: "🎁 $2 за регистрацию придут сразу, а $1 за первый шаг заберёшь кнопкой в квестах: ответ уже сохранён.",
-      en: "🎁 $2 for signing up arrives right away, and you claim $1 for the first step with one tap in Quests: your answer is saved.",
-      zh: "🎁 注册奖励 $2 立即到账，第一步的 $1 在任务页一键领取：你的回答已保存。",
-      es: "🎁 Los $2 por registrarte llegan al instante, y el $1 del primer paso lo recoges con un toque en Misiones: tu respuesta ya está guardada.",
-      hi: "🎁 साइन अप के $2 तुरंत आएँगे, और पहले कदम का $1 आप क्वेस्ट में एक टैप से लेंगे: आपका जवाब सहेजा गया है।",
-      ar: "🎁 تصل $2 مقابل التسجيل فورًا، وتستلم $1 عن الخطوة الأولى بنقرة في المهام: إجابتك محفوظة."
+      ru: "🎁 $1 за вход придёт сразу, а $1 за первый шаг заберёшь кнопкой в квестах: ответ уже сохранён.",
+      en: "🎁 $1 for signing in arrives right away, and you claim $1 for the first step with one tap in Quests: your answer is saved.",
+      zh: "🎁 登录奖励 $1 立即到账，第一步的 $1 在任务页一键领取：你的回答已保存。",
+      es: "🎁 El $1 por entrar llega al instante, y el $1 del primer paso lo recoges con un toque en Misiones: tu respuesta ya está guardada.",
+      hi: "🎁 साइन इन का $1 तुरंत आएगा, और पहले कदम का $1 आप क्वेस्ट में एक टैप से लेंगे: आपका जवाब सहेजा गया है।",
+      ar: "🎁 يصل $1 مقابل الدخول فورًا، وتستلم $1 عن الخطوة الأولى بنقرة في المهام: إجابتك محفوظة."
     }
   },
   auth: {

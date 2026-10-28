@@ -10,7 +10,7 @@ import { isStandaloneDisplay } from "@/lib/installPing";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { enableDailyPush, isPushSupported, registerPushDevice } from "@/lib/pushReminders";
-import { MOTIVE_NOTE_MAX, QUEST_MOTIVES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
+import { MOTIVE_NOTE_MAX, QUEST_MOTIVE_CHOICES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -44,9 +44,9 @@ export function NovaBubble({ text, t, askText }: { text: string; t: TFunction; a
 }
 
 /**
- * "First step": the opening scene of the path. The person says why they are here, one answer or several; the answers
- * go to the profile (app/api/challenges/progress) and steer which side quests come first. The second scene sums the
- * answers up, says how many others came for the same, and the reward is taken from there.
+ * "First step": the opening scene of the path. The person says why they are here with one tap (or writes their own
+ * answer); the answer goes to the profile (app/api/challenges/progress) and steers which side quests come first. The
+ * second scene sums it up, says how many others came for the same, and the reward is taken from there.
  */
 export function FirstStepQuest({ guest = false, guestReward, question, savedMotives, t, onAnswered }: { guest?: boolean; guestReward?: string; question: string; savedMotives?: QuestMotive[]; t: TFunction; onAnswered: (motives: QuestMotive[]) => void }) {
   // Answers already saved (played as a guest before sign-in, or a reload): the summary and the reward, not the question again.
@@ -60,17 +60,14 @@ export function FirstStepQuest({ guest = false, guestReward, question, savedMoti
   }, [guest]);
   const [error, setError] = useState<string | null>(null);
   const saved = peers !== null;
-  const needsNote = chosen.includes("own") && !note.trim();
+  const [writingOwn, setWritingOwn] = useState(false);
 
-  function toggle(motive: QuestMotive) {
-    setChosen((current) => (current.includes(motive) ? current.filter((item) => item !== motive) : [...current, motive]));
-  }
-
-  async function save() {
-    if (chosen.length === 0 || needsNote) return;
+  async function save(motives: QuestMotive[], ownNote: string) {
+    if (motives.length === 0 || (motives.includes("own") && !ownNote)) return;
+    setChosen(motives);
     if (guest) {
-      storeGuestQuest({ motives: chosen, note: chosen.includes("own") ? note.trim() : undefined });
-      trackProductEvent("guest_quest_motive_chosen", { motives: chosen.join(",") });
+      storeGuestQuest({ motives, note: motives.includes("own") ? ownNote : undefined });
+      trackProductEvent("guest_quest_motive_chosen", { motives: motives.join(",") });
       setPeers({});
       return;
     }
@@ -81,7 +78,7 @@ export function FirstStepQuest({ guest = false, guestReward, question, savedMoti
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verificationLogic: "first_step_motive", proofKey: "motive_chosen", motives: chosen, note: chosen.includes("own") ? note.trim() : undefined })
+        body: JSON.stringify({ verificationLogic: "first_step_motive", proofKey: "motive_chosen", motives, note: motives.includes("own") ? ownNote : undefined })
       }, { authRequired: true });
       const payload = (await response.json().catch(() => ({}))) as { error?: string; motivePeers?: Record<string, number> };
       if (!response.ok || payload.error) throw new Error(payload.error ?? t("quests.firstStep.saveFailed"));
@@ -103,29 +100,31 @@ export function FirstStepQuest({ guest = false, guestReward, question, savedMoti
       {!saved ? (
         <>
           <p className="quest-scene-text">{question}</p>
-          <p className="quest-scene-hint">{t("quests.firstStep.multi")}</p>
           <div className="quest-choices" role="group" aria-label={question}>
-            {QUEST_MOTIVES.map((motive) => (
+            {QUEST_MOTIVE_CHOICES.map((motive) => (
               <button
-                aria-pressed={chosen.includes(motive)}
                 className={chosen.includes(motive) ? "quest-choice selected" : "quest-choice"}
                 disabled={saving}
                 key={motive}
                 type="button"
-                onClick={() => toggle(motive)}
+                onClick={() => void save([motive], "")}
               >
                 {t(`quests.firstStep.option.${motive}` as MessageKey)}
               </button>
             ))}
           </div>
-          {chosen.includes("own") ? (
+          {writingOwn ? (
             <div className="quest-own">
               <textarea maxLength={MOTIVE_NOTE_MAX} placeholder={t("quests.firstStep.ownPlaceholder")} value={note} onChange={(event) => setNote(event.target.value)} />
+              <button className="challenge-primary-action" type="button" disabled={saving || !note.trim()} onClick={() => void save(["own"], note.trim())}>
+                {saving ? t("app.common.loading") : t("quests.firstStep.save")}
+              </button>
             </div>
-          ) : null}
-          <button className="challenge-primary-action" type="button" disabled={saving || chosen.length === 0 || needsNote} onClick={() => void save()}>
-            {saving ? t("app.common.loading") : t("quests.firstStep.save")}
-          </button>
+          ) : (
+            <button className="quest-own-link" type="button" disabled={saving} onClick={() => setWritingOwn(true)}>
+              {t("quests.firstStep.option.own")}
+            </button>
+          )}
         </>
       ) : (
         <>

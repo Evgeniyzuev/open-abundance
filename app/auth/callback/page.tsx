@@ -55,7 +55,7 @@ export default function AuthCallbackPage() {
       await markLocalGuestClaimed(claim.userId);
       await claimReferralAfterAuth(guest.pendingReferral, guest.guestId);
       await markPendingReferralClaimed();
-      trackProductEvent("onboarding_completed", { method: authMethod, version: "abundance_mission_v3" });
+      trackProductEvent("onboarding_completed", { method: authMethod, version: "first_step_v4" });
 
       if (claim.registrationReward.claimed) {
         storePostAuthReward(claim.registrationReward);
@@ -75,7 +75,7 @@ export default function AuthCallbackPage() {
   async function retrySignIn() {
     setStatus("loading");
     try {
-      trackProductEvent("onboarding_auth_started", { method: "google", retry: true, version: "abundance_mission_v3" });
+      trackProductEvent("onboarding_auth_started", { method: "google", retry: true, version: "first_step_v4" });
       await signInWithGoogle();
     } catch (error) {
       console.error(error);

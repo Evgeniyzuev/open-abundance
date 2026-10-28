@@ -3,6 +3,9 @@
 
 export const QUEST_MOTIVES = ["income", "wish", "change", "learn", "path", "own"] as const;
 export type QuestMotive = (typeof QUEST_MOTIVES)[number];
+/** The answers offered on the first screen, one tap each; "own" is a small link under them and "change" stays readable
+ * for older answers only. */
+export const QUEST_MOTIVE_CHOICES: readonly QuestMotive[] = ["income", "wish", "path", "learn"];
 
 // Same rate as lib/coreCalculator.ts; kept here so this file has no imports and runs in the node contract test.
 const DAILY_CORE_RATE = 0.000633;

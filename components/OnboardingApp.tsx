@@ -44,7 +44,8 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 
 type StoryStepId = "mission" | "stories" | "program";
-// "quest": "Try without signing up" plays the first quest as a guest, then the sign-up claims its reward (lib/guestQuest.ts).
+// "quest": the opening screen for a new guest. The first quest is played before sign-in and the sign-up claims its reward
+// (lib/guestQuest.ts); "What is this?" under it opens the three story slides, which lead to sign-in as before.
 type StepId = StoryStepId | "quest" | "auth" | "email";
 type OnboardingState = Record<string, unknown> & {
   firstExperienceCompleted?: boolean;
@@ -141,7 +142,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
       trackProductEvent("registration_reward_viewed", {
         core_amount: reward.coreAmount,
         wallet_amount: reward.walletAmount,
-        version: "abundance_mission_v3"
+        version: "first_step_v4"
       });
     }
   }, [holdLevelUps]);
@@ -172,7 +173,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
             trackProductEvent("registration_reward_closed", {
               core_amount: registrationReward.coreAmount,
               wallet_amount: registrationReward.walletAmount,
-              version: "abundance_mission_v3"
+              version: "first_step_v4"
             });
             setRegistrationReward(null);
             holdLevelUps(false);
@@ -192,7 +193,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
 
   return (
     <OnboardingApp
-      initialStep={onboardingSeen || authScreenRequested ? "auth" : "mission"}
+      initialStep={onboardingSeen || authScreenRequested ? "auth" : "quest"}
       locale={onboardingLocale}
       onLocaleChange={async (nextLocale) => {
         storeOnboardingLocalePreference(nextLocale);
@@ -256,6 +257,8 @@ function OnboardingApp({
   const { locale: appLocale, t } = useUserContext();
   const [inviter, setInviter] = useState<string | null>(null);
   const [guestPlayed, setGuestPlayed] = useState(false);
+  // Answered as a guest before a reload: the quest opens on its summary and reward, not on the question again.
+  const [guestMotives] = useState(() => readGuestQuest()?.motives);
 
   // Came by a friend's link: the first screen names the friend and leads straight to the first quest.
   useEffect(() => {
@@ -296,7 +299,7 @@ function OnboardingApp({
   const currentIndex = storyStep ? steps.indexOf(step) : steps.length - 1;
 
   useEffect(() => {
-    trackProductEvent("onboarding_viewed", { locale, version: "abundance_mission_v3" });
+    trackProductEvent("onboarding_viewed", { locale, version: "first_step_v4" });
   }, [locale]);
 
   useEffect(() => {
@@ -318,7 +321,7 @@ function OnboardingApp({
   function goTo(nextStep: StepId) {
     setActionError(null);
     setStep(nextStep);
-    trackProductEvent("onboarding_step_viewed", { step: nextStep, version: "abundance_mission_v3" });
+    trackProductEvent("onboarding_step_viewed", { step: nextStep, version: "first_step_v4" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -330,7 +333,7 @@ function OnboardingApp({
   async function handleGoogleSignIn() {
     setActiveAuthMethod("google");
     setActionError(null);
-    trackProductEvent("onboarding_auth_started", { method: "google", retry: false, version: "abundance_mission_v3" });
+    trackProductEvent("onboarding_auth_started", { method: "google", retry: false, version: "first_step_v4" });
 
     try {
       await onGoogleSignIn();
@@ -356,7 +359,7 @@ function OnboardingApp({
   async function sendEmailOtp(address: string, retry: boolean) {
     setActiveAuthMethod("email");
     setActionError(null);
-    trackProductEvent("onboarding_auth_started", { method: "email", retry, version: "abundance_mission_v3" });
+    trackProductEvent("onboarding_auth_started", { method: "email", retry, version: "first_step_v4" });
 
     try {
       await onEmailOtpRequest(address);
@@ -364,7 +367,7 @@ function OnboardingApp({
       setEmailOtp("");
       setResendSeconds(EMAIL_OTP_RESEND_SECONDS);
       storePendingEmailOtp(address);
-      trackProductEvent("onboarding_auth_email_sent", { method: "email", retry, version: "abundance_mission_v3" });
+      trackProductEvent("onboarding_auth_email_sent", { method: "email", retry, version: "first_step_v4" });
     } catch {
       setActionError(onboardingText(onboardingContent.errors.emailOtpSend, locale));
     } finally {
@@ -383,7 +386,7 @@ function OnboardingApp({
 
     setActiveAuthMethod("email");
     setActionError(null);
-    trackProductEvent("onboarding_auth_email_verification_started", { method: "email", version: "abundance_mission_v3" });
+    trackProductEvent("onboarding_auth_email_verification_started", { method: "email", version: "first_step_v4" });
 
     try {
       await onEmailOtpVerify(emailOtpSentTo, emailOtp);
@@ -407,7 +410,8 @@ function OnboardingApp({
   const backdropAlt = storyStep ? onboardingText(onboardingContent[step].imageAlt, locale) : null;
   const previousStep: StepId | null = step === "email" ? "auth"
     : step === "auth" ? (guestPlayed ? "quest" : "program")
-        : step === "quest" ? (inviter ? "mission" : "auth")
+        : step === "quest" ? null
+          : step === "mission" ? (guestPlayed ? null : "quest")
           : currentIndex > 0 ? steps[currentIndex - 1] : null;
 
   return (
@@ -470,7 +474,7 @@ function OnboardingApp({
               <strong className="onboarding-gift">{onboardingText(onboardingContent.mission.gift, locale)}</strong>
               {inviter ? <strong className="onboarding-invited">{onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)}</strong> : null}
             </div>
-            <button className="onboarding-primary-action" type="button" onClick={() => goTo(inviter ? "quest" : "stories")}>
+            <button className="onboarding-primary-action" type="button" onClick={() => goTo("stories")}>
               {onboardingText(onboardingContent.actions.continue, locale)}
               <ArrowRight size={18} />
             </button>
@@ -512,9 +516,11 @@ function OnboardingApp({
           <section className="onboarding-slide onboarding-guest-slide">
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.guest.questEyebrow, locale)}</span>
+              {inviter ? <strong className="onboarding-invited">{onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)}</strong> : null}
             </div>
             <FirstStepQuest
               guest
+              savedMotives={guestMotives}
               guestReward={onboardingText(onboardingContent.guest.reward, locale)}
               question={onboardingText(onboardingContent.guest.question, locale)}
               t={t}
@@ -523,6 +529,7 @@ function OnboardingApp({
                 openAuthScreen();
               }}
             />
+            <button className="onboarding-text-action" type="button" onClick={() => goTo("mission")}>{onboardingText(onboardingContent.guest.whatIsThis, locale)}</button>
             <button className="onboarding-text-action" type="button" onClick={openAuthScreen}>{onboardingText(onboardingContent.guest.skip, locale)}</button>
           </section>
         ) : null}

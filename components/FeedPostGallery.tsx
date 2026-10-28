@@ -2,14 +2,12 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { FeedPostSignalMenu } from "@/components/FeedPostSignals";
 import ProtectedImage from "@/components/ProtectedImage";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import { emptyFeedPreferenceState, isFeedTopicMuted, readFeedPreferences, type FeedPreferenceState } from "@/lib/feedPreferences";
 import type { MessageKey } from "@/lib/i18n";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import type { FeedPost } from "@/lib/socialFeed";
-import { recommendedWishIdForStory } from "@/lib/wishJourney";
 
 const trackedImpressions = new Set<string>();
 const GRID_COLUMNS = 3;
@@ -67,12 +65,12 @@ export default function FeedPostGallery({ addingStoryWishKey, currentUserId = nu
 function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, post, priority, showAuthor, t, wishActionLabel, onAddStoryWish, onOpen, onSignalChanged }: { adding: boolean; currentUserId: string | null; evidenceLabels?: FeedPostGalleryProps["evidenceLabels"]; fallbackTitle: string; post: FeedPost; priority: boolean; showAuthor: boolean; t?: FeedPostGalleryProps["t"]; wishActionLabel: string; onAddStoryWish?: (post: FeedPost) => void; onOpen: (post: FeedPost) => void; onSignalChanged: () => void }) {
   const tileRef = useRef<HTMLElement>(null);
   const title = getFeedPostTitle(post, fallbackTitle);
+  const snippet = getFeedPostSnippet(post, title);
   const cover = getFeedPostCover(post);
   // A link post always has its platform's tile underneath, so a missing or expired frame never leaves it blank.
   const source = post.post_type === "external_link" ? post.externalLinks[0] ?? null : null;
   const imageCount = post.media.filter((item) => item.media_type === "image").length;
   const author = getTileAuthor(post);
-  const canAddWish = Boolean(onAddStoryWish && recommendedWishIdForStory(post.source_key));
   // "Verified by Abundance" is shown only on the open post, not on the card.
   const evidence = post.post_type === "reality_demo" ? evidenceLabels?.demo : null;
 
@@ -121,9 +119,11 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
         ) : null}
         {imageCount > 1 ? <span className="feed-post-tile-count">{imageCount}</span> : null}
         {evidence ? <span className="feed-post-tile-evidence" title={evidence}>{evidence}</span> : null}
-        <span className="feed-post-tile-copy">{title}</span>
+        <span className="feed-post-tile-copy">
+          <strong>{title}</strong>
+          {snippet ? <small>{snippet}</small> : null}
+        </span>
       </button>
-      {currentUserId && t ? <FeedPostSignalMenu currentUserId={currentUserId} onAddStoryWish={canAddWish ? onAddStoryWish : undefined} onSignalChanged={onSignalChanged} post={post} storyWishSaving={adding} t={t} /> : null}
     </article>
   );
 }
@@ -163,6 +163,15 @@ export function getFeedPostCover(post: FeedPost): string | null {
 export function getFeedPostTitle(post: FeedPost, fallbackTitle: string): string {
   const bodyTitle = post.body?.trim().split("\n").find(Boolean)?.trim() ?? post.repostOf?.body?.trim().split("\n").find(Boolean)?.trim();
   return post.title?.trim() || post.wish?.title || post.externalLinks[0]?.title || bodyTitle || fallbackTitle;
+}
+
+/** Up to two short lines under the tile title: the post text without the line already used as the title. */
+export function getFeedPostSnippet(post: FeedPost, title: string): string {
+  const text = (post.body ?? post.repostOf?.body ?? "").trim();
+  if (!text) return "";
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const rest = lines[0] === title ? lines.slice(1) : lines.filter((line) => line !== title);
+  return rest.join(" ").slice(0, 160);
 }
 
 function getPostFallbackMark(post: FeedPost): string {

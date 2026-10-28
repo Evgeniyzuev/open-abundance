@@ -85,7 +85,9 @@ assert.ok(!isMeetingDue("three", "2026-10-26", tue), "met on Monday, nothing due
 assert.ok(!shouldInviteToMeeting({ ...meet, rhythm: "three", lastMeetingDay: "2026-10-23" }, [], null, tue), "no invitation on a non-meeting day");
 assert.ok(meetingInviteCopy(meet).ru.body.includes("когда будет время"));
 const { pledgeBonus, pledgeDeadline, affordableAmounts } = await import("../lib/wordPledge.ts");
-assert.equal(pledgeBonus(5), 0.5);
+assert.equal(pledgeBonus(5, 10), 0.5);
+const valueSql = readFileSync(new URL("../supabase/migrations/20261028120000_word_pledge_value_bonus.sql", import.meta.url), "utf8");
+assert.ok(valueSql.includes("v_percent <= 0") && valueSql.includes("word_pledges_user_challenge_once_idx"), "no bonus on onboarding steps, one word per quest ever");
 assert.deepEqual(affordableAmounts(4), [1, 3]);
 assert.equal(pledgeDeadline("2026-10-28", tue), "2026-10-28T23:59:00.000Z");
 assert.equal(pledgeDeadline("2026-10-27", Date.parse("2026-10-27T20:00:00Z")), "2026-10-28T20:00:00.000Z", "at least 12 hours ahead");

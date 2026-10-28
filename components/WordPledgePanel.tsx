@@ -7,8 +7,8 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { pledgeBonus } from "@/lib/wordPledge";
 
-type Pledge = { id: string; goal: string; amount: number; bonus_amount: number; deadline_at: string; status: "active" | "kept" | "missed" };
-type PledgeState = { available: boolean; pledge: Pledge | null; walletBalance: number; amounts: number[]; quests: Array<{ id: string; title: string }> };
+type Pledge = { id: string; goal: string; amount: number; bonus_percent: number; bonus_amount: number; deadline_at: string; status: "active" | "kept" | "missed" };
+type PledgeState = { available: boolean; pledge: Pledge | null; walletBalance: number; amounts: number[]; quests: Array<{ id: string; title: string; percent: number }> };
 
 const money = (value: number) => `$${Number(value).toFixed(2).replace(/\.00$/, "")}`;
 
@@ -46,13 +46,14 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
 
   let content: React.ReactNode = null;
   if (state.pledge?.status === "active") {
-    content = <p>{t("wordPledge.active", { goal: state.pledge.goal, day: deadline, amount: money(state.pledge.amount), bonus: money(pledgeBonus(state.pledge.amount)) })}</p>;
+    content = <p>{t("wordPledge.active", { goal: state.pledge.goal, day: deadline, amount: money(state.pledge.amount), bonus: money(pledgeBonus(state.pledge.amount, Number(state.pledge.bonus_percent))) })}</p>;
   } else if (state.pledge?.status === "kept") {
     content = <p role="status">{t("wordPledge.kept", { amount: money(state.pledge.amount), bonus: money(state.pledge.bonus_amount) })}</p>;
   } else if (state.pledge?.status === "missed") {
     content = <p role="status">{t("wordPledge.missed", { amount: money(state.pledge.amount) })}</p>;
   } else if (mode === "offer" && state.quests.length && state.amounts.length) {
     const chosenQuest = questId || state.quests[0].id;
+    const percent = state.quests.find((quest) => quest.id === chosenQuest)?.percent ?? 0;
     const submit = async () => {
       if (!amount) return;
       setSaving(true);
@@ -69,7 +70,7 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
         await load();
       } else {
         const payload = response ? ((await response.json().catch(() => ({}))) as { error?: string }) : {};
-        const known = ["amount", "deadline", "quest", "quest_used", "active", "balance"];
+        const known = ["amount", "deadline", "quest", "quest_used", "active", "balance", "no_value"];
         setFailure(t((payload.error && known.includes(payload.error) ? `wordPledge.error.${payload.error}` : "wordPledge.error") as MessageKey));
       }
     };
@@ -81,13 +82,13 @@ export default function WordPledgePanel({ mode, nextMeetingDay, standalone = fal
         <label className="finance-field">
           <span>{t("wordPledge.quest")}</span>
           <select value={chosenQuest} onChange={(event) => setQuestId(event.target.value)}>
-            {state.quests.map((quest) => <option key={quest.id} value={quest.id}>{quest.title}</option>)}
+            {state.quests.map((quest) => <option key={quest.id} value={quest.id}>{t("wordPledge.questOption", { title: quest.title, percent: quest.percent })}</option>)}
           </select>
         </label>
         <div className="chips">
           {state.amounts.map((value) => (
             <button aria-pressed={amount === value} className="chip" key={value} type="button" onClick={() => setAmount(value)}>
-              {money(value)} → +{money(pledgeBonus(value))} Core
+              {money(value)} → +{money(pledgeBonus(value, percent))} Core
             </button>
           ))}
         </div>

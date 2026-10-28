@@ -359,7 +359,7 @@
 .onboarding-theme-mission .onboarding-progress i, .onboarding-theme-stories .onboarding-progress i, .onboarding-theme-program .onboarding-progress i { background: rgba(255,255,255,0.32); }
 .onboarding-theme-mission .onboarding-progress i.active, .onboarding-theme-stories .onboarding-progress i.active, .onboarding-theme-program .onboarding-progress i.active { background: #fff; }
 .wishes-screen { width: min(100vw, 610px); margin: 0 auto; padding: 0 6px 20px; }
-.wish-tabs { position: sticky; top: calc(48px + var(--safe-top)); z-index: 8; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: -20px 0 2px; padding: 3px 3px; background: var(--bg); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.wish-tabs { position: sticky; top: calc(var(--top-nav-height) + var(--safe-top)); z-index: 8; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: -20px 0 2px; padding: 3px 3px; background: var(--bg); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 .wish-tabs button { min-width: 0; min-height: 30px; overflow: hidden; border-radius: 10px; padding: 0 8px; background: transparent; color: var(--muted); font-size: 0.8125rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
 .wish-tabs button.active { background: var(--surface); color: var(--blue); box-shadow: var(--shadow-soft); }
 .wish-section { min-height: calc(100dvh - 190px); display: grid; align-content: start; gap: 8px; margin-bottom: 22px; }
@@ -1691,7 +1691,7 @@ h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.05; letter-spacing: 0; }
   .team-growth-grid { grid-template-columns: 1fr; }
   .team-circle-scene { min-height: 190px; }
   .app-shell { padding: 0; }
-  .app-content { padding-top: 78px; padding-bottom: 92px; }
+  .app-content { padding-top: calc(30px + var(--top-nav-height) + var(--safe-top)); padding-bottom: calc(92px + var(--safe-bottom)); }
   .reminders-app { padding-inline-start: 14px; padding-inline-end: 14px; }
   .reminders-app { min-height: calc(100vh - 36px); }
   .smart-grid.compact { gap: 10px; }

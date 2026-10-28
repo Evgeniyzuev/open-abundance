@@ -3,6 +3,8 @@
   /* Safe-area insets used across the app. In Telegram full-screen mode they also clear Telegram's own close/menu buttons. */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Height of the top tab bar below --safe-top; 0 in Telegram full-screen mode, where the tabs sit between Telegram's buttons. */
+  --top-nav-height: 48px;
   --bg: #f2f2f7;
   --surface: #ffffff;
   --surface-soft: #f7f8fb;
@@ -46,7 +48,14 @@
 :root.tg-fullscreen {
   --safe-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+  --top-nav-height: 0px;
 }
+/* Telegram full screen: the top tabs share the row of Telegram's Close and ⋯ buttons instead of adding a second bar. */
+:root.tg-fullscreen body:has(.guest-bar) { --top-nav-height: 48px; }
+:root.tg-fullscreen .top-tabbar:not(.nav-collapsed, .guest-bar) { min-height: var(--safe-top); padding: var(--tg-safe-area-inset-top, 0px) 104px 0; align-items: center; }
+:root.tg-fullscreen .top-tabbar:not(.nav-collapsed, .guest-bar) .tab-button { height: min(36px, var(--tg-content-safe-area-inset-top, 36px)); font-size: 22px; }
+:root.tg-fullscreen .top-tabbar:not(.nav-collapsed, .guest-bar) .tab-button span { min-width: 26px; height: 26px; }
+:root.tg-fullscreen .top-tabbar:not(.nav-collapsed, .guest-bar) .tab-button svg { width: 24px; height: 24px; }
 :root[data-ui-scale="120"] { font-size: 120%; }
 :root[data-ui-scale="140"] { font-size: 140%; }
 
@@ -338,11 +347,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .public-intro p { color: var(--muted); font-size: clamp(1rem, 2.4vw, 1.1875rem); line-height: 1.5; }
 .public-intro strong { color: var(--text); font-weight: 850; }
 .app-shell { min-height: 100vh; padding: 0; }
-.app-content { min-height: 100vh; padding: 84px 0 98px; }
+.app-content { min-height: 100vh; padding: calc(36px + var(--top-nav-height) + var(--safe-top)) 0 calc(98px + var(--safe-bottom)); }
 .app-view { display: contents; }
 .app-view[hidden] { display: none; }
 .glass-tabbar { position: fixed; inset-inline-start: 0; inset-inline-end: 0; z-index: 10; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; align-items: center; gap: 4px; border: 1px solid var(--nav-border); background: var(--nav-glass); box-shadow: var(--shadow-soft), inset 0 1px 0 var(--nav-highlight); -webkit-backdrop-filter: blur(28px) saturate(1.65); backdrop-filter: blur(28px) saturate(1.65); transform: translateY(0); transition: transform 180ms ease, opacity 180ms ease, width 180ms ease, height 180ms ease, border-radius 180ms ease, padding 180ms ease; }
-.top-tabbar { top: 0; min-height: calc(48px + var(--safe-top)); padding: var(--safe-top) 10px 0; border-bottom-color: var(--nav-border); box-shadow: 0 8px 24px rgba(25,25,35,0.08), inset 0 1px 0 var(--nav-highlight); }
+.top-tabbar { top: 0; min-height: calc(var(--top-nav-height) + var(--safe-top)); padding: var(--safe-top) 10px 0; border-bottom-color: var(--nav-border); box-shadow: 0 8px 24px rgba(25,25,35,0.08), inset 0 1px 0 var(--nav-highlight); }
 .bottom-tabbar { bottom: 0; min-height: calc(54px + var(--safe-bottom)); padding: 0 10px var(--safe-bottom); border-top-color: var(--nav-border); box-shadow: 0 -8px 24px rgba(25,25,35,0.08), inset 0 1px 0 var(--nav-highlight); }
 .glass-tabbar.nav-collapsed { inset-inline-start: max(16px, calc(env(safe-area-inset-left, 0px) + 16px)); inset-inline-end: auto; width: 60px; height: 60px; min-height: 60px; grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: 1fr; gap: 0; padding: 0; border-radius: 999px; box-shadow: 0 12px 32px rgba(25,25,35,0.16), inset 0 1px 0 var(--nav-highlight); transform: none; opacity: 1; pointer-events: auto; }
 .top-tabbar.nav-collapsed { top: max(16px, calc(var(--safe-top) + 16px)); }

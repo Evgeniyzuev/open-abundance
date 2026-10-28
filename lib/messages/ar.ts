@@ -1912,7 +1912,9 @@ const ar: Record<string, string> = {
   "quests.firstStep.summaryTitle": "إجابتك:",
   "quests.firstStep.peers": "بالإجابة نفسها: {count}",
   "quests.firstStep.claim": "استلم المكافأة",
-  "quests.guest.next": "استلم المكافأة"
+  "quests.guest.next": "استلم المكافأة",
+  "wishes.imageBroken": "لم تعد هذه الصورة تُفتح. ارفع صورتك من «تعديل».",
+  "social.blog.videoCoverNeeded": "أضف غلافًا: لقطة شاشة من الفيديو"
 };
 
 export default ar;

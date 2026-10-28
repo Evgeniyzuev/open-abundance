@@ -16,6 +16,7 @@ import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import type { FeedPost } from "@/lib/socialFeed";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
+import SafeImage from "@/components/ui/SafeImage";
 
 type PublicUserView = "profile" | "blog";
 type PublicProfilePayload = {
@@ -250,7 +251,7 @@ function PublicProfileView({
           <div className="public-wish-list">
             {payload.publicWishes.map((wish) => (
               <article className="public-wish-card" key={wish.id}>
-                {wish.image_url ? <img alt="" src={wish.image_url} /> : <span className="public-wish-placeholder">{wish.title.slice(0, 1)}</span>}
+                {wish.image_url ? <SafeImage fallback={<span className="public-wish-placeholder">{wish.title.slice(0, 1)}</span>} src={wish.image_url} /> : <span className="public-wish-placeholder">{wish.title.slice(0, 1)}</span>}
                 <div>
                   <strong>{wish.title}</strong>
                   {wish.description ? <p>{wish.description}</p> : null}

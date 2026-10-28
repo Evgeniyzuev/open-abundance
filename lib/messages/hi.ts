@@ -1912,7 +1912,9 @@ const hi: Record<string, string> = {
   "quests.firstStep.summaryTitle": "आपका जवाब:",
   "quests.firstStep.peers": "यही जवाब देने वाले: {count}",
   "quests.firstStep.claim": "इनाम लें",
-  "quests.guest.next": "इनाम लें"
+  "quests.guest.next": "इनाम लें",
+  "wishes.imageBroken": "यह तस्वीर अब नहीं खुलती। «संपादित करें» में अपनी तस्वीर अपलोड करें।",
+  "social.blog.videoCoverNeeded": "कवर जोड़ें: वीडियो का स्क्रीनशॉट"
 };
 
 export default hi;

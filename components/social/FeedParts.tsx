@@ -26,6 +26,7 @@ import { formatAdaptiveMoney as formatMoney } from "@/lib/moneyFormat";
 import { formatStatBlockValue, statBlockLabelKey } from "@/lib/realityDayFormat";
 import type { FeedMedia, FeedPayload, FeedPost, FeedReviewSummary, FeedStatBlock, FeedWish as PublicWish } from "@/lib/socialFeed";
 import { APP_TESTING_ATTITUDES, APP_TESTING_USEFUL_AREAS } from "@/lib/appTestingFeedback";
+import SafeImage from "@/components/ui/SafeImage";
 
 const MIN_FIRST_SCREEN_POSTS = 9;
 const FILL_PAGE_SIZE = 60;
@@ -532,7 +533,7 @@ export function WishPostPreview({
 
   return (
     <section className="wish-post-preview">
-      {wish.image_url ? <img alt="" src={wish.image_url} /> : <span className="wish-post-placeholder">{wish.title.slice(0, 1)}</span>}
+      {wish.image_url ? <SafeImage fallback={<span className="wish-post-placeholder">{wish.title.slice(0, 1)}</span>} src={wish.image_url} /> : <span className="wish-post-placeholder">{wish.title.slice(0, 1)}</span>}
       <div>
         <strong>{wish.title}</strong>
         {wish.description ? <p>{wish.description}</p> : null}

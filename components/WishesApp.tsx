@@ -36,6 +36,7 @@ import ProjectReviewSheet from "@/components/ProjectReviewSheet";
 import { isProjectWish } from "@/lib/projectReview";
 import { smallWishText, type SmallWish } from "@/lib/smallWishes";
 import { summarizeWishPrice, wishLevelForPrice } from "@/lib/wishPrice";
+import SafeImage from "@/components/ui/SafeImage";
 
 type Wish = Tables<"wishes">;
 type RecommendedWish = Pick<
@@ -739,7 +740,7 @@ function WishSection({
 function WishTile({ badge, imageUrl, onClick, primary = false, title }: { badge?: string; imageUrl: string | null; onClick: () => void; primary?: boolean; title: string }) {
   return (
     <button className="wish-tile" type="button" onClick={onClick}>
-      {imageUrl ? <img alt="" src={imageUrl} loading="lazy" /> : <div className="wish-tile-placeholder">OA</div>}
+      {imageUrl ? <SafeImage fallback={<div className="wish-tile-placeholder">OA</div>} loading="lazy" src={imageUrl} /> : <div className="wish-tile-placeholder">OA</div>}
       {badge ? <em>{badge}</em> : null}
       {primary ? <em className="wish-primary-badge">{title ? "★" : ""}</em> : null}
       <span>{title}</span>
@@ -874,7 +875,13 @@ function WishDetailModal({
           <h2>{title}</h2>
           <span />
         </div>
-        {imageUrl ? <img className="wish-modal-image" alt="" src={imageUrl} /> : <div className="wish-modal-placeholder">OA</div>}
+        {imageUrl ? (
+          <SafeImage
+            className="wish-modal-image"
+            fallback={<div className="wish-modal-placeholder">OA{isPersonal ? <small className="wish-image-broken">{t("wishes.imageBroken")}</small> : null}</div>}
+            src={imageUrl}
+          />
+        ) : <div className="wish-modal-placeholder">OA</div>}
         <div className="wish-modal-body">
           {category ? <strong>{category}</strong> : null}
           {description ? <p>{description}</p> : null}

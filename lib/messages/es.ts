@@ -1912,7 +1912,9 @@ const es: Record<string, string> = {
   "quests.firstStep.summaryTitle": "Tu respuesta:",
   "quests.firstStep.peers": "Con la misma respuesta: {count}",
   "quests.firstStep.claim": "Recoger la recompensa",
-  "quests.guest.next": "Recoger la recompensa"
+  "quests.guest.next": "Recoger la recompensa",
+  "wishes.imageBroken": "Esta imagen ya no se abre. Sube la tuya en Editar.",
+  "social.blog.videoCoverNeeded": "Añade una portada: una captura del vídeo"
 };
 
 export default es;

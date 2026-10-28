@@ -6,6 +6,7 @@ import { publishWishCompletionToFeed, publishWishToFeed } from "@/lib/serverWish
 import { normalizeLocale, type AppLocale } from "@/lib/locales";
 import { normalizeCompletionStory } from "@/lib/growthStories";
 import { wishLevelForPrice } from "@/lib/wishPrice";
+import { keepWishImage } from "@/lib/externalImageCopy";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -99,6 +100,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { wishId
     if (patch === null) {
       return NextResponse.json({ error: "Wish title is required." }, { status: 400, headers: NO_STORE_HEADERS });
     }
+    // A new picture linked from another site is copied into our storage, so it cannot vanish later.
+    if (patch.image_url && patch.image_url !== (currentWish as WishRow).image_url) patch.image_url = await keepWishImage(patch.image_url, user.id);
 
     let data = currentWish as WishRow;
     if (Object.keys(patch).length > 0) {

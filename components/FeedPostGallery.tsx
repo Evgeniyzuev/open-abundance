@@ -8,6 +8,8 @@ import { emptyFeedPreferenceState, isFeedTopicMuted, readFeedPreferences, type F
 import type { MessageKey } from "@/lib/i18n";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import type { FeedPost } from "@/lib/socialFeed";
+import SafeImage from "@/components/ui/SafeImage";
+import type { ReactNode } from "react";
 
 const trackedImpressions = new Set<string>();
 const GRID_COLUMNS = 3;
@@ -109,7 +111,7 @@ function FeedPostTile({ adding, currentUserId, evidenceLabels, fallbackTitle, po
         onOpen(post);
       }}>
         {source ? <SourceTile provider={source.provider} handle={source.author_name ?? source.author_handle} /> : null}
-        {cover ? <FeedCover priority={priority} src={cover} /> : source ? null : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
+        {cover ? <FeedCover fallback={source ? null : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>} priority={priority} src={cover} /> : source ? null : <span className="feed-post-tile-fallback">{getPostFallbackMark(post)}</span>}
         {showAuthor && author ? (
           <span aria-label={author.name} className="feed-post-tile-author">
             <span className="feed-post-tile-avatar">
@@ -141,12 +143,13 @@ function SourceTile({ provider, handle }: { provider: string; handle: string | n
   );
 }
 
-function FeedCover({ priority, src }: { priority: boolean; src: string }) {
+function FeedCover({ fallback, priority, src }: { fallback: ReactNode; priority: boolean; src: string }) {
   if (src.startsWith("/api/social/content/")) return <ProtectedImage alt="" loading={priority ? "eager" : "lazy"} src={src} />;
   if (src.startsWith("/")) {
     return <Image alt="" fill priority={priority} sizes="(max-width: 720px) 33vw, 260px" src={src} />;
   }
-  return <img alt="" decoding="async" fetchPriority={priority ? "high" : "auto"} loading={priority ? "eager" : "lazy"} src={src} />;
+  // A picture on another site can disappear: then the tile shows its quiet mark instead of a grey hole.
+  return <SafeImage decoding="async" fallback={fallback} fetchPriority={priority ? "high" : "auto"} loading={priority ? "eager" : "lazy"} src={src} />;
 }
 
 export function getFeedPostCover(post: FeedPost): string | null {

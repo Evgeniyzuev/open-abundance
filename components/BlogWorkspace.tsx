@@ -294,6 +294,11 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
   const videoLinkUrl = editor?.post?.post_type === "external_link" ? editor.post.externalLinks[0]?.external_url : editorKey === "link" ? editor?.sourceUrl || link : null;
   const videoLink = Boolean(videoLinkUrl && postHasVideoLink(videoLinkUrl, null));
   const videoLinkProvider = videoLinkUrl ? videoEmbedFromUrl(videoLinkUrl)?.provider ?? null : null;
+  // The platform gave no picture (Instagram never does) and the person has none yet: the cover field moves up and asks.
+  const currentCoverUrl = editor?.post?.media.find((item) => item.media_type === "image")?.media_url ?? null;
+  const noSourceFrame = videoLinkProvider === "instagram" || !editor?.post?.externalLinks[0]?.thumbnail_url;
+  const coverNeeded = noSourceFrame && !editor?.file && !currentCoverUrl;
+  const coverField = editor ? <VideoCoverField busy={busy} file={editor.file} currentUrl={currentCoverUrl} needed={coverNeeded} noSourceFrame={noSourceFrame} t={t} onChange={(file) => updateEdit({ file, template: null })} /> : null;
   const canChangeMedia = !editor?.post || editor.post.post_type === "external_link" || editor.post.status === "draft" && (system || editor.post.post_type === "manual");
   return <section className="blog-workspace" hidden={!active}>
     {!own ? <button type="button" className="text-button blog-back-own" onClick={onBackToOwn}>← {t("social.blog.backToMine")}</button> : null}
@@ -345,6 +350,7 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
         </> : null}
         {(editorKey === "link" || editor.post?.post_type === "external_link") ? <>
           <label>{t("social.post.detail")}<input type="text" maxLength={120} value={editor.title} disabled={busy} onChange={(event) => updateEdit({ title: event.target.value })} /></label>
+          {canChangeMedia && videoLink && coverNeeded ? coverField : null}
           {editor.post?.externalLinks[0] ? <ExternalSourceCard link={editor.post.externalLinks[0]} postId={editor.post.id} t={t} /> : null}
           {editor.post?.post_type === "external_link" ? <>
             <ExternalShareActions postId={editor.post.id} t={t} />
@@ -356,7 +362,7 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
         {editor.post ? <label>{t("social.blog.visibility")}<select value={editor.visibility} disabled={busy} onChange={(event) => updateEdit({ visibility: event.target.value })}>
           <option value="public">{t("social.blog.everyone")}</option><option value="private">{t("social.blog.onlyMe")}</option>
         </select></label> : null}
-        {canChangeMedia && videoLink ? <VideoCoverField busy={busy} file={editor.file} currentUrl={editor.post?.media.find((item) => item.media_type === "image")?.media_url ?? null} noSourceFrame={videoLinkProvider === "instagram" || !editor.post?.externalLinks[0]?.thumbnail_url} t={t} onChange={(file) => updateEdit({ file, template: null })} /> : null}
+        {canChangeMedia && videoLink && !coverNeeded ? coverField : null}
         {canChangeMedia && !videoLink ? <label>{t("social.blog.mediaCover")}<input type="file" disabled={busy} accept={system ? "image/jpeg,image/png,image/webp" : "image/jpeg,image/png,image/webp,video/mp4"} onChange={(event) => updateEdit({ file: event.target.files?.[0] ?? null, template: null })} /></label> : null}
         {editor.file && !videoLink ? <p>{editor.file.name}</p> : null}
         {videoLink ? null : <p>{canChangeMedia ? t("social.blog.mediaHint") : null}</p>}
@@ -384,10 +390,11 @@ export default function BlogWorkspace({ userId, authorId, locale, active, refres
 }
 
 /** Cover for a video link post: a screenshot shows on its feed tile and on the player before it starts. */
-function VideoCoverField({ busy, file, currentUrl, noSourceFrame, t, onChange }: {
+function VideoCoverField({ busy, file, currentUrl, needed = false, noSourceFrame, t, onChange }: {
   busy: boolean;
   file: File | null;
   currentUrl: string | null;
+  needed?: boolean;
   noSourceFrame: boolean;
   t: Translate;
   onChange: (file: File | null) => void;
@@ -400,10 +407,10 @@ function VideoCoverField({ busy, file, currentUrl, noSourceFrame, t, onChange }:
     return () => URL.revokeObjectURL(url);
   }, [file]);
   const shown = preview ?? currentUrl;
-  return <div className="video-cover-field">
+  return <div className={needed ? "video-cover-field needed" : "video-cover-field"}>
     <span className="video-cover-field-preview">{shown ? <img alt="" src={shown} /> : <small>{t("social.blog.videoCoverEmpty")}</small>}</span>
     <div className="video-cover-field-copy">
-      <strong>{t("social.blog.videoCover")}</strong>
+      <strong>{needed ? t("social.blog.videoCoverNeeded") : t("social.blog.videoCover")}</strong>
       <p>{noSourceFrame ? t("social.blog.videoCoverNoFrame") : t("social.blog.videoCoverHint")}</p>
       <div className="video-cover-field-actions">
         <label className="secondary-button system-event-upload">

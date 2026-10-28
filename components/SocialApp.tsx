@@ -43,6 +43,7 @@ import { DISPLAY_CURRENCIES, DISPLAY_CURRENCY_SYMBOLS, type DisplayCurrency } fr
 import { recommendedWishIdForStory } from "@/lib/wishJourney";
 import { getSoundsEnabled, playUiSound, setSoundsEnabled } from "@/lib/ui/sound";
 import { SHARE_TO_OA_ENABLED } from "@/lib/shareToOA";
+import SafeImage from "@/components/ui/SafeImage";
 
 export default function SocialApp({
   active,
@@ -2941,7 +2942,7 @@ function PublicWishesPanel({
       <div className="public-wish-list">
         {wishes.map((wish) => (
           <article className="public-wish-card" key={wish.id}>
-            {wish.image_url ? <img alt="" src={wish.image_url} /> : <span className="public-wish-placeholder">{wish.title.slice(0, 1)}</span>}
+            {wish.image_url ? <SafeImage fallback={<span className="public-wish-placeholder">{wish.title.slice(0, 1)}</span>} src={wish.image_url} /> : <span className="public-wish-placeholder">{wish.title.slice(0, 1)}</span>}
             <div>
               <strong>{wish.title}</strong>
               {wish.description ? <p>{wish.description}</p> : null}

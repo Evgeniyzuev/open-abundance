@@ -1912,7 +1912,9 @@ const zh: Record<string, string> = {
   "quests.firstStep.summaryTitle": "你的回答：",
   "quests.firstStep.peers": "相同回答的人：{count}",
   "quests.firstStep.claim": "领取奖励",
-  "quests.guest.next": "领取奖励"
+  "quests.guest.next": "领取奖励",
+  "wishes.imageBroken": "这张图片已无法打开。请在“编辑”中上传你自己的图片。",
+  "social.blog.videoCoverNeeded": "添加封面：视频截图"
 };
 
 export default zh;

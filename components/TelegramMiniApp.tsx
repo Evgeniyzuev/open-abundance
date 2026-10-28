@@ -14,7 +14,6 @@ type TelegramWebApp = {
   initData?: string;
   initDataUnsafe?: { user?: { allows_write_to_pm?: boolean } };
   ready?: () => void;
-  expand?: () => void;
   isVersionAtLeast?: (version: string) => boolean;
   requestWriteAccess?: (callback?: (granted: boolean) => void) => void;
 };
@@ -52,8 +51,8 @@ export default function TelegramMiniApp() {
 
     void (async () => {
       const webApp = await loadTelegramScript();
+      // No expand(): the app opens in Telegram's normal (not full-screen) height; the person can pull it up.
       webApp?.ready?.();
-      webApp?.expand?.();
       const initData = webApp?.initData || launch.initData;
       initDataRef.current = initData;
 

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { ACHIEVEMENT_CATEGORY } from "@/lib/achievements";
 import type { Database } from "@/lib/database.types";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { canAcceptChallenge, getChallengeAccessReasons, hasFirstResult, isChallengeAlmostAvailable, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
@@ -78,6 +79,8 @@ export async function GET(request: NextRequest) {
         : "id,title,description,instructions,requirements,core_reward_amount,wallet_reward_amount,category,difficulty_level,duration_days,image_url,verification_type,verification_logic,sort_order,track_key,track_step,action_view,prerequisite_challenge_id,acquisition_series,acquisition_target,acquisition_metric_key,is_permanent,path_order,unlock_at_completed"
     )
     .eq("is_active", true)
+    // Achievements live on their own screen (/api/achievements), not in the Quests list.
+    .neq("category", ACHIEVEMENT_CATEGORY)
     .order("sort_order", { ascending: true })
     .order("difficulty_level", { ascending: true });
 

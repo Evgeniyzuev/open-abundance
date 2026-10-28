@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { ACHIEVEMENT_CATEGORY, COUNTED_COMMENT_MIN_LENGTH, FIRST_COMMENT_LOGIC, FIRST_POST_LOGIC } from "@/lib/achievements";
+import { countComments, countPosts } from "@/lib/achievementsServer";
 import { findUsefulStoryComment, USEFUL_STORY_COMMENT_LOGIC, USEFUL_STORY_COMMENT_MIN_LENGTH, USEFUL_STORY_COMMENT_MIN_VOTES, type StoryCommentVote } from "@/lib/storyComments";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
@@ -74,6 +76,10 @@ export async function POST(request: NextRequest) {
 
   if (!challenge) {
     return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
+  }
+
+  if (challenge.category === ACHIEVEMENT_CATEGORY) {
+    return NextResponse.json({ error: "Achievements are claimed on the Achievements screen." }, { status: 409 });
   }
 
   if (challenge.verification_logic === "peer_reviews") {
@@ -315,6 +321,17 @@ async function verifyChallenge(
     if (progress.error) return { ok: false, reason: "Could not check the Core law test. Try again." };
     if (progress.proved) return { ok: true };
     return { ok: false, reason: "Pass the Core law test first." };
+  }
+
+  if (challenge.verification_logic === FIRST_COMMENT_LOGIC || challenge.verification_logic === FIRST_POST_LOGIC) {
+    const isComment = challenge.verification_logic === FIRST_COMMENT_LOGIC;
+    try {
+      const count = isComment ? await countComments(supabase as any, userId) : await countPosts(supabase as any, userId);
+      if (count > 0) return { ok: true };
+    } catch {
+      return { ok: false, reason: `Could not check your ${isComment ? "comments" : "posts"}. Try again.` };
+    }
+    return { ok: false, reason: isComment ? `Write one comment of at least ${COUNTED_COMMENT_MIN_LENGTH} characters first.` : "Publish one post of your own first." };
   }
 
   if (challenge.verification_logic === USEFUL_STORY_COMMENT_LOGIC) {

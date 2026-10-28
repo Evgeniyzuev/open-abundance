@@ -2040,3 +2040,32 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .feed-nova-question p { margin: 0; color: var(--text); font-size: 0.92rem; line-height: 1.4; }
 .feed-nova-question button { justify-self: start; border: 0; border-radius: 999px; padding: 6px 12px; background: var(--blue); color: #fff; font-weight: 800; cursor: pointer; }
 .feed-nova-question small { color: var(--muted); font-size: 0.75rem; line-height: 1.35; }
+
+/* Achievements on the Growth screen: a row of round badges per chain. */
+.achievements-panel { display: grid; gap: 14px; margin-top: 18px; }
+.achievements-panel > h2 { margin: 0; font-size: 1.25rem; }
+.achievements-error { margin: 0; color: var(--danger, #c0392b); font-size: 0.85rem; }
+.achievements-series { display: grid; gap: 8px; border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08)); padding-top: 12px; }
+.achievements-series-head { display: grid; gap: 2px; }
+.achievements-series-head strong { font-size: 1.05rem; }
+.achievements-series-head small { color: var(--muted); }
+.achievements-row { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 6px; scrollbar-width: none; }
+.achievements-row::-webkit-scrollbar { display: none; }
+.achievement-badge { display: grid; flex: none; justify-items: center; gap: 4px; width: 104px; text-align: center; }
+.achievement-badge strong { font-size: 0.85rem; line-height: 1.2; }
+.achievement-badge small { color: var(--muted); font-size: 0.75rem; }
+.achievement-medal { position: relative; display: grid; place-items: center; width: 84px; height: 84px; border: 4px solid #f2b705; border-radius: 50%; color: #fff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
+.achievement-medal b { position: absolute; right: -4px; bottom: -4px; min-width: 28px; border-radius: 999px; padding: 2px 6px; background: #f2b705; color: #2b1d00; font-size: 0.72rem; font-weight: 900; }
+.achievement-medal.series-comments { background: radial-gradient(circle at 35% 30%, #ff9a5a, #e2471d); }
+.achievement-medal.series-posts { background: radial-gradient(circle at 35% 30%, #7aa7ff, #3a3fd6); }
+.achievement-medal.series-reactions_received { background: radial-gradient(circle at 35% 30%, #ffd86b, #f08a00); }
+.achievement-medal.series-reactions_given { background: radial-gradient(circle at 35% 30%, #ff8fb7, #d6336c); }
+.achievement-badge.locked .achievement-medal { border-color: var(--border, #ddd); background: var(--surface-muted, #e9e9ee); color: var(--muted); box-shadow: none; }
+.achievement-badge.locked .achievement-medal b { background: var(--border, #ddd); color: var(--muted); }
+.achievement-badge.ready .achievement-medal { animation: achievement-ready 1.6s ease-in-out infinite; }
+.achievement-badge button { border: 0; border-radius: 999px; padding: 6px 10px; background: var(--blue); color: #fff; font-size: 0.75rem; font-weight: 850; cursor: pointer; }
+.achievement-progress { width: 80px; height: 5px; overflow: hidden; border-radius: 999px; background: var(--border, #e3e3e8); }
+.achievement-progress i { display: block; height: 100%; border-radius: inherit; background: #e2471d; }
+.achievement-reward { color: #b98900 !important; font-weight: 800; }
+@keyframes achievement-ready { 50% { transform: scale(1.06); box-shadow: 0 0 0 6px rgba(242, 183, 5, 0.25); } }
+@media (prefers-reduced-motion: reduce) { .achievement-badge.ready .achievement-medal { animation: none; } }

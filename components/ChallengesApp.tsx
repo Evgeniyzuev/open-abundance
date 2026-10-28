@@ -34,6 +34,7 @@ import { parseChallengeRewardAmount, splitChallengeInstructions } from "@/lib/ch
 import type { ChallengeCheckReasonCode } from "@/lib/challengeCheckReasons";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import QuestShareBox from "@/components/QuestShareBox";
+import AchievementsPanel from "@/components/AchievementsPanel";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
 
@@ -920,6 +921,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
             }}
             count={completedChallenges.length}
           />
+          {user ? <AchievementsPanel /> : null}
         </>
       ) : (
         <>

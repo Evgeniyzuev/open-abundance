@@ -2,6 +2,7 @@
   "regions": [
     "fra1"
   ],
+  "ignoreCommand": "sh scripts/vercel-ignore-build.sh",
   "crons": [
     {
       "path": "/api/internal/media/r2-housekeeping",

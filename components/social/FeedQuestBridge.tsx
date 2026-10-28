@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowRight, Target, X } from "lucide-react";
+import { ArrowRight, Target } from "lucide-react";
 import { useEffect, useState } from "react";
 import { trackClientEvent } from "@/lib/clientAnalytics";
-import { questOfDay, questTitle, similarQuestForPost, type FeedQuest, type FeedQuestData } from "@/lib/feedQuests";
+import { questTitle, similarQuestForPost, type FeedQuest, type FeedQuestData } from "@/lib/feedQuests";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -12,7 +12,6 @@ import type { FeedPost } from "@/lib/socialFeed";
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 const CACHE_MS = 60_000;
-const HIDDEN_DAY_KEY = "openAbundanceQuestOfDayHidden";
 let cached: { userId: string; at: number; promise: Promise<FeedQuestData | null> } | null = null;
 
 /** The viewer's quests, shared by every card in the feed and kept for a minute. */
@@ -83,48 +82,4 @@ export function SimilarQuestCard({ currentUserId, locale, post, t, onBeforeOpen 
 export function useSimilarQuest(currentUserId: string | null): (post: FeedPost) => FeedQuest | null {
   const data = useFeedQuests(currentUserId);
   return (post) => (data ? similarQuestForPost(post, data)?.quest ?? null : null);
-}
-
-/** The first card of the "All" feed: the quest of the day, hidden until tomorrow on request. */
-export function QuestOfDayCard({ currentUserId, locale, t }: { currentUserId: string | null; locale: AppLocale; t: TFunction }) {
-  const data = useFeedQuests(currentUserId);
-  const day = new Date().toISOString().slice(0, 10);
-  const [hidden, setHidden] = useState(true);
-  useEffect(() => {
-    try {
-      setHidden(window.localStorage.getItem(HIDDEN_DAY_KEY) === day);
-    } catch {
-      setHidden(false);
-    }
-  }, [day]);
-  const quest = data ? questOfDay(data, day) : null;
-  if (!quest || hidden) return null;
-  return (
-    <div className="feed-quest-card feed-quest-of-day">
-      <button className="feed-quest-main" type="button" onClick={() => openFeedQuest(quest, "quest_of_day")}>
-        <Target size={20} aria-hidden="true" />
-        <span className="feed-quest-text">
-          <em>{t("social.feed.questOfDay")}</em>
-          <QuestLine locale={locale} quest={quest} t={t} />
-        </span>
-        <ArrowRight size={18} aria-hidden="true" />
-      </button>
-      <button
-        aria-label={t("social.feed.questHideToday")}
-        className="feed-quest-hide"
-        title={t("social.feed.questHideToday")}
-        type="button"
-        onClick={() => {
-          setHidden(true);
-          try {
-            window.localStorage.setItem(HIDDEN_DAY_KEY, day);
-          } catch {
-            // Hiding for today is a convenience only.
-          }
-        }}
-      >
-        <X size={15} />
-      </button>
-    </div>
-  );
 }

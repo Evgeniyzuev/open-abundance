@@ -3026,7 +3026,6 @@ function SystemProfileView({
         posts={posts}
         showBlogAction={false}
         showSystemProfileAction={false}
-        showTileAuthor={false}
         t={t}
         onCopyWish={onCopyWish}
         onDeletePost={onDeletePost}

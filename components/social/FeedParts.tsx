@@ -13,7 +13,7 @@ import { useEdgeSwipeBack, useHistoryLayer } from "@/lib/historyLayer";
 import { hasBeenSeen, markSeen } from "@/lib/seenOnce";
 import { celebrate } from "@/lib/ui/feedback";
 import FeedStoryRings from "@/components/social/FeedStoryRings";
-import { openFeedQuest, QuestOfDayCard, SimilarQuestCard, useSimilarQuest } from "@/components/social/FeedQuestBridge";
+import { openFeedQuest, SimilarQuestCard, useSimilarQuest } from "@/components/social/FeedQuestBridge";
 import type { FeedQuest } from "@/lib/feedQuests";
 import ChipRow from "@/components/ui/ChipRow";
 import Skeleton from "@/components/ui/Skeleton";
@@ -198,7 +198,6 @@ export function FeedView({
       {filter === "stories" ? (
         <FeedStoryRings currentUserId={currentUserId} label={t("social.feed.rings")} open posts={ringPosts} onOpenAuthor={onOpenAuthor} onOpenSystemAccount={onOpenSystemAccount} />
       ) : null}
-      {filter === "all" ? <QuestOfDayCard currentUserId={currentUserId} locale={locale} t={t} /> : null}
       {filter === "opportunities" ? <p className="feed-mode-hint">{t("social.feed.opportunitiesHint")}</p> : null}
       {filter === "reviews" && feedPayload?.reviewSummary ? (
         <ReviewSummary summary={feedPayload.reviewSummary} locale={locale} t={t} />
@@ -378,7 +377,6 @@ export function PostList(props: {
   saving?: boolean;
   showBlogAction: boolean;
   showSystemProfileAction?: boolean;
-  showTileAuthor?: boolean;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
   onCopyWish: (wish: PublicWish) => void;
   onAddStoryWish?: (post: FeedPost) => void;
@@ -390,7 +388,7 @@ export function PostList(props: {
   onPublish: (post: FeedPost) => void;
   onRetry?: () => void;
 }) {
-  const { addingStoryWishKey, emptyState, emptyText, failed, hasMore, layout, loading, onAddStoryWish, onOpenPost, onRetry, posts, showTileAuthor = true, t } = props;
+  const { addingStoryWishKey, emptyState, emptyText, failed, hasMore, layout, loading, onAddStoryWish, onOpenPost, onRetry, posts, t } = props;
   if (loading && !posts.length) {
     return <div className="feed-post-gallery feed-post-gallery-loading" aria-busy="true" aria-label={t("app.common.loading")}>
       <Skeleton className="feed-post-hero-skeleton" />
@@ -405,7 +403,7 @@ export function PostList(props: {
   }
   if (!posts.length) return emptyState ?? <p className="feed-empty">{emptyText}</p>;
 
-  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} hasMore={hasMore} layout={layout} onVisibleCountChange={props.onVisibleCountChange} fallbackTitle={t("social.post.detail")} posts={posts} showAuthor={showTileAuthor} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
+  return <FeedPostGallery addingStoryWishKey={addingStoryWishKey} currentUserId={props.currentUserId} emptyText={emptyText} hasMore={hasMore} layout={layout} onVisibleCountChange={props.onVisibleCountChange} fallbackTitle={t("social.post.detail")} posts={posts} t={t} wishActionLabel={t("social.feed.wantThis")} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onAddStoryWish={onAddStoryWish} onOpen={onOpenPost} />;
 }
 
 export function PostCard({

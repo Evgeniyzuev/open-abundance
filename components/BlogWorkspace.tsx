@@ -93,7 +93,7 @@ export function PublicBlog({ authorId, locale, active = true, revision = "", ini
       {payload.blogHeader?.bio ? <BlogBio bio={payload.blogHeader.bio} t={t} /> : null}
       {payload.blogHeader?.links.length ? <div className="blog-author-links">{payload.blogHeader.links.map((link) => <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={13} aria-hidden="true" />{link.label || linkHost(link.url)}</a>)}</div> : null}
     </header> : null}
-    {payload?.posts.length ? <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={payload.posts} showAuthor={false} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onOpen={onOpenPost} /> : !loading && payload ? <p>{t("social.blog.empty")}</p> : null}
+    {payload?.posts.length ? <FeedPostGallery fallbackTitle={t("social.post.detail")} posts={payload.posts} evidenceLabels={{ demo: t("social.feed.demoBadge"), verified: t("social.feed.verifiedBadge") }} onOpen={onOpenPost} /> : !loading && payload ? <p>{t("social.blog.empty")}</p> : null}
     <CollectionStatus loading={loading} error={error} more={Boolean(payload?.nextCursor)} t={t} onRetry={() => void load()} onMore={() => void load(payload?.nextCursor)} />
   </section>;
 }

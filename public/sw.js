@@ -1,6 +1,7 @@
 const CACHE_PREFIX = "open-abundance-";
 const CACHE_NAME = "open-abundance-v9";
 const ROOT_SHELL_KEY = "/";
+const SHELL_NETWORK_TIMEOUT_MS = 3000;
 const STATIC_APP_ASSETS = [
   "/manifest.webmanifest",
   "/icons/icon.svg",
@@ -13,7 +14,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll(STATIC_APP_ASSETS);
-    await refreshShell(cache);
+    await refreshShell();
     await self.skipWaiting();
   })());
 });
@@ -42,16 +43,12 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     if (sameOrigin && url.pathname === "/") {
-      if (url.search) {
-        // Deep links like /?ref=... must always hit the network: in-app
-        // webviews show their own loading screen and a cached-shell-first
-        // strategy can leave them stuck on it after a new deployment.
-        event.respondWith(networkFirstRootNavigation(request));
-        return;
-      }
-      const refreshPromise = refreshCachedShell();
-      event.waitUntil(refreshPromise.catch(() => undefined));
-      event.respondWith(handleRootNavigation(refreshPromise));
+      // The shell comes from the network first, so the first start after a deploy already runs the new build. A
+      // cached shell of an older build asks for language and screen chunks that the server no longer has, and the
+      // app then hung on the loading circle until it was opened again. The cached shell is still the answer when
+      // the network is slow or gone. Deep links like /?ref=... wait for the network without a time limit: in-app
+      // webviews show their own loading screen and an old shell can leave them stuck on it.
+      event.respondWith(networkFirstRootNavigation(event, url.search ? null : SHELL_NETWORK_TIMEOUT_MS));
     } else {
       event.respondWith(fetch(request, { cache: "no-store" }));
     }
@@ -103,50 +100,54 @@ self.addEventListener("notificationclick", (event) => {
   }));
 });
 
-async function handleRootNavigation(refreshPromise) {
-  const cache = await caches.open(CACHE_NAME);
-  const cachedShell = await cache.match(ROOT_SHELL_KEY);
-  if (cachedShell) return cachedShell;
+async function networkFirstRootNavigation(event, timeoutMs) {
+  let finishBackground = () => undefined;
+  event.waitUntil(new Promise((resolve) => { finishBackground = resolve; }));
 
-  try {
-    return await refreshPromise;
-  } catch {
-    return missingShellResponse();
-  }
-}
-
-async function networkFirstRootNavigation(request) {
-  try {
-    const response = await fetch(request, { cache: "no-store" });
-    if (response.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(ROOT_SHELL_KEY, response.clone());
+  const network = fetch(event.request, { cache: "no-store" }).then((response) => {
+    if (response.ok && response.type === "basic") {
+      storeShell(response.clone()).catch(() => undefined).finally(finishBackground);
+    } else {
+      finishBackground();
     }
     return response;
+  }, (error) => {
+    finishBackground();
+    throw error;
+  });
+
+  const cachedShell = async () => (await caches.open(CACHE_NAME)).match(ROOT_SHELL_KEY);
+
+  try {
+    if (timeoutMs === null) return await network;
+    const slow = new Promise((resolve) => setTimeout(() => resolve("slow"), timeoutMs));
+    const first = await Promise.race([network, slow]);
+    if (first !== "slow") return first;
+    return (await cachedShell()) ?? await network;
   } catch {
-    const cache = await caches.open(CACHE_NAME);
-    const cachedShell = await cache.match(ROOT_SHELL_KEY);
-    if (cachedShell) return cachedShell;
-    return missingShellResponse();
+    return (await cachedShell()) ?? missingShellResponse();
   }
 }
 
-async function refreshCachedShell() {
-  const cache = await caches.open(CACHE_NAME);
-  return refreshShell(cache);
-}
-
-async function refreshShell(cache) {
+async function refreshShell() {
   const shellUrl = new URL(ROOT_SHELL_KEY, self.location.origin).href;
   const shellResponse = await fetch(new Request(shellUrl, {
     cache: "no-store",
     credentials: "same-origin"
   }));
   if (!shellResponse.ok) throw new Error(`App shell request failed with ${shellResponse.status}.`);
+  await storeShell(shellResponse.clone());
+  return shellResponse;
+}
 
+/** Caches the shell together with the build files it names, so an offline start has everything it needs. */
+async function storeShell(shellResponse) {
+  const cache = await caches.open(CACHE_NAME);
   const html = await shellResponse.clone().text();
   const assetUrls = extractNextStaticUrls(html);
   const assetResponses = await Promise.all(assetUrls.map(async (assetUrl) => {
+    const cached = await cache.match(assetUrl);
+    if (cached) return null;
     const response = await fetch(new Request(assetUrl, {
       cache: "reload",
       credentials: "same-origin"
@@ -155,11 +156,10 @@ async function refreshShell(cache) {
     return [assetUrl, response];
   }));
 
-  for (const [assetUrl, response] of assetResponses) {
-    await cache.put(assetUrl, response);
+  for (const entry of assetResponses) {
+    if (entry) await cache.put(entry[0], entry[1]);
   }
-  await cache.put(ROOT_SHELL_KEY, shellResponse.clone());
-  return shellResponse;
+  await cache.put(ROOT_SHELL_KEY, shellResponse);
 }
 
 function extractNextStaticUrls(html) {

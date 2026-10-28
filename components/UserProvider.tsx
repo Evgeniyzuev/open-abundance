@@ -3,6 +3,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import Sheet from "@/components/ui/Sheet";
+import { recoverFromStaleChunks } from "@/components/ChunkErrorReload";
 import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import type { Tables } from "@/lib/database.types";
@@ -575,13 +576,33 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // The dictionary of each language is a separate chunk. The UI keeps the previous language until the new one has arrived.
+  // A failed load is retried once; then the stale shell cache is dropped and the page reloads (an old shell after a
+  // deploy asks for a dictionary chunk the server no longer has). Before, the app kept spinning until reopened.
   const [dictionaryLocale, setDictionaryLocale] = useState<AppLocale | null>(null);
+  const [dictionaryFailed, setDictionaryFailed] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    loadMessages(locale)
-      .then(() => { if (!cancelled) setDictionaryLocale(locale); })
-      .catch((dictionaryError) => console.warn("Language dictionary failed to load", dictionaryError));
-    return () => { cancelled = true; };
+    let retryTimer: number | undefined;
+    const load = (attempt: number) => {
+      loadMessages(locale)
+        .then(() => { if (!cancelled) setDictionaryLocale(locale); })
+        .catch(async (dictionaryError) => {
+          console.warn("Language dictionary failed to load", dictionaryError);
+          if (cancelled) return;
+          if (attempt === 0) {
+            retryTimer = window.setTimeout(() => load(1), 800);
+            return;
+          }
+          if (!dictionaryLocale && !(await recoverFromStaleChunks()) && !cancelled) setDictionaryFailed(true);
+        });
+    };
+    load(0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(retryTimer);
+    };
+    // dictionaryLocale is read only to know whether some language is already shown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
   const t = useCallback(
@@ -633,7 +654,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   return (
     <UserContext.Provider value={value}>
-      {dictionaryLocale ? children : <main aria-busy="true" className="startup-recovery-screen"><span className="startup-recovery-spinner" aria-hidden="true" /></main>}
+      {dictionaryLocale ? children : <DictionaryWait failed={dictionaryFailed} locale={locale} />}
       {pendingLevelUps[0] && !levelUpsHeld ? (
         <LevelUpModal
           level={pendingLevelUps[0]}
@@ -695,3 +716,28 @@ function LevelUpModal({
     </Sheet>
   );
 }
+
+/**
+ * Shown before any language has arrived, so its words cannot come from the dictionaries. The restart link appears
+ * through a CSS delay, so it shows up even when the page's scripts never started; at once when loading failed.
+ */
+function DictionaryWait({ failed, locale }: { failed: boolean; locale: AppLocale }) {
+  return (
+    <main aria-busy={!failed} className="startup-recovery-screen">
+      <section className="startup-recovery-card" aria-live="polite">
+        <span className="startup-recovery-spinner" aria-hidden="true" />
+        <a className={failed ? "startup-recovery-restart shown" : "startup-recovery-restart"} href="/">↻ {RESTART_LABELS[locale] ?? RESTART_LABELS.en}</a>
+      </section>
+    </main>
+  );
+}
+
+const RESTART_LABELS: Record<AppLocale, string> = {
+  ru: "Перезапустить",
+  en: "Restart",
+  zh: "重新启动",
+  es: "Reiniciar",
+  hi: "फिर से शुरू करें",
+  ar: "إعادة التشغيل"
+};
+

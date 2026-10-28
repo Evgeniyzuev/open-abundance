@@ -167,7 +167,8 @@ export async function GET(request: NextRequest) {
   for (const challenge of data) {
     challenge.almost_eligible = !challenge.can_accept && isChallengeAlmostAvailable(challenge, viewerLevel, data);
   }
-  // "Come back tomorrow" and "Invite a friend" are taken on the first visit (never over a skip); they are off the path.
+  // "Come back tomorrow" and "Invite a friend" are taken on the first visit (never over a skip), without making them
+  // active: the invitation becomes the active path step only in its turn.
   if (viewerUserId) {
     const toTake = data.filter((challenge) => (AUTO_TAKEN_LOGICS as readonly string[]).includes(String(challenge.verification_logic)) && !challenge.user_challenge_status && challenge.can_accept !== false);
     if (toTake.length) {

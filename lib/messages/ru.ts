@@ -3330,6 +3330,7 @@ const ru: Record<string, string> = {
   "wishes.small.description": "Его можно исполнить уже сейчас: помогут люди, Нова и сообщество. Возьми одно, если хочется.",
   "wishes.small.kind.help": "Помогут участники",
   "wishes.small.kind.habit": "Привычка на {days} дн. с Новой",
+  "wishes.small.hide": "Свернуть",
   "wishes.small.take": "Взять",
   "wishes.small.notNow": "Не сейчас",
   "wishes.price.free": "Без денег: можно начать сразу.",

@@ -373,9 +373,9 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
               {t(`wishes.tabs.${tab}`)}
             </button>
           ))}
+          {isRefreshing && wishes.length > 0 ? <span className="wish-tabs-spinner" role="status" aria-label={t("wishes.refreshing")} /> : null}
         </nav>
       ) : null}
-      {isRefreshing && wishes.length > 0 ? <div className="wishes-refreshing">{t("wishes.refreshing")}</div> : null}
       {errorMessage && status === "ready" ? <p className="finance-error neutral">{errorMessage}</p> : null}
       {status === "loading" && wishes.length === 0 ? <WishState title={t("app.common.loading")} description={t("wishes.loading.description")} /> : null}
       {status === "offline" && wishes.length === 0 ? <WishState title={t("app.common.offline")} description={t("wishes.offline.description")} /> : null}
@@ -397,14 +397,16 @@ export default function WishesApp({ active, focusNonce = 0, focusWishId = null, 
             </WishSection>
           ) : null}
 
-          {activeTab === "mine" || activeTab === "recommended" ? <ValuesFeedCard compact locale={locale} t={t} /> : null}
-
-          {activeTab === "mine" ? (
-            <SmallWishOffer
-              coreBalance={Math.max(0, core?.balance ?? 0)}
-              wishes={myWishes}
-              onAdd={(wish) => createWish(smallWishToForm(wish, locale)).catch((addError) => setErrorMessage(addError instanceof Error ? addError.message : t("wishes.error")))}
-            />
+          {activeTab === "recommended" ? (
+            // Always at hand at the bottom of Recommended: both collapsed into one line each.
+            <div className="wish-dock">
+              <ValuesFeedCard compact locale={locale} t={t} />
+              <SmallWishOffer
+                coreBalance={Math.max(0, core?.balance ?? 0)}
+                wishes={myWishes}
+                onAdd={(wish) => createWish(smallWishToForm(wish, locale)).catch((addError) => setErrorMessage(addError instanceof Error ? addError.message : t("wishes.error")))}
+              />
+            </div>
           ) : null}
           {activeTab === "mine" ? (
             <WishSection id="wish-panel-mine" labelledBy="wish-tab-mine" emptyText={t("wishes.emptyMine")} itemsCount={ownWishes.length}>

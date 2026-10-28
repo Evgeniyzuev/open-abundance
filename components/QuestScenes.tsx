@@ -49,7 +49,7 @@ export function NovaBubble({ text, t, askText }: { text: string; t: TFunction; a
  * answer); the answer goes to the profile (app/api/challenges/progress) and steers which side quests come first. The
  * second scene sums it up, says how many others came for the same, and the reward is taken from there.
  */
-export function FirstStepQuest({ artSrc, guest = false, guestReward, question, savedMotives, t, onAnswered, onSaved }: { artSrc?: string; guest?: boolean; guestReward?: string; question: string; savedMotives?: QuestMotive[]; t: TFunction; onAnswered: (motives: QuestMotive[]) => void; onSaved?: () => void }) {
+export function FirstStepQuest({ art, guest = false, guestReward, question, savedMotives, t, onAnswered, onSaved }: { art?: { question: string; answer: string }; guest?: boolean; guestReward?: string; question: string; savedMotives?: QuestMotive[]; t: TFunction; onAnswered: (motives: QuestMotive[]) => void; onSaved?: () => void }) {
   // Answers already saved (played as a guest before sign-in, or a reload): the summary and the reward, not the question again.
   const [chosen, setChosen] = useState<QuestMotive[]>(savedMotives ?? []);
   const [note, setNote] = useState("");
@@ -97,12 +97,15 @@ export function FirstStepQuest({ artSrc, guest = false, guestReward, question, s
 
   return (
     <section className="quest-scene">
-      {artSrc ? (
-        <div className="quest-scene-art quest-scene-photo" aria-hidden="true"><Image alt="" fill sizes="(max-width: 620px) 100vw, 560px" src={artSrc} priority /></div>
+      {art ? (
+        // Picture screens (the guest's opening screen): a full-width picture per scene and no "scene 1 of 2" counter.
+        <div className="quest-scene-art quest-scene-photo" aria-hidden="true"><Image alt="" fill sizes="(max-width: 620px) 100vw, 590px" src={saved ? art.answer : art.question} priority /></div>
       ) : (
-        <div className="quest-scene-art" aria-hidden="true"><span className={saved ? "quest-star lit" : "quest-star"} /></div>
+        <>
+          <div className="quest-scene-art" aria-hidden="true"><span className={saved ? "quest-star lit" : "quest-star"} /></div>
+          <span className="quest-scene-step">{saved ? t("quests.firstStep.scene2") : t("quests.firstStep.scene1")}</span>
+        </>
       )}
-      <span className="quest-scene-step">{saved ? t("quests.firstStep.scene2") : t("quests.firstStep.scene1")}</span>
       {invitedBy && !saved ? <p className="quest-invited">{t("invite.welcome.title", { name: invitedBy })}. {t("invite.welcome.body")}</p> : null}
       {!saved ? (
         <>

@@ -118,11 +118,24 @@
 /* The first quest is the opening screen: one plain app-style page (app background, no glass card, no colour blobs). */
 .onboarding-theme-quest { background: var(--bg); }
 .onboarding-theme-quest::before, .onboarding-theme-quest::after { display: none; }
-.onboarding-theme-quest .onboarding-shell { min-height: auto; border: 0; padding: 4px 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+.onboarding-theme-quest .onboarding-shell { min-height: auto; border: 0; border-radius: 0; padding: calc(env(safe-area-inset-top) + 8px) 14px calc(env(safe-area-inset-bottom) + 14px); background: transparent; box-shadow: none; backdrop-filter: none; }
 .onboarding-theme-quest .onboarding-brand-row strong { color: var(--text); }
 .onboarding-quest-skip { width: 100%; min-height: 46px; border: 1px solid var(--line, rgba(127,127,127,0.25)); border-radius: 14px; background: var(--surface); }
 .quest-scene-art.quest-scene-photo { width: 100%; height: auto; aspect-ratio: 2 / 1; background: #1d2550; }
 .quest-scene-photo img { object-fit: cover; }
+/* Light, one-piece first screen: no dark card, the picture spans the phone width, choices look like app list buttons. */
+.onboarding-theme-quest .quest-scene { padding: 0; border-radius: 0; background: transparent; color: var(--text); }
+@media (max-width: 620px) {
+  .onboarding-theme-quest .quest-scene-photo { width: calc(100% + 28px); margin-inline: -14px; border-radius: 0; }
+}
+.onboarding-theme-quest .quest-scene-text { color: var(--text); font-size: 1.05rem; }
+.onboarding-theme-quest .quest-choice, .onboarding-theme-quest .quest-own textarea { border-color: var(--line); background: var(--surface); color: var(--text); }
+.onboarding-theme-quest .quest-choice::before { color: var(--accent-fill); }
+.onboarding-theme-quest .quest-choice.selected { border-color: var(--accent-fill); background: var(--accent-soft); }
+.onboarding-theme-quest .quest-goals li { border-left-color: var(--accent-fill); background: var(--surface); }
+.onboarding-theme-quest .quest-nova p { background: var(--surface); color: var(--text); }
+.onboarding-theme-quest .quest-nova p strong, .onboarding-theme-quest .quest-nova-cta { color: var(--accent-fill); }
+.onboarding-theme-quest .quest-nova-ask:hover p, .onboarding-theme-quest .quest-nova-ask:focus-visible p { background: var(--surface-muted); }
 .onboarding-text-action { justify-self: center; border: 0; background: none; padding: 8px 12px; color: inherit; opacity: 0.72; font-size: 0.92rem; font-weight: 700; text-decoration: underline; }
 .quest-invited { margin: 0 0 8px; font-weight: 800; }
 .onboarding-copy .onboarding-program-prompt { color: #312875; font-size: 0.875rem; font-weight: 850; }

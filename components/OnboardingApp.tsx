@@ -66,8 +66,8 @@ const STORY_ARTWORK: Record<StoryStepId, string> = {
   stories: "/onboarding/people-stories-9-16.jpg",
   program: "/onboarding/twenty-levels-9-16.jpg"
 };
-// The growth path (wide version of the "program" slide art) over the first quest.
-const GUEST_QUEST_ART = "/onboarding/growth-path-wide.webp";
+// Wide versions of the slide art: the growth path over the question, people with their wishes over the answer.
+const GUEST_QUEST_ART = { question: "/onboarding/growth-path-wide.webp", answer: "/onboarding/people-wishes-wide.webp" };
 const PENDING_EMAIL_OTP_STORAGE_KEY = "openAbundancePendingEmailOtp";
 const PENDING_EMAIL_OTP_TTL_MS = 15 * 60 * 1000;
 const EMAIL_OTP_RESEND_SECONDS = 60;
@@ -523,7 +523,7 @@ function OnboardingApp({
               {inviter ? <strong className="onboarding-invited">{onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)}</strong> : null}
             </div>
             <FirstStepQuest
-              artSrc={GUEST_QUEST_ART}
+              art={GUEST_QUEST_ART}
               guest
               savedMotives={guestMotives}
               onSaved={() => setQuestAnswered(true)}

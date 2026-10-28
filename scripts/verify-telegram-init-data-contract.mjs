@@ -43,7 +43,7 @@ assert.equal(http.user.photoUrl, null);
 console.log("telegram init data contract ok");
 
 const { telegramMiniAppLink } = await import("../lib/telegramMiniAppLink.ts");
-assert.equal(telegramMiniAppLink("https://t.me/OpenAbundanceBot/app", "ABCD1234"), "https://t.me/OpenAbundanceBot/app?startapp=ABCD1234&mode=compact");
+assert.equal(telegramMiniAppLink("https://t.me/OpenAbundanceBot/app", "ABCD1234"), "https://t.me/OpenAbundanceBot/app?startapp=ABCD1234");
 assert.equal(telegramMiniAppLink(undefined, "ABCD1234"), null);
 assert.equal(telegramMiniAppLink("https://evil.example/app", "ABCD1234"), null);
 assert.equal(telegramMiniAppLink("https://t.me/OpenAbundanceBot/app", "a b"), null);

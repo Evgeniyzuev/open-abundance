@@ -94,7 +94,7 @@
   background: var(--bg);
   position: sticky;
   z-index: 8;
-  bottom: calc(66px + env(safe-area-inset-bottom));
+  bottom: calc(66px + var(--safe-bottom));
 }
 
 .ai-chat-help-btn { flex: 0 0 36px; }

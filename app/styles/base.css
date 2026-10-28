@@ -1,5 +1,8 @@
 /* Design tokens, base elements, app shell and navigation. Imported in order by app/globals.css; order is part of the cascade. */
 :root {
+  /* Safe-area insets used across the app. In Telegram full-screen mode they also clear Telegram's own close/menu buttons. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --bg: #f2f2f7;
   --surface: #ffffff;
   --surface-soft: #f7f8fb;
@@ -40,6 +43,10 @@
   --control-lg: 48px;
 }
 
+:root.tg-fullscreen {
+  --safe-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+}
 :root[data-ui-scale="120"] { font-size: 120%; }
 :root[data-ui-scale="140"] { font-size: 140%; }
 
@@ -314,7 +321,7 @@ body {
 button, input, textarea, select { font: inherit; }
 button { border: 0; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.45; }
-.startup-recovery-screen { min-height: 100dvh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); background: var(--bg); }
+.startup-recovery-screen { min-height: 100dvh; display: grid; place-items: center; padding: max(24px, var(--safe-top)) 20px max(24px, var(--safe-bottom)); background: var(--bg); }
 .startup-recovery-card { width: min(100%, 390px); display: grid; justify-items: center; gap: 12px; border-radius: 22px; padding: 28px 22px; background: var(--surface-glass); color: var(--text); text-align: center; box-shadow: var(--shadow); }
 .startup-recovery-card p { margin: 0; color: var(--muted); font-size: 0.875rem; line-height: 1.45; }
 .startup-recovery-card button { min-height: 40px; border-radius: 13px; padding: 0 16px; background: var(--accent-soft); color: var(--blue); font-weight: 850; }
@@ -325,7 +332,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .local-data-notice { margin: 0 6px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--warning-line); border-radius: 13px; padding: 10px 12px; background: var(--warning-soft); color: var(--warning-text); font-size: 0.8125rem; line-height: 1.35; }
 .local-data-notice.error { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
 .local-data-notice button { flex: 0 0 auto; border-radius: 10px; padding: 7px 10px; background: var(--surface-glass); color: inherit; font-size: 0.75rem; font-weight: 850; }
-.public-intro { position: fixed; inset: 0; z-index: 20; overflow-y: auto; display: grid; align-content: center; gap: 14px; padding: max(28px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); background: var(--bg); color: var(--text); }
+.public-intro { position: fixed; inset: 0; z-index: 20; overflow-y: auto; display: grid; align-content: center; gap: 14px; padding: max(28px, var(--safe-top)) max(20px, env(safe-area-inset-right)) max(28px, var(--safe-bottom)) max(20px, env(safe-area-inset-left)); background: var(--bg); color: var(--text); }
 .public-intro > * { width: min(100%, 680px); margin: 0 auto; }
 .public-intro h1 { font-size: clamp(2rem, 7vw, 3.25rem); line-height: 1; letter-spacing: -0.04em; }
 .public-intro p { color: var(--muted); font-size: clamp(1rem, 2.4vw, 1.1875rem); line-height: 1.5; }
@@ -335,11 +342,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .app-view { display: contents; }
 .app-view[hidden] { display: none; }
 .glass-tabbar { position: fixed; inset-inline-start: 0; inset-inline-end: 0; z-index: 10; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; align-items: center; gap: 4px; border: 1px solid var(--nav-border); background: var(--nav-glass); box-shadow: var(--shadow-soft), inset 0 1px 0 var(--nav-highlight); -webkit-backdrop-filter: blur(28px) saturate(1.65); backdrop-filter: blur(28px) saturate(1.65); transform: translateY(0); transition: transform 180ms ease, opacity 180ms ease, width 180ms ease, height 180ms ease, border-radius 180ms ease, padding 180ms ease; }
-.top-tabbar { top: 0; min-height: calc(48px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 10px 0; border-bottom-color: var(--nav-border); box-shadow: 0 8px 24px rgba(25,25,35,0.08), inset 0 1px 0 var(--nav-highlight); }
-.bottom-tabbar { bottom: 0; min-height: calc(54px + env(safe-area-inset-bottom)); padding: 0 10px env(safe-area-inset-bottom); border-top-color: var(--nav-border); box-shadow: 0 -8px 24px rgba(25,25,35,0.08), inset 0 1px 0 var(--nav-highlight); }
+.top-tabbar { top: 0; min-height: calc(48px + var(--safe-top)); padding: var(--safe-top) 10px 0; border-bottom-color: var(--nav-border); box-shadow: 0 8px 24px rgba(25,25,35,0.08), inset 0 1px 0 var(--nav-highlight); }
+.bottom-tabbar { bottom: 0; min-height: calc(54px + var(--safe-bottom)); padding: 0 10px var(--safe-bottom); border-top-color: var(--nav-border); box-shadow: 0 -8px 24px rgba(25,25,35,0.08), inset 0 1px 0 var(--nav-highlight); }
 .glass-tabbar.nav-collapsed { inset-inline-start: max(16px, calc(env(safe-area-inset-left, 0px) + 16px)); inset-inline-end: auto; width: 60px; height: 60px; min-height: 60px; grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: 1fr; gap: 0; padding: 0; border-radius: 999px; box-shadow: 0 12px 32px rgba(25,25,35,0.16), inset 0 1px 0 var(--nav-highlight); transform: none; opacity: 1; pointer-events: auto; }
-.top-tabbar.nav-collapsed { top: max(16px, calc(env(safe-area-inset-top, 0px) + 16px)); }
-.bottom-tabbar.nav-collapsed { bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 16px)); }
+.top-tabbar.nav-collapsed { top: max(16px, calc(var(--safe-top) + 16px)); }
+.bottom-tabbar.nav-collapsed { bottom: max(16px, calc(var(--safe-bottom) + 16px)); }
 .nav-collapse-button { width: 100%; height: 100%; display: inline-flex; align-items: center; justify-content: center; border-radius: inherit; background: transparent; color: var(--text); }
 .nav-collapse-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .nav-collapse-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; }
@@ -348,5 +355,5 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .tab-button { min-width: 0; height: 40px; border-radius: 14px; background: transparent; color: var(--muted); font-size: 28px; line-height: 1; }
 .tab-button span { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; }
 .tab-button-icon { position: relative; }
-.bottom-tabbar:not(.nav-collapsed) { min-height: calc(66px + env(safe-area-inset-bottom)); }
+.bottom-tabbar:not(.nav-collapsed) { min-height: calc(66px + var(--safe-bottom)); }
 .bottom-tabbar .tab-button { height: auto; min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 0; }

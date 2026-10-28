@@ -4,7 +4,7 @@
   width: min(100vw, 610px);
   min-height: calc(100dvh - 176px);
   margin: 0 auto;
-  padding: 0 6px calc(20px + env(safe-area-inset-bottom));
+  padding: 0 6px calc(20px + var(--safe-bottom));
   display: flex;
   flex-direction: column;
   gap: 12px;

@@ -14,6 +14,12 @@ type TelegramWebApp = {
   initData?: string;
   initDataUnsafe?: { user?: { allows_write_to_pm?: boolean } };
   ready?: () => void;
+  expand?: () => void;
+  platform?: string;
+  isFullscreen?: boolean;
+  requestFullscreen?: () => void;
+  disableVerticalSwipes?: () => void;
+  onEvent?: (event: string, handler: () => void) => void;
   isVersionAtLeast?: (version: string) => boolean;
   requestWriteAccess?: (callback?: (granted: boolean) => void) => void;
 };
@@ -51,8 +57,9 @@ export default function TelegramMiniApp() {
 
     void (async () => {
       const webApp = await loadTelegramScript();
-      // No expand(): the app opens in Telegram's normal (not full-screen) height; the person can pull it up.
       webApp?.ready?.();
+      webApp?.expand?.();
+      if (webApp) openFullscreen(webApp);
       const initData = webApp?.initData || launch.initData;
       initDataRef.current = initData;
 
@@ -225,6 +232,24 @@ function readLaunchData(): { initData: string | null; startParam: string | null;
     languageCode = null;
   }
   return { initData, startParam: startParam?.trim() || null, languageCode };
+}
+
+/**
+ * Phones open the Mini App over the whole screen (Bot API 8.0). Telegram's close and menu buttons then float over the
+ * page, so the root gets "tg-fullscreen" and --safe-top includes Telegram's insets (app/styles/base.css).
+ * A swipe down would close the app instead of scrolling the feed, so vertical swipes are off.
+ */
+function openFullscreen(webApp: TelegramWebApp) {
+  if (!/^(ios|android)/i.test(webApp.platform ?? "") || !webApp.isVersionAtLeast?.("8.0")) return;
+  const sync = () => document.documentElement.classList.toggle("tg-fullscreen", Boolean(webApp.isFullscreen));
+  webApp.onEvent?.("fullscreenChanged", sync);
+  webApp.disableVerticalSwipes?.();
+  try {
+    webApp.requestFullscreen?.();
+  } catch {
+    // Older clients keep the normal expanded view.
+  }
+  sync();
 }
 
 function loadTelegramScript(): Promise<TelegramWebApp | null> {

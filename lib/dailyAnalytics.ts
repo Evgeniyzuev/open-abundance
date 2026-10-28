@@ -95,6 +95,7 @@ export const TABLE_SPECS: TableSpec[] = [
   { table: "team_memberships", select: "member_user_id,leader_user_id,is_active" },
   { table: "lead_meeting_settings", select: "user_id,rhythm" },
   { table: "lead_meetings", select: "user_id,meeting_day,last_goal_status,question,next_goal,created_at", since: "created_at" },
+  { table: "word_pledges", select: "user_id,amount,bonus_amount,status,created_at,settled_at", since: "created_at" },
   { table: "lead_week_checkins", select: "user_id,week_start,practice_key,goal,midweek_status,review_status,created_at", since: "created_at" },
   { table: "telegram_accounts", select: "user_id" },
   { table: "notification_events", select: "idempotency_key,created_at", since: "created_at", eq: ["event_type", "coach.next_step"] },
@@ -561,6 +562,12 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   const rhythms = countBy(meetingSettings, (row) => row.rhythm);
   const goalStatuses = countBy(meetings7d.filter((row) => row.last_goal_status), (row) => row.last_goal_status);
   out.push(`\nВстречи с лидом: ритм выбрали ${meetingSettings.length} чел. (${rhythms.map(([rhythm, value]) => `${rhythm} ${value}`).join(", ") || "—"}); за 7 дней встреч ${meetings7d.length} у ${metrics.lead_meeting_people_7d} чел., с вопросом ${meetings7d.filter((row) => row.question).length}, с целью на следующую ${meetings7d.filter((row) => row.next_goal).length}; прошлая цель: ${goalStatuses.map(([status, value]) => `${status} ${value}`).join(", ") || "—"}.`);
+  const pledges7d = (t.word_pledges ?? []).filter((row) => within(row.created_at, 7));
+  const pledgeSum = (rows: typeof pledges7d, key: string) => rows.reduce((sum, row) => sum + Number(row[key] ?? 0), 0).toFixed(2);
+  const kept = pledges7d.filter((row) => row.status === "kept");
+  const missed = pledges7d.filter((row) => row.status === "missed");
+  metrics.word_pledges_7d = pledges7d.length;
+  out.push(`Цена слова за 7 дней: дали слово ${pledges7d.length} раз (залог $${pledgeSum(pledges7d, "amount")}); сдержали ${kept.length} (бонус в Core $${pledgeSum(kept, "bonus_amount")}), не успели ${missed.length} (в фонд наград $${pledgeSum(missed, "amount")}), идут ${pledges7d.filter((row) => row.status === "active").length}.`);
   if (leadWeek.practices.length) {
     out.push("\nПрактики за окно (недели с целью; «сделал» и квесты за неделю, сравнивать с контролем):");
     out.push(table(["Практика", "Недель", "Сделал", "Частично", "Медиана квестов за неделю"], leadWeek.practices.map((row) => [

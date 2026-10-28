@@ -116,6 +116,12 @@ export async function runCoordinatorNudges(db: AnyDb, options: { dryRun: boolean
     outcomes: nudgeOutcomes(participants, sentBefore)
   };
   if (options.dryRun) return summary;
+  // Settle "price of your word" promises whose deadline passed (lib/wordPledge.ts); people's own visits settle the rest.
+  try {
+    await db.rpc("settle_word_pledges", {});
+  } catch {
+    // Before migration 20261028090000 the function does not exist; nothing to settle.
+  }
   // Once every push is copied to Telegram (telegram_notification_deliveries), the nudge push already reaches Telegram.
   const pushCopiedToTelegram = !(await db.from("telegram_notification_deliveries").select("id").limit(1)).error;
   const botToken = pushCopiedToTelegram ? null : process.env.TELEGRAM_BOT_TOKEN ?? null;

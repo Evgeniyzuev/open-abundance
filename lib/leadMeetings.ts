@@ -1,8 +1,10 @@
 // Meetings with the lead (Evgen, 2026-10-27): a two-minute check-in in the app, like a coach's short session.
 // The lead sees what moved since the last meeting, asks how the goal went and whether there is a question or wish,
 // and the person sets one goal for the next meeting. The person picks the rhythm: every day, three times a week
-// (Mon, Wed, Fri) or once a week (Monday). Nova invites on meeting days; after two invitations in a row without a
-// meeting she only invites on Mondays until the person comes back, so nobody is chased. Pure and standalone.
+// (Mon, Wed, Fri) or once a week (Monday). The lead proposes the rhythm from the person's motive and pace (Evgen,
+// 2026-10-28: the lead serves the person, not the other way round); the person can take it or pick another. Nova invites
+// on meeting days, and the person answers whenever they have time: a meeting stays open until the next meeting day.
+// After two invitations in a row without a meeting she only invites on Mondays, so nobody is chased. Pure and standalone.
 
 const DAY_MS = 86_400_000;
 
@@ -38,11 +40,36 @@ export function isMeetingDay(rhythm: MeetingRhythm, now: number): boolean {
   return false;
 }
 
-/** A meeting is due on a meeting day when there was none today. Without a meeting yet, any day of the rhythm works. */
+/** The latest meeting day on or before today (YYYY-MM-DD), or null when meetings are off. */
+export function currentMeetingDay(rhythm: MeetingRhythm | null, now: number): string | null {
+  if (!rhythm || rhythm === "off") return null;
+  for (let offset = 0; offset < 7; offset += 1) {
+    const day = now - offset * DAY_MS;
+    if (isMeetingDay(rhythm, day)) return dayKey(day);
+  }
+  return null;
+}
+
+/**
+ * A meeting is due when there was none since the latest meeting day. It stays open until the next meeting day, so the
+ * person can answer in their own free time.
+ */
 export function isMeetingDue(rhythm: MeetingRhythm | null, lastMeetingDay: string | null, now: number): boolean {
-  if (!rhythm || rhythm === "off") return false;
-  if (lastMeetingDay === dayKey(now)) return false;
-  return isMeetingDay(rhythm, now);
+  const current = currentMeetingDay(rhythm, now);
+  if (!current) return false;
+  return !lastMeetingDay || lastMeetingDay < current;
+}
+
+export type RhythmSuggestion = { rhythm: Exclude<MeetingRhythm, "off">; reason: "fast" | "steady" | "light" };
+
+/**
+ * The rhythm the lead proposes: every day for someone already moving fast (3+ quests in a week), three times a week
+ * for a steady pace or a strong motive, once a week otherwise, so the first proposal never asks too much.
+ */
+export function suggestMeetingRhythm(input: { motive: string | null; questsLast7: number }): RhythmSuggestion {
+  if (input.questsLast7 >= 3) return { rhythm: "daily", reason: "fast" };
+  if (input.questsLast7 >= 1 || input.motive === "income" || input.motive === "change") return { rhythm: "three", reason: "steady" };
+  return { rhythm: "weekly", reason: "light" };
 }
 
 /** The next meeting day after today (YYYY-MM-DD), or null when meetings are off. */
@@ -84,12 +111,12 @@ export function meetingInviteCopy(input: Pick<MeetingInviteInput, "motive" | "la
   return {
     ru: {
       title: "{name}, время нашей встречи",
-      body: goal ? `В прошлый раз цель была «${goal}». Как прошло? ${line.ru} Нова` : `Посмотрим, что сдвинулось, и поставим цель к следующей встрече. ${line.ru} Нова`,
+      body: goal ? `В прошлый раз цель была «${goal}». Как прошло? ${line.ru} Ответь, когда будет время. Нова` : `Посмотрим, что сдвинулось, и поставим цель к следующей встрече. ${line.ru} Ответь, когда будет время. Нова`,
       button: "На встречу"
     },
     en: {
       title: "{name}, time for our meeting",
-      body: goal ? `Last time the goal was "${goal}". How did it go? ${line.en} Nova` : `Let's look at what moved and set a goal for the next meeting. ${line.en} Nova`,
+      body: goal ? `Last time the goal was "${goal}". How did it go? ${line.en} Answer whenever you have time. Nova` : `Let's look at what moved and set a goal for the next meeting. ${line.en} Answer whenever you have time. Nova`,
       button: "Join the meeting"
     }
   };
@@ -105,7 +132,7 @@ export function invitesSinceMeeting(sends: MeetingSend[], lastMeetingAt: number 
  * MEETING_BACKOFF_AFTER unanswered invitations only on Mondays.
  */
 export function shouldInviteToMeeting(input: MeetingInviteInput, sends: MeetingSend[], lastMeetingAt: number | null, now: number): boolean {
-  if (!isMeetingDue(input.rhythm, input.lastMeetingDay, now)) return false;
+  if (!input.rhythm || !isMeetingDay(input.rhythm, now) || !isMeetingDue(input.rhythm, input.lastMeetingDay, now)) return false;
   if (sends.some((send) => send.step === "lead_meeting" && dayKey(send.at) === dayKey(now))) return false;
   if (invitesSinceMeeting(sends, lastMeetingAt) >= MEETING_BACKOFF_AFTER && weekday(now) !== 0) return false;
   return true;

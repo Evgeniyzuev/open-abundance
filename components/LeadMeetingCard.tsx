@@ -6,18 +6,21 @@ import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import WordPledgePanel from "@/components/WordPledgePanel";
 import {
   MEETING_GOAL_STATUSES,
   MEETING_RHYTHMS,
   MEETING_TEXT_MAX,
   meetingChatPrompt,
   type MeetingGoalStatus,
-  type MeetingRhythm
+  type MeetingRhythm,
+  type RhythmSuggestion
 } from "@/lib/leadMeetings";
 
 type MeetingState = {
   available: boolean;
   rhythm: MeetingRhythm | null;
+  suggestion: RhythmSuggestion | null;
   due: boolean;
   metToday: boolean;
   nextDay: string | null;
@@ -81,10 +84,33 @@ export function MeetingRhythmPicker({ current, onPicked }: { current: MeetingRhy
   );
 }
 
+/** The one-tap "Suits me" for the lead's proposed rhythm. */
+function MeetingRhythmAccept({ rhythm, onPicked }: { rhythm: MeetingRhythm; onPicked: (rhythm: MeetingRhythm) => void }) {
+  const { t } = useUserContext();
+  const [saving, setSaving] = useState(false);
+  return (
+    <button
+      className="chip"
+      aria-pressed="true"
+      disabled={saving}
+      type="button"
+      onClick={async () => {
+        setSaving(true);
+        if (await saveMeeting({ action: "rhythm", rhythm })) onPicked(rhythm);
+        setSaving(false);
+      }}
+    >
+      {t("leadMeeting.acceptRhythm")}
+    </button>
+  );
+}
+
 /**
  * The meeting with the lead on Home: two minutes on meeting days. What moved since last time, how the last goal went,
- * a question or wish, and one goal for the next meeting; then the chat with Nova continues from it. The person picks
- * the rhythm first; "Not now" turns meetings off, and the team tab can turn them back on.
+ * a question or wish, and one goal for the next meeting; then the chat with Nova continues from it. The lead proposes
+ * the rhythm first and the person accepts or picks another; "Not now" turns meetings off, and the team tab can turn
+ * them back on. A meeting stays open until the next meeting day, so the person answers in their own time. After the
+ * meeting the person may give their word on a quest (WordPledgePanel).
  */
 export default function LeadMeetingCard({ active }: { active: boolean }) {
   const { locale, t, user } = useUserContext();
@@ -94,6 +120,7 @@ export default function LeadMeetingCard({ active }: { active: boolean }) {
   const [nextGoal, setNextGoal] = useState("");
   const [saving, setSaving] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [otherRhythm, setOtherRhythm] = useState(false);
   const userId = user?.id ?? null;
 
   const refresh = useCallback(async () => setState(await loadMeeting(locale)), [locale]);
@@ -105,19 +132,39 @@ export default function LeadMeetingCard({ active }: { active: boolean }) {
   if (!userId || !state) return null;
 
   if (!state.rhythm) {
+    // The lead proposes when and how to meet; the person takes it or picks another pace.
+    const suggestion = state.suggestion;
+    const picked = (rhythm: MeetingRhythm, source: string) => { trackProductEvent("lead_meeting_rhythm_home", { rhythm, source }); void refresh(); };
     return (
       <section className="lead-meeting home-card" aria-labelledby="lead-meeting-title">
         <span className="home-card-label">{t("leadMeeting.label")}</span>
-        <h3 id="lead-meeting-title">{t("leadMeeting.chooseTitle")}</h3>
-        <p>{t("leadMeeting.chooseBody")}</p>
-        <MeetingRhythmPicker current={null} onPicked={(rhythm) => { trackProductEvent("lead_meeting_rhythm_home", { rhythm }); void refresh(); }} />
+        {suggestion ? (
+          <>
+            <h3 id="lead-meeting-title">{t("leadMeeting.proposeTitle", { rhythm: t(`leadMeeting.rhythm.${suggestion.rhythm}` as MessageKey).toLowerCase() })}</h3>
+            <p>{t(`leadMeeting.proposeReason.${suggestion.reason}` as MessageKey)} {t("leadMeeting.proposeHow")}</p>
+            {otherRhythm ? (
+              <MeetingRhythmPicker current={null} onPicked={(rhythm) => picked(rhythm, "other")} />
+            ) : (
+              <div className="chips">
+                <MeetingRhythmAccept rhythm={suggestion.rhythm} onPicked={(rhythm) => picked(rhythm, "suggested")} />
+                <button className="chip" type="button" onClick={() => setOtherRhythm(true)}>{t("leadMeeting.otherRhythm")}</button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <h3 id="lead-meeting-title">{t("leadMeeting.chooseTitle")}</h3>
+            <p>{t("leadMeeting.chooseBody")}</p>
+            <MeetingRhythmPicker current={null} onPicked={(rhythm) => picked(rhythm, "picker")} />
+          </>
+        )}
       </section>
     );
   }
   if (state.rhythm === "off") return null;
 
-  if (finished || (state.metToday && !state.due)) {
-    if (!finished) return null;
+  if (finished || !state.due) {
+    if (!finished) return <WordPledgePanel mode="status" nextMeetingDay={state.nextDay} standalone />;
     return (
       <section className="lead-meeting home-card" aria-live="polite">
         <span className="home-card-label">{t("leadMeeting.label")}</span>
@@ -131,11 +178,10 @@ export default function LeadMeetingCard({ active }: { active: boolean }) {
         >
           {t("leadMeeting.discuss")}
         </button>
+        <WordPledgePanel mode="offer" nextMeetingDay={state.nextDay} />
       </section>
     );
   }
-  if (!state.due) return null;
-
   async function finish() {
     if (!state) return;
     setSaving(true);
@@ -154,6 +200,7 @@ export default function LeadMeetingCard({ active }: { active: boolean }) {
           : t("leadMeeting.noProgress")}
       </p>
       {state.weekGoal ? <p>{t("leadMeeting.weekGoal", { goal: state.weekGoal })}</p> : null}
+      <WordPledgePanel mode="status" nextMeetingDay={state.nextDay} />
       {state.lastGoal ? (
         <div className="lead-meeting-step">
           <p>{t("leadMeeting.lastGoal", { goal: state.lastGoal })}</p>

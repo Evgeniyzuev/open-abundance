@@ -3418,6 +3418,23 @@ const ru: Record<string, string> = {
   "leadMeeting.finish": "Завершить встречу",
   "leadMeeting.done": "Встреча записана. Следующая: {day}.",
   "leadMeeting.discuss": "Обсудить с Новой",
+  "leadMeeting.proposeTitle": "Предлагаю встречаться {rhythm}",
+  "leadMeeting.proposeReason.fast": "Ты идёшь быстро, короткая встреча каждый день поможет держать темп.",
+  "leadMeeting.proposeReason.steady": "Три коротких встречи в неделю (пн, ср, пт) дадут ритм без нагрузки.",
+  "leadMeeting.proposeReason.light": "Начнём спокойно: одна встреча в неделю, по понедельникам.",
+  "leadMeeting.proposeHow": "Я напишу тебе в чате в день встречи. Отвечай, когда будет свободное время: встреча открыта до следующей.",
+  "leadMeeting.acceptRhythm": "Подходит",
+  "leadMeeting.otherRhythm": "Другой темп",
+  "wordPledge.label": "Цена слова",
+  "wordPledge.offerTitle": "Дать слово на квест?",
+  "wordPledge.offerBody": "Выбери квест, который сделаешь к следующей встрече, и залог из кошелька. Квест сделан вовремя: залог вернётся, а 10% от него добавятся в Core. Если не успеешь, залог останется в фонде наград. Это по желанию.",
+  "wordPledge.quest": "Квест",
+  "wordPledge.submit": "Даю слово",
+  "wordPledge.rules": "Выполнение проверяет сам квест. Одно слово за раз, на каждый квест один раз.",
+  "wordPledge.active": "Слово дано: «{goal}» до конца дня {day}. Залог {amount} вернётся, и +{bonus} в Core, когда квест будет выполнен.",
+  "wordPledge.kept": "Слово сдержано! Залог {amount} вернулся в кошелёк, +{bonus} в Core.",
+  "wordPledge.missed": "В этот раз не получилось, залог {amount} ушёл в фонд наград. Ничего страшного: на встрече возьмём шаг поменьше.",
+  "wordPledge.error": "Не получилось сохранить. Попробуй ещё раз.",
   "leadMeeting.settingsTitle": "Встречи с лидом"
 };
 

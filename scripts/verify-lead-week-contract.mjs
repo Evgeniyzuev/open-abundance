@@ -73,3 +73,23 @@ assert.equal(step?.key, "lead_meeting", "the meeting invitation comes first on a
 const migration2 = readFileSync(new URL("../supabase/migrations/20261027200000_lead_meetings.sql", import.meta.url), "utf8");
 assert.ok(migration2.includes("unique (user_id, meeting_day)"));
 console.log("lead meetings contract ok");
+
+// The lead proposes the rhythm; a meeting stays open until the next meeting day; "price of your word".
+const { suggestMeetingRhythm, currentMeetingDay } = await import("../lib/leadMeetings.ts");
+assert.equal(suggestMeetingRhythm({ motive: null, questsLast7: 4 }).rhythm, "daily");
+assert.equal(suggestMeetingRhythm({ motive: "income", questsLast7: 0 }).rhythm, "three");
+assert.equal(suggestMeetingRhythm({ motive: null, questsLast7: 0 }).rhythm, "weekly");
+assert.equal(currentMeetingDay("three", tue), "2026-10-26");
+assert.ok(isMeetingDue("three", "2026-10-23", tue), "Monday's meeting can be answered on Tuesday");
+assert.ok(!isMeetingDue("three", "2026-10-26", tue), "met on Monday, nothing due on Tuesday");
+assert.ok(!shouldInviteToMeeting({ ...meet, rhythm: "three", lastMeetingDay: "2026-10-23" }, [], null, tue), "no invitation on a non-meeting day");
+assert.ok(meetingInviteCopy(meet).ru.body.includes("когда будет время"));
+const { pledgeBonus, pledgeDeadline, affordableAmounts } = await import("../lib/wordPledge.ts");
+assert.equal(pledgeBonus(5), 0.5);
+assert.deepEqual(affordableAmounts(4), [1, 3]);
+assert.equal(pledgeDeadline("2026-10-28", tue), "2026-10-28T23:59:00.000Z");
+assert.equal(pledgeDeadline("2026-10-27", Date.parse("2026-10-27T20:00:00Z")), "2026-10-28T20:00:00.000Z", "at least 12 hours ahead");
+const pledgeSql = readFileSync(new URL("../supabase/migrations/20261028090000_word_pledges.sql", import.meta.url), "utf8");
+assert.ok(pledgeSql.includes("uc.status = 'completed'") && pledgeSql.includes("v_done <= v_pledge.deadline_at"), "kept only when the quest is completed in time");
+assert.ok(pledgeSql.includes("round(p_amount, 2), 10, p_deadline_at"), "bonus is fixed in the database, not by the client");
+console.log("word pledge contract ok");

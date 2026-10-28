@@ -3418,6 +3418,23 @@ const en = {
   "leadMeeting.finish": "Finish the meeting",
   "leadMeeting.done": "Meeting saved. Next one: {day}.",
   "leadMeeting.discuss": "Discuss with Nova",
+  "leadMeeting.proposeTitle": "Let's meet {rhythm}",
+  "leadMeeting.proposeReason.fast": "You're moving fast; a short meeting every day will help keep the pace.",
+  "leadMeeting.proposeReason.steady": "Three short meetings a week (Mon, Wed, Fri) give a rhythm without pressure.",
+  "leadMeeting.proposeReason.light": "Let's start easy: one meeting a week, on Mondays.",
+  "leadMeeting.proposeHow": "I'll write to you in the chat on meeting days. Answer whenever you have free time: a meeting stays open until the next one.",
+  "leadMeeting.acceptRhythm": "Suits me",
+  "leadMeeting.otherRhythm": "Another pace",
+  "wordPledge.label": "Price of your word",
+  "wordPledge.offerTitle": "Give your word on a quest?",
+  "wordPledge.offerBody": "Pick a quest you'll finish by the next meeting and a deposit from your Wallet. Done in time: the deposit comes back and 10% of it is added to Core. Not in time: the deposit stays in the reward fund. Optional.",
+  "wordPledge.quest": "Quest",
+  "wordPledge.submit": "I give my word",
+  "wordPledge.rules": "The quest itself checks completion. One promise at a time, once per quest.",
+  "wordPledge.active": "You gave your word: \"{goal}\" by the end of {day}. The {amount} deposit comes back, plus {bonus} to Core, when the quest is done.",
+  "wordPledge.kept": "Word kept! The {amount} deposit is back in your Wallet, +{bonus} to Core.",
+  "wordPledge.missed": "Not this time; the {amount} deposit went to the reward fund. That's fine: at the meeting we'll take a smaller step.",
+  "wordPledge.error": "Could not save. Try again.",
   "leadMeeting.settingsTitle": "Meetings with your lead"
 } satisfies Record<string, string>;
 

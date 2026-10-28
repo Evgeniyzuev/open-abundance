@@ -10,7 +10,9 @@ import {
   isMeetingDue,
   isMeetingRhythm,
   nextMeetingDay,
-  type MeetingRhythm
+  suggestMeetingRhythm,
+  type MeetingRhythm,
+  type RhythmSuggestion
 } from "@/lib/leadMeetings";
 
 export const dynamic = "force-dynamic";
@@ -50,9 +52,20 @@ export async function GET(request: NextRequest) {
     .map((row) => row.challenges?.title?.[locale] ?? row.challenges?.title?.en ?? row.challenges?.title?.ru ?? "")
     .filter(Boolean);
 
+  // Without a rhythm yet, the lead proposes one from the person's motive and their pace over the last week.
+  let suggestion: RhythmSuggestion | null = null;
+  if (!rhythm) {
+    const [profile, week] = await Promise.all([
+      db.from("user_profiles").select("quest_motive").eq("user_id", user.id).maybeSingle(),
+      supabase.from("user_challenges").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "completed").gt("updated_at", new Date(now - 7 * DAY_MS).toISOString())
+    ]);
+    suggestion = suggestMeetingRhythm({ motive: (profile.data?.quest_motive as string | null) ?? null, questsLast7: Number(week.count ?? 0) });
+  }
+
   return NextResponse.json({
     available: true,
     rhythm,
+    suggestion,
     due: isMeetingDue(rhythm, last?.meeting_day ?? null, now),
     metToday: last?.meeting_day === dayKey(now),
     nextDay: nextMeetingDay(rhythm, now),

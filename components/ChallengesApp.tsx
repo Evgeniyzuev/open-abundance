@@ -33,6 +33,7 @@ import { artSeed, challengeBadge, challengeCover, challengeGlyph, isOwnImage } f
 import { parseChallengeRewardAmount, splitChallengeInstructions } from "@/lib/challengePresentation";
 import type { ChallengeCheckReasonCode } from "@/lib/challengeCheckReasons";
 import { trackClientEvent } from "@/lib/clientAnalytics";
+import QuestShareBox from "@/components/QuestShareBox";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
 
@@ -145,6 +146,8 @@ type CheckChallengeResponse = {
   coreRewardAmount?: number;
   walletRewardAmount?: number;
   rewardClaimed?: boolean;
+  /** The quest's result post (a draft), offered for sharing right after the reward. */
+  feedPostId?: string | null;
   error?: string;
 };
 
@@ -154,6 +157,7 @@ type CompletionReward = {
   claimed: boolean;
   coreBalanceAfter?: number | null;
   walletBalanceAfter?: number | null;
+  feedPostId?: string | null;
 };
 type TodayItem = {
   id: string;
@@ -1374,7 +1378,8 @@ function ChallengeDetailContent({
         walletAmount: payload.walletRewardAmount ?? challenge.wallet_reward_amount,
         claimed: Boolean(payload.rewardClaimed),
         coreBalanceAfter: payload.core?.balance ?? null,
-        walletBalanceAfter: payload.wallet?.balance ?? null
+        walletBalanceAfter: payload.wallet?.balance ?? null,
+        feedPostId: payload.feedPostId ?? null
       };
       onApplyServerData({ core: payload.core, wallet: payload.wallet });
       onComplete(challenge, reward);
@@ -1882,6 +1887,9 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
         ) : <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>}
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
         <p>{reward.claimed ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : t("challenges.rewardAlreadyClaimed")}</p>
+        {reward.claimed && reward.feedPostId ? (
+          <QuestShareBox challengeId={challenge.id} logic={challenge.verification_logic} postId={reward.feedPostId} questTitle={displayText(challenge.title, t("challenges.challenge"), locale)} t={t} />
+        ) : null}
         <div className="challenge-receipt">
           <div className="challenge-receipt-row">
             <span>{t("challenges.receipt.challenge")}</span>

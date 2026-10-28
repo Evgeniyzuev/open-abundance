@@ -7,6 +7,7 @@ import { trackClientEvent } from "@/lib/clientAnalytics";
 import { COMMENT_MAX_CHARS, discussionPath } from "@/lib/feedComments";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
 import type { FeedPost } from "@/lib/socialFeed";
+import { storyQuestion } from "@/lib/storyComments";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 type InteractionComment = {
@@ -57,6 +58,8 @@ export default function FeedPostInteractions({
   const [error, setError] = useState<string | null>(null);
 
   const canInteract = Boolean(currentUserId) && post.status === "published" && post.visibility === "public";
+  // Nova (marked as AI) asks one question under stories by others, so a reader knows what to tell.
+  const showNovaQuestion = canInteract && post.author_user_id !== currentUserId && STORY_POST_TYPES.has(post.post_type) && !post.source_key?.startsWith("challenge:");
 
   useEffect(() => {
     let active = true;
@@ -218,6 +221,17 @@ export default function FeedPostInteractions({
           <button type="button" aria-label={t("social.feed.cancelReply")} onClick={() => setReplyTo(null)}><X size={14} aria-hidden /></button>
         </div>
       ) : null}
+      {showNovaQuestion && !replyTo ? (
+        <div className="feed-nova-question">
+          <img alt="" src="/nova-fox-robot.webp" />
+          <div>
+            <span className="feed-nova-question-name">{t("social.feed.novaQuestion.name")}</span>
+            <p>{storyQuestion(post.source_key, locale)}</p>
+            <button type="button" onClick={() => document.getElementById(`comment-${post.id}`)?.focus()}>{t("social.feed.novaQuestion.answer")}</button>
+            <small>{t("social.feed.novaQuestion.reward")}</small>
+          </div>
+        </div>
+      ) : null}
       <form className="feed-comment-form" onSubmit={(event) => { event.preventDefault(); void runAction("comment", commentBody); }}>
         <input
           id={`comment-${post.id}`}
@@ -285,3 +299,6 @@ async function loadInteractions(postId: string): Promise<InteractionPayload> {
 function formatCommentDate(value: string, locale: AppLocale): string {
   return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
+
+/** Posts where Nova's question makes sense: stories and links, not automatic progress posts. */
+const STORY_POST_TYPES = new Set(["manual", "abundance_story", "external_link", "wish", "wish_completed", "reality_demo"]);

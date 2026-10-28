@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { findUsefulStoryComment, USEFUL_STORY_COMMENT_LOGIC, USEFUL_STORY_COMMENT_MIN_LENGTH, USEFUL_STORY_COMMENT_MIN_VOTES, type StoryCommentVote } from "@/lib/storyComments";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
 import { classifyChallengeCheckReason } from "@/lib/challengeCheckReasons";
@@ -314,6 +315,28 @@ async function verifyChallenge(
     if (progress.error) return { ok: false, reason: "Could not check the Core law test. Try again." };
     if (progress.proved) return { ok: true };
     return { ok: false, reason: "Pass the Core law test first." };
+  }
+
+  if (challenge.verification_logic === USEFUL_STORY_COMMENT_LOGIC) {
+    const { data: comments, error: commentsError } = await supabase
+      .from("feed_post_comments")
+      .select("id,post_id,user_id,body,parent_comment_id,deleted_at")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .is("parent_comment_id", null)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (commentsError) return { ok: false, reason: "Could not check your comments. Try again." };
+    const long = (comments ?? []).filter((comment) => comment.body.trim().length >= USEFUL_STORY_COMMENT_MIN_LENGTH);
+    if (!long.length) return { ok: false, reason: `Tell your own story under someone else's post (at least ${USEFUL_STORY_COMMENT_MIN_LENGTH} characters) first.` };
+    const [{ data: votes, error: votesError }, { data: posts, error: postsError }] = await Promise.all([
+      (supabase as any).from("feed_comment_votes").select("comment_id,user_id,value").in("comment_id", long.map((comment) => comment.id)),
+      supabase.from("feed_posts").select("id,author_user_id").in("id", Array.from(new Set(long.map((comment) => comment.post_id))))
+    ]);
+    if (votesError || postsError) return { ok: false, reason: "Could not check your comments. Try again." };
+    const authors = new Map<string, string | null>(((posts ?? []) as { id: string; author_user_id: string | null }[]).map((post) => [post.id, post.author_user_id]));
+    if (findUsefulStoryComment(userId, long, (votes ?? []) as StoryCommentVote[], authors)) return { ok: true };
+    return { ok: false, reason: `Your story needs ${USEFUL_STORY_COMMENT_MIN_VOTES} useful marks (▲) from other people. Keep it going: answer those who reply.` };
   }
 
   if (challenge.verification_logic === "ai_message_sent") {

@@ -2031,3 +2031,12 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + env(sa
 .quest-share-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .quest-share small { color: var(--muted); font-size: 0.78rem; }
 .quest-share-done { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0 12px; color: var(--green, #1a8f4a); font-weight: 800; }
+
+/* Nova's question under a story (marked as AI). */
+.feed-nova-question { display: flex; gap: 10px; margin: 10px 0 8px; border-radius: 16px; padding: 10px 12px; background: var(--accent-soft); }
+.feed-nova-question img { flex: none; width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.feed-nova-question > div { display: grid; gap: 4px; min-width: 0; }
+.feed-nova-question-name { color: var(--blue); font-size: 0.75rem; font-weight: 850; }
+.feed-nova-question p { margin: 0; color: var(--text); font-size: 0.92rem; line-height: 1.4; }
+.feed-nova-question button { justify-self: start; border: 0; border-radius: 999px; padding: 6px 12px; background: var(--blue); color: #fff; font-weight: 800; cursor: pointer; }
+.feed-nova-question small { color: var(--muted); font-size: 0.75rem; line-height: 1.35; }

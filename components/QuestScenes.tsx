@@ -175,7 +175,7 @@ type TelegramStatus = { configured: boolean; linked: boolean; canWrite: boolean;
  * ($0.3 Core); the reward for the steps done is claimed at the end (app/api/challenges/check verifies each step on the
  * server). Taken again later, only the steps not rewarded yet are shown (lib/stayInTouch.ts).
  */
-export function AppInstalledQuest({ locale, t, onClaim, onSkipTask, claiming }: { locale: string; t: TFunction; onClaim: () => void; onSkipTask: () => void; claiming: boolean }) {
+export function AppInstalledQuest({ locale, t, onClaim, claiming }: { locale: string; t: TFunction; onClaim: () => void; claiming: boolean }) {
   const [standalone, setStandalone] = useState(false);
   const [telegram, setTelegram] = useState(false);
   const [desktop, setDesktop] = useState(false);
@@ -299,7 +299,7 @@ export function AppInstalledQuest({ locale, t, onClaim, onSkipTask, claiming }: 
         <ul className="quest-steps">
           {steps.map((step) => (
             <li className={isDone(step) ? "done" : ""} key={step}>
-              {t(`quests.stay.${step}.title` as MessageKey)} · {isDone(step) ? `+${money(stepReward)}` : t("quests.stay.skipped")}
+              {t(`quests.stay.${step}.short` as MessageKey)} · {isDone(step) ? `+${money(stepReward)}` : t("quests.stay.skipped")}
             </li>
           ))}
         </ul>
@@ -308,10 +308,7 @@ export function AppInstalledQuest({ locale, t, onClaim, onSkipTask, claiming }: 
             {claiming ? t("app.common.loading") : t("quests.stay.claim", { amount: money(stepReward * doneSteps.length) })}
           </button>
         ) : (
-          <>
-            <p className="challenge-note">{t("quests.stay.nothingDone")}</p>
-            <button className="challenge-secondary-action" type="button" onClick={onSkipTask}>{t("quests.skip")}</button>
-          </>
+<p className="challenge-note">{t("quests.stay.nothingDone")}</p>
         )}
         {doneSteps.length && doneSteps.length < steps.length ? <p className="challenge-note">{t("quests.stay.later")}</p> : null}
         <button className="text-button" type="button" onClick={() => setIndex(0)}>{t("quests.stay.back")}</button>

@@ -1570,7 +1570,7 @@ function ChallengeDetailContent({
 
       {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
-      {needsAppInstalled ? <AppInstalledQuest locale={locale} t={t} claiming={checkStatus === "loading"} onClaim={() => void handleCheck()} onSkipTask={() => setSkipAsk(true)} /> : null}
+      {needsAppInstalled ? <AppInstalledQuest locale={locale} t={t} claiming={checkStatus === "loading"} onClaim={() => void handleCheck()} /> : null}
 
       {needsGoalPlan ? <CorePowerQuest coreBalance={coreBalance} locale={locale} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 

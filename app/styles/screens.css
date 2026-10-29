@@ -1351,6 +1351,9 @@
    (only when the posts follow the chips directly; story rings and hints keep the normal layout). */
 .feed-layout:has(> .feed-toolbar + .feed-post-gallery) { margin-top: calc(-1 * var(--content-gap, 36px)); }
 .feed-layout:has(> .feed-toolbar + .feed-post-gallery) > .feed-toolbar { position: sticky; top: calc(var(--top-nav-height) + var(--safe-top) + 8px); z-index: 6; margin: 8px 6px -58px; }
+/* While the top bar is folded, the sticky filters and wish tabs leave nothing behind; they return with the bar. */
+:is(.feed-layout > .feed-toolbar, .wish-tabs) { transition: opacity 160ms ease, transform 160ms ease; }
+:root.top-nav-collapsed :is(.feed-layout > .feed-toolbar, .wish-tabs) { opacity: 0; transform: translateY(-12px); pointer-events: none; }
 .feed-layout:has(> .feed-toolbar + .feed-post-gallery) > .feed-toolbar :is(.feed-filter-row button, .feed-layout-toggle) { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 2px 10px rgba(0,0,0,0.14); }
 .feed-layout:has(> .feed-toolbar + .feed-post-gallery) > .feed-toolbar :is(.feed-filter-row button:not(.active), .feed-layout-toggle) { border-color: color-mix(in srgb, var(--surface) 70%, transparent); background: color-mix(in srgb, var(--surface) 62%, transparent); }
 .feed-layout:has(> .feed-toolbar + .feed-post-gallery) > .feed-toolbar .feed-filter-row button.active { background: color-mix(in srgb, var(--accent-soft) 82%, transparent); }

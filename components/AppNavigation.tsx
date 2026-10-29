@@ -435,6 +435,13 @@ export default function AppNavigation() {
     writeNavigationStateToHistory(navigationStateRef.current, "push");
   }, [activeGoalTab, activeHomeTab, activeMainTab, activeSocialTab, activeWalletTab]);
 
+  // Sticky in-page bars (feed filters, wish tabs) hide completely while the top bar is folded (app/styles/screens.css).
+  const topNavCollapsed = navHidden && !topNavExpanded;
+  useEffect(() => {
+    document.documentElement.classList.toggle("top-nav-collapsed", topNavCollapsed);
+    return () => document.documentElement.classList.remove("top-nav-collapsed");
+  }, [topNavCollapsed]);
+
   useEffect(() => {
     let lastScrollY = Math.max(0, window.scrollY);
 
@@ -689,7 +696,7 @@ export default function AppNavigation() {
       <TopTabBar
         activeMainTab={activeMainTab}
         activeTab={activeTopTab}
-        collapsed={navHidden && !topNavExpanded}
+        collapsed={topNavCollapsed}
         tabs={topTabs}
         t={t}
         unreadChallenges={challengesUnread}

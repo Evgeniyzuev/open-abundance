@@ -19,6 +19,7 @@ import { VALUES_CHALLENGE_SWIPES, valuesChallengeDone } from "@/lib/lifeValues";
 import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
 import { isChannelCodeValid } from "@/lib/channelCodesServer";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC } from "@/lib/questPath";
+import { telegramBotCanWrite } from "@/lib/telegramCanWrite";
 
 type CheckRequest = {
   challengeId?: string;
@@ -256,10 +257,13 @@ async function verifyChallenge(
     return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
   }
   if (challenge.verification_logic === APP_INSTALLED_LOGIC) {
-    // "Turn on notifications": this account has a working push subscription on some device.
+    // "Turn on notifications": a working push subscription on some device, or the Telegram bot can write (Start pressed).
     const { count, error } = await db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("owner_key", `user:${userId}`).eq("enabled", true);
+    if (!error && Number(count ?? 0) > 0) return { ok: true };
+    const bot = await telegramBotCanWrite(db, userId);
+    if (bot?.canWrite) return { ok: true };
     if (error) return { ok: false, reason: "Could not check notifications. Try again." };
-    return Number(count ?? 0) > 0 ? { ok: true } : { ok: false, reason: "Turn on notifications in this quest first." };
+    return { ok: false, reason: "Press Start in the Telegram bot or turn on notifications in this quest first." };
   }
   if (challenge.verification_logic === FIRST_STEP_LOGIC) {
     const progress = await getChallengeProgressProof(supabase, userId, challenge, "motive_chosen");

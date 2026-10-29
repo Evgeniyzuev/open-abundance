@@ -1681,9 +1681,12 @@ function ChallengeDetailContent({
             </div>
           </div>
         ) : (
-          <button className="challenge-secondary-action" type="button" disabled={activeStatus === "loading"} onClick={() => setSkipAsk(true)}>
-            {activeStatus === "loading" ? t("app.common.loading") : t("quests.skip")}
-          </button>
+          <>
+            <p className="challenge-note">{t("quests.skipHint")}</p>
+            <button className="challenge-secondary-action" type="button" disabled={activeStatus === "loading"} onClick={() => setSkipAsk(true)}>
+              {activeStatus === "loading" ? t("app.common.loading") : t("quests.skip")}
+            </button>
+          </>
         )
       ) : null}
 

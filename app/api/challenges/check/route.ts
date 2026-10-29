@@ -19,6 +19,7 @@ import { VALUES_CHALLENGE_SWIPES, valuesChallengeDone } from "@/lib/lifeValues";
 import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
 import { isChannelCodeValid } from "@/lib/channelCodesServer";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC } from "@/lib/questPath";
+import { stayRewardedSteps, type StayStep } from "@/lib/stayInTouch";
 import { telegramBotCanWrite } from "@/lib/telegramCanWrite";
 
 type CheckRequest = {
@@ -124,6 +125,10 @@ export async function POST(request: NextRequest) {
     if (!userChallenge || !["accepted", "completed"].includes(userChallenge.status)) {
       return NextResponse.json({ status: "available", completed: false, message: "Accept the challenge before checking it." }, { status: 409 });
     }
+  }
+
+  if (challenge.verification_logic === APP_INSTALLED_LOGIC) {
+    return settleStayInTouch(supabase, user.id, challenge, supabaseUrl);
   }
 
   const verification = await verifyChallenge(supabase, user.id, challenge, body.code);
@@ -244,6 +249,68 @@ export async function POST(request: NextRequest) {
   });
 }
 
+/**
+ * «Будем на связи»: the steps verified here (bot can write, app installed proof, enabled push) that were not rewarded
+ * before are paid together, $0.3 Core each (lib/stayInTouch.ts, settle_stay_in_touch). With some steps still left the
+ * task is put aside so the path moves on; taken again, it shows only those steps.
+ */
+async function settleStayInTouch(supabase: any, userId: string, challenge: any, supabaseUrl: string) {
+  const [{ data: userChallenge }, { count: pushCount }, bot] = await Promise.all([
+    supabase.from("user_challenges").select("verification_data").eq("user_id", userId).eq("challenge_id", challenge.id).maybeSingle(),
+    supabase.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("owner_key", `user:${userId}`).eq("enabled", true),
+    telegramBotCanWrite(supabase, userId)
+  ]);
+  const proofs = (userChallenge?.verification_data ?? {}) as Record<string, unknown>;
+  const done: StayStep[] = [];
+  if (bot?.canWrite) done.push("bot");
+  if (proofs.app_installed === true) done.push("app");
+  if (Number(pushCount ?? 0) > 0) done.push("push");
+  const rewarded = stayRewardedSteps(proofs);
+  const fresh = done.filter((step) => !rewarded.includes(step));
+  if (!fresh.length) {
+    return NextResponse.json({
+      userId,
+      challengeId: challenge.id,
+      status: "accepted",
+      completed: false,
+      message: "Do at least one step first.",
+      reasonCode: classifyChallengeCheckReason("Do at least one step first.")
+    });
+  }
+
+  const { data: completion, error } = await supabase.rpc("settle_stay_in_touch", { p_user_id: userId, p_challenge_id: challenge.id, p_steps: fresh });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const result = completion?.[0];
+  if (result?.reward_claimed) {
+    await recordProductEvent({
+      entityId: challenge.id,
+      entityType: "challenge",
+      eventName: result.challenge_status === "completed" ? "challenge_completed" : "stay_in_touch_steps_rewarded",
+      properties: { core_reward_amount: Number(result.rewarded_core_amount ?? 0), steps: fresh },
+      source: "server",
+      userId
+    });
+  }
+  const [coreResult, walletResult] = await Promise.all([
+    supabase.from("core_accounts").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("wallet_accounts").select("*").eq("user_id", userId).maybeSingle()
+  ]);
+  return NextResponse.json({
+    debug: { supabaseProjectRef: getSupabaseProjectRef(supabaseUrl), serverReadAt: new Date().toISOString() },
+    userId,
+    challengeId: challenge.id,
+    status: result?.challenge_status ?? "accepted",
+    completed: true,
+    core: coreResult.data,
+    wallet: walletResult.data,
+    rewardClaimed: Boolean(result?.reward_claimed),
+    feedPostId: null,
+    coreRewardAmount: Number(result?.rewarded_core_amount ?? 0),
+    walletRewardAmount: 0,
+    stepsRewarded: fresh
+  });
+}
+
 async function verifyChallenge(
   supabase: ReturnType<typeof createClient<Database>>,
   userId: string,
@@ -255,15 +322,6 @@ async function verifyChallenge(
     const channel = CHANNEL_CODE_CHALLENGES[challenge.verification_logic];
     const valid = isChannelCodeValid(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "", userId, channel, code, Date.now());
     return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
-  }
-  if (challenge.verification_logic === APP_INSTALLED_LOGIC) {
-    // "Turn on notifications": a working push subscription on some device, or the Telegram bot can write (Start pressed).
-    const { count, error } = await db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("owner_key", `user:${userId}`).eq("enabled", true);
-    if (!error && Number(count ?? 0) > 0) return { ok: true };
-    const bot = await telegramBotCanWrite(db, userId);
-    if (bot?.canWrite) return { ok: true };
-    if (error) return { ok: false, reason: "Could not check notifications. Try again." };
-    return { ok: false, reason: "Press Start in the Telegram bot or turn on notifications in this quest first." };
   }
   if (challenge.verification_logic === FIRST_STEP_LOGIC) {
     const progress = await getChallengeProgressProof(supabase, userId, challenge, "motive_chosen");

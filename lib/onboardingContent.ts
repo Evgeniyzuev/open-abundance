@@ -226,7 +226,7 @@ export const onboardingContent: OnboardingContent = {
       ar: "👋 دعاك {name}"
     },
     questEyebrow: {
-      ru: "Квест 1 · Первый шаг",
+      ru: "Задание 1 · Первый шаг",
       en: "Quest 1 · First step",
       zh: "任务 1 · 第一步",
       es: "Misión 1 · Primer paso",
@@ -266,7 +266,7 @@ export const onboardingContent: OnboardingContent = {
       ar: "تخطَّ وسجّل الدخول"
     },
     saveGift: {
-      ru: "🎁 $1 за вход придёт сразу, а $1 за первый шаг заберёшь кнопкой в квестах: ответ уже сохранён.",
+      ru: "🎁 $1 за вход придёт сразу, а $1 за первый шаг заберёшь кнопкой в заданиях: ответ уже сохранён.",
       en: "🎁 $1 for signing in arrives right away, and you claim $1 for the first step with one tap in Quests: your answer is saved.",
       zh: "🎁 登录奖励 $1 立即到账，第一步的 $1 在任务页一键领取：你的回答已保存。",
       es: "🎁 El $1 por entrar llega al instante, y el $1 del primer paso lo recoges con un toque en Misiones: tu respuesta ya está guardada.",

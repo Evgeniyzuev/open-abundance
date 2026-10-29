@@ -11,6 +11,7 @@ import { isStandaloneDisplay } from "@/lib/installPing";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { enableDailyPush, isPushSupported, registerPushDevice } from "@/lib/pushReminders";
+import { STAY_STEPS, type StayStep } from "@/lib/stayInTouch";
 import { MOTIVE_NOTE_MAX, QUEST_MOTIVE_CHOICES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
@@ -169,12 +170,12 @@ const PUSH_TIMEOUT_MS = 20_000;
 type TelegramStatus = { configured: boolean; linked: boolean; canWrite: boolean; botUrl: string | null };
 
 /**
- * "Turn on notifications" (path step 5, verification_logic app_installed). The quest description says why (Core rewards
- * are income for life, some rewards go straight to Wallet); the scene has three steps: the Telegram bot's Start if the
- * person uses Telegram, installing the web app on iPhone or Android, and the notifications button right here. The quest
- * counts once this account has an enabled push subscription and the person taps "Check" (app/api/challenges/check).
+ * «Будем на связи» (path step 3, verification_logic app_installed): a wizard of three steps, each can be skipped: the
+ * Telegram bot's Start, installing the app on the phone, notifications on in the app. Each step shows its reward
+ * ($0.3 Core); the reward for the steps done is claimed at the end (app/api/challenges/check verifies each step on the
+ * server). Taken again later, only the steps not rewarded yet are shown (lib/stayInTouch.ts).
  */
-export function AppInstalledQuest({ locale, t }: { locale: string; t: TFunction }) {
+export function AppInstalledQuest({ locale, t, onClaim, onSkipTask, claiming }: { locale: string; t: TFunction; onClaim: () => void; onSkipTask: () => void; claiming: boolean }) {
   const [standalone, setStandalone] = useState(false);
   const [telegram, setTelegram] = useState(false);
   const [desktop, setDesktop] = useState(false);
@@ -182,15 +183,28 @@ export function AppInstalledQuest({ locale, t }: { locale: string; t: TFunction 
   const [installPromptAvailable, setInstallPromptAvailable] = useState(false);
   const [bot, setBot] = useState<TelegramStatus | null>(null);
   const [push, setPush] = useState<"idle" | "busy" | "on" | "denied" | "unsupported" | "failed">("idle");
+  const [rewarded, setRewarded] = useState<StayStep[] | null>(null);
+  const [stepReward, setStepReward] = useState(0.3);
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    setStandalone(isStandaloneDisplay());
+    const isStandalone = isStandaloneDisplay();
+    setStandalone(isStandalone);
     setTelegram(inTelegramMiniApp());
     setDesktop(!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
     setIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
     if (!isPushSupported()) setPush("unsupported");
     else if (Notification.permission === "denied") setPush("denied");
     else if (Notification.permission === "granted") void registerPushDevice().then((ok) => setPush(ok ? "on" : "idle"));
+    // Opened inside the installed app: that is the proof of the install step.
+    if (isStandalone) {
+      void fetchWithSupabaseAuth("/api/challenges/progress", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verificationLogic: "app_installed", proofKey: "app_installed" })
+      }, { authRequired: true }).catch(() => undefined);
+    }
     const update = () => setInstallPromptAvailable(canPromptPwaInstall());
     update();
     return subscribeToPwaInstallPrompt(update);
@@ -198,14 +212,36 @@ export function AppInstalledQuest({ locale, t }: { locale: string; t: TFunction 
 
   useEffect(() => {
     let cancelled = false;
-    void fetchWithSupabaseAuth("/api/telegram/status", { cache: "no-store" }, { authRequired: true })
+    void fetchWithSupabaseAuth("/api/challenges/stay-in-touch", { cache: "no-store" }, { authRequired: true })
       .then((response) => (response.ok ? response.json() : null))
-      .then((status: TelegramStatus | null) => {
-        if (!cancelled && status?.configured) setBot(status);
+      .then((payload: { rewarded?: StayStep[]; stepReward?: number } | null) => {
+        if (cancelled) return;
+        setRewarded(payload?.rewarded ?? []);
+        if (payload?.stepReward) setStepReward(payload.stepReward);
       })
-      .catch(() => undefined);
+      .catch(() => !cancelled && setRewarded([]));
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      void fetchWithSupabaseAuth("/api/telegram/status", { cache: "no-store" }, { authRequired: true })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((status: TelegramStatus | null) => {
+          if (!cancelled && status?.configured) setBot(status);
+        })
+        .catch(() => undefined);
+    };
+    load();
+    // Back from the bot after pressing Start: look again.
+    const onVisible = () => document.visibilityState === "visible" && load();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
@@ -245,59 +281,98 @@ export function AppInstalledQuest({ locale, t }: { locale: string; t: TFunction 
     }
   }
 
+  if (!rewarded) return <p className="challenge-note">{t("app.common.loading")}</p>;
+
   // On iPhone notifications come only to the app added to the home screen; Android and computers can use the browser.
   const iosBrowser = ios && !standalone && !telegram;
   const canTurnOn = !telegram && push !== "unsupported" && !iosBrowser;
+  const steps = STAY_STEPS.filter((step) => !rewarded.includes(step));
+  const isDone = (step: StayStep) => (step === "bot" ? Boolean(bot?.canWrite) : step === "app" ? standalone : push === "on");
+  const money = (amount: number) => formatRoundedMoney(amount, locale as AppLocale);
+  const doneSteps = steps.filter(isDone);
+  const current = steps[index] ?? null;
 
+  if (!current) {
+    return (
+      <section className="quest-channel">
+        <p><b>{t("quests.stay.summary")}</b></p>
+        <ul className="quest-steps">
+          {steps.map((step) => (
+            <li className={isDone(step) ? "done" : ""} key={step}>
+              {t(`quests.stay.${step}.title` as MessageKey)} · {isDone(step) ? `+${money(stepReward)}` : t("quests.stay.skipped")}
+            </li>
+          ))}
+        </ul>
+        {doneSteps.length ? (
+          <button className="challenge-primary-action" type="button" disabled={claiming} onClick={onClaim}>
+            {claiming ? t("app.common.loading") : t("quests.stay.claim", { amount: money(stepReward * doneSteps.length) })}
+          </button>
+        ) : (
+          <>
+            <p className="challenge-note">{t("quests.stay.nothingDone")}</p>
+            <button className="challenge-secondary-action" type="button" onClick={onSkipTask}>{t("quests.skip")}</button>
+          </>
+        )}
+        {doneSteps.length && doneSteps.length < steps.length ? <p className="challenge-note">{t("quests.stay.later")}</p> : null}
+        <button className="text-button" type="button" onClick={() => setIndex(0)}>{t("quests.stay.back")}</button>
+      </section>
+    );
+  }
+
+  const done = isDone(current);
   return (
     <section className="quest-channel">
+      <p className="challenge-note">{t("quests.stay.stepOf", { step: index + 1, total: steps.length })} · <b>+{money(stepReward)}</b></p>
       <ol className="quest-steps">
-        <li className={bot?.canWrite ? "done" : ""}>
-          <b>{t("quests.notify.step1")}</b>
-          {bot?.canWrite ? <span> {t("quests.notify.botReady")}</span> : null}
+        <li className={done ? "done" : "current"}>
+          <b>{t(`quests.stay.${current}.title` as MessageKey)}</b>
+          {done ? <span> {t(`quests.stay.${current}.done` as MessageKey)}</span> : null}
         </li>
       </ol>
-      {bot && !bot.canWrite ? (
-        <button className="secondary-button" type="button" onClick={() => void openBot()}>
-          {t(bot.linked ? "quests.notify.openBot" : "quests.notify.linkTelegram")}
-        </button>
-      ) : null}
-      {!bot ? <p className="challenge-note">{t("quests.notify.noTelegram")}</p> : null}
 
-      <ol className="quest-steps" start={2}>
-        <li className={standalone ? "done" : desktop ? "done" : "current"}>
-          <b>{t("quests.notify.step2")}</b>
-          {standalone ? <span> {t("quests.install.step1Done")}</span> : desktop ? <span> {t("quests.install.step1Desktop")}</span> : null}
-        </li>
-      </ol>
-      {telegram ? (
-        <>
-          <p className="challenge-note">{t("quests.install.telegram")}</p>
-          <button className="secondary-button" type="button" onClick={openInBrowser}>{t("quests.install.openBrowser")}</button>
-        </>
-      ) : !standalone && !desktop ? (
-        <>
-          <InstallGuideDetails open installPromptAvailable={installPromptAvailable} isDesktop={false} locale={locale} t={t} onInstall={() => { void promptPwaInstall(); }} />
-          {!ios ? <p className="challenge-note">{t("quests.notify.androidBrowser")}</p> : null}
-        </>
+      {current === "bot" && !done ? (
+        bot ? (
+          <button className="secondary-button" type="button" onClick={() => void openBot()}>
+            {t(bot.linked ? "quests.notify.openBot" : "quests.notify.linkTelegram")}
+          </button>
+        ) : <p className="challenge-note">{t("quests.notify.noTelegram")}</p>
       ) : null}
 
-      <ol className="quest-steps" start={3}>
-        <li className={push === "on" ? "done" : canTurnOn ? "current" : ""}>
-          <b>{t("quests.notify.step3")}</b>
-          {push === "on" ? <span> {t("quests.notify.pushOn")}</span> : null}
-        </li>
-      </ol>
-      {push === "on" ? <p className="challenge-note">{t("quests.notify.check")}</p> : iosBrowser ? (
-        <p className="challenge-note">{t("quests.notify.iosFromIcon")}</p>
-      ) : canTurnOn ? (
-        <button className="challenge-primary-action" type="button" disabled={push === "busy"} onClick={() => void turnOn()}>
-          {push === "busy" ? t("app.common.loading") : t("quests.notify.turnOn")}
-        </button>
+      {current === "app" && !done ? (
+        telegram ? (
+          <>
+            <p className="challenge-note">{t("quests.install.telegram")}</p>
+            <button className="secondary-button" type="button" onClick={openInBrowser}>{t("quests.install.openBrowser")}</button>
+          </>
+        ) : (
+          <>
+            <InstallGuideDetails open installPromptAvailable={installPromptAvailable} isDesktop={desktop} locale={locale} t={t} onInstall={() => { void promptPwaInstall(); }} />
+            <p className="challenge-note">{t("quests.stay.app.openFromIcon")}</p>
+          </>
+        )
       ) : null}
-      {!iosBrowser && !telegram && push === "denied" ? <p className="challenge-error">{t("quests.notify.denied")}</p> : null}
-      {push === "failed" ? <p className="challenge-error">{t("quests.notify.failed")}</p> : null}
-      {!iosBrowser && !telegram && push === "unsupported" ? <p className="challenge-note">{t("quests.notify.unsupported")}</p> : null}
+
+      {current === "push" && !done ? (
+        <>
+          {iosBrowser ? <p className="challenge-note">{t("quests.notify.iosFromIcon")}</p> : canTurnOn ? (
+            <button className="challenge-primary-action" type="button" disabled={push === "busy"} onClick={() => void turnOn()}>
+              {push === "busy" ? t("app.common.loading") : t("quests.notify.turnOn")}
+            </button>
+          ) : null}
+          {telegram ? <p className="challenge-note">{t("quests.install.telegram")}</p> : null}
+          {!iosBrowser && !telegram && push === "denied" ? <p className="challenge-error">{t("quests.notify.denied")}</p> : null}
+          {push === "failed" ? <p className="challenge-error">{t("quests.notify.failed")}</p> : null}
+          {!iosBrowser && !telegram && push === "unsupported" ? <p className="challenge-note">{t("quests.notify.unsupported")}</p> : null}
+        </>
+      ) : null}
+
+      <div className="quest-tabs">
+        {done ? (
+          <button className="challenge-primary-action" type="button" onClick={() => setIndex(index + 1)}>{t("quests.stay.next")}</button>
+        ) : (
+          <button className="challenge-secondary-action" type="button" onClick={() => setIndex(index + 1)}>{t("quests.stay.skipStep")}</button>
+        )}
+      </div>
     </section>
   );
 }

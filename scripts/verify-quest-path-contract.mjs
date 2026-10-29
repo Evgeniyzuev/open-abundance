@@ -132,7 +132,7 @@ const row = (challengeId, status, daysAgo, isActive = false) => ({ challengeId, 
 
   const leader = chooseQuestNudge(input([row("p1", "completed", 1), row("p2", "accepted", 0, true)], { leaderRank: 2, weekQuests: 4 }), [], NOW, NOW);
   assert.equal(leader.key, "quest_leader");
-  assert.match(leader.copy.ru.body, /Квестов за 7 дней: 4/);
+  assert.match(leader.copy.ru.body, /Заданий за 7 дней: 4/);
 
   const weekFull = Array.from({ length: QUEST_NUDGE_WEEK_LIMIT }, (_, i) => ({ step: "core", at: NOW - (i + 1) * DAY }));
   assert.equal(chooseQuestNudge(input([row("p1", "accepted", 1, true)]), weekFull, null, NOW), null, "three a week at most");

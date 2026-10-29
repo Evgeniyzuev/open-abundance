@@ -1570,7 +1570,7 @@ function ChallengeDetailContent({
 
       {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
-      {needsAppInstalled ? <AppInstalledQuest locale={locale} t={t} /> : null}
+      {needsAppInstalled ? <AppInstalledQuest locale={locale} t={t} claiming={checkStatus === "loading"} onClaim={() => void handleCheck()} onSkipTask={() => setSkipAsk(true)} /> : null}
 
       {needsGoalPlan ? <CorePowerQuest coreBalance={coreBalance} locale={locale} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
@@ -1658,7 +1658,7 @@ function ChallengeDetailContent({
         />
       ) : null}
 
-      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && !needsAiEssay && challenge.verification_logic !== "referral_program" ? (
+      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && !needsAiEssay && !needsAppInstalled && challenge.verification_logic !== "referral_program" ? (
         <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={() => void handleCheck()}>
           {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
         </button>

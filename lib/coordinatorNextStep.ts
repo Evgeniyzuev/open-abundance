@@ -50,7 +50,7 @@ export const NEXT_STEPS: Record<BasicStepKey, NextStep> = {
     key: "core",
     deepLink: "/?view=challenges",
     copy: {
-      ru: { title: "{name}, у тебя {core} в Core", body: "Core приносит доход каждый день. Загляни за доходом и новыми наградами.", button: "Открыть квесты" },
+      ru: { title: "{name}, у тебя {core} в Core", body: "Core приносит доход каждый день. Загляни за доходом и новыми наградами.", button: "Открыть задания" },
       en: { title: "{name}, you have {core} in Core", body: "Core brings income every day. Come in for your income and new rewards.", button: "Open quests" },
       es: { title: "{name}, tienes {core} en Core", body: "Core te da ingresos cada día. Entra a ver tus ingresos y nuevas recompensas.", button: "Abrir misiones" },
       zh: { title: "{name}，你的 Core 里有 {core}", body: "Core 每天都带来收入。来看看你的收入和新的奖励。", button: "打开任务" },

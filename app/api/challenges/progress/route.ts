@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { isNicheTaskKey, nicheKeyForTask } from "@/lib/nicheTasks";
 import { recordProductEvent } from "@/lib/serverAnalytics";
-import { FIRST_STEP_LOGIC, MOTIVE_NOTE_MAX, QUEST_MOTIVES, parseMotives } from "@/lib/questPath";
+import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, MOTIVE_NOTE_MAX, QUEST_MOTIVES, parseMotives } from "@/lib/questPath";
 
 type ProgressRequest = {
   proofKey?: string;
@@ -23,7 +23,9 @@ const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
   attention_value_audit: ["attention_audit_completed"],
   core_law_understood: ["core_law_understood"],
   niche_task_chosen: ["niche_task_chosen"],
-  [FIRST_STEP_LOGIC]: ["motive_chosen"]
+  [FIRST_STEP_LOGIC]: ["motive_chosen"],
+  // «Будем на связи»: sent by the task opened inside the installed app (standalone display).
+  [APP_INSTALLED_LOGIC]: ["app_installed"]
 };
 
 export async function POST(request: NextRequest) {

@@ -56,23 +56,23 @@ export type QuestNudge = { key: QuestNudgeKey; deepLink: string; copy: Localized
 
 const COPY: Record<QuestNudgeKey, Localized<QuestCopy>> = {
   quest_tomorrow: {
-    ru: { title: "{name}, завтра тебя ждёт новый квест", body: "За возвращение придёт награда в Core, а сам Core растёт, пока тебя нет. До завтра! Нова", button: "Посмотреть квесты" },
+    ru: { title: "{name}, завтра тебя ждёт новое задание", body: "За возвращение придёт награда в Core, а сам Core растёт, пока тебя нет. До завтра! Нова", button: "Посмотреть задания" },
     en: { title: "{name}, a new quest is waiting for you tomorrow", body: "Coming back brings a Core reward, and Core keeps growing while you are away. See you tomorrow! Nova", button: "See quests" }
   },
   quest_first_step: {
-    ru: { title: "{name}, первая звезда ждёт тебя", body: "Одна минута: зачем ты здесь? По ответу я подберу квесты. Нова", button: "Ответить" },
+    ru: { title: "{name}, первая звезда ждёт тебя", body: "Одна минута: зачем ты здесь? По ответу я подберу задания. Нова", button: "Ответить" },
     en: { title: "{name}, your first star is waiting", body: "One minute: why are you here? I'll pick quests from your answer. Nova", button: "Answer" }
   },
   quest_leader: {
-    ru: { title: "{name}, ты в тройке недели!", body: "Квестов за 7 дней: {count}. Твой темп видят все в «Лидерах недели». Так держать! Нова", button: "Открыть квесты" },
+    ru: { title: "{name}, ты в тройке недели!", body: "Заданий за 7 дней: {count}. Твой темп видят все в «Лидерах недели». Так держать! Нова", button: "Открыть задания" },
     en: { title: "{name}, you are in this week's top three!", body: "Quests in 7 days: {count}. Everyone sees your pace in Leaders of the week. Keep going! Nova", button: "Open quests" }
   },
   quest_comeback: {
-    ru: { title: "{name}, я сохранила твой путь", body: "Он остановился на квесте «{quest}». Шаг займёт пару минут, возвращайся, когда будет время. Нова", button: "Продолжить" },
+    ru: { title: "{name}, я сохранила твой путь", body: "Он остановился на задании «{quest}». Шаг займёт пару минут, возвращайся, когда будет время. Нова", button: "Продолжить" },
     en: { title: "{name}, I kept your path", body: "It stopped at the quest \"{quest}\". The step takes a couple of minutes, come back when you have time. Nova", button: "Continue" }
   },
   quest_unlocked: {
-    ru: { title: "{name}, открылся новый квест", body: "«{quest}» уже доступен: это награда за пройденные шаги. Нова", button: "Посмотреть" },
+    ru: { title: "{name}, открылось новое задание", body: "«{quest}» уже доступно: это награда за пройденные шаги. Нова", button: "Посмотреть" },
     en: { title: "{name}, a new quest has opened", body: "\"{quest}\" is open now: a reward for the steps you have done. Nova", button: "Take a look" }
   },
   lead_week_goal: {
@@ -80,7 +80,7 @@ const COPY: Record<QuestNudgeKey, Localized<QuestCopy>> = {
     en: { title: "{name}, what is your goal for this week?", body: "One line in the team tab. Mid-week I'll ask how it goes, and at the end we'll look at the result. No pressure. Nova", button: "Set a goal" }
   },
   quest_stalled: {
-    ru: { title: "{name}, квест «{quest}» ждёт", body: "Сделай сегодня один маленький шаг. Если что-то не получается, спроси меня, разберём вместе. Нова", button: "Открыть квест" },
+    ru: { title: "{name}, задание «{quest}» ждёт", body: "Сделай сегодня один маленький шаг. Если что-то не получается, спроси меня, разберём вместе. Нова", button: "Открыть задание" },
     en: { title: "{name}, the quest \"{quest}\" is waiting", body: "Take one small step today. If something doesn't work, ask me and we'll sort it out together. Nova", button: "Open the quest" }
   }
 };

@@ -12,6 +12,8 @@ export type QuestFeedbackReport = {
   corePowerReactions: Array<[string, number]>;
   firstWishes: Array<[string, number]>;
   continueAnswers: Array<[string, number]>;
+  /** «Про изобилие»: share right on the first try per knowledge question, and the opinion answers per question. */
+  abundance: { people: number; knowledge: Array<[string, string]>; opinions: Array<[string, Array<[string, number]>]> };
   proposals: Array<{ title: string; why: string }>;
   metrics: Record<string, number>;
 };
@@ -57,7 +59,20 @@ export function buildQuestFeedbackReport(t: Record<string, Row[] | undefined>, o
   const firstWishes = tally(named("first_wish_chosen").map((row) => String(row.properties?.wish ?? "")));
   const continueAnswers = tally(named("quest_continue_answer").flatMap((row) => split(row.properties?.answers)));
 
+  const quiz = named("abundance_quiz_answered");
+  const prefixed = (prefix: string) => [...new Set(quiz.flatMap((row) => Object.keys(row.properties ?? {}).filter((key) => key.startsWith(prefix))))];
+  const abundance = {
+    people: quiz.length,
+    knowledge: prefixed("k_").map((key) => {
+      const right = quiz.filter((row) => row.properties?.[key] === true).length;
+      return [key.slice(2), `${right} из ${quiz.length}`] as [string, string];
+    }),
+    opinions: prefixed("o_").map((key) => [key.slice(2), tally(quiz.map((row) => String(row.properties?.[key] ?? "")))] as [string, Array<[string, number]>])
+  };
+
   const proposals: Array<{ title: string; why: string }> = [];
+  const weakest = abundance.knowledge.map(([question, label]) => ({ question, right: Number(label.split(" ")[0]) })).sort((a, b) => a.right - b.right)[0];
+  if (abundance.people >= 5 && weakest && weakest.right / abundance.people < 0.5) proposals.push({ title: `Люди не понимают «${weakest.question}»`, why: `С первой попытки верно ответили ${weakest.right} из ${abundance.people} в «Про изобилие». Стоит объяснить это в приложении понятнее.` });
   const worst = ratings.find((row) => row.ratings >= 3 && row.average < 3.5);
   if (worst) proposals.push({ title: `Переделать квест «${worst.quest}»`, why: `Средняя оценка ${worst.average} из 5 по ${worst.ratings} ответам${worst.reasons ? `, причины: ${worst.reasons}` : ""}.` });
   const [topSkip] = skipReasons;
@@ -74,6 +89,7 @@ export function buildQuestFeedbackReport(t: Record<string, Row[] | undefined>, o
     corePowerReactions,
     firstWishes,
     continueAnswers,
+    abundance,
     proposals,
     metrics: {
       quest_ratings: ratings.reduce((sum, row) => sum + row.ratings, 0),

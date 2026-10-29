@@ -19,7 +19,8 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
-import { AppInstalledQuest, ChooseWishQuest, ContinueQuestion, CorePowerQuest, FirstStepQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
+import { AbundanceQuiz, AppInstalledQuest, ChooseWishQuest, ContinueQuestion, CorePowerQuest, FirstStepQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
+import { ABUNDANCE_QUIZ_LOGIC } from "@/lib/abundanceQuiz";
 import { TOPUP_BONUS_LOGIC, TOPUP_BONUS_MAX_USD, TOPUP_BONUS_PERCENT } from "@/lib/stayStreak";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, parseMotives, type QuestPlacement } from "@/lib/questPath";
 import { getOrCreateLocalGuest } from "@/lib/guestIdentity";
@@ -1271,7 +1272,8 @@ function ChallengeDetailContent({
   // Quests with their own step-by-step scene: the generic instructions from the database would repeat or contradict it.
   const needsInvite = challenge.verification_logic === "has_referral" && accepted && !completed && !locked;
   const needsAppInstalled = challenge.verification_logic === APP_INSTALLED_LOGIC && accepted && !completed && !locked;
-  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite || needsAppInstalled;
+  const needsAbundanceQuiz = challenge.verification_logic === ABUNDANCE_QUIZ_LOGIC && accepted && !completed && !locked;
+  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite || needsAppInstalled || needsAbundanceQuiz;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
   const needsValuesChallenge = challenge.verification_logic === "values_goals_defined" && accepted && !completed && !locked;
@@ -1570,6 +1572,7 @@ function ChallengeDetailContent({
 
       {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
 
+      {needsAbundanceQuiz ? <AbundanceQuiz locale={locale} t={t} claiming={checkStatus === "loading"} onClaim={() => void handleCheck()} /> : null}
       {needsAppInstalled ? <AppInstalledQuest locale={locale} t={t} claiming={checkStatus === "loading"} onClaim={() => void handleCheck()} /> : null}
 
       {needsGoalPlan ? <CorePowerQuest coreBalance={coreBalance} locale={locale} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
@@ -1658,7 +1661,7 @@ function ChallengeDetailContent({
         />
       ) : null}
 
-      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && !needsAiEssay && !needsAppInstalled && challenge.verification_logic !== "referral_program" ? (
+      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && !needsAiEssay && !needsAppInstalled && !needsAbundanceQuiz && challenge.verification_logic !== "referral_program" ? (
         <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={() => void handleCheck()}>
           {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
         </button>

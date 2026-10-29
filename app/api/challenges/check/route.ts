@@ -19,6 +19,7 @@ import { VALUES_CHALLENGE_SWIPES, valuesChallengeDone } from "@/lib/lifeValues";
 import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes";
 import { isChannelCodeValid } from "@/lib/channelCodesServer";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC } from "@/lib/questPath";
+import { ABUNDANCE_QUIZ_LOGIC, ABUNDANCE_QUIZ_PROOF } from "@/lib/abundanceQuiz";
 import { stayRewardedSteps, type StayStep } from "@/lib/stayInTouch";
 import { telegramBotCanWrite } from "@/lib/telegramCanWrite";
 
@@ -158,7 +159,9 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: completion, error: completionError } = await (supabase as any).rpc(
-    challenge.verification_logic === TOPUP_BONUS_LOGIC ? "settle_withdraw_topup_challenge" : "settle_user_challenge_rewards",
+    challenge.verification_logic === TOPUP_BONUS_LOGIC
+      ? "settle_withdraw_topup_challenge"
+      : challenge.verification_logic === ABUNDANCE_QUIZ_LOGIC ? "settle_abundance_quiz" : "settle_user_challenge_rewards",
     { p_user_id: user.id, p_challenge_id: challenge.id }
   );
 
@@ -322,6 +325,11 @@ async function verifyChallenge(
     const channel = CHANNEL_CODE_CHALLENGES[challenge.verification_logic];
     const valid = isChannelCodeValid(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "", userId, channel, code, Date.now());
     return valid ? { ok: true } : { ok: false, reason: "Enter the code that came to you." };
+  }
+  if (challenge.verification_logic === ABUNDANCE_QUIZ_LOGIC) {
+    const progress = await getChallengeProgressProof(supabase, userId, challenge, ABUNDANCE_QUIZ_PROOF);
+    if (progress.error) return { ok: false, reason: "Could not check your answers. Try again." };
+    return progress.proved ? { ok: true } : { ok: false, reason: "Answer all the questions first." };
   }
   if (challenge.verification_logic === FIRST_STEP_LOGIC) {
     const progress = await getChallengeProgressProof(supabase, userId, challenge, "motive_chosen");

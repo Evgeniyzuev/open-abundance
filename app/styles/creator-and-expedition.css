@@ -406,3 +406,24 @@
 .quest-skip-ask { display: grid; gap: 6px; }
 .quest-skip-ask p { margin: 0; color: var(--muted); font-weight: 800; font-size: 0.85rem; }
 .quest-continue { margin-top: 12px; }
+
+/* «Про изобилие» quiz (components/QuestScenes.tsx AbundanceQuiz) */
+.quiz-card { text-align: left; }
+.quiz-art { font-size: 3rem; line-height: 1; text-align: center; padding: 10px 0; border-radius: 12px; background: var(--surface); }
+.quiz-question { margin: 0; font-weight: 900; font-size: 1.05rem; color: var(--text); }
+.quiz-options { display: grid; gap: 8px; }
+.quiz-option { text-align: left; padding: 12px; border-radius: 10px; border: 1px solid var(--line, rgba(0,0,0,0.12)); background: var(--surface); color: var(--text); font-weight: 700; font-size: 0.95rem; }
+.quiz-option.right { border-color: var(--success, #2f8f5b); background: color-mix(in srgb, var(--success, #2f8f5b) 14%, var(--surface)); }
+.quiz-option.wrong { border-color: #c0392b; background: color-mix(in srgb, #c0392b 12%, var(--surface)); }
+.quiz-lesson { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface); border-left: 3px solid var(--accent, #6b5cff); }
+.quiz-lesson p { margin: 0; }
+.quiz-right { margin: 0; font-weight: 900; color: var(--success, #2f8f5b); }
+.quiz-reels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; border-radius: 12px; background: linear-gradient(180deg, #3b2a6b, #1d1640); }
+.quiz-reel { height: 56px; overflow: hidden; border-radius: 8px; background: #fffaf0; }
+.quiz-reel-strip { display: flex; flex-direction: column; animation: quiz-spin 1.4s cubic-bezier(.2,.7,.2,1) both; }
+.quiz-reel-strip span { height: 56px; display: grid; place-items: center; font-size: 1.8rem; }
+.quiz-reel-strip span.miss { color: #8a8a8a; font-size: 1.4rem; }
+.quiz-reels + .quiz-right { animation: quiz-fade 0.4s ease both; }
+@keyframes quiz-spin { from { transform: translateY(0); } to { transform: translateY(-560px); } }
+@keyframes quiz-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .quiz-reel-strip { animation-duration: 0.01s; } .quiz-reels + .quiz-right { animation: none; } }

@@ -11,6 +11,7 @@ import { isStandaloneDisplay } from "@/lib/installPing";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
 import { canPromptPwaInstall, promptPwaInstall, subscribeToPwaInstallPrompt } from "@/lib/pwaInstall";
 import { enableDailyPush, isPushSupported, registerPushDevice } from "@/lib/pushReminders";
+import { ABUNDANCE_QUIZ_LOGIC, ABUNDANCE_QUIZ_PROOF, KNOWLEDGE_QUESTIONS, OPINION_QUESTIONS } from "@/lib/abundanceQuiz";
 import { STAY_STEPS, type StayStep } from "@/lib/stayInTouch";
 import { MOTIVE_NOTE_MAX, QUEST_MOTIVE_CHOICES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
 import { trackProductEvent } from "@/lib/productAnalytics";
@@ -974,6 +975,201 @@ export function ChooseWishQuest({ guest = false, locale, motives, t, userId, onS
         {saving === "own" ? t("app.common.loading") : t("quests.wish.save")}
       </button>
       {error ? <p className="challenge-error">{error}</p> : null}
+    </section>
+  );
+}
+
+const QUIZ_STORE_KEY = "oa.abundanceQuiz";
+const REEL_SYMBOLS = ["💰", "🍀", "⭐", "💎", "🌱", "🎁"];
+
+/**
+ * «Про изобилие» (verification_logic abundance_quiz, lib/abundanceQuiz.ts): five knowledge cards (a wrong answer opens
+ * a one-card lesson and the person answers again; only the first answer counts), a reel window where a coin drops for
+ * each first-try right answer, then five opinion cards (the future one shows a piece of lore). The answers are graded
+ * on the server; the reward is claimed at the end.
+ */
+export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string; t: TFunction; onClaim: () => void; claiming: boolean }) {
+  const lang = locale === "ru" ? "ru" : "en";
+  const [first, setFirst] = useState<Record<string, string>>({});
+  const [opinions, setOpinions] = useState<Record<string, string>>({});
+  const [index, setIndex] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"knowledge" | "reels" | "opinions" | "done">("knowledge");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
+
+  // The first answers survive a reload, so leaving after a lesson does not give a second first try.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(QUIZ_STORE_KEY) ?? "{}") as { first?: Record<string, string> };
+      if (saved.first) setFirst(saved.first);
+    } catch {
+      // Starts from the beginning.
+    }
+  }, []);
+
+  function rememberFirst(next: Record<string, string>) {
+    setFirst(next);
+    try {
+      window.localStorage.setItem(QUIZ_STORE_KEY, JSON.stringify({ first: next }));
+    } catch {
+      // Kept in memory only.
+    }
+  }
+
+  const rightCount = KNOWLEDGE_QUESTIONS.filter((question) => first[question.id] === question.correct).length;
+  const perAnswer = 1 / KNOWLEDGE_QUESTIONS.length;
+
+  async function save(finalOpinions: Record<string, string>) {
+    setSaving(true);
+    setError(false);
+    try {
+      const response = await fetchWithSupabaseAuth("/api/challenges/progress", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verificationLogic: ABUNDANCE_QUIZ_LOGIC, proofKey: ABUNDANCE_QUIZ_PROOF, answers: first, opinions: finalOpinions })
+      }, { authRequired: true });
+      if (!response.ok) throw new Error("save failed");
+      try {
+        window.localStorage.removeItem(QUIZ_STORE_KEY);
+      } catch {
+        // Nothing to clear.
+      }
+      setPhase("done");
+    } catch {
+      setError(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (phase === "knowledge") {
+    const question = KNOWLEDGE_QUESTIONS[index];
+    const firstAnswer = first[question.id];
+    const right = picked === question.correct;
+    const wrong = picked !== null && !right;
+    return (
+      <section className="quest-channel quiz-card">
+        <p className="challenge-note">{t("quests.abundance.progress", { step: index + 1, total: KNOWLEDGE_QUESTIONS.length + OPINION_QUESTIONS.length })}</p>
+        <div className="quiz-art" aria-hidden="true">{question.art}</div>
+        <p className="quiz-question">{question.question[lang]}</p>
+        <div className="quiz-options">
+          {question.options.map((option) => (
+            <button
+              className={`quiz-option${picked === option.id ? (right ? " right" : " wrong") : ""}`}
+              disabled={right}
+              key={option.id}
+              type="button"
+              onClick={() => {
+                setPicked(option.id);
+                if (!firstAnswer) rememberFirst({ ...first, [question.id]: option.id });
+              }}
+            >
+              {option.text[lang]}
+            </button>
+          ))}
+        </div>
+        {wrong ? (
+          <div className="quiz-lesson">
+            <b>{t("quests.abundance.lesson")}</b>
+            <p>{question.lesson[lang]}</p>
+            <small>{t("quests.abundance.tryAgain")}</small>
+          </div>
+        ) : null}
+        {right ? (
+          <>
+            <p className="quiz-right">{firstAnswer === question.correct ? t("quests.abundance.rightFirst") : t("quests.abundance.right")}</p>
+            <button
+              className="challenge-primary-action"
+              type="button"
+              onClick={() => {
+                setPicked(null);
+                if (index + 1 < KNOWLEDGE_QUESTIONS.length) setIndex(index + 1);
+                else {
+                  setIndex(0);
+                  setPhase("reels");
+                }
+              }}
+            >
+              {t("quests.stay.next")}
+            </button>
+          </>
+        ) : null}
+      </section>
+    );
+  }
+
+  if (phase === "reels") {
+    return (
+      <section className="quest-channel quiz-card">
+        <p className="quiz-question">{t("quests.abundance.reelsTitle")}</p>
+        <div className="quiz-reels">
+          {KNOWLEDGE_QUESTIONS.map((question, reel) => {
+            const hit = first[question.id] === question.correct;
+            const strip = [...Array(10)].map((_, i) => REEL_SYMBOLS[(i + reel * 2) % REEL_SYMBOLS.length]);
+            return (
+              <div className="quiz-reel" key={question.id}>
+                <div className="quiz-reel-strip" style={{ animationDelay: `${reel * 0.35}s` }}>
+                  {strip.map((symbol, i) => <span key={i}>{symbol}</span>)}
+                  <span className={hit ? "hit" : "miss"}>{hit ? "💰" : "—"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="quiz-right" style={{ animationDelay: `${KNOWLEDGE_QUESTIONS.length * 0.35 + 1}s` }}>
+          {rightCount ? t("quests.abundance.reelsWin", { count: rightCount, amount: formatRoundedMoney(rightCount * perAnswer, lang as AppLocale) }) : t("quests.abundance.reelsEmpty")}
+        </p>
+        <p className="challenge-note">{t("quests.abundance.reelsNext")}</p>
+        <button className="challenge-primary-action" type="button" onClick={() => setPhase("opinions")}>{t("quests.stay.next")}</button>
+      </section>
+    );
+  }
+
+  if (phase === "opinions") {
+    const question = OPINION_QUESTIONS[index];
+    const answer = opinions[question.id];
+    const lore = answer && question.lore ? question.lore[answer] : null;
+    const last = index + 1 >= OPINION_QUESTIONS.length;
+    return (
+      <section className="quest-channel quiz-card">
+        <p className="challenge-note">{t("quests.abundance.progress", { step: KNOWLEDGE_QUESTIONS.length + index + 1, total: KNOWLEDGE_QUESTIONS.length + OPINION_QUESTIONS.length })} · {t("quests.abundance.opinion")}</p>
+        <div className="quiz-art" aria-hidden="true">{question.art}</div>
+        <p className="quiz-question">{question.question[lang]}</p>
+        <div className="quiz-options">
+          {question.options.map((option) => (
+            <button className={`quiz-option${answer === option.id ? " right" : ""}`} key={option.id} type="button" onClick={() => setOpinions({ ...opinions, [question.id]: option.id })}>
+              {option.text[lang]}
+            </button>
+          ))}
+        </div>
+        {lore ? <div className="quiz-lesson"><p>{lore[lang]}</p></div> : null}
+        {answer ? (
+          <button
+            className="challenge-primary-action"
+            disabled={saving}
+            type="button"
+            onClick={() => {
+              if (!last) setIndex(index + 1);
+              else void save(opinions);
+            }}
+          >
+            {saving ? t("app.common.loading") : last ? t("quests.abundance.finish") : t("quests.stay.next")}
+          </button>
+        ) : null}
+        {error ? <p className="challenge-error">{t("quests.abundance.saveFailed")}</p> : null}
+      </section>
+    );
+  }
+
+  return (
+    <section className="quest-channel quiz-card">
+      <div className="quiz-art" aria-hidden="true">🌍</div>
+      <p className="quiz-question">{t("quests.abundance.thanks")}</p>
+      <button className="challenge-primary-action" type="button" disabled={claiming} onClick={onClaim}>
+        {claiming ? t("app.common.loading") : rightCount ? t("quests.stay.claim", { amount: formatRoundedMoney(rightCount * perAnswer, lang as AppLocale) }) : t("quests.abundance.close")}
+      </button>
     </section>
   );
 }

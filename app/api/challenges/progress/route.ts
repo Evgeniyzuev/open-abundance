@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { isNicheTaskKey, nicheKeyForTask } from "@/lib/nicheTasks";
 import { recordProductEvent } from "@/lib/serverAnalytics";
+import { ABUNDANCE_QUIZ_LOGIC, ABUNDANCE_QUIZ_PROOF, cleanOpinions, gradeKnowledge } from "@/lib/abundanceQuiz";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC, MOTIVE_NOTE_MAX, QUEST_MOTIVES, parseMotives } from "@/lib/questPath";
 
 type ProgressRequest = {
@@ -15,6 +16,9 @@ type ProgressRequest = {
   motive?: string;
   motives?: string[];
   note?: string;
+  /** «Про изобилие»: the first answer to each knowledge question, and the opinion answers. */
+  answers?: Record<string, string>;
+  opinions?: Record<string, string>;
 };
 
 const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
@@ -25,7 +29,8 @@ const PROGRESS_PROOF_KEYS: Record<string, string[]> = {
   niche_task_chosen: ["niche_task_chosen"],
   [FIRST_STEP_LOGIC]: ["motive_chosen"],
   // «Будем на связи»: sent by the task opened inside the installed app (standalone display).
-  [APP_INSTALLED_LOGIC]: ["app_installed"]
+  [APP_INSTALLED_LOGIC]: ["app_installed"],
+  [ABUNDANCE_QUIZ_LOGIC]: [ABUNDANCE_QUIZ_PROOF]
 };
 
 export async function POST(request: NextRequest) {
@@ -118,7 +123,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
 
-  if (["attention_value_audit", "core_law_understood", "niche_task_chosen"].includes(body.verificationLogic) && !["accepted", "completed"].includes(existing?.status ?? "")) {
+  if (["attention_value_audit", "core_law_understood", "niche_task_chosen", ABUNDANCE_QUIZ_LOGIC].includes(body.verificationLogic) && !["accepted", "completed"].includes(existing?.status ?? "")) {
     return NextResponse.json({ error: "Accept the challenge before recording its proof." }, { status: 409 });
   }
 
@@ -126,8 +131,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ recorded: true, status: "completed" });
   }
 
+  // «Про изобилие» is graded once, from the first answers, on the server; a second send does not change the grade.
+  const previousData = isRecord(existing?.verification_data) ? existing.verification_data : {};
+  const quizGrade = body.verificationLogic === ABUNDANCE_QUIZ_LOGIC && previousData[ABUNDANCE_QUIZ_PROOF] !== true ? gradeKnowledge(body.answers) : null;
+  const quizOpinions = quizGrade ? cleanOpinions(body.opinions) : null;
+  if (body.verificationLogic === ABUNDANCE_QUIZ_LOGIC && !quizGrade) {
+    return NextResponse.json({ recorded: true, status: existing?.status ?? "accepted", quizCorrect: Number(previousData.abundance_correct ?? 0) });
+  }
   const verificationData = {
-    ...(isRecord(existing?.verification_data) ? existing.verification_data : {}),
+    ...previousData,
+    ...(quizGrade ? { abundance_correct: quizGrade.correct, abundance_first: quizGrade.perQuestion, abundance_opinions: quizOpinions } : {}),
     [proofKey]: true,
     [`${proofKey}_at`]: new Date().toISOString(),
     ...(proofKey === "compound_quiz_passed" ? { compound_quiz_score: normalizeScore(body.score) } : {}),
@@ -208,7 +221,18 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ recorded: true, status: nextStatus, milestoneAwards, ...(motivePeers ? { motivePeers } : {}) });
+  if (quizGrade) {
+    await recordProductEvent({
+      entityId: challenge.id,
+      entityType: "challenge",
+      eventName: "abundance_quiz_answered",
+      properties: { correct: quizGrade.correct, ...Object.fromEntries(Object.entries(quizGrade.perQuestion).map(([key, right]) => [`k_${key}`, right])), ...Object.fromEntries(Object.entries(quizOpinions ?? {}).map(([key, answer]) => [`o_${key}`, answer])) },
+      source: "server",
+      userId: user.id
+    });
+  }
+
+  return NextResponse.json({ recorded: true, status: nextStatus, milestoneAwards, ...(motivePeers ? { motivePeers } : {}), ...(quizGrade ? { quizCorrect: quizGrade.correct } : {}) });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

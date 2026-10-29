@@ -786,6 +786,10 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   line("«Как тебе сумма?» в «Сила Core»", feedback.corePowerReactions);
   line("Первое желание", feedback.firstWishes);
   line("Что нужно, чтобы продолжать", feedback.continueAnswers);
+  if (feedback.abundance.people) {
+    out.push(`«Про изобилие», ответили ${feedback.abundance.people}. Верно с первой попытки: ${feedback.abundance.knowledge.map(([question, label]) => `${question} ${label}`).join(", ")}.`);
+    for (const [question, answers] of feedback.abundance.opinions) line(`Мнение «${question}»`, answers);
+  }
   if (feedback.proposals.length) out.push(feedback.proposals.map((proposal) => `- **${proposal.title}.** ${proposal.why}`).join("\n"));
   details.questFeedback = feedback;
   details.path = { steps: path.steps, firstStepDay1: path.firstStepDay1, nudges: path.nudges, motives: path.motives, leaders: path.leaders, proposals: path.proposals };

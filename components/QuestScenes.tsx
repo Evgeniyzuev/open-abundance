@@ -15,6 +15,7 @@ import { ABUNDANCE_QUIZ_LOGIC, ABUNDANCE_QUIZ_PROOF, KNOWLEDGE_QUESTIONS, OPINIO
 import { STAY_STEPS, type StayStep } from "@/lib/stayInTouch";
 import { MOTIVE_NOTE_MAX, QUEST_MOTIVE_CHOICES, requiredDailyAddition, type QuestMotive } from "@/lib/questPath";
 import { trackProductEvent } from "@/lib/productAnalytics";
+import { playUiSound } from "@/lib/ui/sound";
 import { readPrimaryWish, storePrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { readInvitedBy, storeGuestQuest } from "@/lib/guestQuest";
@@ -980,13 +981,37 @@ export function ChooseWishQuest({ guest = false, locale, motives, t, userId, onS
 }
 
 const QUIZ_STORE_KEY = "oa.abundanceQuiz";
-const REEL_SYMBOLS = ["💰", "🍀", "⭐", "💎", "🌱", "🎁"];
+const REEL_SYMBOLS = ["🍀", "⭐", "💎", "🌱", "🎁", "🚀"];
+const QUIZ_TOTAL = KNOWLEDGE_QUESTIONS.length + OPINION_QUESTIONS.length;
+
+/** Ten dots over the quiz: done, current, ahead; coins on the dots answered right on the first try. */
+function QuizDots({ step, wins }: { step: number; wins: boolean[] }) {
+  return (
+    <div className="quiz-dots" aria-hidden="true">
+      {[...Array(QUIZ_TOTAL)].map((_, i) => (
+        <span className={i < step ? "done" : i === step ? "current" : ""} key={i}>{wins[i] ? "💰" : ""}</span>
+      ))}
+    </div>
+  );
+}
+
+/** A few coins flying up from the middle of the card. */
+function CoinBurst({ count, label }: { count: number; label?: string }) {
+  return (
+    <div className="quiz-burst" aria-hidden="true">
+      {[...Array(count)].map((_, i) => (
+        <span key={i} style={{ left: `${10 + ((i * 37) % 80)}%`, animationDelay: `${(i % 6) * 0.08}s` }}>💰</span>
+      ))}
+      {label ? <b>{label}</b> : null}
+    </div>
+  );
+}
 
 /**
  * «Про изобилие» (verification_logic abundance_quiz, lib/abundanceQuiz.ts): five knowledge cards (a wrong answer opens
- * a one-card lesson and the person answers again; only the first answer counts), a reel window where a coin drops for
+ * a one-card lesson and the person answers again; only the first answer counts), a slot machine where a coin drops for
  * each first-try right answer, then five opinion cards (the future one shows a piece of lore). The answers are graded
- * on the server; the reward is claimed at the end.
+ * on the server; the reward is claimed at the end. Game feel: progress dots, coin bursts, a shake on a miss, a lever.
  */
 export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string; t: TFunction; onClaim: () => void; claiming: boolean }) {
   const lang = locale === "ru" ? "ru" : "en";
@@ -995,6 +1020,7 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [phase, setPhase] = useState<"knowledge" | "reels" | "opinions" | "done">("knowledge");
+  const [spun, setSpun] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
 
@@ -1017,8 +1043,10 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
     }
   }
 
-  const rightCount = KNOWLEDGE_QUESTIONS.filter((question) => first[question.id] === question.correct).length;
+  const wins = KNOWLEDGE_QUESTIONS.map((question) => first[question.id] === question.correct);
+  const rightCount = wins.filter(Boolean).length;
   const perAnswer = 1 / KNOWLEDGE_QUESTIONS.length;
+  const money = (amount: number) => formatRoundedMoney(amount, lang as AppLocale);
 
   async function save(finalOpinions: Record<string, string>) {
     setSaving(true);
@@ -1037,6 +1065,7 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
         // Nothing to clear.
       }
       setPhase("done");
+      if (rightCount) playUiSound("reward");
     } catch {
       setError(true);
     } finally {
@@ -1049,37 +1078,40 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
     const firstAnswer = first[question.id];
     const right = picked === question.correct;
     const wrong = picked !== null && !right;
+    const firstTry = right && firstAnswer === question.correct;
     return (
       <section className="quest-channel quiz-card">
-        <p className="challenge-note">{t("quests.abundance.progress", { step: index + 1, total: KNOWLEDGE_QUESTIONS.length + OPINION_QUESTIONS.length })}</p>
-        <div className="quiz-art" aria-hidden="true">{question.art}</div>
+        <QuizDots step={index} wins={wins.map((win, i) => win && i < index)} />
+        <div className={`quiz-art${right ? " pop" : ""}`} aria-hidden="true">{question.art}</div>
         <p className="quiz-question">{question.question[lang]}</p>
         <div className="quiz-options">
           {question.options.map((option) => (
             <button
               className={`quiz-option${picked === option.id ? (right ? " right" : " wrong") : ""}`}
               disabled={right}
-              key={option.id}
+              key={`${option.id}-${picked === option.id ? "on" : "off"}`}
               type="button"
               onClick={() => {
                 setPicked(option.id);
                 if (!firstAnswer) rememberFirst({ ...first, [question.id]: option.id });
+                playUiSound(option.id === question.correct ? "reward" : "action");
               }}
             >
               {option.text[lang]}
             </button>
           ))}
         </div>
+        {firstTry ? <CoinBurst count={6} label={`+${money(perAnswer)}`} /> : null}
         {wrong ? (
           <div className="quiz-lesson">
-            <b>{t("quests.abundance.lesson")}</b>
+            <b>💡 {t("quests.abundance.lesson")}</b>
             <p>{question.lesson[lang]}</p>
             <small>{t("quests.abundance.tryAgain")}</small>
           </div>
         ) : null}
         {right ? (
           <>
-            <p className="quiz-right">{firstAnswer === question.correct ? t("quests.abundance.rightFirst") : t("quests.abundance.right")}</p>
+            <p className="quiz-right">{firstTry ? t("quests.abundance.rightFirst") : t("quests.abundance.right")}</p>
             <button
               className="challenge-primary-action"
               type="button"
@@ -1092,7 +1124,7 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
                 }
               }}
             >
-              {t("quests.stay.next")}
+              {index + 1 < KNOWLEDGE_QUESTIONS.length ? t("quests.stay.next") : t("quests.abundance.toReels")}
             </button>
           </>
         ) : null}
@@ -1104,25 +1136,42 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
     return (
       <section className="quest-channel quiz-card">
         <p className="quiz-question">{t("quests.abundance.reelsTitle")}</p>
-        <div className="quiz-reels">
-          {KNOWLEDGE_QUESTIONS.map((question, reel) => {
-            const hit = first[question.id] === question.correct;
-            const strip = [...Array(10)].map((_, i) => REEL_SYMBOLS[(i + reel * 2) % REEL_SYMBOLS.length]);
-            return (
-              <div className="quiz-reel" key={question.id}>
-                <div className="quiz-reel-strip" style={{ animationDelay: `${reel * 0.35}s` }}>
-                  {strip.map((symbol, i) => <span key={i}>{symbol}</span>)}
-                  <span className={hit ? "hit" : "miss"}>{hit ? "💰" : "—"}</span>
+        <div className="quiz-machine">
+          <div className="quiz-reels">
+            {KNOWLEDGE_QUESTIONS.map((question, reel) => {
+              const strip = [...Array(10)].map((_, i) => REEL_SYMBOLS[(i + reel * 2) % REEL_SYMBOLS.length]);
+              return (
+                <div className="quiz-reel" key={question.id}>
+                  <div className={`quiz-reel-strip${spun ? " spin" : ""}`} style={{ animationDelay: `${reel * 0.35}s` }}>
+                    {spun ? strip.map((symbol, i) => <span key={i}>{symbol}</span>) : null}
+                    <span className={spun ? (wins[reel] ? "hit" : "miss") : "idle"}>{spun ? (wins[reel] ? "💰" : "—") : "❔"}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          {!spun ? (
+            <button
+              className="quiz-lever"
+              type="button"
+              onClick={() => {
+                setSpun(true);
+                playUiSound("action");
+                window.setTimeout(() => playUiSound(rightCount ? "reward" : "action"), 1400 + KNOWLEDGE_QUESTIONS.length * 350);
+              }}
+            >
+              🎰 {t("quests.abundance.spin")}
+            </button>
+          ) : null}
         </div>
-        <p className="quiz-right" style={{ animationDelay: `${KNOWLEDGE_QUESTIONS.length * 0.35 + 1}s` }}>
-          {rightCount ? t("quests.abundance.reelsWin", { count: rightCount, amount: formatRoundedMoney(rightCount * perAnswer, lang as AppLocale) }) : t("quests.abundance.reelsEmpty")}
-        </p>
-        <p className="challenge-note">{t("quests.abundance.reelsNext")}</p>
-        <button className="challenge-primary-action" type="button" onClick={() => setPhase("opinions")}>{t("quests.stay.next")}</button>
+        {spun ? (
+          <div className="quiz-reel-result">
+            {rightCount ? <CoinBurst count={rightCount * 3} /> : null}
+            <p className="quiz-right">{rightCount ? t("quests.abundance.reelsWin", { count: rightCount, amount: money(rightCount * perAnswer) }) : t("quests.abundance.reelsEmpty")}</p>
+            <p className="challenge-note">{t("quests.abundance.reelsNext")}</p>
+            <button className="challenge-primary-action" type="button" onClick={() => setPhase("opinions")}>{t("quests.stay.next")}</button>
+          </div>
+        ) : null}
       </section>
     );
   }
@@ -1134,17 +1183,18 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
     const last = index + 1 >= OPINION_QUESTIONS.length;
     return (
       <section className="quest-channel quiz-card">
-        <p className="challenge-note">{t("quests.abundance.progress", { step: KNOWLEDGE_QUESTIONS.length + index + 1, total: KNOWLEDGE_QUESTIONS.length + OPINION_QUESTIONS.length })} · {t("quests.abundance.opinion")}</p>
+        <QuizDots step={KNOWLEDGE_QUESTIONS.length + index} wins={wins} />
+        <p className="challenge-note">🗳️ {t("quests.abundance.opinion")}</p>
         <div className="quiz-art" aria-hidden="true">{question.art}</div>
         <p className="quiz-question">{question.question[lang]}</p>
         <div className="quiz-options">
           {question.options.map((option) => (
-            <button className={`quiz-option${answer === option.id ? " right" : ""}`} key={option.id} type="button" onClick={() => setOpinions({ ...opinions, [question.id]: option.id })}>
+            <button className={`quiz-option${answer === option.id ? " right" : ""}`} key={option.id} type="button" onClick={() => { setOpinions({ ...opinions, [question.id]: option.id }); playUiSound("action"); }}>
               {option.text[lang]}
             </button>
           ))}
         </div>
-        {lore ? <div className="quiz-lesson"><p>{lore[lang]}</p></div> : null}
+        {lore ? <div className="quiz-lesson quiz-lore"><b>🌍 {t("quests.abundance.lore")}</b><p>{lore[lang]}</p></div> : null}
         {answer ? (
           <button
             className="challenge-primary-action"
@@ -1165,10 +1215,12 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
 
   return (
     <section className="quest-channel quiz-card">
-      <div className="quiz-art" aria-hidden="true">🌍</div>
+      <QuizDots step={QUIZ_TOTAL} wins={wins} />
+      {rightCount ? <CoinBurst count={12} label={`+${money(rightCount * perAnswer)}`} /> : null}
+      <div className="quiz-art pop" aria-hidden="true">🌍</div>
       <p className="quiz-question">{t("quests.abundance.thanks")}</p>
       <button className="challenge-primary-action" type="button" disabled={claiming} onClick={onClaim}>
-        {claiming ? t("app.common.loading") : rightCount ? t("quests.stay.claim", { amount: formatRoundedMoney(rightCount * perAnswer, lang as AppLocale) }) : t("quests.abundance.close")}
+        {claiming ? t("app.common.loading") : rightCount ? t("quests.stay.claim", { amount: money(rightCount * perAnswer) }) : t("quests.abundance.close")}
       </button>
     </section>
   );

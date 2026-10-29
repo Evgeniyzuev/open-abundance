@@ -13,7 +13,7 @@ insert into public.challenges (
 ) values (
   '0a5e7f10-1c2d-4e3f-8a4b-5c6d7e8f9a08',
   '{"ru": "Про изобилие", "en": "About abundance"}',
-  '{"ru": "Десять коротких вопросов. Первые пять — как здесь зарабатывают и выводят деньги: за каждый верный ответ с первой попытки в Core выпадает $0.2. Остальные пять — что ты думаешь об ИИ и будущем, тут любой ответ верный.", "en": "Ten short questions. The first five are about how money is earned and withdrawn here: each answer right on the first try drops $0.2 into Core. The other five are about what you think of AI and the future; any answer is right there."}',
+  '{"ru": "Десять коротких вопросов. Пять — о том, как здесь растут и зарабатывают: за каждый верный ответ с первой попытки выпадает $0.2 в Core. И пять — о будущем, тут любой ответ верный.", "en": "Ten short questions. Five on how you grow and earn here: each answer right on the first try drops $0.2 into Core. And five about the future, where any answer is right."}',
   '{"ru": "Отвечай на вопросы. Если ошибёшься, прочитай короткий урок и ответь ещё раз. В конце нажми «Забрать награду».", "en": "Answer the questions. If you get one wrong, read the short lesson and answer again. At the end tap Claim reward."}',
   '{"ru": "Ответы на все десять вопросов. Награда: $0.2 в Core за каждый из первых пяти ответов, верный с первой попытки.", "en": "Answers to all ten questions. Reward: $0.2 in Core for each of the first five answered right on the first try."}',
   'core_education', 1, 1, null,

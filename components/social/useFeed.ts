@@ -12,7 +12,7 @@ type FeedCacheEntry = { payload: FeedPayload; fetchedAt: number; locale: AppLoca
 type FeedCache = Record<FeedFilter, FeedCacheEntry | null>;
 
 const FEED_CACHE_TTL_MS = 60_000;
-const DEFAULT_FILTER: FeedFilter = "stories";
+const DEFAULT_FILTER: FeedFilter = "all";
 const PEEK_INTERVAL_MS = 120_000;
 
 function perFilter<T>(value: T): Record<FeedFilter, T> {

@@ -74,8 +74,12 @@ export function buildPathReport(
     rowsByChallenge.set(row.challenge_id, list);
   }
 
+  // Reached = got there along the path: the step before was done or skipped (or this one already moved). Quests the
+  // app takes for everyone on day one ("Invite a friend") would otherwise count every account as having reached them.
+  const passed = (row: Row) => row.status === "completed" || row.status === "declined";
   const steps: PathStepStats[] = path.map((quest, index) => {
-    const rows = rowsByChallenge.get(quest.id) ?? [];
+    const previous = index > 0 ? new Set((rowsByChallenge.get(path[index - 1].id) ?? []).filter(passed).map((row) => row.user_id)) : null;
+    const rows = (rowsByChallenge.get(quest.id) ?? []).filter((row) => !previous || passed(row) || previous.has(row.user_id));
     const done = rows.filter((row) => row.status === "completed");
     return {
       step: index + 1,

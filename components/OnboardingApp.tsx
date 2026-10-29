@@ -179,8 +179,10 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
             });
             setRegistrationReward(null);
             holdLevelUps(false);
-            if (consumeOpenQuestsAfterAuth()) openQuestsTab();
-            else openFeedAfterAuth();
+            // A new account starts on "First step": the quest log, not the feed (Oct 29 2026: 4 of 10 new people
+            // were left in the feed and never answered it).
+            consumeOpenQuestsAfterAuth();
+            openQuestsTab();
           }}
         />
       ) : null}
@@ -850,10 +852,3 @@ function readOnboardingState(value: unknown): OnboardingState {
   return value as OnboardingState;
 }
 
-function openFeedAfterAuth() {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  url.searchParams.set("view", "people");
-  url.searchParams.delete("auth");
-  window.history.replaceState({ view: "people" }, "", `${url.pathname}${url.search}${url.hash}`);
-}

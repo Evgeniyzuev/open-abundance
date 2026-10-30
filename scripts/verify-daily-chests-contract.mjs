@@ -29,7 +29,7 @@ assert.equal(state.openable?.id, "b", "tomorrow the new key opens it");
 
 const odds = chestOddsSummary(CHEST_DEFAULTS.odds);
 assert.equal(odds.odds.reduce((sum, item) => sum + item.percent, 0), 100);
-assert.equal(odds.expectedAmount, 0.47);
+assert.equal(odds.expectedAmount, 0.44);
 const bar = chestBar(4, 5, 8);
 assert.equal(bar.fill, 0.5);
 assert.equal(bar.keyMark, 0.625);

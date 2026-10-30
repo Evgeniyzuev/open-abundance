@@ -10,7 +10,7 @@ create table if not exists public.chest_settings (
   key_core_amount numeric(30, 12) not null default 5,
   next_chest_core_amount numeric(30, 12) not null default 8,
   -- [{"amount": 0.3, "weight": 60}, ...]: the chance of each amount is its weight over the sum of weights.
-  odds jsonb not null default '[{"amount": 0.3, "weight": 60}, {"amount": 0.5, "weight": 30}, {"amount": 1, "weight": 9}, {"amount": 5, "weight": 1}]'::jsonb,
+  odds jsonb not null default '[{"amount": 0.3, "weight": 60}, {"amount": 0.5, "weight": 30}, {"amount": 1, "weight": 9}, {"amount": 2, "weight": 1}]'::jsonb,
   updated_at timestamptz not null default now()
 );
 insert into public.chest_settings (id) values (true) on conflict (id) do nothing;

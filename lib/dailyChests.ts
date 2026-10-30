@@ -39,7 +39,7 @@ export const CHEST_DEFAULTS: ChestSettings = {
     { amount: 0.3, weight: 60 },
     { amount: 0.5, weight: 30 },
     { amount: 1, weight: 9 },
-    { amount: 5, weight: 1 }
+    { amount: 2, weight: 1 }
   ]
 };
 

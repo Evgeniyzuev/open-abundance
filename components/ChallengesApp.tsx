@@ -790,7 +790,6 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           {status === "loading" && !hasChallenges ? <ChallengeState title={t("app.common.loading")} description={t("challenges.loading.description")} /> : null}
           {status === "offline" && !hasChallenges ? <ChallengeState title={t("app.common.offline")} description={t("challenges.offline.description")} /> : null}
 
-          <DailyChestCard compact refreshKey={completionReward} />
           {activeQuest ? (
             <section className="quest-log" aria-label={t("quests.active.label")}>
               <header className="quest-log-head">
@@ -1903,7 +1902,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
         <p>{reward.claimed ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : t("challenges.rewardAlreadyClaimed")}</p>
         {reward.claimed ? <NovaCheer text={t(novaLineKey)} /> : null}
-        <DailyChestCard compact />
+        <DailyChestCard inline />
         {reward.claimed && reward.feedPostId ? (
           <QuestShareBox challengeId={challenge.id} logic={challenge.verification_logic} postId={reward.feedPostId} questTitle={displayText(challenge.title, t("challenges.challenge"), locale)} t={t} />
         ) : null}

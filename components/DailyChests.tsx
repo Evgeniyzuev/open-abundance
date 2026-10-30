@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { KeyRound } from "lucide-react";
+import { Info, KeyRound } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
 import { Confetti, NovaCheer } from "@/components/ui/Celebration";
 import { useUserContext } from "@/components/UserProvider";
@@ -61,7 +61,7 @@ export function useChestState(refreshKey?: unknown) {
   return { state, added, reload: load, setState };
 }
 
-/** The day bar: Core earned today, the key mark and tomorrow's chest at the end. Fills with a short animation. */
+/** The slim day bar: Core earned today, the key mark and tomorrow's chest at the end. Fills with a short animation. */
 export function ChestDayBar({ state }: { state: ChestState }) {
   const { locale, t } = useUserContext();
   const bar = chestBar(state.earnedToday, state.keyAt, state.nextChestAt);
@@ -72,20 +72,13 @@ export function ChestDayBar({ state }: { state: ChestState }) {
   }, [bar.fill]);
   return (
     <div className="chest-bar" role="img" aria-label={t("chests.today", { amount: money(state.earnedToday, locale) })}>
-      <div className="chest-bar-track">
-        <span className="chest-bar-fill" style={{ width: `${fill * 100}%` }} />
-        <span className={`chest-bar-mark key${bar.keyReached ? " reached" : ""}${state.keyUsedToday ? " used" : ""}`} style={{ left: `${bar.keyMark * 100}%` }}>
-          <KeyRound size={15} />
-        </span>
-        <span className={`chest-bar-mark chest${bar.chestReached ? " reached" : ""}`} style={{ left: "100%" }}>
-          <ChestIcon size={22} />
-        </span>
-      </div>
-      <div className="chest-bar-labels">
-        <span>{money(state.earnedToday, locale)}</span>
-        <span style={{ left: `${bar.keyMark * 100}%` }}>{money(state.keyAt, locale)}</span>
-        <span>{money(state.nextChestAt, locale)}</span>
-      </div>
+      <span className="chest-bar-fill" style={{ width: `${fill * 100}%` }} />
+      <span className={`chest-bar-mark key${bar.keyReached ? " reached" : ""}${state.keyUsedToday ? " used" : ""}`} style={{ left: `${bar.keyMark * 100}%` }}>
+        <KeyRound size={10} />
+      </span>
+      <span className={`chest-bar-mark chest${bar.chestReached ? " reached" : ""}`} style={{ left: "100%" }}>
+        <ChestIcon size={18} />
+      </span>
     </div>
   );
 }
@@ -102,34 +95,37 @@ function statusLine(state: ChestState, t: ReturnType<typeof useUserContext>["t"]
   return t("chests.toKey", { amount: money(bar.toKey, locale) });
 }
 
-/** The card for Home, Tasks and the task-done sheet: bar, one line of status and the open button when a key fits. */
-export function DailyChestCard({ compact = false, refreshKey }: { compact?: boolean; refreshKey?: unknown }) {
+/** One slim row on Home and on the task-done sheet: chest, status line, day bar; a small open button when a key fits. */
+export function DailyChestCard({ inline = false, refreshKey }: { inline?: boolean; refreshKey?: unknown }) {
   const { locale, t } = useUserContext();
   const { state, added, reload, setState } = useChestState(refreshKey);
   const [opening, setOpening] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   if (!state) return null;
   const isNew = added.length > 0;
   return (
-    <section className={`chest-card${compact ? " compact" : ""}${state.openable ? " ready" : ""}`} aria-label={t("chests.title")}>
-      <header className="chest-card-head">
-        <span className={`chest-card-icon${state.openable || isNew ? " wiggle" : ""}`}><ChestIcon size={compact ? 30 : 38} /></span>
-        <div>
-          <strong>{isNew ? t(added.includes("tomorrow") ? "chests.newTomorrow" : "chests.newFirst") : t("chests.title")}</strong>
-          <small>{statusLine(state, t, locale)}</small>
+    <section className={`chest-strip${inline ? " inline" : ""}${state.openable ? " ready" : ""}`} aria-label={t("chests.title")}>
+      <div className="chest-strip-row">
+        <span className={`chest-strip-icon${state.openable || isNew ? " wiggle" : ""}`}><ChestIcon size={26} /></span>
+        <div className="chest-strip-main">
+          <small>{isNew ? t(added.includes("tomorrow") ? "chests.newTomorrow" : "chests.newFirst") : statusLine(state, t, locale)}</small>
+          <ChestDayBar state={state} />
         </div>
-      </header>
-      <ChestDayBar state={state} />
-      {state.openable ? (
-        <button className="challenge-primary-action chest-open-button" type="button" onClick={() => setOpening(true)}>
-          <KeyRound size={17} />{t("chests.open")}
-        </button>
-      ) : null}
-      {!compact ? (
-        <details className="chest-card-rules">
-          <summary>{t("chests.howTitle")}</summary>
+        {state.openable ? (
+          <button className="chest-strip-open" type="button" onClick={() => setOpening(true)}>
+            <KeyRound size={14} />{t("chests.openShort")}
+          </button>
+        ) : !inline ? (
+          <button aria-expanded={rulesOpen} aria-label={t("chests.howTitle")} className="chest-strip-info" type="button" onClick={() => setRulesOpen((open) => !open)}>
+            <Info size={16} />
+          </button>
+        ) : null}
+      </div>
+      {rulesOpen && !inline ? (
+        <div className="chest-strip-rules">
           <p>{t("chests.how", { key: money(state.keyAt, locale), chest: money(state.nextChestAt, locale), count: state.firstChestAfterTasks })}</p>
           <p>{t("chests.odds", { odds: state.odds.map((item) => `${item.percent}% ${money(item.amount, locale)}`).join(" · "), expected: money(state.expectedAmount, locale) })}</p>
-        </details>
+        </div>
       ) : null}
       {opening ? (
         <ChestOpenSheet

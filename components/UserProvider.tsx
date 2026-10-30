@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import Sheet from "@/components/ui/Sheet";
 import { Confetti } from "@/components/ui/Celebration";
 import { playUiSound } from "@/lib/ui/sound";
+import { capturePendingDuo } from "@/lib/duoInvite";
 import { recoverFromStaleChunks } from "@/components/ChunkErrorReload";
 import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -153,6 +154,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     captureAcquisitionContext();
     const params = new URLSearchParams(window.location.search);
+    capturePendingDuo(params);
     const referralCode = params.get("ref");
     if (!referralCode) return;
 

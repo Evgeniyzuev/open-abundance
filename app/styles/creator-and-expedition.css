@@ -522,3 +522,20 @@
 }
 .challenge-complete-modal p.nova-cheer-bubble { margin-bottom: 10px; color: var(--purple-text); font-size: 0.95rem; }
 @media (prefers-reduced-motion: reduce) { .oa-confetti { display: none; } }
+/* «A task for two» (components/DuoQuest.tsx): two rows of day dots, today's step and the friend's last step. */
+.duo-scene { position: relative; display: grid; gap: 10px; }
+.duo-scene-icon { display: inline-flex; align-items: center; justify-content: center; justify-self: center; width: 52px; height: 52px; border-radius: 50%; background: var(--purple-soft); color: var(--purple-text); }
+.duo-row { display: flex; align-items: center; gap: 10px; }
+.duo-row-name { flex: 0 0 72px; overflow: hidden; color: var(--muted); font-size: 0.85rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.duo-dots { display: flex; gap: 6px; }
+.duo-dots i { width: 22px; height: 22px; border-radius: 50%; background: var(--surface-muted); border: 2px solid var(--line); }
+.duo-dots i.done { background: #f4c542; border-color: #e09a1a; animation: chest-pop 0.5s ease-out; }
+.duo-dots i.today { box-shadow: 0 0 0 2px var(--accent-fill); }
+.duo-friend-note { margin: 0; border-radius: 12px; padding: 8px 12px; background: var(--surface-soft); font-size: 0.9rem; line-height: 1.35; }
+.duo-checkin { display: grid; gap: 6px; }
+.duo-checkin label { font-weight: 800; }
+.duo-checkin input { min-height: 44px; border-radius: 12px; border: 1px solid var(--line); padding: 0 12px; background: var(--surface); color: var(--text); font: inherit; }
+.duo-join-sheet { position: relative; justify-items: center; text-align: center; }
+.duo-join-sheet h2 { margin: 0; font-size: 21px; }
+.duo-join-sheet p { margin: 0; color: var(--muted); line-height: 1.4; }
+@media (prefers-reduced-motion: reduce) { .duo-dots i.done { animation: none; } }

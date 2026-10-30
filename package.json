@@ -14,6 +14,7 @@
     "test:note-ai": "node --experimental-strip-types scripts/verify-note-ai-contract.mjs",
     "test:ai-preferences": "node --experimental-strip-types scripts/verify-ai-preferences-contract.mjs",
     "test:notes-import": "node --experimental-strip-types scripts/verify-notes-import-contract.mjs",
+    "test:duo-quest": "node --experimental-strip-types scripts/verify-duo-quest-contract.mjs",
     "test:daily-chests": "node --experimental-strip-types scripts/verify-daily-chests-contract.mjs",
     "test:channel-code": "node --experimental-strip-types scripts/verify-channel-code-contract.mjs",
     "test:telegram-push": "node --experimental-strip-types scripts/verify-telegram-push-copies-contract.mjs",

@@ -37,6 +37,8 @@ import { trackClientEvent } from "@/lib/clientAnalytics";
 import QuestShareBox from "@/components/QuestShareBox";
 import { DailyChestCard } from "@/components/DailyChests";
 import { Confetti, NovaCheer } from "@/components/ui/Celebration";
+import { DuoQuestPanel } from "@/components/DuoQuest";
+import { DUO_LOGIC } from "@/lib/duoQuest";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
 
@@ -1276,7 +1278,8 @@ function ChallengeDetailContent({
   const needsInvite = challenge.verification_logic === "has_referral" && accepted && !completed && !locked;
   const needsAppInstalled = challenge.verification_logic === APP_INSTALLED_LOGIC && accepted && !completed && !locked;
   const needsAbundanceQuiz = challenge.verification_logic === ABUNDANCE_QUIZ_LOGIC && accepted && !completed && !locked;
-  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite || needsAppInstalled || needsAbundanceQuiz;
+  const needsDuo = challenge.verification_logic === DUO_LOGIC && accepted && !completed && !locked;
+  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite || needsAppInstalled || needsAbundanceQuiz || needsDuo;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
   const needsValuesChallenge = challenge.verification_logic === "values_goals_defined" && accepted && !completed && !locked;
@@ -1628,6 +1631,7 @@ function ChallengeDetailContent({
       ) : null}
 
       {needsInvite ? <InviteFriendQuest /> : null}
+      {needsDuo ? <DuoQuestPanel /> : null}
 
       {challenge.verification_logic === "referral_program" && accepted && !locked ? (
         <>
@@ -2133,6 +2137,7 @@ function getChallengeIcon(challenge: Challenge): LucideIcon {
     case "code_nova":
       return Bot;
     case "has_referral":
+    case DUO_LOGIC:
     case "team_contact_active":
       return Users;
     case "trust_event_confirmed:help_given":

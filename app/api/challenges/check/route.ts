@@ -20,6 +20,7 @@ import { CHANNEL_CODE_CHALLENGES, isChannelCodeLogic } from "@/lib/channelCodes"
 import { isChannelCodeValid } from "@/lib/channelCodesServer";
 import { APP_INSTALLED_LOGIC, FIRST_STEP_LOGIC } from "@/lib/questPath";
 import { ABUNDANCE_QUIZ_LOGIC, ABUNDANCE_QUIZ_PROOF } from "@/lib/abundanceQuiz";
+import { DUO_LOGIC } from "@/lib/duoQuest";
 import { stayRewardedSteps, type StayStep } from "@/lib/stayInTouch";
 import { telegramBotCanWrite } from "@/lib/telegramCanWrite";
 
@@ -330,6 +331,15 @@ async function verifyChallenge(
     const progress = await getChallengeProgressProof(supabase, userId, challenge, ABUNDANCE_QUIZ_PROOF);
     if (progress.error) return { ok: false, reason: "Could not check your answers. Try again." };
     return progress.proved ? { ok: true } : { ok: false, reason: "Answer all the questions first." };
+  }
+  if (challenge.verification_logic === DUO_LOGIC) {
+    const { count, error } = await db
+      .from("duo_quests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "succeeded")
+      .or(`inviter_user_id.eq.${userId},partner_user_id.eq.${userId}`);
+    if (error) return { ok: false, reason: "Could not check the task for two. Try again." };
+    return Number(count ?? 0) > 0 ? { ok: true } : { ok: false, reason: "You and your friend need 5 days with a step each." };
   }
   if (challenge.verification_logic === FIRST_STEP_LOGIC) {
     const progress = await getChallengeProgressProof(supabase, userId, challenge, "motive_chosen");

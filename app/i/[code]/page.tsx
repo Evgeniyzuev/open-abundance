@@ -68,6 +68,9 @@ export default async function InvitePage({ params, searchParams }: { params: { c
     if (typeof value === "string" && value) target.set(key, value);
   }
   if (!target.has("utm_medium")) target.set("utm_medium", "invite");
+  // «A task for two»: the app offers to join the friend's duo after sign-in.
+  const duo = searchParams.duo;
+  if (typeof duo === "string" && /^[a-z0-9]{6,16}$/.test(duo)) target.set("duo", duo);
   const href = `/?${target.toString()}`;
 
   return (

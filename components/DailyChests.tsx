@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyRound } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
+import { Confetti, NovaCheer } from "@/components/ui/Celebration";
 import { useUserContext } from "@/components/UserProvider";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import { chestBar, type ChestState } from "@/lib/dailyChests";
@@ -169,7 +170,6 @@ function ChestOpenSheet({ state, onDone }: { state: ChestState; onDone: (next: C
         setResult(payload);
         setPhase("open");
         playUiSound("chestOpen", { unlessMuted: true });
-        if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
         if (payload.core) applyServerData({ core: payload.core as never });
         void trackClientEvent("chest_opened", { reward: payload.reward });
       })
@@ -201,6 +201,7 @@ function ChestOpenSheet({ state, onDone }: { state: ChestState; onDone: (next: C
       <h2 id="chest-open-title" className="sr-only">{t("chests.title")}</h2>
       <div className={`chest-stage ${phase}`}>
         {phase === "open" ? <span className="chest-rays" aria-hidden="true" /> : null}
+        {phase === "open" ? <Confetti /> : null}
         {phase === "open" ? (
           <span className="chest-coins" aria-hidden="true">{Array.from({ length: 10 }, (_, index) => <i key={index} style={{ ["--i" as string]: index }} />)}</span>
         ) : null}
@@ -211,10 +212,7 @@ function ChestOpenSheet({ state, onDone }: { state: ChestState; onDone: (next: C
         <>
           <p className="chest-reward-label">{t("chests.reward")}</p>
           <strong className="chest-reward-amount">+{money(shown, locale)} Core</strong>
-          <div className="chest-nova">
-            <img alt="" className="chest-nova-avatar" src="/nova-fox-robot.webp" />
-            <p className="chest-nova-bubble">{t(big ? "chests.nova.big" : lineRef.current)}</p>
-          </div>
+          <NovaCheer text={t(big ? "chests.nova.big" : lineRef.current)} />
           <button className="challenge-primary-action" type="button" onClick={() => onDone(result.state ?? null)}>{t("chests.take")}</button>
         </>
       ) : null}

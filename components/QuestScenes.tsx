@@ -1094,7 +1094,7 @@ export function AbundanceQuiz({ locale, t, onClaim, claiming }: { locale: string
               onClick={() => {
                 setPicked(option.id);
                 if (!firstAnswer) rememberFirst({ ...first, [question.id]: option.id });
-                playUiSound(option.id === question.correct ? "reward" : "action");
+                playUiSound(option.id === question.correct ? "correct" : "wrong");
               }}
             >
               {option.text[lang]}

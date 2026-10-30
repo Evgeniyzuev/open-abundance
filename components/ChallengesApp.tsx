@@ -36,6 +36,7 @@ import type { ChallengeCheckReasonCode } from "@/lib/challengeCheckReasons";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import QuestShareBox from "@/components/QuestShareBox";
 import { DailyChestCard } from "@/components/DailyChests";
+import { Confetti, NovaCheer } from "@/components/ui/Celebration";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
 
@@ -1872,6 +1873,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
   const [rating, setRating] = useState<number | null>(null);
   const [reasons, setReasons] = useState<string[]>([]);
   const [ratingSent, setRatingSent] = useState(false);
+  const [novaLineKey] = useState(() => TASK_CHEERS[Math.floor(Math.random() * TASK_CHEERS.length)]);
   const balanceAfter = typeof reward.coreBalanceAfter === "number" ? reward.coreBalanceAfter : null;
   const shownBalance = useCountUp(balanceAfter !== null && reward.claimed && reward.coreAmount > 0 ? balanceAfter - reward.coreAmount : balanceAfter, balanceAfter);
 
@@ -1887,6 +1889,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
 
   return (
     <Sheet bare dismissible={false} className="small challenge-complete-modal" titleId="challenge-receipt-title">
+        {reward.claimed ? <Confetti /> : null}
         {reward.claimed && reward.coreAmount > 0 ? (
           <div className="quest-reward-burst" aria-hidden="true">
             <span className="quest-reward-amount">+{formatTodayMoney(reward.coreAmount, locale)}</span>
@@ -1895,6 +1898,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
         ) : <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>}
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
         <p>{reward.claimed ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : t("challenges.rewardAlreadyClaimed")}</p>
+        {reward.claimed ? <NovaCheer text={t(novaLineKey)} /> : null}
         <DailyChestCard compact />
         {reward.claimed && reward.feedPostId ? (
           <QuestShareBox challengeId={challenge.id} logic={challenge.verification_logic} postId={reward.feedPostId} questTitle={displayText(challenge.title, t("challenges.challenge"), locale)} t={t} />
@@ -1961,6 +1965,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
   );
 }
 
+const TASK_CHEERS = ["celebrate.nova.1", "celebrate.nova.2", "celebrate.nova.3", "celebrate.nova.4", "celebrate.nova.5"] as const;
 const QUEST_RATING_FACES = ["😕", "🙁", "😐", "🙂", "🤩"] as const;
 /** Reasons offered after a rating of 3 or less; they go to the daily analytics (section "Path"). */
 const QUEST_RATING_REASONS = ["unclear", "boring", "too_long", "dont_believe", "want_other"] as const;

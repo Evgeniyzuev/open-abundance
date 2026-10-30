@@ -485,9 +485,9 @@
 .chest-stage-text { margin: 4px 0 0; color: var(--muted); font-weight: 700; }
 .chest-reward-label { margin: 0; color: var(--muted); font-weight: 800; }
 .chest-reward-amount { color: #e0a800; font-size: 2.2rem; font-weight: 900; font-variant-numeric: tabular-nums; animation: chest-pop 0.6s ease-out; }
-.chest-nova { display: flex; align-items: flex-end; gap: 8px; margin: 6px 0 4px; }
-.chest-nova-avatar { width: 56px; height: 56px; border-radius: 50%; animation: chest-nova-jump 0.7s ease-in-out 3; }
-.chest-nova-bubble { margin: 0 0 14px; border-radius: 14px 14px 14px 4px; padding: 8px 12px; background: var(--purple-soft); color: var(--purple-text); font-weight: 800; text-align: left; animation: chest-fade-in 0.4s ease-out 0.2s both; }
+.nova-cheer { display: flex; align-items: flex-end; justify-content: center; gap: 8px; margin: 6px 0 4px; }
+.nova-cheer-avatar { width: 56px; height: 56px; border-radius: 50%; animation: chest-nova-jump 0.7s ease-in-out 3; }
+.nova-cheer-bubble { margin: 0 0 14px; border-radius: 14px 14px 14px 4px; padding: 8px 12px; background: var(--purple-soft); color: var(--purple-text); font-weight: 800; text-align: left; animation: chest-fade-in 0.4s ease-out 0.2s both; }
 .chest-odds-line { margin: 10px 0 0; color: var(--muted); font-size: 0.75rem; }
 @keyframes chest-wiggle { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-8deg); } 85% { transform: rotate(8deg); } 92% { transform: rotate(-4deg); } }
 @keyframes chest-shake { 0%, 100% { transform: rotate(0) translateY(0); } 25% { transform: rotate(-6deg) translateY(-2px); } 75% { transform: rotate(6deg) translateY(-2px); } }
@@ -498,7 +498,7 @@
 @keyframes chest-coin { 0% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(0); } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-110px); } }
 @keyframes chest-nova-jump { 0%, 100% { transform: translateY(0) rotate(0); } 40% { transform: translateY(-14px) rotate(-6deg); } 60% { transform: translateY(-14px) rotate(6deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .chest-card-icon.wiggle, .chest-open-button, .chest-stage.shaking .chest-icon, .chest-stage.open .chest-icon, .chest-rays, .chest-coins i, .chest-reward-amount, .chest-nova-avatar, .chest-nova-bubble, .chest-bar-mark.reached { animation: none; }
+  .chest-card-icon.wiggle, .chest-open-button, .chest-stage.shaking .chest-icon, .chest-stage.open .chest-icon, .chest-rays, .chest-coins i, .chest-reward-amount, .nova-cheer-avatar, .nova-cheer-bubble, .chest-bar-mark.reached { animation: none; }
   .chest-coins { display: none; }
   .chest-bar-fill, .chest-icon .chest-icon-lid { transition: none; }
 }
@@ -510,3 +510,15 @@
 :root[data-theme="dark"] .chest-card { background: linear-gradient(160deg, #2c2410, #221b0b); color: #fbeac0; border-color: rgba(244, 197, 66, 0.25); }
 :root[data-theme="dark"] .chest-card-head small, :root[data-theme="dark"] .chest-bar-labels, :root[data-theme="dark"] .chest-card-rules summary, :root[data-theme="dark"] .chest-card-rules p { color: #e3cf96; }
 :root[data-theme="dark"] .chest-bar-track { background: rgba(244, 197, 66, 0.16); }
+/* Shared confetti burst (components/ui/Celebration.tsx): pieces fly out from one point, spin and fade. */
+.oa-confetti { position: absolute; left: 50%; top: 96px; width: 0; height: 0; pointer-events: none; z-index: 2; }
+.chest-stage .oa-confetti { top: 50%; }
+.oa-confetti i { position: absolute; left: -4px; top: -6px; width: 8px; height: 12px; border-radius: 2px; opacity: 0; animation: oa-confetti 1.3s cubic-bezier(0.15, 0.7, 0.3, 1) var(--delay) forwards; }
+.oa-confetti i.round { width: 9px; height: 9px; border-radius: 50%; }
+@keyframes oa-confetti {
+  0% { opacity: 1; transform: rotate(var(--angle)) translateY(0) rotate(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--angle)) translateY(calc(var(--distance) * -1)) translateX(10px) rotate(var(--spin)); }
+}
+.challenge-complete-modal p.nova-cheer-bubble { margin-bottom: 10px; color: var(--purple-text); font-size: 0.95rem; }
+@media (prefers-reduced-motion: reduce) { .oa-confetti { display: none; } }

@@ -3,6 +3,8 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import Sheet from "@/components/ui/Sheet";
+import { Confetti } from "@/components/ui/Celebration";
+import { playUiSound } from "@/lib/ui/sound";
 import { recoverFromStaleChunks } from "@/components/ChunkErrorReload";
 import { claimReferralAfterAuth, claimRegistrationAfterAuth, getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -704,8 +706,10 @@ function LevelUpModal({
   onClose: () => void;
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
 }) {
+  useEffect(() => { playUiSound("levelUp"); }, [level]);
   return (
     <Sheet bare dismissible={false} className="small level-up-modal" ariaLabel={t("levelUp.title")}>
+        <Confetti pieces={30} />
         <img className="level-up-art" alt="" src="/milestones/level-up.webp" />
         <span className="level-up-badge">Lvl {level}</span>
         <h2>{t("levelUp.title")}</h2>

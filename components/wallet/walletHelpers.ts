@@ -35,6 +35,7 @@ export function coreHistoryLabel(row: CoreHistoryRow, locale: AppLocale, t: TFun
     return t("wallet.history.walletCoreTopup");
   }
   if (row.kind === "referral_reward") return t("wallet.history.referralReward");
+  if (row.kind === "chest_reward") return t("wallet.history.chestReward");
   return t("wallet.history.teamBonus");
 }
 

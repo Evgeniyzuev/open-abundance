@@ -1,10 +1,18 @@
 const SOUND_STORAGE_KEY = "open-abundance:sounds-enabled";
 
-export type UiSound = "action" | "reward";
+export type UiSound = "action" | "reward" | "chestTick" | "chestOpen";
 
 export function getSoundsEnabled(): boolean {
   if (typeof window === "undefined") return false;
   return window.localStorage.getItem(SOUND_STORAGE_KEY) === "true";
+}
+
+function soundsMuted(): boolean {
+  try {
+    return window.localStorage.getItem(SOUND_STORAGE_KEY) === "false";
+  } catch {
+    return false;
+  }
 }
 
 export function setSoundsEnabled(enabled: boolean): void {
@@ -61,7 +69,33 @@ export function prepareUiSound(): void {
 
 if (typeof window !== "undefined") prepareUiSound();
 
+function note(context: AudioContext, frequency: number, at: number, length: number, volume: number, type: OscillatorType): void {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, at);
+  gain.gain.setValueAtTime(0.0001, at);
+  gain.gain.exponentialRampToValueAtTime(volume, at + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(at);
+  oscillator.stop(at + length + 0.02);
+}
+
 function playTone(context: AudioContext, sound: UiSound): void {
+  const now = context.currentTime;
+  if (sound === "chestTick") {
+    // A soft wooden knock while the chest shakes.
+    note(context, 180, now, 0.09, 0.22, "triangle");
+    return;
+  }
+  if (sound === "chestOpen") {
+    // A rising major arpeggio with a high sparkle on top: the chest opens.
+    [523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => note(context, frequency, now + index * 0.09, 0.42, 0.22, "triangle"));
+    [1568, 2093, 2637].forEach((frequency, index) => note(context, frequency, now + 0.4 + index * 0.07, 0.3, 0.08, "sine"));
+    return;
+  }
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   const start = context.currentTime;
@@ -78,8 +112,10 @@ function playTone(context: AudioContext, sound: UiSound): void {
   oscillator.stop(start + length + 0.02);
 }
 
-export function playUiSound(sound: UiSound): void {
-  if (!getSoundsEnabled() || typeof window === "undefined") return;
+/** `unlessMuted`: plays unless the person turned sounds off (chest opening), not only when they turned them on. */
+export function playUiSound(sound: UiSound, options: { unlessMuted?: boolean } = {}): void {
+  if (typeof window === "undefined") return;
+  if (options.unlessMuted ? soundsMuted() : !getSoundsEnabled()) return;
   try {
     const context = getContext();
     if (!context) return;

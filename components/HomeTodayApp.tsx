@@ -1,5 +1,6 @@
 "use client";
 
+import { DailyChestCard } from "@/components/DailyChests";
 import type { DayCredit } from "@/lib/dayCredit";
 import { ArrowRight, Bell, CheckCircle2, Compass, Flame, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -398,6 +399,7 @@ export default function HomeTodayApp({
 
       <HomeContinueCard active={active} onOpenTask={onOpenTask} />
       <HomeComebackCard active={active} onOpenTasks={onOpenTasks} />
+      {user ? <DailyChestCard refreshKey={refreshNonce} /> : null}
 
       {loading || status === "loading" ? <p className="home-status">{t("app.common.loading")}</p> : null}
       {status === "offline" ? <p className="home-status">{t("home.offline")}</p> : null}

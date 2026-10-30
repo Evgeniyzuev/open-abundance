@@ -19,7 +19,7 @@ export type WalletCalculatorRequest = {
 export type CoreHistoryRow = {
   id: string;
   occurred_at: string;
-  kind: "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus" | "referral_reward";
+  kind: "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus" | "referral_reward" | "chest_reward";
   amount: number;
   source_id: string;
   challenge_id?: string;

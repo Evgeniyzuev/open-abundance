@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-type CoreHistoryKind = "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus" | "referral_reward";
+type CoreHistoryKind = "daily_accrual" | "challenge_reward" | "peer_review_reward" | "wallet_core_topup" | "team_bonus" | "referral_reward" | "chest_reward";
 type HistoryLocale = AppLocale;
 
 export type CoreHistoryRow = {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
     const locale: HistoryLocale = request.nextUrl.searchParams.get("locale") === "ru" ? "ru" : "en";
-    const [accruals, challenges, reviews, topups, teamBonuses, referralRewards, coreAccount] = await Promise.all([
+    const [accruals, challenges, reviews, topups, teamBonuses, referralRewards, coreAccount, chests] = await Promise.all([
       supabase
         .from("daily_core_accruals")
         .select("accrual_date,core_amount,core_after,created_at")
@@ -79,7 +79,16 @@ export async function GET(request: NextRequest) {
         .gt("amount", 0)
         .order("created_at", { ascending: false })
         .limit(limit),
-      supabase.from("core_accounts").select("balance").eq("user_id", user.id).maybeSingle()
+      supabase.from("core_accounts").select("balance").eq("user_id", user.id).maybeSingle(),
+      // Opened daily chests (migration 20261030130000); empty before it is applied.
+      (supabase as any)
+        .from("daily_chests")
+        .select("id,reward_core_amount,opened_at")
+        .eq("user_id", user.id)
+        .eq("status", "opened")
+        .gt("reward_core_amount", 0)
+        .order("opened_at", { ascending: false })
+        .limit(limit)
     ]);
 
     const failed = [accruals, challenges, reviews, topups, teamBonuses, referralRewards].find((result) => result.error);
@@ -133,6 +142,13 @@ export async function GET(request: NextRequest) {
         amount: Number(row.core_amount),
         source_id: row.id,
         metadata: { bonus_date: row.bonus_date, source_user_id: row.source_user_id, depth: row.depth }
+      })),
+      ...((chests.error ? [] : chests.data ?? []) as Array<{ id: string; reward_core_amount: number; opened_at: string }>).map((row) => ({
+        id: `chest:${row.id}`,
+        occurred_at: row.opened_at,
+        kind: "chest_reward" as const,
+        amount: Number(row.reward_core_amount),
+        source_id: row.id
       }))
     ]
       .filter((row) => Number.isFinite(row.amount) && row.amount > 0)

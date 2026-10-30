@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (error || !user) return NextResponse.json({ error }, { status: 401, headers: NO_STORE_HEADERS });
     const db = supabase as any;
 
-    const [account, topupAll, gardenPurchases, shopCore, income, challengeRewards, reviews, referrals, team, pledges] = await Promise.all([
+    const [account, topupAll, gardenPurchases, shopCore, income, challengeRewards, reviews, referrals, team, pledges, chests] = await Promise.all([
       db.from("core_accounts").select("balance").eq("user_id", user.id).maybeSingle(),
       sumColumn((column) => db.from("wallet_ledger").select(column).eq("user_id", user.id).eq("operation_type", "wallet_core_topup").eq("direction", "debit").order("id"), "amount"),
       // Garden items go through wallet_core_topup too; they are counted as purchases, not as plain top-ups.
@@ -45,9 +45,11 @@ export async function GET(request: NextRequest) {
       sumColumn((column) => db.from("referral_rewards").select(column).eq("referrer_user_id", user.id).eq("destination", "core").order("id"), "amount"),
       sumColumn((column) => db.from("team_core_growth_rewards").select(column).eq("leader_user_id", user.id).order("id"), "core_amount"),
       // "Price of your word" bonuses for quests finished in time count as rewards for actions; 0 before the migration.
-      sumColumn((column) => db.from("word_pledges").select(column).eq("user_id", user.id).eq("status", "kept").order("id"), "bonus_amount").catch(() => 0)
+      sumColumn((column) => db.from("word_pledges").select(column).eq("user_id", user.id).eq("status", "kept").order("id"), "bonus_amount").catch(() => 0),
+      // Opened daily chests count as rewards for actions; 0 before the migration.
+      sumColumn((column) => db.from("daily_chests").select(column).eq("user_id", user.id).eq("status", "opened").order("id"), "reward_core_amount").catch(() => 0)
     ]);
-    const challenges = challengeRewards + pledges;
+    const challenges = challengeRewards + pledges + chests;
     if (account.error) return NextResponse.json({ error: account.error.message }, { status: 500, headers: NO_STORE_HEADERS });
 
     const topup = Math.max(topupAll - gardenPurchases, 0);

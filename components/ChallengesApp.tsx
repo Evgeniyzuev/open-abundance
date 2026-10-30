@@ -35,6 +35,7 @@ import { parseChallengeRewardAmount, splitChallengeInstructions } from "@/lib/ch
 import type { ChallengeCheckReasonCode } from "@/lib/challengeCheckReasons";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import QuestShareBox from "@/components/QuestShareBox";
+import { DailyChestCard } from "@/components/DailyChests";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
 
@@ -786,6 +787,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
           {status === "loading" && !hasChallenges ? <ChallengeState title={t("app.common.loading")} description={t("challenges.loading.description")} /> : null}
           {status === "offline" && !hasChallenges ? <ChallengeState title={t("app.common.offline")} description={t("challenges.offline.description")} /> : null}
 
+          <DailyChestCard compact refreshKey={completionReward} />
           {activeQuest ? (
             <section className="quest-log" aria-label={t("quests.active.label")}>
               <header className="quest-log-head">
@@ -1893,6 +1895,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
         ) : <span className="streak-complete-icon"><CheckCircle2 size={30} aria-hidden="true" /></span>}
         <h2 id="challenge-receipt-title">{t("challenges.completeTitle")}</h2>
         <p>{reward.claimed ? t("challenges.rewardClaimed", { rewards: rewardSummary }) : t("challenges.rewardAlreadyClaimed")}</p>
+        <DailyChestCard compact />
         {reward.claimed && reward.feedPostId ? (
           <QuestShareBox challengeId={challenge.id} logic={challenge.verification_logic} postId={reward.feedPostId} questTitle={displayText(challenge.title, t("challenges.challenge"), locale)} t={t} />
         ) : null}

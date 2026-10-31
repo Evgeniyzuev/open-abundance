@@ -39,6 +39,8 @@ import { DailyChestCard } from "@/components/DailyChests";
 import { Confetti, NovaCheer } from "@/components/ui/Celebration";
 import { DuoQuestPanel } from "@/components/DuoQuest";
 import { DUO_LOGIC } from "@/lib/duoQuest";
+import { FocusDaysPanel, HelpNewcomerPanel } from "@/components/SimpleQuests";
+import { FOCUS_DAYS_LOGIC, HELP_NEWCOMER_LOGIC } from "@/lib/simpleQuests";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getChallengeAccessReasons, isChallengeAlmostAvailable, type ChallengeAccessReason } from "@/lib/challengeEligibility";
 
@@ -148,6 +150,7 @@ type CheckChallengeResponse = {
   wallet?: WalletAccount | null;
   message?: string;
   reasonCode?: ChallengeCheckReasonCode;
+  reasonParams?: Record<string, number> | null;
   coreRewardAmount?: number;
   walletRewardAmount?: number;
   rewardClaimed?: boolean;
@@ -1278,7 +1281,9 @@ function ChallengeDetailContent({
   const needsAppInstalled = challenge.verification_logic === APP_INSTALLED_LOGIC && accepted && !completed && !locked;
   const needsAbundanceQuiz = challenge.verification_logic === ABUNDANCE_QUIZ_LOGIC && accepted && !completed && !locked;
   const needsDuo = challenge.verification_logic === DUO_LOGIC && accepted && !completed && !locked;
-  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite || needsAppInstalled || needsAbundanceQuiz || needsDuo;
+  const needsFocusDays = challenge.verification_logic === FOCUS_DAYS_LOGIC && accepted && !completed && !locked;
+  const needsHelpNewcomer = challenge.verification_logic === HELP_NEWCOMER_LOGIC && accepted && !completed && !locked;
+  const hasOwnScene = needsFirstStep || needsWish || needsGoalPlan || needsInvite || needsAppInstalled || needsAbundanceQuiz || needsDuo || needsFocusDays || needsHelpNewcomer;
   const needsAttentionChallenge = challenge.verification_logic === "attention_value_audit" && accepted && !completed && !locked;
   const needsNicheChallenge = challenge.verification_logic === "niche_task_chosen" && accepted && !completed && !locked;
   const needsValuesChallenge = challenge.verification_logic === "values_goals_defined" && accepted && !completed && !locked;
@@ -1375,7 +1380,7 @@ function ChallengeDetailContent({
         // English keeps the detailed server reason; other languages get the translated message for its code.
         const reasonCode = payload.reasonCode ?? null;
         setCheckReason(reasonCode);
-        setCheckMessage(reasonCode && (locale !== "en" || !payload.message) ? t(`challenges.reason.${reasonCode}` as MessageKey) : payload.message ?? t("challenges.checkPending"));
+        setCheckMessage(reasonCode && (locale !== "en" || !payload.message) ? t(`challenges.reason.${reasonCode}` as MessageKey, payload.reasonParams ?? undefined) : payload.message ?? t("challenges.checkPending"));
         setCheckStatus("idle");
         return;
       }
@@ -1631,6 +1636,8 @@ function ChallengeDetailContent({
 
       {needsInvite ? <InviteFriendQuest /> : null}
       {needsDuo ? <DuoQuestPanel /> : null}
+      {needsFocusDays ? <FocusDaysPanel /> : null}
+      {needsHelpNewcomer ? <HelpNewcomerPanel /> : null}
 
       {challenge.verification_logic === "referral_program" && accepted && !locked ? (
         <>

@@ -31,7 +31,7 @@ assert.equal(classifyChallengeCheckReason("Accept the challenge first."), "not_a
 assert.equal(classifyChallengeCheckReason("Create a wish first, then check this challenge."), "not_done_yet");
 
 const route = readFileSync("app/api/challenges/check/route.ts", "utf8");
-assert.match(route, /reasonCode: classifyChallengeCheckReason\(verification\.reason\)/, "the check route returns a reason code");
+assert.match(route, /reasonCode: (verification\.code \?\? )?classifyChallengeCheckReason\(verification\.reason\)/, "the check route returns a reason code");
 
 // Every language has the card labels, reason texts and the explainer.
 const keys = [

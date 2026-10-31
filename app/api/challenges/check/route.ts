@@ -5,7 +5,9 @@ import { countComments, countPosts } from "@/lib/achievementsServer";
 import { findUsefulStoryComment, USEFUL_STORY_COMMENT_LOGIC, USEFUL_STORY_COMMENT_MIN_LENGTH, USEFUL_STORY_COMMENT_MIN_VOTES, type StoryCommentVote } from "@/lib/storyComments";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
-import { classifyChallengeCheckReason } from "@/lib/challengeCheckReasons";
+import { classifyChallengeCheckReason, type ChallengeCheckReasonCode } from "@/lib/challengeCheckReasons";
+import { FOCUS_DAYS_LOGIC, FOCUS_DAYS_TARGET, HELP_NEWCOMER_LOGIC, questDays } from "@/lib/simpleQuests";
+import { loadNewcomerProgress } from "@/lib/newcomersServer";
 import { syncTodayForUser } from "@/lib/serverToday";
 import { getChallengeAccessReasons, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { salesThreshold, sumCompletedSales } from "@/lib/salesChallenges";
@@ -155,7 +157,8 @@ export async function POST(request: NextRequest) {
       status: "accepted",
       completed: false,
       message: verification.reason,
-      reasonCode: classifyChallengeCheckReason(verification.reason)
+      reasonCode: verification.code ?? classifyChallengeCheckReason(verification.reason),
+      reasonParams: verification.params ?? null
     });
   }
 
@@ -320,7 +323,7 @@ async function verifyChallenge(
   userId: string,
   challenge: ChallengeRow,
   code?: string
-): Promise<{ ok: true } | { ok: false; reason: string }> {
+): Promise<{ ok: true } | { ok: false; reason: string; code?: ChallengeCheckReasonCode; params?: Record<string, number> }> {
   const db = supabase as any;
   if (isChannelCodeLogic(challenge.verification_logic)) {
     const channel = CHANNEL_CODE_CHALLENGES[challenge.verification_logic];
@@ -1097,24 +1100,51 @@ async function verifyChallenge(
     return { ok: false, reason: "Invite one person who completes registration first." };
   }
 
-  if (challenge.verification_logic === "team_task_help_completed") {
-    const { data, error } = await supabase
-      .from("team_tasks")
-      .select("id")
-      .eq("leader_user_id", userId)
-      .eq("status", "completed")
-      .eq("newcomer_eligible", true)
-      .limit(1);
-
-    if (error) {
-      return { ok: false, reason: "Could not check team help tasks. Try again." };
+  if (challenge.verification_logic === HELP_NEWCOMER_LOGIC) {
+    // A person who came by your link or is in your team completes any task after you took this one.
+    // The old way (a newcomer task confirmed in Teams) still counts.
+    const [{ data: taken, error: takenError }, { data: teamTasks, error: teamError }] = await Promise.all([
+      db.from("user_challenges").select("created_at").eq("user_id", userId).eq("challenge_id", challenge.id).maybeSingle(),
+      db.from("team_tasks").select("id").eq("leader_user_id", userId).eq("status", "completed").eq("newcomer_eligible", true).limit(1)
+    ]);
+    if (takenError || teamError) return { ok: false, reason: "Could not check your newcomers. Try again." };
+    if ((teamTasks ?? []).length > 0) return { ok: true };
+    let newcomers;
+    try {
+      newcomers = await loadNewcomerProgress(db, userId, taken?.created_at ?? null);
+    } catch {
+      return { ok: false, reason: "Could not check your newcomers. Try again." };
     }
-
-    if ((data ?? []).length > 0) {
-      return { ok: true };
+    if (newcomers.some((person) => person.doneSince > 0)) return { ok: true };
+    if (newcomers.length === 0) {
+      return { ok: false, reason: "No newcomers yet: send your link to someone and help them with their first task.", code: "newcomer_none" };
     }
+    return {
+      ok: false,
+      reason: `Your newcomers (${newcomers.length}) have not completed a task since you took this one. Help one of them do any task.`,
+      code: "newcomer_waiting",
+      params: { count: newcomers.length }
+    };
+  }
 
-    return { ok: false, reason: "Complete one task for a newcomer in Teams first." };
+  if (challenge.verification_logic === FOCUS_DAYS_LOGIC) {
+    const { data: rows, error: rowsError } = await db
+      .from("user_challenges")
+      .select("challenge_id,status,reward_settled_at,updated_at,challenges(category)")
+      .eq("user_id", userId)
+      .eq("status", "completed");
+    if (rowsError) return { ok: false, reason: "Could not check your days with tasks. Try again." };
+    const days = questDays(
+      (rows ?? []).map((row: any) => ({ ...row, category: row.challenges?.category ?? null })),
+      challenge.id
+    );
+    if (days.length >= FOCUS_DAYS_TARGET) return { ok: true };
+    return {
+      ok: false,
+      reason: `Days with a completed task: ${days.length} of ${FOCUS_DAYS_TARGET}. Complete at least one task on another day (days need not be in a row).`,
+      code: "focus_days",
+      params: { done: days.length, total: FOCUS_DAYS_TARGET }
+    };
   }
 
   if (challenge.verification_logic === "team_contact_active") {

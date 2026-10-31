@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { TonConnectUI } from "@tonconnect/ui";
 import type { MessageKey } from "@/lib/i18n";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
-import { connectWallet, connectedAddress, getTonConnect, sendPreparedTransaction } from "@/lib/tonConnectClient";
+import { connectWallet, connectedAddress, friendlyAddress, getTonConnect, sendPreparedTransaction } from "@/lib/tonConnectClient";
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string;
 
@@ -61,15 +61,15 @@ export default function TonConnectPay({ asset, invoiceId, defaultAmount, locale,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ asset, invoiceId: invoiceId ?? undefined, senderAddress: sender, amount: amount.trim().replace(",", ".") })
       }, { authRequired: true });
-      const payload = (await response.json().catch(() => ({}))) as { transaction?: Parameters<typeof sendPreparedTransaction>[1]; error?: string };
-      if (!response.ok || !payload.transaction) { setNote({ kind: "error", text: payload.error ?? t("wallet.tonconnect.error") }); return; }
+      const payload = (await response.json().catch(() => ({}))) as { transaction?: Parameters<typeof sendPreparedTransaction>[1]; linking?: boolean; code?: string };
+      if (!response.ok || !payload.transaction) { setNote({ kind: "error", text: t(errorKey(payload.code)) }); return; }
       try {
         await sendPreparedTransaction(instance, payload.transaction);
       } catch {
         setNote({ kind: "error", text: t("wallet.tonconnect.cancelled") });
         return;
       }
-      setNote({ kind: "ok", text: t("wallet.tonconnect.sent") });
+      setNote({ kind: "ok", text: t(payload.linking ? "wallet.tonconnect.sentLinking" : "wallet.tonconnect.sent") });
       onSent?.();
     } catch {
       setNote({ kind: "error", text: t("wallet.tonconnect.error") });
@@ -92,7 +92,7 @@ export default function TonConnectPay({ asset, invoiceId, defaultAmount, locale,
       </button>
       {address && ui ? (
         <p className="transfer-muted tonconnect-connected">
-          {t("wallet.tonconnect.connected", { address: shortRaw(address) })}{" "}
+          {t("wallet.tonconnect.connected", { address: shortAddress(address) })}{" "}
           <button className="text-button" type="button" onClick={() => void ui.disconnect()}>{t("wallet.tonconnect.disconnect")}</button>
         </p>
       ) : null}
@@ -101,7 +101,20 @@ export default function TonConnectPay({ asset, invoiceId, defaultAmount, locale,
   );
 }
 
-function shortRaw(address: string): string {
-  const hash = address.includes(":") ? address.split(":")[1] : address;
-  return `${hash.slice(0, 4)}…${hash.slice(-4)}`;
+/** Shown in the same UQ… form as the linked addresses above, so the two can be compared by eye. */
+function shortAddress(raw: string): string {
+  const address = friendlyAddress(raw);
+  return address.length > 16 ? `${address.slice(0, 6)}…${address.slice(-6)}` : address;
+}
+
+const ERROR_KEYS: Record<string, MessageKey> = {
+  invoice_closed: "wallet.tonconnect.errorInvoiceClosed",
+  amount: "wallet.tonconnect.amountInvalid",
+  unavailable: "wallet.tonconnect.errorUnavailable",
+  no_wallet: "wallet.tonconnect.errorNoWallet",
+  bound_elsewhere: "wallet.tonconnect.errorBoundElsewhere"
+};
+
+function errorKey(code: string | undefined): MessageKey {
+  return (code && ERROR_KEYS[code]) || "wallet.tonconnect.error";
 }

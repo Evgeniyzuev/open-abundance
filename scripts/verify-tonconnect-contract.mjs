@@ -37,7 +37,9 @@ assert.equal(tonConnectChain("testnet"), "-3");
 // --- Wiring: only the person's own open invoice, only a bound address without one; crediting stays with the scanner ---
 const route = read("app/api/wallet/deposits/tonconnect/route.ts");
 assert.match(route, /\.eq\("user_id", user\.id\)/, "only the person's own invoice");
-assert.match(route, /ton_usdt_bound_senders/, "no invoice: the sender must be bound to this account");
+assert.match(route, /ton_usdt_bound_senders/, "no invoice: a bound sender pays without a comment");
+assert.match(route, /create_or_reuse_ton_usdt_deposit_invoice/, "no invoice and not bound: pay with the open invoice comment, so the wallet gets linked");
+assert.match(route, /bound_elsewhere/, "a wallet bound to someone else never pays into this account");
 assert.doesNotMatch(route, /wallet_ledger|settle_/, "the route never credits");
 const manifest = JSON.parse(read("public/tonconnect-manifest.json"));
 assert.equal(manifest.url, "https://open-abundance.vercel.app");

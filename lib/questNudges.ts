@@ -76,8 +76,8 @@ const COPY: Record<QuestNudgeKey, Localized<QuestCopy>> = {
     en: { title: "{name}, a new quest has opened", body: "\"{quest}\" is open now: a reward for the steps you have done. Nova", button: "Take a look" }
   },
   lead_week_goal: {
-    ru: { title: "{name}, какая у тебя цель на эту неделю?", body: "Одна строка во вкладке команды. В середине недели спрошу, как идёт, а в конце посмотрим итог. Без давления. Нова", button: "Поставить цель" },
-    en: { title: "{name}, what is your goal for this week?", body: "One line in the team tab. Mid-week I'll ask how it goes, and at the end we'll look at the result. No pressure. Nova", button: "Set a goal" }
+    ru: { title: "{name}, какая у тебя цель на эту неделю?", body: "Одна строка во вкладке команды. В середине недели спрошу, как идёт, а в конце посмотрим итог вместе. Ты справишься. Алина", button: "Поставить цель" },
+    en: { title: "{name}, what is your goal for this week?", body: "One line in the team tab. Mid-week I'll ask how it goes, and at the end we'll look at the result together. You've got this. Alina", button: "Set a goal" }
   },
   quest_stalled: {
     ru: { title: "{name}, задание «{quest}» ждёт", body: "Сделай сегодня один маленький шаг. Если что-то не получается, спроси меня, разберём вместе. Нова", button: "Открыть задание" },

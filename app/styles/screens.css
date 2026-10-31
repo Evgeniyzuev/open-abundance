@@ -1981,6 +1981,8 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + var(--
 .lead-week { display: grid; gap: 8px; margin-bottom: 12px; border: 1px solid var(--line-subtle); }
 .lead-week h3 { margin: 0; font-size: 1rem; line-height: 1.25; }
 .lead-week p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }
+.lead-week-persona { display: inline-flex; align-items: center; gap: 6px; }
+.lead-week-persona img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
 .lead-week-practice { display: grid; gap: 3px; border-radius: 10px; padding: 10px; background: var(--accent-soft); }
 .lead-week-practice strong { font-size: .875rem; }
 .lead-week-practice small { color: var(--muted); font-size: .72rem; }

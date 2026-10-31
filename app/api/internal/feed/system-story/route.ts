@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeClaudeOrOperator } from "@/lib/claudeActionsAuth";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { OA_RELAY_LEAD_ID } from "@/lib/qaAccounts";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ const SOURCE_KEY = /^[a-z0-9_:-]{3,120}$/;
 const LOCAL_URL = /^\/[a-z0-9/_.-]{1,200}$/i;
 
 type Payload = {
-  account?: { key?: unknown; displayName?: unknown; bioRu?: unknown; bioEn?: unknown; avatarUrl?: unknown };
+  account?: { key?: unknown; displayName?: unknown; bioRu?: unknown; bioEn?: unknown; avatarUrl?: unknown; leadUserId?: unknown; leadProfileName?: unknown };
   story?: {
     sourceKey?: unknown;
     seriesKey?: unknown;
@@ -30,8 +31,10 @@ type Payload = {
 /**
  * POST /api/internal/feed/system-story — creates or updates a feed system account (an AI narrator such as the mentor
  * Alina Agitova, docs/mentors/ALINA_AGITOVA.md) and one of its abundance_story posts, matched by sourceKey so a repeat
- * call edits instead of duplicating. Images must be files from /public. Callers: operator or Claude (CLAUDE_ACTIONS_TOKEN),
- * only for texts the operator approved in the project.
+ * call edits instead of duplicating. With account.leadUserId set to the Open Abundance lead relay, that profile takes the
+ * narrator's face too (leadProfileName, avatarUrl), so her stories and her weekly guidance come from one person.
+ * Images must be files from /public. Callers: operator or Claude (CLAUDE_ACTIONS_TOKEN), only for texts the operator
+ * approved in the project.
  */
 export async function POST(request: NextRequest) {
   const auth = await authorizeClaudeOrOperator(request);
@@ -68,6 +71,15 @@ export async function POST(request: NextRequest) {
     is_active: true
   }, { onConflict: "account_key" });
   if (accountError) return json({ error: accountError.message }, 500);
+
+  const leadUserId = text(account?.leadUserId, 64);
+  if (leadUserId) {
+    if (leadUserId !== OA_RELAY_LEAD_ID) return json({ error: "account.leadUserId may only be the Open Abundance lead relay." }, 400);
+    const { error: leadError } = await db.from("user_profiles")
+      .update({ display_name: text(account?.leadProfileName, 80) || displayName, avatar_url: avatarUrl || null })
+      .eq("user_id", leadUserId);
+    if (leadError) return json({ error: leadError.message }, 500);
+  }
 
   const { data: existing, error: findError } = await db.from("feed_posts").select("id,published_at").eq("source_key", sourceKey).maybeSingle();
   if (findError) return json({ error: findError.message }, 500);

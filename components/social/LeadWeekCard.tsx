@@ -8,6 +8,7 @@ import { trackProductEvent } from "@/lib/productAnalytics";
 import LeadMeetingSettings from "@/components/social/LeadMeetingSettings";
 import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
 import { stuckSplitPrompt } from "@/lib/leadMeetings";
+import { OA_LEAD_PERSONA } from "@/lib/oaLeadPersona";
 import {
   CONTROL_PRACTICE,
   MIDWEEK_STATUSES,
@@ -101,7 +102,14 @@ export default function LeadWeekCard({ onMessage }: { onMessage?: (userId: strin
 
   return (
     <section className="lead-week home-card" aria-labelledby="lead-week-title">
-      <span className="home-card-label">{data.hasLiveLead ? t("leadWeek.labelPractice") : t("leadWeek.labelOaLead")}</span>
+      {data.hasLiveLead ? (
+        <span className="home-card-label">{t("leadWeek.labelPractice")}</span>
+      ) : (
+        <span className="home-card-label lead-week-persona">
+          <img alt="" src={OA_LEAD_PERSONA.avatarUrl} />
+          {t("leadWeek.labelOaLead")}
+        </span>
+      )}
       <h3 id="lead-week-title">{t("leadWeek.title")}</h3>
 
       {practice ? (

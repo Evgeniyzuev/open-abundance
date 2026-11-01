@@ -291,6 +291,20 @@ When adding or changing UI text:
 
 If a reusable translated element would become awkward or misleading, create a small shared variant instead of copy-pasting text across screens.
 
+## Server CPU Budget (Vercel Active CPU)
+
+Vercel bills the CPU time of every function call; on Hobby the whole month is 4 hours (about 8 minutes a day). On Nov 1 2026 the limit ran out because pg_cron called the app ~10-13 thousand times a day with nothing to do (commit 7ab36ff fixed it). Rule: no work, no call; fast only while a person is waiting.
+
+- **Check for work in SQL before calling the app.** A pg_cron job that calls a Vercel route (`net.http_post`) must first `exists (...)` the rows it would process and return without a request when there are none (see `dispatch_telegram_notification_copies`, `dispatch_withdrawal_reconciliation`). Never schedule an unconditional call every minute or faster.
+- **Fast pace on demand, slow safety net otherwise.** When speed matters (deposits, payments), run the fast tick only while someone is waiting: the route the person uses sets a short boost (`boost_deposit_scan()` gives 10 minutes of 15-second scans), or an item is already in progress. Otherwise run a slow safety pass (every 5 minutes or rarer). Work must be cursor or queue based so a slower pass loses nothing.
+- **Bound every "in progress" condition in time** (`updated_at > now() - interval '1 hour'`), so one stuck row cannot keep a fast job running forever.
+- **Pick the slowest schedule the feature tolerates.** Reports, alerts, digests: hourly or daily, not every few minutes.
+- **Client polling:** only through `startVisiblePolling` (or a `document.visibilityState` check), only while the screen that needs it is open, stop on a terminal state, and no faster than the server can change (no 5-second polls of something the server checks every 15 seconds; 10 seconds is the floor for payment status). Prefer refetch on focus/visibility over timers.
+- **Do pure database work in the database.** Logic that only reads and writes Postgres belongs in a SQL function run by pg_cron, not in a Vercel route called by pg_cron.
+- **Cache public pages:** `export const revalidate = <seconds>` on pages and routes that guests and crawlers hit; `force-dynamic` / `revalidate = 0` only where per-request data is really needed.
+- **Return early:** auth and "nothing to do" checks before loading configs, SDKs or calling external APIs.
+- When adding a cron job or a poll, write in the commit message how many calls a day it makes at most.
+
 ## Before Pushing To main
 
 Vercel builds every push to `main`, and `next build` runs ESLint: a lint error fails the deploy (the previous version stays live, but the change does not ship). Before `git push`:

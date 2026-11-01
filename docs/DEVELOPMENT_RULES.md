@@ -300,6 +300,7 @@ Vercel bills the CPU time of every function call; on Hobby the whole month is 4 
 - **Bound every "in progress" condition in time** (`updated_at > now() - interval '1 hour'`), so one stuck row cannot keep a fast job running forever.
 - **Pick the slowest schedule the feature tolerates.** Reports, alerts, digests: hourly or daily, not every few minutes.
 - **Client polling:** only through `startVisiblePolling` (or a `document.visibilityState` check), only while the screen that needs it is open, stop on a terminal state, and no faster than the server can change (no 5-second polls of something the server checks every 15 seconds; 10 seconds is the floor for payment status). Prefer refetch on focus/visibility over timers.
+- **Client polls only refresh the screen; they never drive processing.** Deposits, withdrawals, settlements and every other money operation are finished by server jobs (pg_cron) whether or not the person keeps the tab or app open. Slowing or stopping a poll may make the screen update later, never make the money arrive later.
 - **Do pure database work in the database.** Logic that only reads and writes Postgres belongs in a SQL function run by pg_cron, not in a Vercel route called by pg_cron.
 - **Cache public pages:** `export const revalidate = <seconds>` on pages and routes that guests and crawlers hit; `force-dynamic` / `revalidate = 0` only where per-request data is really needed.
 - **Return early:** auth and "nothing to do" checks before loading configs, SDKs or calling external APIs.

@@ -6,6 +6,7 @@ import {
   parsePositiveNanoTon,
   postgresNumericToString
 } from "@/lib/tonDeposits";
+import { boostDepositScan } from "@/lib/depositScanBoost";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
   try {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return jsonResponse({ error }, { status: 401 });
+    await boostDepositScan(supabase, "TON");
 
     const config = await loadTonDepositConfig(supabase);
     if (!config) return jsonResponse({ error: "TON deposit is not configured yet." }, { status: 503 });
@@ -97,6 +99,7 @@ export async function GET(request: NextRequest) {
     if (error || !user) return jsonResponse({ error }, { status: 401 });
 
     const activeOnly = request.nextUrl.searchParams.get("active") === "true";
+    if (activeOnly) await boostDepositScan(supabase, "TON");
     const limit = activeOnly ? 1 : clampLimit(request.nextUrl.searchParams.get("limit"));
     let query = supabase
       .from("ton_deposit_invoices")

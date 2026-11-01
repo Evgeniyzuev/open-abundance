@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { buildTonUsdtTransferLink } from "@/lib/tonUsdt";
+import { boostDepositScan } from "@/lib/depositScanBoost";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: { depositI
   try {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return jsonResponse({ error }, { status: 401 });
+    await boostDepositScan(supabase, "USDT");
     const db = supabase as any;
     const { data: invoice, error: invoiceError } = await db.from("ton_usdt_deposit_invoices").select("id,user_id,network,asset_code,master_address,invoice_code,deposit_owner_address,deposit_jetton_wallet_address,expected_amount_units,status,expires_at,created_at,updated_at").eq("id", params.depositId).eq("user_id", user.id).maybeSingle();
     if (invoiceError) return jsonResponse({ error: invoiceError.message }, { status: 500 });

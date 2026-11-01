@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { boostDepositScan } from "@/lib/depositScanBoost";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { tonAmountToNano } from "@/lib/tonAmount";
 import { loadTonDepositConfig, normalizeTonAddress } from "@/lib/tonDeposits";
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
     const amount = typeof body.amount === "string" ? body.amount.trim() : "";
     const db = supabase as any;
     if (!asset) return json({ error: "Unknown asset.", code: "unknown_asset" }, 400);
+    await boostDepositScan(supabase, asset);
 
     if (asset === "TON") {
       const config = await loadTonDepositConfig(supabase);

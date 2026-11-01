@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { buildTonTransferLink, postgresNumericToString } from "@/lib/tonDeposits";
+import { boostDepositScan } from "@/lib/depositScanBoost";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: { depositI
   try {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return jsonResponse({ error }, { status: 401 });
+    await boostDepositScan(supabase, "TON");
 
     const { data: invoice, error: invoiceError } = await supabase
       .from("ton_deposit_invoices")

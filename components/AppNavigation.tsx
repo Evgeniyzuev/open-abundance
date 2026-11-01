@@ -1187,7 +1187,7 @@ function useNovaInboxUnread(userId: string | null, viewingChat: boolean): boolea
       }
     };
     void check();
-    const timer = window.setInterval(() => void check(), NOVA_INBOX_POLL_MS);
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void check(); }, NOVA_INBOX_POLL_MS);
     const onVisible = () => { if (document.visibilityState === "visible") void check(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => {

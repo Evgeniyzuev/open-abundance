@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { buildTonUsdtTransferLink, friendlyWalletAddress, loadTonUsdtConfig, normalizeTonUsdtAddress, parseTonUsdtUnits } from "@/lib/tonUsdt";
+import { boostDepositScan } from "@/lib/depositScanBoost";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
   try {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return jsonResponse({ error }, { status: 401 });
+    await boostDepositScan(supabase, "USDT");
     const config = await loadTonUsdtConfig(supabase as any);
     if (!config?.ready) return jsonResponse({ error: "TON USDT deposit is not configured yet.", reason: config?.reason ?? "disabled" }, { status: 503 });
     const body = (await request.json().catch(() => ({}))) as CreateDepositBody;
@@ -61,6 +63,7 @@ export async function GET(request: NextRequest) {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return jsonResponse({ error }, { status: 401 });
     const activeOnly = request.nextUrl.searchParams.get("active") === "true";
+    if (activeOnly) await boostDepositScan(supabase, "USDT");
     const limit = clampLimit(request.nextUrl.searchParams.get("limit"));
     const db = supabase as any;
     let query = db.from("ton_usdt_deposit_invoices").select("id,user_id,network,asset_code,master_address,invoice_code,deposit_owner_address,deposit_jetton_wallet_address,expected_amount_units,status,expires_at,amount_window_started_at,created_at,updated_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(activeOnly ? 1 : limit);

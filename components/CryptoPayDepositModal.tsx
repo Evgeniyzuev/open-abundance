@@ -54,7 +54,7 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // While an invoice is open, ask for its status every few seconds; the server re-checks with the provider.
+  // While an invoice is open, ask for its status every 8 seconds; the server re-checks with the provider.
   useEffect(() => {
     if (!invoice || status !== "active") return;
     let cancelled = false;
@@ -64,7 +64,7 @@ export default function CryptoPayDepositModal({ t, onClose, onRefresh }: { t: TF
         const payload = (await response.json()) as { invoice?: { status: string } };
         if (!cancelled && payload.invoice) setStatus(payload.invoice.status);
       } catch { /* the next check asks again */ }
-    }, 4000);
+    }, 8000);
     return () => { cancelled = true; stop(); };
   }, [invoice, status]);
 

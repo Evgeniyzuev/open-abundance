@@ -8,7 +8,8 @@ import { trackProductEvent } from "@/lib/productAnalytics";
 import LeadMeetingSettings from "@/components/social/LeadMeetingSettings";
 import { OPEN_AI_PROMPT_EVENT } from "@/lib/noteAiClient";
 import { stuckSplitPrompt } from "@/lib/leadMeetings";
-import { OA_LEAD_PERSONA } from "@/lib/oaLeadPersona";
+import { leadMentorFor, MENTOR_KEYS, MENTORS, type MentorKey } from "@/lib/mentors";
+import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 import {
   CONTROL_PRACTICE,
   MIDWEEK_STATUSES,
@@ -45,7 +46,8 @@ const STATUS_ICON: Record<string, string> = { going: "🟢", stuck: "🟡", need
  * For live leads, also the practice of the week as a ready message for their followers.
  */
 export default function LeadWeekCard({ onMessage }: { onMessage?: (userId: string) => void }) {
-  const { locale, t, user } = useUserContext();
+  const { locale, t, user, profile, applyServerData } = useUserContext();
+  const [choosing, setChoosing] = useState(false);
   const [data, setData] = useState<Payload | null>(null);
   const [goal, setGoal] = useState("");
   const [note, setNote] = useState("");
@@ -85,6 +87,50 @@ export default function LeadWeekCard({ onMessage }: { onMessage?: (userId: strin
     }
   }
 
+  const lead = leadMentorFor(profile?.onboarding_state, profile?.created_at);
+  const mentor = MENTORS[lead.key];
+  const showChoice = !data.hasLiveLead && (lead.needsChoice || choosing);
+
+  // The person picks their AI lead (lib/mentors.ts); kept in their own profile's onboarding_state.
+  async function chooseMentor(key: MentorKey) {
+    if (!profile) return;
+    const nextState = { ...((profile.onboarding_state as Record<string, unknown> | null) ?? {}), mentor: key };
+    const updatedAt = new Date().toISOString();
+    applyServerData({ profile: { ...profile, onboarding_state: nextState, updated_at: updatedAt } });
+    setChoosing(false);
+    trackProductEvent("lead_mentor_chosen", { mentor: key, change: !lead.needsChoice });
+    try {
+      await getBrowserSupabaseClient().from("user_profiles").update({ onboarding_state: nextState, updated_at: updatedAt }).eq("user_id", profile.user_id);
+    } catch {
+      // Shown locally; saved again on the next choice.
+    }
+  }
+
+  if (showChoice) {
+    return (
+      <section className="lead-week home-card" aria-labelledby="lead-mentor-title">
+        <span className="home-card-label">{ru ? "ИИ-лид Open Abundance" : "Open Abundance AI lead"}</span>
+        <h3 id="lead-mentor-title">{ru ? "Кто будет твоим наставником?" : "Who will be your mentor?"}</h3>
+        <p className="lead-mentor-hint">{ru ? "Он или она поможет поставить цель недели, спросит, как идёт, и подведёт итог вместе с тобой. Сменить можно в любой момент." : "They help you set a goal for the week, ask how it goes and look at the result with you. You can change any time."}</p>
+        <div className="lead-mentor-options">
+          {MENTOR_KEYS.map((key) => {
+            const option = MENTORS[key];
+            return (
+              <button key={key} type="button" className={`lead-mentor-option${key === lead.key && !lead.needsChoice ? " current" : ""}`} onClick={() => void chooseMentor(key)}>
+                <img alt="" src={option.avatarUrl} />
+                <strong>{option.name[ru ? "ru" : "en"]}</strong>
+                <span>{option.pitch[ru ? "ru" : "en"]}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="lead-mentor-links">
+          {MENTOR_KEYS.map((key) => <a key={key} href={MENTORS[key].path}>{ru ? `Профиль: ${MENTORS[key].firstName.ru}` : `${MENTORS[key].firstName.en}'s profile`}</a>)}
+        </div>
+      </section>
+    );
+  }
+
   const practice = data.practiceKey === CONTROL_PRACTICE ? null : practiceByKey(data.practiceKey);
   const week = data.week;
   const kit = data.lead ? practiceByKey(data.lead.kitPracticeKey) : null;
@@ -106,8 +152,9 @@ export default function LeadWeekCard({ onMessage }: { onMessage?: (userId: strin
         <span className="home-card-label">{t("leadWeek.labelPractice")}</span>
       ) : (
         <span className="home-card-label lead-week-persona">
-          <img alt="" src={OA_LEAD_PERSONA.avatarUrl} />
-          {t("leadWeek.labelOaLead")}
+          <img alt="" src={mentor.avatarUrl} />
+          {mentor.leadLabel[ru ? "ru" : "en"]}
+          <button className="lead-mentor-change" type="button" onClick={() => setChoosing(true)}>{ru ? "сменить" : "change"}</button>
         </span>
       )}
       <h3 id="lead-week-title">{t("leadWeek.title")}</h3>

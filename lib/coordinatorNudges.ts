@@ -20,6 +20,7 @@ import {
   type TodayTasks
 } from "@/lib/coordinatorNextStep";
 import type { Localized } from "@/lib/locales";
+import { chosenMentor, type MentorKey } from "@/lib/mentors";
 import { HOLDOUT_EVENT, isHoldout, type QuestCatalogItem, type QuestNudgeInput, type QuestUserRow } from "@/lib/questNudges";
 import { weeklyLeaders } from "@/lib/questLeaders";
 import { weekStart } from "@/lib/leadPractices";
@@ -351,7 +352,8 @@ async function loadQuestInputs(db: AnyDb, userIds: string[], now: number): Promi
       rows: rowsByUser.get(userId) ?? [],
       leaderRank: rank.get(userId)?.rank ?? null,
       weekQuests: rank.get(userId)?.quests ?? 0,
-      leadWeekGoalSet: leadWeekGoals.get(userId) ?? null
+      leadWeekGoalSet: leadWeekGoals.get(userId)?.goalSet ?? null,
+      mentor: leadWeekGoals.get(userId)?.mentor ?? null
     });
   }
   return result;
@@ -361,16 +363,18 @@ async function loadQuestInputs(db: AnyDb, userIds: string[], now: number): Promi
  * For people led by the Open Abundance lead (no live lead): whether this week's goal is set. Others and everyone,
  * when the table is not there yet, are left out (null), so Nova does not write about the week to them.
  */
-async function loadLeadWeekGoals(db: AnyDb, userIds: string[], now: number): Promise<Map<string, boolean>> {
-  const result = new Map<string, boolean>();
-  const [memberships, weeks] = await Promise.all([
+async function loadLeadWeekGoals(db: AnyDb, userIds: string[], now: number): Promise<Map<string, { goalSet: boolean; mentor: MentorKey | null }>> {
+  const result = new Map<string, { goalSet: boolean; mentor: MentorKey | null }>();
+  const [memberships, weeks, profiles] = await Promise.all([
     db.from("team_memberships").select("member_user_id,leader_user_id").eq("is_active", true).in("member_user_id", userIds),
-    db.from("lead_week_checkins").select("user_id,goal").eq("week_start", weekStart(now)).in("user_id", userIds)
+    db.from("lead_week_checkins").select("user_id,goal").eq("week_start", weekStart(now)).in("user_id", userIds),
+    db.from("user_profiles").select("user_id,onboarding_state").in("user_id", userIds)
   ]);
   if (memberships.error || weeks.error) return result;
   const withGoal = new Set(((weeks.data ?? []) as any[]).filter((row) => row.goal).map((row) => row.user_id));
+  const mentors = new Map(((profiles.data ?? []) as any[]).map((row) => [row.user_id, chosenMentor(row.onboarding_state)]));
   for (const row of (memberships.data ?? []) as any[]) {
-    if (isOaLed(row.leader_user_id)) result.set(row.member_user_id, withGoal.has(row.member_user_id));
+    if (isOaLed(row.leader_user_id)) result.set(row.member_user_id, { goalSet: withGoal.has(row.member_user_id), mentor: mentors.get(row.member_user_id) ?? null });
   }
   return result;
 }

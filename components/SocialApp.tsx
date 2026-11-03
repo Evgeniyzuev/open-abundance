@@ -1,6 +1,7 @@
 "use client";
 
-import { mentorBySystemAccount } from "@/lib/mentors";
+import { leadMentorFor, mentorBySystemAccount } from "@/lib/mentors";
+import { OA_RELAY_LEAD_ID } from "@/lib/qaAccounts";
 import FeedbackButton from "@/components/FeedbackButton";
 import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import OperatorEntry from "@/components/OperatorEntry";
@@ -82,6 +83,7 @@ export default function SocialApp({
     t,
     applyServerData
   } = useUserContext();
+  const leadMentor = leadMentorFor(profile?.onboarding_state, profile?.created_at).key;
   const [referralLink, setReferralLink] = useState<ReferralLink | null>(null);
   const [referralLocked, setReferralLocked] = useState(false);
   const [teamContext, setTeamContext] = useState<TeamContext | null>(null);
@@ -1598,7 +1600,7 @@ export default function SocialApp({
               />
               <div className="team-summary">
                 <span>{t("profile.teams.leader")}</span>
-                {teamContext?.leader.type === "user" && teamContext.membership?.leader_user_id ? (
+                {teamContext?.leader.type === "user" && teamContext.membership?.leader_user_id && !(leadMentor !== "alina" && teamContext.membership.leader_user_id === OA_RELAY_LEAD_ID) ? (
                   <button className="inline-profile-button" type="button" onClick={() => { void openPublicProfile(teamContext.membership?.leader_user_id ?? ""); }}>
                     <span className="team-member-avatar">
                       {teamContext.leader.profile?.avatar_url ? <img alt="" src={normalizeAvatarPreviewUrl(teamContext.leader.profile.avatar_url) ?? undefined} style={{ objectPosition: teamContext.leader.profile.avatar_position ?? "50% 50%" }} /> : <UserRound size={16} />}
@@ -1607,11 +1609,11 @@ export default function SocialApp({
                       label={t("profile.levelBadge", { level: teamContext.leader.profile?.level ?? 0 })}
                       level={teamContext.leader.profile?.level}
                     >
-                      {formatLeader(teamContext, locale)}
+                      {formatLeader(teamContext, locale, leadMentor)}
                     </UserNameWithLevel>
                   </button>
                 ) : (
-                  <strong>{formatLeader(teamContext, locale)}</strong>
+                  <strong>{formatLeader(teamContext, locale, leadMentor)}</strong>
                 )}
                 {teamContext?.leader.type === "user" && teamContext.membership?.leader_user_id ? (
                   <button className="text-button" type="button" onClick={() => { void openDirectMessage(teamContext.membership?.leader_user_id ?? ""); }}>

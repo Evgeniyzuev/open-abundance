@@ -2110,3 +2110,11 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + var(--
 .system-profile-invite { display: grid; gap: 8px; margin: 0 0 12px; border-radius: 18px; padding: 14px 16px; background: var(--accent-soft); }
 .system-profile-invite strong { font-size: 1rem; }
 .system-profile-invite p { margin: 0; font-size: 0.875rem; line-height: 1.5; }
+.lead-mentor-change { margin-left: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; opacity: 0.65; text-decoration: underline; cursor: pointer; }
+.lead-mentor-hint { margin: 4px 0 12px; opacity: 0.8; }
+.lead-mentor-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.lead-mentor-option { display: grid; justify-items: center; gap: 6px; padding: 14px 10px; border: 1px solid var(--line, rgba(127,127,127,0.25)); border-radius: 16px; background: transparent; color: inherit; font: inherit; text-align: center; cursor: pointer; }
+.lead-mentor-option.current { border-color: currentColor; }
+.lead-mentor-option img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+.lead-mentor-option span { font-size: 0.85em; opacity: 0.75; }
+.lead-mentor-links { display: flex; gap: 14px; margin-top: 10px; font-size: 0.85em; }

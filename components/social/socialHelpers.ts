@@ -1,5 +1,7 @@
 import type { TeamProfile, TeamContext, TeamRewardDay, CoreNotificationRow, PayoutNotification, TrustConfirmationType, TrustConfirmationStatus, TrustConfirmationRow, SocialProfilePayload, PeopleFilter, PeopleRow, ProfileEditorState, PeopleSection } from "@/components/social/socialTypes";
 import { personLabel } from "@/lib/personName";
+import { MENTORS, type MentorKey } from "@/lib/mentors";
+import { OA_RELAY_LEAD_ID } from "@/lib/qaAccounts";
 import { X } from "lucide-react";
 import { type UserProfile } from "@/components/UserProvider";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -145,9 +147,12 @@ export function formatDay(value: string, locale: AppLocale): string {
   return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export function formatLeader(teamContext: TeamContext | null, locale: AppLocale): string {
-  // Without a live lead higher in level, the Open Abundance lead guides the person.
-  if (!teamContext?.membership || teamContext.leader.type === "system") return locale === "ru" ? "Алина Агитова · ИИ-лид Open Abundance" : "Alina Agitova · Open Abundance AI lead";
+export function formatLeader(teamContext: TeamContext | null, locale: AppLocale, mentorKey: MentorKey = "alina"): string {
+  // Without a live lead higher in level, the AI lead the person chose (lib/mentors.ts) guides them.
+  const mentor = MENTORS[mentorKey];
+  const aiLead = locale === "ru" ? `${mentor.name.ru} · ИИ-лид Open Abundance` : `${mentor.name.en} · Open Abundance AI lead`;
+  if (!teamContext?.membership || teamContext.leader.type === "system") return aiLead;
+  if (mentorKey !== "alina" && teamContext.membership.leader_user_id === OA_RELAY_LEAD_ID) return aiLead;
   return formatProfileName(teamContext.leader.profile, teamContext.membership.leader_user_id ?? "");
 }
 

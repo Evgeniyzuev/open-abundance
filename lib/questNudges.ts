@@ -9,6 +9,7 @@
 
 import type { Localized } from "./locales.ts";
 import { weekPhase } from "./leadPractices.ts";
+import { MENTORS, type MentorKey } from "./mentors.ts";
 
 const DAY_MS = 86_400_000;
 
@@ -48,6 +49,8 @@ export type QuestNudgeInput = {
   weekQuests: number;
   /** Whether this week's goal with the Open Abundance lead is set; null when unknown (docs/SMALL_WISHES_AND_LEADS_PLAN.md). */
   leadWeekGoalSet?: boolean | null;
+  /** The AI lead the person chose (lib/mentors.ts); signs the weekly goal message. Alina when unknown. */
+  mentor?: MentorKey | null;
 };
 
 export type QuestSend = { step: string; at: number };
@@ -121,6 +124,21 @@ function nudge(key: QuestNudgeKey, quest: QuestCatalogItem | null, count = 0): Q
   return { key, deepLink: key === "lead_week_goal" ? TEAM_DEEP_LINK : DEEP_LINK, copy: fill(COPY[key], { quest: quest?.title ?? null, count }) };
 }
 
+/** The weekly goal message is signed by the person's AI lead; Mark writes in his own words. */
+function signedBy(result: QuestNudge, mentor: MentorKey): QuestNudge {
+  if (mentor === "alina") return result;
+  const copy = result.copy as unknown as Record<string, QuestCopy>;
+  const own: Record<string, string> = {
+    ru: "Одна строка во вкладке команды. В середине недели спрошу, как идёт, в конце глянем итог вместе. Марк",
+    en: "One line in the team tab. Mid-week I'll ask how it goes, and at the end we'll look at the result together. Mark"
+  };
+  const next: Record<string, QuestCopy> = {};
+  for (const [locale, text] of Object.entries(copy)) {
+    next[locale] = { ...text, body: own[locale] ?? text.body.replace(/Alina|Алина/g, MENTORS[mentor].firstName.en) };
+  }
+  return { ...result, copy: next as unknown as Localized<QuestCopy> };
+}
+
 /** Path quests the person has started; the first open one decides "first step done". */
 function statusOf(rows: QuestUserRow[]): Map<string, QuestUserRow> {
   return new Map(rows.map((row) => [row.challengeId, row]));
@@ -152,7 +170,7 @@ export function chooseQuestNudge(input: QuestNudgeInput, sends: QuestSend[], las
 
   // 2a. The weekly goal with the Open Abundance lead: on Monday or Tuesday, once a week, only while it is not set.
   if (input.leadWeekGoalSet === false && weekPhase(now) === "goal" && !sentSince("lead_week_goal", now - 5 * DAY_MS)) {
-    return nudge("lead_week_goal", null);
+    return signedBy(nudge("lead_week_goal", null), input.mentor ?? "alina");
   }
 
   const active = input.rows.find((row) => row.isActive && (row.status === "accepted" || row.status === "failed")) ?? null;

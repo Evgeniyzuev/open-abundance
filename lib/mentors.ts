@@ -16,6 +16,11 @@ export type Mentor = {
   /** Public profile page. */
   path: string;
   name: Text;
+  firstName: Text;
+  /** On the weekly card of a person this mentor leads. */
+  leadLabel: Text;
+  /** One line under the name in "Кто будет твоим наставником?". */
+  pitch: Text;
   /** Short form for "Алина печатает…", "Написать Алине". */
   typing: Text;
   writeTo: Text;
@@ -44,6 +49,9 @@ export const MENTORS: Record<MentorKey, Mentor> = {
     key: "alina",
     path: "/alina",
     name: { ru: "Алина Агитова", en: "Alina Agitova" },
+    firstName: { ru: "Алина", en: "Alina" },
+    leadLabel: { ru: "Алина Агитова · твой ИИ-лид", en: "Alina Agitova · your AI lead" },
+    pitch: { ru: "Тёплая и прямая. Про смелость хотеть своего и свободу от чужих оценок.", en: "Warm and direct. About daring to want your own and freedom from others' judgement." },
     typing: { ru: "Алина печатает…", en: "Alina is typing…" },
     writeTo: { ru: "Написать Алине", en: "Write to Alina" },
     avatarUrl: "/feed/mentors/alina-agitova-avatar.jpg",
@@ -84,6 +92,9 @@ export const MENTORS: Record<MentorKey, Mentor> = {
     key: "mark",
     path: "/mark",
     name: { ru: "Марк Соколов", en: "Mark Sokolov" },
+    firstName: { ru: "Марк", en: "Mark" },
+    leadLabel: { ru: "Марк Соколов · твой ИИ-лид", en: "Mark Sokolov · your AI lead" },
+    pitch: { ru: "Спокойный, с юмором, без нотаций. Про то, как выбраться из одиночки и найти своих.", en: "Calm, with humour, no lectures. About getting unstuck and finding your people." },
     typing: { ru: "Марк печатает…", en: "Mark is typing…" },
     writeTo: { ru: "Написать Марку", en: "Write to Mark" },
     avatarUrl: "/feed/mentors/mark-sokolov-avatar.jpg",
@@ -132,4 +143,22 @@ export function mentorBySystemAccount(accountKey: string | null | undefined): Me
 
 export function mentorByPath(path: string | null | undefined): Mentor | null {
   return MENTOR_KEYS.map((key) => MENTORS[key]).find((mentor) => mentor.path === path) ?? null;
+}
+
+/**
+ * The AI lead of a person without a live lead (Evgen, 2026-11-03: the person chooses). The choice is kept in
+ * user_profiles.onboarding_state.mentor. People who joined before the choice existed stay with Alina until they change;
+ * people who joined after it are asked once.
+ */
+export const LEAD_MENTOR_CHOICE_SINCE = "2026-11-03T13:00:00Z";
+
+export function chosenMentor(onboardingState: unknown): MentorKey | null {
+  const value = (onboardingState as { mentor?: unknown } | null)?.mentor;
+  return isMentorKey(value) ? value : null;
+}
+
+export function leadMentorFor(onboardingState: unknown, createdAt: string | null | undefined): { key: MentorKey; needsChoice: boolean } {
+  const chosen = chosenMentor(onboardingState);
+  if (chosen) return { key: chosen, needsChoice: false };
+  return { key: "alina", needsChoice: Boolean(createdAt && createdAt >= LEAD_MENTOR_CHOICE_SINCE) };
 }

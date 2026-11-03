@@ -2073,3 +2073,40 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + var(--
 .achievement-reward { color: #b98900 !important; font-weight: 800; }
 @keyframes achievement-ready { 50% { transform: scale(1.06); box-shadow: 0 0 0 6px rgba(242, 183, 5, 0.25); } }
 @media (prefers-reduced-motion: reduce) { .achievement-badge.ready .achievement-medal { animation: none; } }
+.alina-hero { display: grid; gap: 16px; }
+.alina-hero img { width: 100%; max-height: 520px; object-fit: cover; object-position: 50% 20%; border-radius: 20px; }
+.alina-hero h1 { margin: 0; font-size: clamp(2rem, 7vw, 3rem); line-height: 1; letter-spacing: -0.03em; }
+.alina-hero p { margin: 8px 0 0; color: var(--muted); font-size: 1rem; line-height: 1.5; }
+.alina-invite { display: grid; gap: 12px; border-radius: 20px; padding: 18px; background: var(--accent-soft); }
+.alina-invite h2, .alina-stories h2 { margin: 0; font-size: 1.25rem; line-height: 1.2; }
+.alina-invite > p { margin: 0; font-size: 0.9375rem; line-height: 1.55; }
+.alina-chat { display: grid; gap: 10px; }
+.alina-chat-log { display: grid; gap: 8px; max-height: 60dvh; overflow-y: auto; padding: 4px 0; }
+.alina-bubble { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; }
+.alina-bubble.alina { justify-self: start; display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: end; }
+.alina-bubble.alina > p, .alina-bubble.alina > a { grid-column: 2; }
+.alina-bubble.person { justify-self: end; }
+.alina-bubble img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.alina-bubble p { margin: 0; border-radius: 16px; padding: 9px 12px; background: var(--surface); font-size: 0.9375rem; line-height: 1.45; white-space: pre-wrap; }
+.alina-bubble.person p { background: var(--blue); color: var(--fixed-white); }
+.alina-bubble.typing p { color: var(--muted); font-style: italic; }
+.alina-chat-card { display: grid; gap: 4px; border-radius: 14px; padding: 10px 12px; background: var(--surface); }
+.alina-chat-card span { color: var(--muted); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+.alina-chat-card button, .alina-chat-card a { width: fit-content; border: 0; border-radius: 10px; padding: 7px 12px; background: var(--blue); color: var(--fixed-white); font-weight: 800; text-decoration: none; }
+.alina-chat-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.alina-chat-form textarea { min-width: 0; resize: vertical; border: 1px solid var(--line-subtle); border-radius: 12px; padding: 9px 12px; background: var(--surface); color: var(--text); font: inherit; }
+.alina-chat-form button { border: 0; border-radius: 12px; padding: 0 14px; background: var(--blue); color: var(--fixed-white); font-weight: 900; }
+.alina-chat-form button:disabled, .alina-chat-card button:disabled { opacity: 0.5; }
+.alina-chat-error { margin: 0; color: var(--danger, #c0392b); font-size: 0.875rem; }
+.alina-chat-restart { width: fit-content; border: 0; background: none; color: var(--muted); font-size: 0.8125rem; text-decoration: underline; }
+.alina-safety { display: grid; gap: 6px; border-radius: 14px; padding: 12px; background: var(--surface); }
+.alina-safety p, .alina-safety ul { margin: 0; }
+.alina-stories { display: grid; gap: 12px; }
+.alina-story-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.alina-story-card { display: grid; gap: 6px; color: var(--text); text-decoration: none; }
+.alina-story-card img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 14px; }
+.alina-story-card span { color: var(--muted); font-size: 0.8125rem; line-height: 1.4; }
+.alina-note { margin: 0; color: var(--muted); font-size: 0.8125rem; }
+.system-profile-invite { display: grid; gap: 8px; margin: 0 0 12px; border-radius: 18px; padding: 14px 16px; background: var(--accent-soft); }
+.system-profile-invite strong { font-size: 1rem; }
+.system-profile-invite p { margin: 0; font-size: 0.875rem; line-height: 1.5; }

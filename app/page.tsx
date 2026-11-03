@@ -1,3 +1,4 @@
+import AlinaReturn from "@/components/AlinaReturn";
 import AppNavigation from "@/components/AppNavigation";
 import GrowthAnalytics from "@/components/GrowthAnalytics";
 import { OnboardingGate } from "@/components/OnboardingApp";
@@ -54,6 +55,7 @@ export default function Home() {
         <GrowthAnalytics />
         <InstallAppPrompt />
         <TimezoneSync />
+        <AlinaReturn />
         <PushReminderPrompt />
         <TelegramBotPrompt />
         <OnboardingGate>

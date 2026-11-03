@@ -1,5 +1,6 @@
 "use client";
 
+import { OA_LEAD_PERSONA } from "@/lib/oaLeadPersona";
 import FeedbackButton from "@/components/FeedbackButton";
 import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import OperatorEntry from "@/components/OperatorEntry";
@@ -3017,6 +3018,15 @@ function SystemProfileView({
           <span>{t("social.systemProfile.chapterCount", { count: posts.length })}</span>
         </div>
       </section>
+      {account?.account_key === OA_LEAD_PERSONA.systemAccountKey ? (
+        <section className="system-profile-invite">
+          <strong>{locale === "ru" ? "Разберу лично твою ситуацию" : "Let's look at your situation together"}</strong>
+          <p>{locale === "ru"
+            ? "Расскажи, где ты сейчас и чего тебе по-настоящему хочется. Я задам пару вопросов, без оценок и спешки, и вместе найдём первый лёгкий шаг."
+            : "Tell me where you are now and what you really want. I'll ask a couple of questions, no judgement and no rush, and together we'll find a first easy step."}</p>
+          <a className="legal-primary-action" href="/alina#chat">{locale === "ru" ? "Написать Алине" : "Write to Alina"}</a>
+        </section>
+      ) : null}
       <PostList
         copyingWishId={copyingWishId}
         currentUserId={currentUserId}

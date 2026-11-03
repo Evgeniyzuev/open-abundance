@@ -1,6 +1,6 @@
 "use client";
 
-import { OA_LEAD_PERSONA } from "@/lib/oaLeadPersona";
+import { mentorBySystemAccount } from "@/lib/mentors";
 import FeedbackButton from "@/components/FeedbackButton";
 import ReferralProgramSummary from "@/components/ReferralProgramSummary";
 import OperatorEntry from "@/components/OperatorEntry";
@@ -3001,6 +3001,7 @@ function SystemProfileView({
 }) {
   const account = payload?.systemAccount ?? null;
   const posts = payload?.posts ?? [];
+  const mentor = mentorBySystemAccount(account?.account_key);
 
   return (
     <section className="feed-layout system-profile-view">
@@ -3018,13 +3019,11 @@ function SystemProfileView({
           <span>{t("social.systemProfile.chapterCount", { count: posts.length })}</span>
         </div>
       </section>
-      {account?.account_key === OA_LEAD_PERSONA.systemAccountKey ? (
+      {mentor ? (
         <section className="system-profile-invite">
-          <strong>{locale === "ru" ? "Разберу лично твою ситуацию" : "Let's look at your situation together"}</strong>
-          <p>{locale === "ru"
-            ? "Расскажи, где ты сейчас и чего тебе по-настоящему хочется. Я задам пару вопросов, без оценок и спешки, и вместе найдём первый лёгкий шаг."
-            : "Tell me where you are now and what you really want. I'll ask a couple of questions, no judgement and no rush, and together we'll find a first easy step."}</p>
-          <a className="legal-primary-action" href="/alina#chat">{locale === "ru" ? "Написать Алине" : "Write to Alina"}</a>
+          <strong>{mentor.invite.title[locale === "ru" ? "ru" : "en"]}</strong>
+          <p>{mentor.invite.short[locale === "ru" ? "ru" : "en"]}</p>
+          <a className="legal-primary-action" href={`${mentor.path}#chat`}>{mentor.writeTo[locale === "ru" ? "ru" : "en"]}</a>
         </section>
       ) : null}
       <PostList

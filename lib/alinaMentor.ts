@@ -1,7 +1,8 @@
 /**
- * "Разберу лично твою ситуацию": a conversation with the AI mentor Alina Agitova (docs/mentors/ALINA_AGITOVA.md).
+ * "Разберу лично твою ситуацию": a conversation with an AI mentor (lib/mentors.ts; Alina Agitova, Mark Sokolov).
+ * Role "alina" in a message means the mentor, whichever one it is (kept so saved conversations still load).
  *
- * Alina asks one question at a time and walks the person through five stages: where they are now, what they really
+ * The mentor asks one question at a time and walks the person through five stages: where they are now, what they really
  * want, what has already worked for them, a first ten-minute step with a week plan, and saying goodbye until tomorrow.
  * A guest gets her greeting and first question without AI; the AI answers only after sign-in, so a guest costs nothing.
  * Pure and standalone (no imports) so tests and the route can share it.
@@ -27,29 +28,14 @@ export const ALINA_MAX_REPLY = 700;
 export const ALINA_HISTORY_LIMIT = 24;
 export const ALINA_DAY_LIMIT = 40;
 export const ALINA_MONTH_LIMIT = 400;
-export const ALINA_STORAGE_KEY = "oa.alina.chat.v1";
+/** Set while a guest signs in from a mentor chat: the mentor's page path to come back to ("1" from older builds = /alina). */
 export const ALINA_RETURN_KEY = "oa.alina.returnAfterSignIn";
 
 type Text = { ru: string; en: string };
 
-export const ALINA_OPENING: Text[] = [
-  {
-    ru: "Привет! Я Алина. Рада, что ты заглянул(а) ко мне.",
-    en: "Hi! I'm Alina. I'm glad you stopped by."
-  },
-  {
-    ru: "Давай без спешки и без оценок. Расскажи, как ты сейчас? Что в твоей жизни сейчас тянет вниз или просто устало?",
-    en: "No rush and no judgement. Tell me, how are you right now? What in your life is pulling you down, or just feels tired?"
-  }
-];
-
-export const ALINA_SIGN_IN_NOTE: Text = {
-  ru: "Спасибо, что поделился(ась). Я хочу ответить тебе по-настоящему и не потерять наш разговор. Войди, это займёт минуту, и я сразу продолжу с этого места.",
-  en: "Thank you for sharing. I want to answer you properly and not lose our conversation. Sign in, it takes a minute, and I'll continue right from here."
-};
-
-export function openingMessages(locale: "ru" | "en"): AlinaMessage[] {
-  return ALINA_OPENING.map((line) => ({ role: "alina", text: line[locale] }));
+/** The mentor's first messages (lib/mentors.ts opening). */
+export function openingMessages(opening: Text[], locale: "ru" | "en"): AlinaMessage[] {
+  return opening.map((line) => ({ role: "alina", text: line[locale] }));
 }
 
 export function cleanAlinaText(value: unknown, max: number): string {

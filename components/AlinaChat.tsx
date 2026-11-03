@@ -4,26 +4,24 @@ import { useEffect, useRef, useState } from "react";
 import {
   ALINA_MAX_MESSAGE,
   ALINA_RETURN_KEY,
-  ALINA_SIGN_IN_NOTE,
-  ALINA_STORAGE_KEY,
   openingMessages,
   personTurns,
   type AlinaMessage,
   type AlinaStage
 } from "@/lib/alinaMentor";
-import { OA_LEAD_PERSONA } from "@/lib/oaLeadPersona";
+import { MENTORS, type MentorKey } from "@/lib/mentors";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { getBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 type Saved = { messages: AlinaMessage[]; stage: AlinaStage; wish: string | null; step: string | null; wishSaved: boolean };
 
-const SIGN_IN_HREF = "/?utm_source=alina&utm_medium=mentor_chat";
-
-/** "Разберу лично твою ситуацию": the conversation with Alina, kept on the device (lib/alinaMentor.ts). */
-export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
+/** "Разберу лично твою ситуацию": the conversation with a mentor (lib/mentors.ts), kept on the device (lib/alinaMentor.ts). */
+export default function AlinaChat({ locale, mentorKey = "alina" }: { locale: "ru" | "en"; mentorKey?: MentorKey }) {
   const ru = locale === "ru";
-  const [state, setState] = useState<Saved>(() => ({ messages: openingMessages(locale), stage: "now", wish: null, step: null, wishSaved: false }));
+  const mentor = MENTORS[mentorKey];
+  const signInHref = `/?utm_source=${mentor.key}&utm_medium=mentor_chat`;
+  const [state, setState] = useState<Saved>(() => ({ messages: openingMessages(mentor.opening, locale), stage: "now", wish: null, step: null, wishSaved: false }));
   const [draft, setDraft] = useState("");
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,7 +32,7 @@ export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(window.localStorage.getItem(ALINA_STORAGE_KEY) ?? "null") as Saved | null;
+      const stored = JSON.parse(window.localStorage.getItem(mentor.storageKey) ?? "null") as Saved | null;
       if (stored?.messages?.length) setState(stored);
     } catch {
       // A broken or blocked storage just starts a fresh conversation.
@@ -48,7 +46,7 @@ export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(ALINA_STORAGE_KEY, JSON.stringify(state));
+      window.localStorage.setItem(mentor.storageKey, JSON.stringify(state));
     } catch {
       // Not saved on this device; the conversation still works.
     }
@@ -71,7 +69,7 @@ export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
       const response = await fetchWithSupabaseAuth("/api/ai/alina", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, locale })
+        body: JSON.stringify({ messages, locale, mentor: mentor.key })
       });
       const payload = await response.json().catch(() => null) as { text?: string; stage?: AlinaStage; wish?: string | null; step?: string | null; mode?: string; title?: string; message?: string; actions?: string[]; code?: string } | null;
       if (payload?.mode === "safety") {
@@ -86,7 +84,7 @@ export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
       }
       setState((current) => {
         const stage = payload.stage ?? current.stage;
-        if (stage !== current.stage) trackProductEvent("alina_chat_stage", { stage });
+        if (stage !== current.stage) trackProductEvent("alina_chat_stage", { stage, mentor: mentor.key });
         return {
           ...current,
           messages: [...messages, { role: "alina", text: payload.text! }],
@@ -108,7 +106,7 @@ export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
     const messages: AlinaMessage[] = [...state.messages, { role: "person", text }];
     setDraft("");
     setState((current) => ({ ...current, messages }));
-    if (personTurns(messages) === 1) trackProductEvent("alina_chat_started", { signedIn: Boolean(signedIn) });
+    if (personTurns(messages) === 1) trackProductEvent("alina_chat_started", { signedIn: Boolean(signedIn), mentor: mentor.key });
     if (signedIn) void ask(messages);
   }
 
@@ -123,7 +121,7 @@ export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
       }, { authRequired: true });
       if (response.ok) {
         setState((current) => ({ ...current, wishSaved: true }));
-        trackProductEvent("alina_wish_saved", {});
+        trackProductEvent("alina_wish_saved", { mentor: mentor.key });
       } else {
         setError(ru ? "Желание не сохранилось. Попробуй ещё раз." : "The wish was not saved. Please try again.");
       }
@@ -135,7 +133,7 @@ export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
   }
 
   function restart() {
-    setState({ messages: openingMessages(locale), stage: "now", wish: null, step: null, wishSaved: false });
+    setState({ messages: openingMessages(mentor.opening, locale), stage: "now", wish: null, step: null, wishSaved: false });
     setSafety(null);
     setError(null);
   }
@@ -144,24 +142,24 @@ export default function AlinaChat({ locale }: { locale: "ru" | "en" }) {
   const waitingForSignIn = signedIn === false && last?.role === "person";
 
   return (
-    <section className="alina-chat" id="chat" aria-label={ru ? "Разговор с Алиной" : "Talk with Alina"}>
+    <section className="alina-chat" id="chat" aria-label={ru ? `Разговор: ${mentor.name.ru}` : `Talk with ${mentor.name.en}`}>
       <div className="alina-chat-log">
         {state.messages.map((message, index) => (
           <div key={index} className={`alina-bubble ${message.role}`}>
-            {message.role === "alina" && (index === 0 || state.messages[index - 1].role !== "alina") ? <img alt="" src={OA_LEAD_PERSONA.avatarUrl} /> : null}
+            {message.role === "alina" && (index === 0 || state.messages[index - 1].role !== "alina") ? <img alt="" src={mentor.avatarUrl} /> : null}
             <p>{message.text}</p>
           </div>
         ))}
-        {busy && signedIn ? <div className="alina-bubble alina typing"><p>{ru ? "Алина печатает…" : "Alina is typing…"}</p></div> : null}
+        {busy && signedIn ? <div className="alina-bubble alina typing"><p>{mentor.typing[locale]}</p></div> : null}
         {waitingForSignIn ? (
           <div className="alina-bubble alina">
-            <p>{ALINA_SIGN_IN_NOTE[locale]}</p>
+            <p>{mentor.signInNote[locale]}</p>
             <a
               className="legal-primary-action"
-              href={SIGN_IN_HREF}
+              href={signInHref}
               onClick={() => {
-                try { window.localStorage.setItem(ALINA_RETURN_KEY, "1"); } catch { /* still signs in */ }
-                trackProductEvent("alina_sign_in_clicked", {});
+                try { window.localStorage.setItem(ALINA_RETURN_KEY, mentor.path); } catch { /* still signs in */ }
+                trackProductEvent("alina_sign_in_clicked", { mentor: mentor.key });
               }}
             >
               {ru ? "Войти и продолжить" : "Sign in and continue"}

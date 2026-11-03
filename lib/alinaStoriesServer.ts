@@ -1,11 +1,10 @@
-// Server read for the public page /alina: Alina's published stories with their covers. Only public
+// Server read for a mentor's public page (/alina, /mark): the mentor's published stories with their covers. Only public
 // abundance_story posts of her system account, nothing personal.
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
-import { OA_LEAD_PERSONA } from "@/lib/oaLeadPersona";
 
 export type AlinaStoryCard = { id: string; title: string | null; excerpt: string; cover: string | null };
 
-export async function loadAlinaStories(): Promise<AlinaStoryCard[]> {
+export async function loadAlinaStories(systemAccountKey: string): Promise<AlinaStoryCard[]> {
   let db: any;
   try {
     db = createServiceSupabaseClient();
@@ -15,7 +14,7 @@ export async function loadAlinaStories(): Promise<AlinaStoryCard[]> {
   const { data: metadata } = await db
     .from("feed_system_story_metadata")
     .select("post_id,series_order")
-    .eq("system_account_key", OA_LEAD_PERSONA.systemAccountKey)
+    .eq("system_account_key", systemAccountKey)
     .order("series_order", { ascending: false })
     .limit(60);
   const ids = ((metadata ?? []) as Array<{ post_id: string }>).map((row) => row.post_id);

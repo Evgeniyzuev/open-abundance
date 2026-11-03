@@ -21,6 +21,9 @@ type InteractionComment = {
   author: {
     display_name: string | null;
     username: string | null;
+    avatar_url?: string | null;
+    /** An AI character from lib/aiPersonas.ts: avatar, name and an "ИИ" mark, no profile. */
+    ai_persona?: boolean;
   } | null;
 };
 
@@ -166,7 +169,13 @@ export default function FeedPostInteractions({
   function renderComment(comment: InteractionComment, rootId: string = comment.id) {
     return (
       <article id={`c-${comment.id}`}>
-        <strong>{comment.author?.display_name ?? (comment.author?.username ? `@${comment.author.username}` : t("social.feed.comment"))}{comment.author?.display_name && comment.author?.username ? <small className="profile-handle"> @{comment.author.username}</small> : null}</strong>
+        {comment.author?.ai_persona ? (
+          <strong className="feed-comment-persona">
+            {comment.author.avatar_url ? <img alt="" src={comment.author.avatar_url} /> : null}
+            {comment.author.display_name}
+            <small>{locale === "ru" ? "ИИ" : "AI"}</small>
+          </strong>
+        ) : <strong>{comment.author?.display_name ?? (comment.author?.username ? `@${comment.author.username}` : t("social.feed.comment"))}{comment.author?.display_name && comment.author?.username ? <small className="profile-handle"> @{comment.author.username}</small> : null}</strong>}
         <p><MentionText text={comment.body} /></p>
         <time dateTime={comment.created_at}>{formatCommentDate(comment.created_at, locale)}</time>
         <div className="feed-comment-votes">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { personaOfComment } from "@/lib/aiPersonas";
 import type { Tables } from "@/lib/database.types";
 import { COMMENT_LOAD_LIMIT, COMMENT_MAX_CHARS, buildCommentThreads, commentNotificationTargets, discussionPath, replyRootId } from "@/lib/feedComments";
 import { recordProductEvent } from "@/lib/serverAnalytics";
@@ -236,7 +237,7 @@ async function loadInteractions(
   }
   const scoredComments = commentRows.map((comment) => ({
     ...comment,
-    author: profileById.get(comment.user_id) ?? null,
+    author: personaAuthor(comment) ?? profileById.get(comment.user_id) ?? null,
     score: scoreById.get(comment.id) ?? 0,
     viewerVote: viewerVoteById.get(comment.id) ?? 0,
     own: comment.user_id === userId
@@ -297,4 +298,11 @@ function normalizeIdempotencyKey(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const key = value.trim();
   return key ? key.slice(0, 120) : null;
+}
+
+/** An AI character's comment (lib/aiPersonas.ts) shows only its name and avatar, with no profile behind it. */
+function personaAuthor(comment: CommentRow) {
+  const persona = personaOfComment(comment.user_id, comment.client_idempotency_key);
+  if (!persona) return null;
+  return { user_id: "", username: null, display_name: persona.name.ru, avatar_url: persona.avatarUrl, avatar_position: "50% 50%", level: 0, created_at: comment.created_at, ai_persona: true };
 }

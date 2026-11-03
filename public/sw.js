@@ -2,6 +2,16 @@ const CACHE_PREFIX = "open-abundance-";
 const CACHE_NAME = "open-abundance-v9";
 const ROOT_SHELL_KEY = "/";
 const SHELL_NETWORK_TIMEOUT_MS = 3000;
+// Vercel answers with its own error page and an x-vercel-error header when the whole deployment is unavailable
+// (paused for usage limits, blocked, deleted). The app treats those answers like having no network, so the cached
+// shell and local data (notes, tasks, Nova chats in IndexedDB) keep working.
+const DEPLOYMENT_OUTAGE_ERRORS = new Set([
+  "DEPLOYMENT_DISABLED",
+  "DEPLOYMENT_PAUSED",
+  "DEPLOYMENT_BLOCKED",
+  "DEPLOYMENT_DELETED",
+  "DEPLOYMENT_NOT_FOUND"
+]);
 const STATIC_APP_ASSETS = [
   "/manifest.webmanifest",
   "/icons/icon.svg",
@@ -37,7 +47,9 @@ self.addEventListener("fetch", (event) => {
   const sameOrigin = url.origin === self.location.origin;
 
   if (sameOrigin && url.pathname.startsWith("/api/")) {
-    event.respondWith(fetch(request, { cache: "no-store" }));
+    event.respondWith(fetch(request, { cache: "no-store" }).then((response) => (
+      isDeploymentOutage(response) ? Response.error() : response
+    )));
     return;
   }
 
@@ -50,7 +62,9 @@ self.addEventListener("fetch", (event) => {
       // webviews show their own loading screen and an old shell can leave them stuck on it.
       event.respondWith(networkFirstRootNavigation(event, url.search ? null : SHELL_NETWORK_TIMEOUT_MS));
     } else {
-      event.respondWith(fetch(request, { cache: "no-store" }));
+      event.respondWith(fetch(request, { cache: "no-store" }).then((response) => (
+        sameOrigin && isDeploymentOutage(response) ? outagePageResponse() : response
+      )));
     }
     return;
   }
@@ -119,14 +133,24 @@ async function networkFirstRootNavigation(event, timeoutMs) {
   const cachedShell = async () => (await caches.open(CACHE_NAME)).match(ROOT_SHELL_KEY);
 
   try {
-    if (timeoutMs === null) return await network;
+    if (timeoutMs === null) return await shellIfServerDown(await network, cachedShell);
     const slow = new Promise((resolve) => setTimeout(() => resolve("slow"), timeoutMs));
     const first = await Promise.race([network, slow]);
-    if (first !== "slow") return first;
+    if (first !== "slow") return await shellIfServerDown(first, cachedShell);
     return (await cachedShell()) ?? await network;
   } catch {
     return (await cachedShell()) ?? missingShellResponse();
   }
+}
+
+/** A server that is up but broken (5xx) or a deployment that is paused should not hide the local app. */
+async function shellIfServerDown(response, cachedShell) {
+  if (!isDeploymentOutage(response) && response.status < 500) return response;
+  return (await cachedShell()) ?? response;
+}
+
+function isDeploymentOutage(response) {
+  return DEPLOYMENT_OUTAGE_ERRORS.has(response.headers.get("x-vercel-error") || "");
 }
 
 async function refreshShell() {
@@ -217,6 +241,25 @@ function missingShellResponse() {
 </body></html>`, {
     status: 503,
     statusText: "App shell unavailable",
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "text/html; charset=utf-8"
+    }
+  });
+}
+
+function outagePageResponse() {
+  return new Response(`<!doctype html>
+<html lang="ru"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Open Abundance</title>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f2f2f7;font:16px system-ui;color:#232323">
+<main style="max-width:360px;padding:24px;text-align:center"><strong>Open Abundance</strong>
+<p>Сервер временно недоступен. Заметки и задачи на этом устройстве работают.</p>
+<p>The server is temporarily unavailable. Notes and tasks on this device still work.</p>
+<a href="/">Открыть приложение / Open the app</a></main>
+</body></html>`, {
+    status: 503,
+    statusText: "Server unavailable",
     headers: {
       "Cache-Control": "no-store",
       "Content-Type": "text/html; charset=utf-8"

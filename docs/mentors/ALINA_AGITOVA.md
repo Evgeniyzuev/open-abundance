@@ -56,6 +56,8 @@
 2. «Вам такое не по карману» — унижение на работе, невыплаченная зарплата, свой гостевой дом у моря. **Опубликован 2026-10-31** (seriesOrder 1, пост 52276ed8-1589-4b19-9371-8e0ba1e77a49), текст ниже.
 3. «Обещание» — обман близким человеком, потеря накоплений, свобода от ожидания спасения. **Черновик 2026-11-02** (seriesOrder 3), ждёт картинки и одобрения. Текст ниже. Промпт картинки: «Young woman with long dark wavy hair, early twenties, opening the glass door of her own small bakery at sunrise, warm golden light on the street, cinnamon buns in the window behind her, she smiles softly looking down the street, apron over a black top. Shot on iPhone 15 Pro, natural light, candid, slight grain, vertical 4:5, no text, no logos, no readable signs.»
 
+4. «Без опыта не берём» — отказы на собеседованиях, колл-центр, рисунки по ночам, своя студия иллюстраций. **Черновик 2026-11-04** (seriesOrder 4, пост b2cc6df9-8ae9-4fd4-88f4-ce6143e4320e), ждёт картинки и одобрения. Инсайт: «Мне тогда не отказали. Мне просто не дали чужой стул в чужом кабинете. И поэтому я построила свой стол». Промпт картинки: «Young woman in her early twenties with long dark wavy hair sitting at a big wooden desk by a large sunny window in her own illustration studio, drawing with a pencil, sketches pinned on the wall behind her, cup of tea, soft morning light on the paper, focused gentle smile. Shot on iPhone 15 Pro, natural light, candid, slight grain, vertical 4:5, no text, no logos, no readable writing.»
+
 ## Пост: «Вам такое не по карману»
 
 > Есть фраза, которую я долго слышала каждую ночь перед сном.

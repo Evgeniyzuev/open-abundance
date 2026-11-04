@@ -2120,4 +2120,4 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + var(--
 .lead-mentor-links { display: flex; gap: 14px; margin-top: 10px; font-size: 0.85em; }
 .feed-comment-list .feed-comment-persona { display: inline-flex; align-items: center; gap: 6px; }
 .feed-comment-persona img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
-.feed-comment-persona small { padding: 0 5px; border-radius: 6px; background: var(--surface); color: var(--muted); font-size: 0.6rem; font-weight: 800; }
+.feed-comment-list .feed-comment-persona-note { margin: 2px 0 0; color: var(--muted); font-size: 0.65rem; }

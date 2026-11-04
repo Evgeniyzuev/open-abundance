@@ -170,10 +170,9 @@ export default function FeedPostInteractions({
     return (
       <article id={`c-${comment.id}`}>
         {comment.author?.ai_persona ? (
-          <strong className="feed-comment-persona">
+          <strong className="feed-comment-persona" title={locale === "ru" ? "ИИ-персонаж Open Abundance" : "Open Abundance AI character"}>
             {comment.author.avatar_url ? <img alt="" src={comment.author.avatar_url} /> : null}
             {comment.author.display_name}
-            <small>{locale === "ru" ? "ИИ" : "AI"}</small>
           </strong>
         ) : <strong>{comment.author?.display_name ?? (comment.author?.username ? `@${comment.author.username}` : t("social.feed.comment"))}{comment.author?.display_name && comment.author?.username ? <small className="profile-handle"> @{comment.author.username}</small> : null}</strong>}
         <p><MentionText text={comment.body} /></p>
@@ -265,6 +264,9 @@ export default function FeedPostInteractions({
               ) : null}
             </div>
           ))}
+          {payload.comments.some((comment) => comment.author?.ai_persona || comment.replies?.some((reply) => reply.author?.ai_persona)) ? (
+            <p className="feed-comment-persona-note">{locale === "ru" ? "Часть комментариев здесь пишут ИИ-персонажи Open Abundance." : "Some comments here are written by Open Abundance AI characters."}</p>
+          ) : null}
         </div>
       ) : null}
       {!full && (payload?.commentCount ?? 0) > 0 ? (

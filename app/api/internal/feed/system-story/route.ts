@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeClaudeOrOperator } from "@/lib/claudeActionsAuth";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { readR2Config } from "@/lib/r2Media";
 import { OA_RELAY_LEAD_ID } from "@/lib/qaAccounts";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 
@@ -11,6 +12,13 @@ export const fetchCache = "force-no-store";
 const KEY = /^[a-z0-9_]{1,64}$/;
 const SOURCE_KEY = /^[a-z0-9_:-]{3,120}$/;
 const LOCAL_URL = /^\/[a-z0-9/_.-]{1,200}$/i;
+
+/** A file from /public, or a picture uploaded to our R2 bucket (POST /api/internal/media/upload), so no redeploy is needed. */
+function isOwnImageUrl(url: string): boolean {
+  if (LOCAL_URL.test(url)) return true;
+  const base = readR2Config(process.env)?.publicBaseUrl;
+  return Boolean(base && url.startsWith(`${base}/editorial/`) && /^[a-z0-9:/_.-]+$/i.test(url));
+}
 
 type Payload = {
   account?: { key?: unknown; displayName?: unknown; bioRu?: unknown; bioEn?: unknown; avatarUrl?: unknown; leadUserId?: unknown; leadProfileName?: unknown };
@@ -33,7 +41,7 @@ type Payload = {
  * Alina Agitova, docs/mentors/ALINA_AGITOVA.md) and one of its abundance_story posts, matched by sourceKey so a repeat
  * call edits instead of duplicating. With account.leadUserId set to the Open Abundance lead relay, that profile takes the
  * narrator's face too (leadProfileName, avatarUrl), so her stories and her weekly guidance come from one person.
- * Images must be files from /public. Callers: operator or Claude (CLAUDE_ACTIONS_TOKEN), only for texts the operator
+ * Images are files from /public or pictures uploaded with POST /api/internal/media/upload. Callers: operator or Claude (CLAUDE_ACTIONS_TOKEN), only for texts the operator
  * approved in the project.
  */
 export async function POST(request: NextRequest) {
@@ -46,8 +54,8 @@ export async function POST(request: NextRequest) {
   const accountKey = text(account?.key, 64);
   const displayName = text(account?.displayName, 80);
   const avatarUrl = text(account?.avatarUrl, 200);
-  if (!KEY.test(accountKey) || !displayName || (avatarUrl && !LOCAL_URL.test(avatarUrl))) {
-    return json({ error: "account.key (a-z0-9_), account.displayName and a local account.avatarUrl are required." }, 400);
+  if (!KEY.test(accountKey) || !displayName || (avatarUrl && !isOwnImageUrl(avatarUrl))) {
+    return json({ error: "account.key (a-z0-9_), account.displayName and an own account.avatarUrl (/public or uploaded) are required." }, 400);
   }
   const sourceKey = text(story?.sourceKey, 120);
   const seriesKey = text(story?.seriesKey, 64);
@@ -58,7 +66,7 @@ export async function POST(request: NextRequest) {
   if (!SOURCE_KEY.test(sourceKey) || !KEY.test(seriesKey) || !Number.isInteger(seriesOrder) || seriesOrder < 1 || bodyRu.length < 20) {
     return json({ error: "story.sourceKey, story.seriesKey, story.seriesOrder >= 1 and story.bodyRu are required." }, 400);
   }
-  if (coverUrl && !LOCAL_URL.test(coverUrl)) return json({ error: "story.coverUrl must be a local /public path." }, 400);
+  if (coverUrl && !isOwnImageUrl(coverUrl)) return json({ error: "story.coverUrl must be a /public path or an uploaded picture url." }, 400);
   const publish = story?.publish !== false;
   const now = new Date().toISOString();
   const db = createServiceSupabaseClient() as any;

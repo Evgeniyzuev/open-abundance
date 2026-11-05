@@ -27,7 +27,7 @@
 
 ## Технически
 
-Наставники описаны в lib/mentors.ts (ключ mark, страница /mark, системный аккаунт mark_sokolov, серия mark_stories, способность mentor.mark, квота tools.mark). Публикация историй — POST /api/internal/feed/system-story.
+Наставники описаны в lib/mentors.ts (ключ mark, страница /mark, системный аккаунт mark_sokolov, серия mark_stories, способность mentor.mark, квота tools.mark). Публикация историй — POST /api/internal/feed/system-story. Картинки без деплоя: сначала POST /api/internal/media/upload { base64, prefix } кладёт файл в R2 (editorial/<prefix>/…) и возвращает ссылку, её передаём как coverUrl или avatarUrl.
 
 ## Марк как ИИ-лид (2026-11-03)
 

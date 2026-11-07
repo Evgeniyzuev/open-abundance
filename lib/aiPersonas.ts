@@ -9,7 +9,7 @@
 
 export const PERSONA_HOST_ID = "3dbbec5f-2f5a-4004-80cd-210405e24114";
 
-export const AI_PERSONA_KEYS = ["olya", "dima", "katya", "vika", "liza"] as const;
+export const AI_PERSONA_KEYS = ["olya", "dima", "katya", "vika", "liza", "marina"] as const;
 export type AiPersonaKey = (typeof AI_PERSONA_KEYS)[number];
 
 export type AiPersona = { key: AiPersonaKey; name: { ru: string; en: string }; avatarUrl: string; character: string };
@@ -44,6 +44,12 @@ export const AI_PERSONAS: Record<AiPersonaKey, AiPersona> = {
     name: { ru: "Лиза Котова", en: "Liza Kotova" },
     avatarUrl: "/feed/personas/liza.jpg",
     character: "27 лет, дизайнер на фрилансе, работает одна из дома. Вдумчивая, пишет про чувства и маленькие решения, которые приняла после истории."
+  },
+  marina: {
+    key: "marina",
+    name: { ru: "Марина Л.", en: "Marina L." },
+    avatarUrl: "/feed/personas/marina.jpg",
+    character: "29 лет, менеджер в логистике, устала от офиса и тихо мечтает жить у моря. Пишет мягко и коротко, замечает утро, свет и маленькие радости."
   }
 };
 

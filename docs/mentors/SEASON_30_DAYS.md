@@ -117,8 +117,8 @@
 
 ## Тексты
 
-- День 1, Марк: «Двадцать минут вместо ленты». Черновик 2026-11-07: пост 8e928122-fd1d-47aa-872a-acdf81dfbd1d, sourceKey mentor:mark_sokolov:season-d01, seriesKey mark_season, seriesOrder = номер дня. Ждёт картинки.
-- День 1, Алина: «Серое пальто». Черновик 2026-11-07: пост a51d4273-bd17-4483-b27b-81248e3a23a9, sourceKey mentor:alina_agitova:season-d01, seriesKey alina_season. Ждёт картинки.
+- День 1, Марк: «Двадцать минут вместо ленты». **Опубликован 2026-11-07**, обложка R2 editorial/mark-season: пост 8e928122-fd1d-47aa-872a-acdf81dfbd1d, sourceKey mentor:mark_sokolov:season-d01, seriesKey mark_season, seriesOrder = номер дня.
+- День 1, Алина: «Серое пальто». **Опубликован 2026-11-07**, обложка R2 editorial/alina-season: пост a51d4273-bd17-4483-b27b-81248e3a23a9, sourceKey mentor:alina_agitova:season-d01, seriesKey alina_season.
 
 Публикация: картинка загружается через POST /api/internal/media/upload, затем тот же вызов system-story с coverUrl и publish true.
 

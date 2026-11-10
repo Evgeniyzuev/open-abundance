@@ -25,3 +25,24 @@ assert.equal(taking.stepsThisWeek, 2);
 
 assert.equal(buildWeeklyWishState({ now: Date.UTC(2026, 10, 15, 23, 30), activeWishes: 1, stepsThisWeek: 1, fulfilledTotal: 0 }).daysLeft, 1, "never zero days left");
 console.log("weekly wishes contract ok");
+
+// Weekly newcomer groups for experiments.
+const { bestVariant, buildCohortReport, variantOf } = await import("../lib/cohortReport.ts");
+assert.equal(variantOf({ cohort_id: "w46-a", campaign: "x", acquisition_source: "tg" }), "w46-a");
+assert.equal(variantOf({ campaign: "hook-wish", acquisition_source: "tg" }), "hook-wish");
+assert.equal(variantOf({ acquisition_source: "telegram" }), "telegram");
+assert.equal(variantOf(null), "direct");
+const person = (id, day, extra = {}) => ({ id, registeredAt: `2026-11-${day}T10:00:00Z`, wishes: 0, challengesCompleted: 0, returnedDay2: false, referralsInvited: 0, outcomeAnswers: [], ...extra });
+const people = [
+  ...Array.from({ length: 6 }, (_, i) => person(`a${i}`, "03", { returnedDay2: i < 3, wishes: 1 })),
+  ...Array.from({ length: 5 }, (_, i) => person(`b${i}`, "04", { returnedDay2: i < 1 })),
+  person("c0", "05"),
+  person("old", "01", { registeredAt: "2026-08-01T00:00:00Z" })
+];
+const variantMap = new Map([...people.filter((p) => p.id.startsWith("a")).map((p) => [p.id, "hook-a"]), ...people.filter((p) => p.id.startsWith("b")).map((p) => [p.id, "hook-b"]), ["c0", "solo"]]);
+const rows = buildCohortReport({ people, variants: variantMap, now });
+assert.deepEqual(rows.map((row) => [row.week, row.variant, row.people]), [["2026-11-02", "hook-a", 6], ["2026-11-02", "hook-b", 5], ["2026-11-02", "другое", 1]], "small groups merge, old weeks drop out");
+assert.equal(rows[0].addedWish, 6);
+assert.deepEqual(bestVariant(rows), { week: "2026-11-02", variant: "hook-a", rate: 0.5 });
+assert.equal(bestVariant(rows.slice(0, 1)), null, "one group is nothing to compare");
+console.log("cohort report contract ok");

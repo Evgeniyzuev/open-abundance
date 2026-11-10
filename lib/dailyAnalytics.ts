@@ -8,6 +8,7 @@
 //   only for groups of at least MIN_GROUP people; smaller groups are merged into "other".
 // - Text leaves the database only where people wrote it for others to read: public wishes,
 //   comments on public posts, marketplace listings, and feedback addressed to the team.
+import { bestVariant, buildCohortReport, variantOf } from "./cohortReport.ts";
 import { createHash, createHmac } from "node:crypto";
 import {
   buildFunnel,
@@ -806,6 +807,23 @@ export function buildDailyReport(snapshot: AnalyticsSnapshot, options: { salt: s
   out.push("\n### Предложения по рефералам (решение за Evgen)");
   out.push(referral.proposals.length ? referral.proposals.map((proposal, index) => `${index + 1}. **${proposal.title}.** ${proposal.why}`).join("\n") : "_сегодня правила ничего не предлагают_");
   details.referrals = { funnel: referral.funnel, shares: referral.shares, help: referral.help, paid: referral.paid, invitations: referral.invitations, proposals: referral.proposals };
+
+  // Weekly newcomer groups: which entry variant keeps people (growth experiments, 2026-11-10).
+  const variants = new Map<string, string>();
+  for (const event of events) if (event.event_name === "registration_completed" && event.user_id) variants.set(event.user_id, variantOf(event.properties));
+  const cohortRows = buildCohortReport({ people: participants, variants, now, minGroup });
+  out.push("\n## 17. Недельные группы новичков и опыты");
+  out.push("Группа задаётся меткой в ссылке: `?cohort=...`, иначе `utm_campaign`, иначе источник. Неделя начинается в понедельник (UTC).");
+  out.push(cohortRows.length
+    ? table(["Неделя", "Вариант", "Людей", "С желанием", "3 квеста", "Вернулись на 2-й день", "Пригласили", "Ответили «приблизило ли»"], cohortRows.map((row) => [
+      row.week, row.variant, row.people, pct(row.addedWish, row.people), pct(row.threeQuests, row.people),
+      row.day2Eligible ? `${pct(row.day2Returned, row.day2Eligible)} (${row.day2Returned} из ${row.day2Eligible})` : "рано", pct(row.invited, row.people), pct(row.answeredOutcome, row.people)
+    ]))
+    : "_новичков за 6 недель нет_");
+  const best = bestVariant(cohortRows);
+  out.push(best ? `Лучший вариант недели ${best.week}: **${best.variant}**, возврат на 2-й день ${Math.round(best.rate * 100)}%. Дать ему больше потока.` : "Сравнивать пока нечего: нужна неделя с двумя вариантами от 5 человек в каждом.");
+  metrics.cohort_groups = cohortRows.length;
+  details.cohorts = cohortRows;
 
   out.push("\n## Детали");
   out.push("Файлы рядом с этой сводкой (`details/*.json`): " + Object.keys(details).map((key) => `\`${key}\``).join(", ") + ".");

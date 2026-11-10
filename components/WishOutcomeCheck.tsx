@@ -5,7 +5,7 @@ import { useUserContext } from "@/components/UserProvider";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
-const ASK_AFTER_HOURS = 48;
+const ASK_AFTER_HOURS = 24;
 const REASK_AFTER_DAYS = 4;
 const DAY_MS = 86_400_000;
 const ANSWERS = [
@@ -19,7 +19,7 @@ type AskedWish = { id: string; title: string };
 /**
  * One-tap outcome signal for the main wish: did the product bring the person closer to it?
  * This is the satisfaction input the coordinator optimises, so it is asked rarely: not before the
- * wish is two days old, at most once every few days, and not on top of the day-2 check-in.
+ * wish is a day old, at most once every few days, and not on top of the day-2 check-in.
  * The answer is stored as a product event with the wish id; the wish text is never sent.
  */
 export default function WishOutcomeCheck({ active }: { active: boolean }) {

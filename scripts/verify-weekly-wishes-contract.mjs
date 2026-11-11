@@ -46,3 +46,31 @@ assert.equal(rows[0].addedWish, 6);
 assert.deepEqual(bestVariant(rows), { week: "2026-11-02", variant: "hook-a", rate: 0.5 });
 assert.equal(bestVariant(rows.slice(0, 1)), null, "one group is nothing to compare");
 console.log("cohort report contract ok");
+
+// The open wish fund ledger.
+const { parseFundEntry, summarizeFund } = await import("../lib/wishFund.ts");
+assert.equal(typeof parseFundEntry(null), "string");
+assert.equal(typeof parseFundEntry({ kind: "gift", amount: 5 }), "string", "unknown kind");
+assert.equal(typeof parseFundEntry({ kind: "founder", amount: 0 }), "string", "a contribution needs money");
+assert.equal(typeof parseFundEntry({ kind: "money", amount: 0, title: "x" }), "string", "a money wish needs a sum");
+assert.equal(typeof parseFundEntry({ kind: "help", amount: 0 }), "string", "a fulfilled wish needs a title");
+assert.deepEqual(parseFundEntry({ kind: "help", title: "  Разобрать   резюме ", personDid: "3 квеста", isPublic: true, userId: "nope" }),
+  { direction: "out", kind: "help", amount: 0, title: "Разобрать резюме", personDid: "3 квеста", result: "", isPublic: true, userId: null, wishId: null });
+assert.equal(parseFundEntry({ kind: "patron", amount: 20.005 }).direction, "in");
+const fundRow = (extra) => ({ id: Math.random().toString(), direction: "out", kind: "help", amount: 0, week_start: "2026-11-09", title: "t", person_did: "", result: "", is_public: false, created_at: "2026-11-10T00:00:00Z", ...extra });
+const fund = summarizeFund([
+  fundRow({ direction: "in", kind: "founder", amount: 100 }),
+  fundRow({ direction: "in", kind: "patron", amount: "20.50" }),
+  fundRow({ id: "pub", is_public: true, title: "Резюме", person_did: "сделал 3 шага", result: "позвали на собеседование" }),
+  fundRow({ kind: "money", amount: 15, title: "секрет" }),
+  fundRow({ kind: "habit", week_start: "2026-11-02", is_public: true })
+]);
+assert.equal(fund.received, 120.5);
+assert.equal(fund.spent, 15);
+assert.equal(fund.balance, 105.5);
+assert.equal(fund.fulfilled, 3);
+assert.equal(fund.fulfilledWithoutMoney, 2);
+assert.equal(fund.contributors, 2);
+assert.deepEqual(fund.weeks.map((week) => [week.weekStart, week.fulfilled, week.spent, week.entries.length, week.hidden]), [["2026-11-09", 2, 15, 1, 1], ["2026-11-02", 1, 0, 1, 0]]);
+assert.ok(!JSON.stringify(fund).includes("секрет"), "a private row never leaks its title");
+console.log("wish fund contract ok");

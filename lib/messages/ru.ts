@@ -3504,6 +3504,7 @@ const ru: Record<string, string> = {
   "weeklyWishes.action.addWish": "Записать желание",
   "weeklyWishes.action.makeStep": "Сделать шаг",
   "weeklyWishes.action.more": "Сделать ещё шаг",
+  "weeklyWishes.fundLink": "Что уже исполнено",
   "wishes.small.notNow": "Не сейчас",
   "wishes.price.free": "Без денег: можно начать сразу.",
   "wishes.price.rule": "Без ущерба для роста исполнимо при Core от {core} (уровень {level}): его доход за год покрывает цену.",

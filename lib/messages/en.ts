@@ -3504,6 +3504,7 @@ const en = {
   "weeklyWishes.action.addWish": "Write down a wish",
   "weeklyWishes.action.makeStep": "Make a step",
   "weeklyWishes.action.more": "Make one more step",
+  "weeklyWishes.fundLink": "What has been fulfilled",
   "wishes.small.notNow": "Not now",
   "wishes.price.free": "No money needed: you can start right away.",
   "wishes.price.rule": "Comes true without slowing growth at Core from {core} (level {level}): its yearly income covers the price.",

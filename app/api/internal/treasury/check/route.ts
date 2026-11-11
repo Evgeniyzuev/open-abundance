@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { buildTreasuryCoverageReport, decideTreasuryAlert, type TreasuryCoverageReport } from "@/lib/treasuryCoverage";
+import { decideReserveGuard, sumJournal } from "@/lib/reserveGuard";
 import { isUuid } from "@/lib/uuid";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,8 @@ export const fetchCache = "force-no-store";
  * Called by pg_cron every 15 minutes with the shared scanner secret. Builds the
  * coverage report, stores the last state and sends a notification to Growth
  * Operators when the light turns yellow or red, when the report fails (unknown),
- * and with one status digest per day. It never blocks withdrawals.
+ * and with one status digest per day. The coverage light never blocks withdrawals; the reserve guard does when
+ * the reserve dropped by more than the withdrawal journal explains.
  */
 export async function POST(request: NextRequest) {
   const expected = process.env.TON_SCANNER_SECRET?.trim();
@@ -63,7 +65,48 @@ export async function POST(request: NextRequest) {
     digestSent = !error && decision.digest;
   }
 
+  // Reserve guard: a drop of the reserve that the withdrawal journal does not explain alerts the operators and
+  // pauses app withdrawals. Works only after migration 20261111150000 added the columns.
+  const guardReady = Boolean(state && "withdrawals_paused" in state);
+  let guard: { unexplainedTon: number; unexplainedUsdt: number; alarm: boolean } | null = null;
+  if (guardReady) {
+    const since = state.last_checked_at ?? null;
+    const sinceFilter = new Date((since ? Date.parse(since) : now.getTime()) - 3_600_000).toISOString();
+    const [tonRows, usdtRows] = await Promise.all([
+      supabase.from("ton_withdrawals").select("status,amount_ton,network_fee_reserve_ton,created_at,broadcast_at").gte("created_at", sinceFilter),
+      supabase.from("ton_usdt_withdrawals").select("status,amount_usdt,created_at,broadcast_at").gte("created_at", sinceFilter)
+    ]);
+    // Without the journal the drop cannot be judged; skip this round instead of raising a false alarm.
+    if (!tonRows.error && !usdtRows.error) {
+      guard = decideReserveGuard(
+        { ton: state.last_ton_balance === null || state.last_ton_balance === undefined ? null : Number(state.last_ton_balance), usdt: state.last_usdt_balance === null || state.last_usdt_balance === undefined ? null : Number(state.last_usdt_balance) },
+        { ton: report.treasury.tonBalance, usdt: report.treasury.usdtBalance },
+        sumJournal(tonRows.data ?? [], usdtRows.data ?? [], since)
+      );
+    }
+    if (guard?.alarm && recipients > 0) {
+      await supabase.rpc("create_notification_event", {
+        p_event_type: "treasury.unexplained_outflow",
+        p_category: "system",
+        p_source_type: "treasury",
+        p_source_id: "reserve_guard",
+        p_title: "Резерв: перевод не через приложение",
+        p_body: `Из резерва ушло ${guard.unexplainedTon} TON и ${guard.unexplainedUsdt} USDT, которых нет в журнале выводов. Выводы в приложении остановлены. Проверьте кошелёк резерва.`,
+        p_deep_link: "/",
+        p_recipient_user_ids: operatorIds,
+        p_idempotency_key: `treasury-guard:${Math.floor(now.getTime() / 60_000)}`,
+        p_metadata: { unexplainedTon: guard.unexplainedTon, unexplainedUsdt: guard.unexplainedUsdt }
+      });
+    }
+  }
+
   await supabase.from("treasury_coverage_state").update({
+    ...(guardReady ? {
+      // A balance that could not be read keeps the previous value, so the next successful check still compares.
+      ...(report.treasury.tonBalance !== null ? { last_ton_balance: report.treasury.tonBalance } : {}),
+      ...(report.treasury.usdtBalance !== null ? { last_usdt_balance: report.treasury.usdtBalance } : {}),
+      ...(guard?.alarm ? { withdrawals_paused: true, paused_reason: `unexplained outflow: ${guard.unexplainedTon} TON, ${guard.unexplainedUsdt} USDT`, paused_at: now.toISOString(), last_unexplained_at: now.toISOString() } : {})
+    } : {}),
     last_light: report.light,
     last_ratio: report.coverageRatio,
     last_checked_at: now.toISOString(),
@@ -74,7 +117,7 @@ export async function POST(request: NextRequest) {
     updated_at: now.toISOString()
   }).eq("id", true);
 
-  return json({ light: report.light, coverageRatio: report.coverageRatio, alertDue: decision.alert, digestDue: decision.digest, notified, digestSent, recipients }, 200);
+  return json({ light: report.light, coverageRatio: report.coverageRatio, alertDue: decision.alert, digestDue: decision.digest, notified, digestSent, recipients, guard: guardReady ? guard : "migration_pending" }, 200);
 }
 
 const LIGHT_NAMES: Record<string, string> = { green: "зелёный", yellow: "жёлтый", red: "красный", black: "чёрный", unknown: "не определён" };

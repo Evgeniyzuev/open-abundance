@@ -8,7 +8,8 @@ import {
   TonWithdrawalBroadcastError
 } from "@/lib/tonWithdrawals";
 import { firstWithdrawalBlock } from "@/lib/withdrawalGate";
-import { getAuthenticatedUser } from "@/lib/serverSupabase";
+import { createServiceSupabaseClient, getAuthenticatedUser } from "@/lib/serverSupabase";
+import { withdrawalsPaused } from "@/lib/reserveGuard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -59,6 +60,10 @@ export async function POST(request: NextRequest) {
   try {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return jsonResponse({ error }, { status: 401 });
+
+    if (await withdrawalsPaused(createServiceSupabaseClient() as never)) {
+      return jsonResponse({ error: "Withdrawals are paused for a reserve check. Your Wallet balance is safe; please try again later.", reason: "reserve_check" }, { status: 503 });
+    }
 
     const config = loadTonWithdrawalConfig();
     if (!config.ready) {

@@ -4,6 +4,7 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import { buildTreasuryCoverageReport, decideTreasuryAlert, type TreasuryCoverageReport } from "@/lib/treasuryCoverage";
 import { decideReserveGuard, sumJournal } from "@/lib/reserveGuard";
+import { sendQueuedTelegramCopies, telegramCopiesBotToken } from "@/lib/telegramNotificationQueue";
 import { isUuid } from "@/lib/uuid";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +17,8 @@ export const fetchCache = "force-no-store";
  * Called by pg_cron every 15 minutes with the shared scanner secret. Builds the
  * coverage report, stores the last state and sends a notification to Growth
  * Operators when the light turns yellow or red, when the report fails (unknown),
- * and with one status digest per day. The coverage light never blocks withdrawals; the reserve guard does when
- * the reserve dropped by more than the withdrawal journal explains.
+ * and with one status digest per day. It never blocks withdrawals. The reserve guard adds an alert when the reserve
+ * dropped by more than the withdrawal journal explains.
  */
 export async function POST(request: NextRequest) {
   const expected = process.env.TON_SCANNER_SECRET?.trim();
@@ -46,10 +47,14 @@ export async function POST(request: NextRequest) {
   const recipients = operatorIds.length;
   let notified = false;
   let digestSent = false;
+  let pushed = false;
   if ((decision.alert || decision.digest) && recipients > 0) {
     const message = decision.alert ? buildAlertMessage(report) : buildDigestMessage(report);
     const kind = decision.alert ? "alert" : "digest";
-    const { error } = await supabase.rpc("create_notification_event", {
+    // Alerts go out as a push and a Telegram copy. Until 2026-11-11 they were created without the push flag, so a
+    // red or black light only appeared in the in-app list and went unnoticed. The daily digest stays in the list.
+    const { error } = await supabase.rpc("create_notification_event_raw", {
+      p_push: kind === "alert",
       p_event_type: kind === "alert" ? "treasury.coverage" : "treasury.digest",
       p_category: "system",
       p_source_type: "treasury",
@@ -62,12 +67,13 @@ export async function POST(request: NextRequest) {
       p_metadata: { light: report.light, coverageRatio: report.coverageRatio, stressCoverageRatio: report.stressCoverageRatio }
     });
     notified = !error && decision.alert;
+    pushed = notified;
     digestSent = !error && decision.digest;
   }
 
-  // Reserve guard: a drop of the reserve that the withdrawal journal does not explain alerts the operators and
-  // pauses app withdrawals. Works only after migration 20261111150000 added the columns.
-  const guardReady = Boolean(state && "withdrawals_paused" in state);
+  // Reserve guard: a drop of the reserve that the withdrawal journal does not explain alerts the operators by
+  // push and Telegram. Works only after migration 20261111150000 added the columns.
+  const guardReady = Boolean(state && "last_ton_balance" in state);
   let guard: { unexplainedTon: number; unexplainedUsdt: number; alarm: boolean } | null = null;
   if (guardReady) {
     const since = state.last_checked_at ?? null;
@@ -85,13 +91,15 @@ export async function POST(request: NextRequest) {
       );
     }
     if (guard?.alarm && recipients > 0) {
-      await supabase.rpc("create_notification_event", {
+      pushed = true;
+      await supabase.rpc("create_notification_event_raw", {
+        p_push: true,
         p_event_type: "treasury.unexplained_outflow",
         p_category: "system",
         p_source_type: "treasury",
         p_source_id: "reserve_guard",
         p_title: "Резерв: перевод не через приложение",
-        p_body: `Из резерва ушло ${guard.unexplainedTon} TON и ${guard.unexplainedUsdt} USDT, которых нет в журнале выводов. Выводы в приложении остановлены. Проверьте кошелёк резерва.`,
+        p_body: `Из резерва ушло ${guard.unexplainedTon} TON и ${guard.unexplainedUsdt} USDT, которых нет в журнале выводов. Проверьте кошелёк резерва.`,
         p_deep_link: "/",
         p_recipient_user_ids: operatorIds,
         p_idempotency_key: `treasury-guard:${Math.floor(now.getTime() / 60_000)}`,
@@ -105,7 +113,7 @@ export async function POST(request: NextRequest) {
       // A balance that could not be read keeps the previous value, so the next successful check still compares.
       ...(report.treasury.tonBalance !== null ? { last_ton_balance: report.treasury.tonBalance } : {}),
       ...(report.treasury.usdtBalance !== null ? { last_usdt_balance: report.treasury.usdtBalance } : {}),
-      ...(guard?.alarm ? { withdrawals_paused: true, paused_reason: `unexplained outflow: ${guard.unexplainedTon} TON, ${guard.unexplainedUsdt} USDT`, paused_at: now.toISOString(), last_unexplained_at: now.toISOString() } : {})
+      ...(guard?.alarm ? { last_unexplained_at: now.toISOString() } : {})
     } : {}),
     last_light: report.light,
     last_ratio: report.coverageRatio,
@@ -116,6 +124,12 @@ export async function POST(request: NextRequest) {
     ...(report.light === "green" ? { last_notified_light: null } : {}),
     updated_at: now.toISOString()
   }).eq("id", true);
+
+  // Send the Telegram copies now instead of waiting for the queue.
+  if (pushed) {
+    const botToken = telegramCopiesBotToken();
+    if (botToken) await sendQueuedTelegramCopies(supabase, botToken, 10).catch(() => undefined);
+  }
 
   return json({ light: report.light, coverageRatio: report.coverageRatio, alertDue: decision.alert, digestDue: decision.digest, notified, digestSent, recipients, guard: guardReady ? guard : "migration_pending" }, 200);
 }

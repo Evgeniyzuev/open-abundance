@@ -1,8 +1,8 @@
 // Reserve guard (2026-11-11). On Nov 8 the reserve wallet was emptied by a transfer signed outside the app, and
 // nobody noticed for three days. The guard compares each drop of the reserve balance between two treasury checks
-// with what the withdrawal journal explains. An unexplained drop alerts the operators and pauses app withdrawals.
-// It cannot stop someone who holds the seed; it makes the loss visible within one check and stops the app from
-// signing with a wallet that may be compromised.
+// with what the withdrawal journal explains. An unexplained drop sends the operators a push and a Telegram message.
+// It cannot stop someone who holds the seed and does not pause withdrawals; it makes the loss visible within one
+// check instead of days.
 
 export type ReserveSnapshot = { ton: number | null; usdt: number | null };
 export type JournalOutflow = { ton: number; usdt: number; usdtTransfers: number };
@@ -43,14 +43,4 @@ export function sumJournal(tonRows: Row[], usdtRows: Row[], sinceIso: string | n
     usdt: usdt.reduce((sum, row) => sum + num(row.amount_usdt), 0),
     usdtTransfers: usdt.length
   };
-}
-
-/** True when the guard paused withdrawals. A missing column (migration not applied yet) means not paused. */
-export async function withdrawalsPaused(supabase: { from: (table: string) => any }): Promise<boolean> {
-  try {
-    const { data } = await supabase.from("treasury_coverage_state").select("*").eq("id", true).maybeSingle();
-    return data?.withdrawals_paused === true;
-  } catch {
-    return false;
-  }
 }

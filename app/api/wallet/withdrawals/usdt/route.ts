@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { firstWithdrawalBlock } from "@/lib/withdrawalGate";
-import { createServiceSupabaseClient, getAuthenticatedUser } from "@/lib/serverSupabase";
-import { withdrawalsPaused } from "@/lib/reserveGuard";
+import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { broadcastTonUsdtWithdrawal, loadTonUsdtConfig, normalizeTonUsdtAddress, resolveTonUsdtWithdrawalQuote, TonUsdtWithdrawalBroadcastError } from "@/lib/tonUsdt";
 import { loadTonWithdrawalConfig } from "@/lib/tonWithdrawals";
 
@@ -37,7 +36,6 @@ export async function POST(request: NextRequest) {
   try {
     const { supabase, user, error } = await getAuthenticatedUser(request);
     if (error || !user) return jsonResponse({ error }, { status: 401 });
-    if (await withdrawalsPaused(createServiceSupabaseClient() as never)) return jsonResponse({ error: "Withdrawals are paused for a reserve check. Your Wallet balance is safe; please try again later.", reason: "reserve_check" }, { status: 503 });
     const config = await loadTonUsdtConfig();
     const signer = loadTonWithdrawalConfig();
     if (!config?.ready || !config.withdrawalEnabled || !signer.ready) return jsonResponse({ error: "TON USDT withdrawal is not configured on this server.", reason: !config ? "disabled" : !config.ready ? config.reason : !config.withdrawalEnabled ? "withdrawal_disabled" : signer.reason, diagnostics: signer.diagnostics }, { status: 503 });

@@ -51,7 +51,7 @@ export default function WeeklyWishesCard({ active, onOpenWishes, onOpenQuests }:
       <p className={`weekly-wishes-status${state.participating ? " in" : ""}`}>
         {t(state.next === "add_wish" ? "weeklyWishes.status.addWish" : state.next === "make_step" ? "weeklyWishes.status.makeStep" : "weeklyWishes.status.in", { steps: state.stepsThisWeek })}
       </p>
-      <button className={state.participating ? "secondary-button" : "primary-button"} type="button" onClick={act}>
+      <button className={state.participating ? "secondary-button" : "task-done-primary-button"} type="button" onClick={act}>
         {t(state.next === "add_wish" ? "weeklyWishes.action.addWish" : state.next === "make_step" ? "weeklyWishes.action.makeStep" : "weeklyWishes.action.more")}
       </button>
       <a className="text-button weekly-wishes-fund" href="/fund" target="_blank" rel="noopener">{t("weeklyWishes.fundLink")}</a>

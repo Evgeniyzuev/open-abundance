@@ -26,6 +26,7 @@
     "test:project-review": "node --experimental-strip-types scripts/verify-project-review-contract.mjs",
     "test:lead-week": "node --experimental-strip-types scripts/verify-lead-week-contract.mjs",
     "test:reserve-guard": "node --experimental-strip-types scripts/verify-reserve-guard-contract.mjs",
+    "test:nova-requests": "node --experimental-strip-types scripts/verify-nova-requests-contract.mjs",
     "test:weekly-wishes": "node --experimental-strip-types scripts/verify-weekly-wishes-contract.mjs",
     "test:small-wishes": "node --experimental-strip-types scripts/verify-small-wishes-contract.mjs",
     "test:daily-analytics": "node --experimental-strip-types scripts/verify-daily-analytics-contract.mjs",

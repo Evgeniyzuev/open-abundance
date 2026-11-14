@@ -19,6 +19,7 @@ import LeadMeetingCard from "@/components/LeadMeetingCard";
 import SelfServeCheckIn from "@/components/SelfServeCheckIn";
 import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import WeeklyWishesCard from "@/components/WeeklyWishesCard";
+import NovaRequestsCard from "@/components/NovaRequestsCard";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
 import Skeleton from "@/components/ui/Skeleton";
@@ -735,6 +736,7 @@ export default function AppNavigation() {
             onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
             onOpenQuests={openNextChallenge}
           />
+          <NovaRequestsCard active={showHome} />
           <InstallPingAck />
           <NicknameNotice active={showHome} />
           <SelfServeCheckIn active={showHome} />

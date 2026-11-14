@@ -25,6 +25,23 @@
 .weekly-wishes-card .weekly-wishes-status { color: var(--text); font-weight: 700; }
 .weekly-wishes-card .weekly-wishes-status.in { color: var(--blue); }
 .weekly-wishes-card .weekly-wishes-fund { justify-self: start; text-decoration: none; }
+.nova-requests-card { border: 1px solid var(--line-subtle); }
+.nova-requests-card h2 { margin: 0; font-size: 1.05rem; line-height: 1.25; }
+.nova-requests-card h3 { margin: 6px 0 0; font-size: .9rem; }
+.nova-requests-card p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }
+.nova-requests-card textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--line-subtle); border-radius: 12px; padding: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: .9rem; resize: vertical; }
+.nova-request-form, .nova-request-talk { display: grid; gap: 8px; }
+.nova-request-kinds, .nova-request-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.nova-request-kinds button { min-height: 36px; padding: 6px 12px; font-size: .82rem; box-shadow: none; }
+.nova-requests-card > .task-done-primary-button, .weekly-wishes-card > .task-done-primary-button { justify-self: start; }
+.nova-requests-card button:disabled { opacity: .5; }
+.nova-request-item { display: grid; gap: 6px; border-top: 1px solid var(--line-subtle); padding-top: 10px; }
+.nova-request-item small { color: var(--muted); font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+.nova-request-item strong { font-size: .95rem; line-height: 1.35; overflow-wrap: anywhere; }
+.nova-requests-card .nova-request-message { display: grid; gap: 2px; justify-self: start; max-width: 88%; border-radius: 12px; padding: 8px 10px; background: var(--bg); color: var(--text); overflow-wrap: anywhere; }
+.nova-requests-card .nova-request-message.mine { justify-self: end; background: var(--accent-soft); }
+.nova-request-message small { text-transform: none; font-weight: 700; }
+.nova-requests-card .nova-request-problem { color: var(--danger, #c0392b); font-weight: 700; }
 .self-serve-checkin-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .self-serve-checkin-actions .secondary-button { min-width: 0; min-height: 38px; white-space: normal; }
 .self-serve-checkin-skip { justify-self: start; min-height: 28px; padding: 0 4px; }

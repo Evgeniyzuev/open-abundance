@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { canAct, hasContacts, parseMessageText, parseRequestText, pickHelpers, roleFor, viewRequest } from "../lib/novaRequests.ts";
+import { buildCollection, canAct, hasContacts, parseMessageText, parseRequestText, pickHelpers, roleFor, viewRequest } from "../lib/novaRequests.ts";
 
 // Text rules: no contacts or links until both sides agreed.
 assert.deepEqual(parseRequestText("  Нужен   взгляд на резюме  "), { text: "Нужен взгляд на резюме" });
@@ -64,4 +64,25 @@ assert.equal(viewRequest({ request: { ...matched, helped: true }, offers, messag
 // Who Nova asks: consented people only, recent first, never the requester or excluded accounts.
 assert.deepEqual(pickHelpers({ requesterId: A, consented: [A, B, C, "d", "d", "qa"], lastActive: new Map([[B, 1], [C, 5], ["d", 3]]), excluded: (id) => id === "qa" }), [C, "d", B]);
 assert.equal(pickHelpers({ requesterId: A, consented: ["1", "2", "3", "4", "5", "6", "7"], lastActive: new Map() }).length, 5);
+
+// Answers through Nova: no connection, no names; the author may continue with one person or close.
+const answerRows = [{ id: "a1", request_id: "r1", sender_user_id: B, body: "Уберите лишние курсы", created_at: "2026-11-14T02:00:00Z" }];
+assert.equal(canAct("answer", "invited", base, null), true);
+assert.equal(canAct("answer", "requester", base, null), false);
+assert.equal(canAct("close", "requester", base, null), true, "an open request may be closed after answers");
+assert.equal(canAct("close", "invited", base, null), false);
+const withAnswers = viewRequest({ request: base, offers, messages: answerRows, userId: A, names });
+assert.deepEqual(withAnswers.answers, [{ offerId: "o-b", body: "Уберите лишние курсы" }]);
+assert.deepEqual(withAnswers.messages, [], "answers are not a conversation yet");
+assert.ok(!JSON.stringify(withAnswers).includes('"b"'));
+assert.equal(viewRequest({ request: base, offers, messages: answerRows, userId: B, names }).myAnswer, "Уберите лишние курсы");
+assert.equal(viewRequest({ request: base, offers, messages: answerRows, userId: C, names }).myAnswer, null, "nobody sees another person's answer");
+const afterConnect = viewRequest({ request: { ...matched, helper_user_id: C }, offers, messages: [...answerRows, ...messages], userId: C, names });
+assert.deepEqual(afterConnect.messages.map((message) => message.id), ["m1"], "the connected helper does not see other people's answers");
+
+// Collection: different people count once, anonymous connections count too, only mutual names are contacts.
+const link = (requester, helper, kind, both = false) => ({ requester_user_id: requester, helper_user_id: helper, kind, requester_reveal: both, helper_reveal: both });
+const collection = buildCollection([link(A, B, "help"), link(A, B, "help"), link(C, A, "talk", true), link(A, null, "advice"), link(B, C, "partner"), { ...link(A, "d", "advice"), requester_reveal: true }], A);
+assert.deepEqual(collection, { people: 3, named: 1, byKind: { advice: 1, help: 1, partner: 0, talk: 1 }, gave: 1, received: 2, nextStep: 5 });
+assert.equal(buildCollection([], A).nextStep, 1);
 console.log("nova requests contract ok");

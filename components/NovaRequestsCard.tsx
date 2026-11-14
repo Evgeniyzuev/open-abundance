@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { HeartHandshake } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
-import { MESSAGE_MAX_CHARS, REQUEST_KINDS, REQUEST_MAX_CHARS, type RequestKind, type RequestView } from "@/lib/novaRequests";
+import { MESSAGE_MAX_CHARS, REQUEST_KINDS, REQUEST_MAX_CHARS, type Collection, type RequestKind, type RequestView } from "@/lib/novaRequests";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
-type State = { available: boolean; mine: RequestView[]; helping: RequestView[]; invited: RequestView[] };
+type State = { available: boolean; mine: RequestView[]; helping: RequestView[]; invited: RequestView[]; collection?: Collection };
 
 const KIND_KEY: Record<RequestKind, MessageKey> = {
   advice: "novaRequests.kind.advice",
@@ -34,6 +34,7 @@ export default function NovaRequestsCard({ active }: { active: boolean }) {
   const [kind, setKind] = useState<RequestKind>("help");
   const [text, setText] = useState("");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [answering, setAnswering] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<MessageKey | null>(null);
 
@@ -86,11 +87,20 @@ export default function NovaRequestsCard({ active }: { active: boolean }) {
     if (body && await act(id, { action: "message", body })) setDrafts((current) => ({ ...current, [id]: "" }));
   }
 
+  async function sendAnswer(id: string) {
+    const body = (drafts[id] ?? "").trim();
+    if (body && await act(id, { action: "answer", body })) {
+      setDrafts((current) => ({ ...current, [id]: "" }));
+      setAnswering(null);
+    }
+  }
+  const collection = state.collection;
+
   function conversation(view: RequestView) {
     return (
       <div className="nova-request-talk">
         <p className="nova-request-note">
-          {view.otherName ? t("novaRequests.talk.named", { name: view.otherName }) : view.iRevealed ? t("novaRequests.talk.waitingReveal") : view.theyRevealed ? t("novaRequests.talk.theyRevealed") : t("novaRequests.talk.hidden")}
+          {view.otherName ? t("novaRequests.talk.named", { name: view.otherName }) + " " + t("novaRequests.talk.contact") : view.iRevealed ? t("novaRequests.talk.waitingReveal") : view.theyRevealed ? t("novaRequests.talk.theyRevealed") : t("novaRequests.talk.hidden")}
         </p>
         {view.messages.map((message) => (
           <p className={`nova-request-message${message.mine ? " mine" : ""}`} key={message.id}>
@@ -152,7 +162,21 @@ export default function NovaRequestsCard({ active }: { active: boolean }) {
         <article className="nova-request-item" key={view.id}>
           <small>{t("novaRequests.mine")} · {t(KIND_KEY[view.kind])}</small>
           <strong>{view.body}</strong>
-          {view.status === "matched" ? conversation(view) : view.ready.length ? (
+          {view.status === "matched" ? conversation(view) : view.answers.length ? (
+            <>
+              <p className="nova-request-note">{t("novaRequests.answers.note")}</p>
+              {view.answers.map((answer, index) => (
+                <div className="nova-request-answer" key={index}>
+                  <p className="nova-request-message"><small>{t("novaRequests.answers.one", { number: index + 1 })}</small>{answer.body}</p>
+                  {answer.offerId ? <button className="text-button" type="button" disabled={busy} onClick={() => void act(view.id, { action: "connect", offerId: answer.offerId })}>{t("novaRequests.answers.continue")}</button> : null}
+                </div>
+              ))}
+              <div className="nova-request-actions">
+                <button className="secondary-button" type="button" disabled={busy} onClick={() => void act(view.id, { action: "close", helped: true })}>{t("novaRequests.close.helped")}</button>
+                <button className="text-button" type="button" disabled={busy} onClick={() => void act(view.id, { action: "close", helped: false })}>{t("novaRequests.close.notHelped")}</button>
+              </div>
+            </>
+          ) : view.ready.length ? (
             <>
               <p className="nova-request-note">{t("novaRequests.ready", { count: view.ready.length })}</p>
               <div className="nova-request-actions">
@@ -182,14 +206,46 @@ export default function NovaRequestsCard({ active }: { active: boolean }) {
         <article className="nova-request-item" key={view.id}>
           <small>{t(KIND_KEY[view.kind])}</small>
           <strong>{view.body}</strong>
-          {view.saidCan ? <p className="nova-request-note">{t("novaRequests.saidCan")}</p> : (
-            <div className="nova-request-actions">
-              <button className="task-done-primary-button" type="button" disabled={busy} onClick={() => void act(view.id, { action: "can" })}>{t("novaRequests.can")}</button>
-              <button className="text-button" type="button" disabled={busy} onClick={() => void act(view.id, { action: "pass" })}>{t("novaRequests.pass")}</button>
+          {view.myAnswer ? (
+            <>
+              <p className="nova-request-message mine"><small>{t("novaRequests.answers.mine")}</small>{view.myAnswer}</p>
+              <p className="nova-request-note">{t("novaRequests.answers.sent")}</p>
+            </>
+          ) : answering === view.id ? (
+            <div className="nova-request-talk">
+              <textarea aria-label={t("novaRequests.answers.placeholder")} maxLength={MESSAGE_MAX_CHARS} placeholder={t("novaRequests.answers.placeholder")} rows={3} value={drafts[view.id] ?? ""} onChange={(event) => setDrafts((current) => ({ ...current, [view.id]: event.target.value }))} />
+              <div className="nova-request-actions">
+                <button className="task-done-primary-button" type="button" disabled={busy || !(drafts[view.id] ?? "").trim()} onClick={() => void sendAnswer(view.id)}>{t("novaRequests.send")}</button>
+                <button className="text-button" type="button" onClick={() => setAnswering(null)}>{t("novaRequests.cancelForm")}</button>
+              </div>
             </div>
+          ) : (
+            <>
+              {view.saidCan ? <p className="nova-request-note">{t("novaRequests.saidCan")}</p> : null}
+              <div className="nova-request-actions">
+                {view.saidCan ? null : <button className="task-done-primary-button" type="button" disabled={busy} onClick={() => void act(view.id, { action: "can" })}>{t("novaRequests.can")}</button>}
+                <button className="secondary-button" type="button" disabled={busy} onClick={() => setAnswering(view.id)}>{t("novaRequests.answers.write")}</button>
+                {view.saidCan ? null : <button className="text-button" type="button" disabled={busy} onClick={() => void act(view.id, { action: "pass" })}>{t("novaRequests.pass")}</button>}
+              </div>
+            </>
           )}
         </article>
       ))}
+
+      {collection && collection.people > 0 ? (
+        <div className="nova-request-item nova-request-collection">
+          <h3>{t("novaRequests.collection.title", { count: collection.people })}</h3>
+          <div className="nova-request-kinds">
+            {REQUEST_KINDS.map((item) => (
+              <span className={`nova-request-badge${collection.byKind[item] ? " on" : ""}`} key={item}>{t(KIND_KEY[item])} · {collection.byKind[item]}</span>
+            ))}
+          </div>
+          <p className="nova-request-note">
+            {t("novaRequests.collection.detail", { gave: collection.gave, received: collection.received, named: collection.named })}
+            {collection.nextStep ? ` ${t("novaRequests.collection.next", { left: collection.nextStep - collection.people })}` : ""}
+          </p>
+        </div>
+      ) : null}
     </section>
   );
 }

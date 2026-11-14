@@ -14,6 +14,9 @@ import {
   pickHelpers,
   roleFor,
   viewRequest,
+  buildCollection,
+  type Collection,
+  type ConnectionRow,
   type MessageRow,
   type OfferRow,
   type RequestAction,
@@ -29,7 +32,9 @@ const OPEN_WINDOW_DAYS = 14;
 const fail = (status: number, error: string, problem?: string): ActionResult => ({ ok: false, status, error, problem });
 
 type Copy = { ru: { title: string; body: string }; en: { title: string; body: string } };
-const COPY: Record<"asked" | "ready" | "connected" | "message" | "reveal" | "closed", Copy> = {
+const COPY: Record<"asked" | "ready" | "answer" | "contact" | "connected" | "message" | "reveal" | "closed", Copy> = {
+  answer: { ru: { title: "Нова принесла ответ", body: "Кто-то ответил на вашу просьбу через Нову. Соединяться не обязательно." }, en: { title: "Nova brought an answer", body: "Someone answered your request through Nova. You do not have to connect." } },
+  contact: { ru: { title: "Нова: у вас новый контакт", body: "Вы оба открыли имена. Теперь вы в контактах друг у друга." }, en: { title: "Nova: you have a new contact", body: "You both showed your names. You are now in each other's contacts." } },
   asked: { ru: { title: "Нова: кто-то просит о помощи", body: "Просьба без имени. Откройте и решите, можете ли помочь." }, en: { title: "Nova: someone asks for help", body: "A request without a name. Open it and decide if you can help." } },
   ready: { ru: { title: "Нова: нашёлся человек", body: "Кто-то готов помочь с вашей просьбой. Соединить вас?" }, en: { title: "Nova: someone can help", body: "A person is ready to help with your request. Connect you?" } },
   connected: { ru: { title: "Нова: вас соединили", body: "Автор просьбы согласился. Можно писать через Нову, имена скрыты." }, en: { title: "Nova: you are connected", body: "The author agreed. You can write through Nova; names stay hidden." } },
@@ -69,13 +74,14 @@ async function notify(db: Db, userIds: string[], kind: keyof typeof COPY, reques
 }
 
 /** Everything the person may see: their own requests, connections where they help, and requests they may answer. */
-export async function loadRequestsFor(db: Db, userId: string): Promise<{ available: boolean; mine: RequestView[]; helping: RequestView[]; invited: RequestView[] }> {
-  const empty = { available: false, mine: [], helping: [], invited: [] };
+export async function loadRequestsFor(db: Db, userId: string): Promise<{ available: boolean; mine: RequestView[]; helping: RequestView[]; invited: RequestView[]; collection: Collection }> {
+  const empty = { available: false, mine: [] as RequestView[], helping: [] as RequestView[], invited: [] as RequestView[], collection: buildCollection([], userId) };
   const since = new Date(Date.now() - OPEN_WINDOW_DAYS * DAY_MS).toISOString();
-  const [own, open, ownOffers] = await Promise.all([
+  const [own, open, ownOffers, connections] = await Promise.all([
     db.from("nova_requests").select("*").or(`requester_user_id.eq.${userId},helper_user_id.eq.${userId}`).in("status", ["open", "matched"]).order("created_at", { ascending: false }).limit(20),
     db.from("nova_requests").select("*").eq("status", "open").neq("requester_user_id", userId).gte("created_at", since).order("created_at", { ascending: false }).limit(40),
-    db.from("nova_request_offers").select("*").eq("helper_user_id", userId).order("created_at", { ascending: false }).limit(100)
+    db.from("nova_request_offers").select("*").eq("helper_user_id", userId).order("created_at", { ascending: false }).limit(100),
+    db.from("nova_requests").select("requester_user_id,helper_user_id,kind,requester_reveal,helper_reveal").or(`requester_user_id.eq.${userId},helper_user_id.eq.${userId}`).in("status", ["matched", "closed"]).not("helper_user_id", "is", null).limit(1000)
   ]);
   // Before the migration is applied the feature is simply absent.
   if (own.error || open.error || ownOffers.error) return empty;
@@ -83,14 +89,19 @@ export async function loadRequestsFor(db: Db, userId: string): Promise<{ availab
   const requests = new Map<string, RequestRow>();
   for (const row of [...(own.data ?? []), ...(open.data ?? [])] as RequestRow[]) requests.set(row.id, row);
   const ids = [...requests.keys()];
-  if (!ids.length) return { ...empty, available: true };
+  const collection = buildCollection((connections.data ?? []) as ConnectionRow[], userId);
+  if (!ids.length) return { ...empty, available: true, collection };
 
   const mineIds = [...requests.values()].filter((row) => row.requester_user_id === userId).map((row) => row.id);
   const matchedIds = [...requests.values()].filter((row) => row.status === "matched").map((row) => row.id);
-  const [requesterOffers, messages] = await Promise.all([
+  const openOtherIds = [...requests.values()].filter((row) => row.status === "open" && row.requester_user_id !== userId).map((row) => row.id);
+  const talkIds = [...new Set([...mineIds, ...matchedIds])];
+  const [requesterOffers, talk, ownAnswers] = await Promise.all([
     mineIds.length ? db.from("nova_request_offers").select("*").in("request_id", mineIds) : Promise.resolve({ data: [] }),
-    matchedIds.length ? db.from("nova_request_messages").select("*").in("request_id", matchedIds).order("created_at", { ascending: true }).limit(500) : Promise.resolve({ data: [] })
+    talkIds.length ? db.from("nova_request_messages").select("*").in("request_id", talkIds).order("created_at", { ascending: true }).limit(500) : Promise.resolve({ data: [] }),
+    openOtherIds.length ? db.from("nova_request_messages").select("*").in("request_id", openOtherIds).eq("sender_user_id", userId).limit(100) : Promise.resolve({ data: [] })
   ]);
+  const messages = { data: [...((talk.data ?? []) as MessageRow[]), ...((ownAnswers.data ?? []) as MessageRow[])] };
   const offers = [...((ownOffers.data ?? []) as OfferRow[]), ...((requesterOffers.data ?? []) as OfferRow[])];
 
   // Names are loaded only for connections where both sides agreed to show them.
@@ -114,6 +125,7 @@ export async function loadRequestsFor(db: Db, userId: string): Promise<{ availab
   }
   return {
     available: true,
+    collection,
     mine: views.filter((view) => view.role === "requester"),
     helping: views.filter((view) => view.role === "helper"),
     invited: views.filter((view) => view.role === "invited").slice(0, MAX_OPEN_SHOWN)
@@ -171,6 +183,22 @@ export async function actOnRequest(db: Db, userId: string, requestId: string, pa
     return { ok: true };
   }
 
+  if (action === "answer") {
+    // An answer through Nova: the author reads it without a name and without a connection. One answer per person.
+    const parsed = parseMessageText(payload.body, false);
+    if ("problem" in parsed) return fail(400, parsed.problem === "contacts" ? "Remove contacts and links: Nova passes the answer on without them." : "The answer must be 1 to 600 characters.", parsed.problem);
+    const { count: sent } = await db.from("nova_request_messages").select("id", { count: "exact", head: true }).eq("request_id", requestId).eq("sender_user_id", userId);
+    if ((sent ?? 0) > 0) return fail(409, "You already answered this request.");
+    const { count: all } = await db.from("nova_request_messages").select("id", { count: "exact", head: true }).eq("request_id", requestId);
+    if ((all ?? 0) >= MAX_ASKED_HELPERS * 2) return fail(409, "Enough people already answered this request.");
+    const { data: saved, error: saveError } = await db.from("nova_request_messages").insert({ request_id: requestId, sender_user_id: userId, body: parsed.text }).select("id").single();
+    if (saveError || !saved) return fail(500, saveError?.message ?? "Could not send.");
+    // The answer also counts as «Могу», so the author may continue with this person if they want to.
+    await db.from("nova_request_offers").upsert({ request_id: requestId, helper_user_id: userId, status: "ready", responded_at: now }, { onConflict: "request_id,helper_user_id" });
+    await notify(db, [row.requester_user_id], "answer", requestId, userId);
+    return { ok: true, id: saved.id };
+  }
+
   if (action === "connect") {
     const offerId = typeof payload.offerId === "string" ? payload.offerId : "";
     const { data: offer } = await db.from("nova_request_offers").select("*").eq("id", offerId).eq("request_id", requestId).eq("status", "ready").maybeSingle();
@@ -209,13 +237,25 @@ export async function actOnRequest(db: Db, userId: string, requestId: string, pa
     if (!already) {
       await db.from("nova_requests").update(role === "requester" ? { requester_reveal: true } : { helper_reveal: true }).eq("id", requestId);
       if (other && !theirs) await notify(db, [other], "reveal", requestId, userId);
+      if (other && theirs) {
+        // Both agreed to show names: the connection becomes a contact for each of them.
+        const contact = { source: "manual", status: "active", is_required: false, removed_at: null };
+        await db.from("user_contacts").upsert([{ owner_user_id: userId, contact_user_id: other, ...contact }, { owner_user_id: other, contact_user_id: userId, ...contact }], { onConflict: "owner_user_id,contact_user_id,source" });
+        await notify(db, [other], "contact", requestId, "once");
+      }
     }
     return { ok: true };
   }
 
   // close: either side leaves without explaining. Only the requester may say whether it helped.
   const helped = role === "requester" && typeof payload.helped === "boolean" ? payload.helped : null;
-  const { data: closed } = await db.from("nova_requests").update({ status: "closed", closed_at: now, closed_by: role, ...(helped === null ? {} : { helped }) }).eq("id", requestId).eq("status", "matched").select("id");
-  if (closed?.length && other) await notify(db, [other], "closed", requestId, "once");
+  if (row.status === "open") {
+    // Closing without a connection is for answers through Nova: it needs at least one answer and the «помогло» reply.
+    const { count: answers } = await db.from("nova_request_messages").select("id", { count: "exact", head: true }).eq("request_id", requestId);
+    if (!answers || helped === null) return fail(409, "This step is not available now.");
+    await db.from("nova_request_offers").update({ status: "released" }).eq("request_id", requestId);
+  }
+  const { data: closed } = await db.from("nova_requests").update({ status: "closed", closed_at: now, closed_by: role, ...(helped === null ? {} : { helped }) }).eq("id", requestId).eq("status", row.status).select("id");
+  if (closed?.length && other && row.status === "matched") await notify(db, [other], "closed", requestId, "once");
   return { ok: true };
 }

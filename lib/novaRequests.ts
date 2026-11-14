@@ -73,7 +73,7 @@ export function roleFor(request: RequestRow, offer: OfferRow | null, userId: str
   return "none";
 }
 
-export type RequestAction = "can" | "pass" | "connect" | "message" | "reveal" | "close" | "cancel";
+export type RequestAction = "can" | "pass" | "answer" | "connect" | "message" | "reveal" | "close" | "cancel";
 
 /** Whether the role may take the action in the request's state. */
 export function canAct(action: RequestAction, role: Role, request: RequestRow, offer: OfferRow | null): boolean {
@@ -81,6 +81,8 @@ export function canAct(action: RequestAction, role: Role, request: RequestRow, o
     case "can":
       return role === "invited" && offer?.status !== "ready";
     case "pass":
+    case "answer":
+      // One answer through Nova per person; the server checks that none was sent yet.
       return role === "invited";
     case "connect":
     case "cancel":
@@ -89,7 +91,8 @@ export function canAct(action: RequestAction, role: Role, request: RequestRow, o
     case "reveal":
       return (role === "requester" || role === "helper") && request.status === "matched";
     case "close":
-      return (role === "requester" || role === "helper") && request.status === "matched";
+      // The requester may also close an open request once answers through Nova were enough (the server checks them).
+      return ((role === "requester" || role === "helper") && request.status === "matched") || (role === "requester" && request.status === "open");
     default:
       return false;
   }
@@ -114,6 +117,10 @@ export type RequestView = {
   ready: Array<{ offerId: string }>;
   /** Invited only: whether this person already said «Могу». */
   saidCan: boolean;
+  /** Requester only, while open: answers passed on by Nova without a connection. offerId lets the author continue with that person. */
+  answers: Array<{ offerId: string | null; body: string }>;
+  /** Invited only: the answer this person already sent through Nova. */
+  myAnswer: string | null;
   iRevealed: boolean;
   theyRevealed: boolean;
   /** The other side's name, only when both revealed. */
@@ -133,6 +140,9 @@ export function viewRequest(input: { request: RequestRow; offers: OfferRow[]; me
   const inside = role === "requester" || role === "helper";
   const iRevealed = role === "requester" ? request.requester_reveal : role === "helper" ? request.helper_reveal : false;
   const theyRevealed = role === "requester" ? request.helper_reveal : role === "helper" ? request.requester_reveal : false;
+  // Inside a connection only the two sides' messages are shown; answers of other people stay with the author.
+  const pair = new Set([request.requester_user_id, request.helper_user_id ?? ""]);
+  const outside = input.messages.filter((message) => message.sender_user_id !== request.requester_user_id);
   const otherId = role === "requester" ? request.helper_user_id : role === "helper" ? request.requester_user_id : null;
   return {
     id: request.id,
@@ -142,11 +152,53 @@ export function viewRequest(input: { request: RequestRow; offers: OfferRow[]; me
     status: request.status,
     ready: role === "requester" && request.status === "open" ? input.offers.filter((offer) => offer.status === "ready").map((offer) => ({ offerId: offer.id })) : [],
     saidCan: role === "invited" && ownOffer?.status === "ready",
+    answers: role === "requester" && request.status === "open"
+      ? outside.map((message) => ({ offerId: input.offers.find((offer) => offer.helper_user_id === message.sender_user_id && offer.status === "ready")?.id ?? null, body: message.body }))
+      : [],
+    myAnswer: role === "invited" ? outside.find((message) => message.sender_user_id === userId)?.body ?? null : null,
     iRevealed,
     theyRevealed,
     otherName: inside && iRevealed && theyRevealed && otherId ? input.names.get(otherId) ?? null : null,
     helped: role === "requester" ? request.helped : null,
-    messages: inside ? input.messages.map((message) => ({ id: message.id, mine: message.sender_user_id === userId, body: message.body, createdAt: message.created_at })) : [],
+    messages: inside && request.status !== "open" ? input.messages.filter((message) => pair.has(message.sender_user_id)).map((message) => ({ id: message.id, mine: message.sender_user_id === userId, body: message.body, createdAt: message.created_at })) : [],
     createdAt: request.created_at
+  };
+}
+
+export const COLLECTION_STEPS = [1, 3, 5, 10, 25, 50, 100] as const;
+export type ConnectionRow = Pick<RequestRow, "requester_user_id" | "helper_user_id" | "kind" | "requester_reveal" | "helper_reveal">;
+export type Collection = {
+  /** Different people this person was connected with through Nova. */
+  people: number;
+  /** Of them, people whose names both sides opened: they are in the person's contacts. */
+  named: number;
+  byKind: Record<RequestKind, number>;
+  /** People I answered or helped, and people who helped me. */
+  gave: number;
+  received: number;
+  nextStep: number | null;
+};
+
+/** The collection of connections: every different person counts once per kind, named or not. No ids leave the server. */
+export function buildCollection(rows: ConnectionRow[], userId: string): Collection {
+  const people = new Set<string>(), named = new Set<string>(), gave = new Set<string>(), received = new Set<string>();
+  const kinds: Record<RequestKind, Set<string>> = { advice: new Set(), help: new Set(), partner: new Set(), talk: new Set() };
+  for (const row of rows) {
+    if (!row.helper_user_id) continue;
+    const mine = row.requester_user_id === userId;
+    if (!mine && row.helper_user_id !== userId) continue;
+    const other = mine ? row.helper_user_id : row.requester_user_id;
+    people.add(other);
+    kinds[row.kind]?.add(other);
+    (mine ? received : gave).add(other);
+    if (row.requester_reveal && row.helper_reveal) named.add(other);
+  }
+  return {
+    people: people.size,
+    named: named.size,
+    byKind: { advice: kinds.advice.size, help: kinds.help.size, partner: kinds.partner.size, talk: kinds.talk.size },
+    gave: gave.size,
+    received: received.size,
+    nextStep: COLLECTION_STEPS.find((step) => step > people.size) ?? null
   };
 }

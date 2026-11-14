@@ -87,7 +87,9 @@ export async function loadRequestsFor(db: Db, userId: string): Promise<{ availab
   if (own.error || open.error || ownOffers.error) return empty;
 
   const requests = new Map<string, RequestRow>();
-  for (const row of [...(own.data ?? []), ...(open.data ?? [])] as RequestRow[]) requests.set(row.id, row);
+  // Test requests from QA accounts are shown only to QA accounts.
+  const visibleOpen = ((open.data ?? []) as RequestRow[]).filter((row) => !isQaUser(row.requester_user_id) || isQaUser(userId));
+  for (const row of [...((own.data ?? []) as RequestRow[]), ...visibleOpen]) requests.set(row.id, row);
   const ids = [...requests.keys()];
   const collection = buildCollection((connections.data ?? []) as ConnectionRow[], userId);
   if (!ids.length) return { ...empty, available: true, collection };
@@ -151,7 +153,8 @@ export async function createRequest(db: Db, userId: string, payload: { kind?: un
   const { data: consented } = await db.from("user_help_profiles").select("user_id,updated_at").eq("match_consent", true).order("updated_at", { ascending: false }).limit(200);
   const lastActive = new Map<string, number>((consented ?? []).map((row: { user_id: string; updated_at: string }) => [row.user_id, Date.parse(row.updated_at) || 0]));
   const helpers = pickHelpers({ requesterId: userId, consented: (consented ?? []).map((row: { user_id: string }) => row.user_id), lastActive, excluded: isQaUser, limit: MAX_ASKED_HELPERS });
-  if (helpers.length) {
+  // A request from a QA account is a test: nobody is asked and nobody is notified.
+  if (helpers.length && !isQaUser(userId)) {
     await db.from("nova_request_offers").insert(helpers.map((helperId) => ({ request_id: created.id, helper_user_id: helperId, status: "asked" })));
     await notify(db, helpers, "asked", created.id, "new");
   }

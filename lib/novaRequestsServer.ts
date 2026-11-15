@@ -1,6 +1,7 @@
 // Server side of «Просьба через Нову»: loads what one person may see and applies the actions. The tables have no
 // client policies, so every read and write here uses the service role and checks the person's role first.
 import { isQaUser } from "@/lib/qaAccounts";
+import { findAgentMatch, viewAgent, type AgentMatch, type AgentPassport, type AgentView } from "@/lib/novaAgent";
 import { sendQueuedTelegramCopies, telegramCopiesBotToken } from "@/lib/telegramNotificationQueue";
 import {
   MAX_ACTIVE_REQUESTS,
@@ -73,9 +74,26 @@ async function notify(db: Db, userIds: string[], kind: keyof typeof COPY, reques
   }
 }
 
+/** The person's agent passport and its match: one consenting person who can serve one of the person's needs. */
+async function loadAgent(db: Db, userId: string): Promise<{ me: AgentPassport | null; match: AgentMatch | null }> {
+  const since = new Date(Date.now() - OPEN_WINDOW_DAYS * DAY_MS).toISOString();
+  const [passports, recent] = await Promise.all([
+    db.from("user_help_profiles").select("user_id,offers,needs,match_consent,updated_at").or(`match_consent.eq.true,user_id.eq.${userId}`).limit(500),
+    db.from("nova_requests").select("id").eq("requester_user_id", userId).gte("created_at", since).limit(50)
+  ]);
+  const all: AgentPassport[] = (passports.data ?? []).map((row: any) => ({ userId: row.user_id, offers: row.offers ?? [], needs: row.needs ?? [], consent: Boolean(row.match_consent), updatedAt: row.updated_at }));
+  const me = all.find((row) => row.userId === userId) ?? null;
+  if (!me?.consent) return { me, match: null };
+  // People the agent already asked in the last two weeks are skipped, so each match is a new person.
+  const recentIds = (recent.data ?? []).map((row: { id: string }) => row.id);
+  const asked = recentIds.length ? await db.from("nova_request_offers").select("helper_user_id").in("request_id", recentIds).limit(500) : { data: [] };
+  const skip = new Set<string>((asked.data ?? []).map((row: { helper_user_id: string }) => row.helper_user_id));
+  return { me, match: findAgentMatch({ me, others: all, skip, excluded: isQaUser }) };
+}
+
 /** Everything the person may see: their own requests, connections where they help, and requests they may answer. */
-export async function loadRequestsFor(db: Db, userId: string): Promise<{ available: boolean; mine: RequestView[]; helping: RequestView[]; invited: RequestView[]; collection: Collection }> {
-  const empty = { available: false, mine: [] as RequestView[], helping: [] as RequestView[], invited: [] as RequestView[], collection: buildCollection([], userId) };
+export async function loadRequestsFor(db: Db, userId: string): Promise<{ available: boolean; mine: RequestView[]; helping: RequestView[]; invited: RequestView[]; collection: Collection; agent: AgentView }> {
+  const empty = { available: false, mine: [] as RequestView[], helping: [] as RequestView[], invited: [] as RequestView[], collection: buildCollection([], userId), agent: viewAgent(null, null) };
   const since = new Date(Date.now() - OPEN_WINDOW_DAYS * DAY_MS).toISOString();
   const [own, open, ownOffers, connections] = await Promise.all([
     db.from("nova_requests").select("*").or(`requester_user_id.eq.${userId},helper_user_id.eq.${userId}`).in("status", ["open", "matched"]).order("created_at", { ascending: false }).limit(20),
@@ -92,7 +110,9 @@ export async function loadRequestsFor(db: Db, userId: string): Promise<{ availab
   for (const row of [...((own.data ?? []) as RequestRow[]), ...visibleOpen]) requests.set(row.id, row);
   const ids = [...requests.keys()];
   const collection = buildCollection((connections.data ?? []) as ConnectionRow[], userId);
-  if (!ids.length) return { ...empty, available: true, collection };
+  const found = await loadAgent(db, userId).catch(() => ({ me: null, match: null }));
+  const agent = viewAgent(found.me, found.match);
+  if (!ids.length) return { ...empty, available: true, collection, agent };
 
   const mineIds = [...requests.values()].filter((row) => row.requester_user_id === userId).map((row) => row.id);
   const matchedIds = [...requests.values()].filter((row) => row.status === "matched").map((row) => row.id);
@@ -128,13 +148,14 @@ export async function loadRequestsFor(db: Db, userId: string): Promise<{ availab
   return {
     available: true,
     collection,
+    agent,
     mine: views.filter((view) => view.role === "requester"),
     helping: views.filter((view) => view.role === "helper"),
     invited: views.filter((view) => view.role === "invited").slice(0, MAX_OPEN_SHOWN)
   };
 }
 
-export async function createRequest(db: Db, userId: string, payload: { kind?: unknown; body?: unknown }): Promise<ActionResult> {
+export async function createRequest(db: Db, userId: string, payload: { kind?: unknown; body?: unknown; agentNeed?: unknown }): Promise<ActionResult> {
   if (!isRequestKind(payload.kind)) return fail(400, "kind: advice, help, partner or talk.");
   const parsed = parseRequestText(payload.body);
   if ("problem" in parsed) return fail(400, parsed.problem === "contacts" ? "Remove contacts and links: Nova passes the request on without them." : "The request must be 3 to 400 characters.", parsed.problem);
@@ -152,7 +173,12 @@ export async function createRequest(db: Db, userId: string, payload: { kind?: un
   // Nova asks people who agreed to introductions; everyone else sees the request in their own list.
   const { data: consented } = await db.from("user_help_profiles").select("user_id,updated_at").eq("match_consent", true).order("updated_at", { ascending: false }).limit(200);
   const lastActive = new Map<string, number>((consented ?? []).map((row: { user_id: string; updated_at: string }) => [row.user_id, Date.parse(row.updated_at) || 0]));
-  const helpers = pickHelpers({ requesterId: userId, consented: (consented ?? []).map((row: { user_id: string }) => row.user_id), lastActive, excluded: isQaUser, limit: MAX_ASKED_HELPERS });
+  let helpers = pickHelpers({ requesterId: userId, consented: (consented ?? []).map((row: { user_id: string }) => row.user_id), lastActive, excluded: isQaUser, limit: MAX_ASKED_HELPERS });
+  // A request started from the agent's match goes first to the person the agent found.
+  if (typeof payload.agentNeed === "string") {
+    const found = await loadAgent(db, userId).catch(() => ({ me: null, match: null }));
+    if (found.match && found.match.need === payload.agentNeed) helpers = [found.match.helperId, ...helpers.filter((id) => id !== found.match!.helperId)].slice(0, MAX_ASKED_HELPERS);
+  }
   // A request from a QA account is a test: nobody is asked and nobody is notified.
   if (helpers.length && !isQaUser(userId)) {
     await db.from("nova_request_offers").insert(helpers.map((helperId) => ({ request_id: created.id, helper_user_id: helperId, status: "asked" })));

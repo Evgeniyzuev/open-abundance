@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { findAgentMatch, viewAgent, NEED_KIND } from "../lib/novaAgent.ts";
 import { buildCollection, canAct, hasContacts, parseMessageText, parseRequestText, pickHelpers, roleFor, viewRequest } from "../lib/novaRequests.ts";
 
 // Text rules: no contacts or links until both sides agreed.
@@ -85,4 +86,20 @@ const link = (requester, helper, kind, both = false) => ({ requester_user_id: re
 const collection = buildCollection([link(A, B, "help"), link(A, B, "help"), link(C, A, "talk", true), link(A, null, "advice"), link(B, C, "partner"), { ...link(A, "d", "advice"), requester_reveal: true }], A);
 assert.deepEqual(collection, { people: 3, named: 1, byKind: { advice: 1, help: 1, partner: 0, talk: 1 }, gave: 1, received: 2, nextStep: 5 });
 assert.equal(buildCollection([], A).nextStep, 1);
+
+// The agent: one match from passports, only between consenting people, never someone asked recently.
+const passport = (userId, offers, needs, consent = true, updatedAt = "2026-11-10T00:00:00Z") => ({ userId, offers, needs, consent, updatedAt });
+const me = passport(A, ["writing"], ["time", "feedback", "accountability"]);
+const others = [passport(B, ["design"], []), passport(C, ["tutoring"], ["accountability"]), passport("d", ["writing"], [], false), passport("e", ["ai_helper"], [], true, "2026-11-14T00:00:00Z")];
+assert.deepEqual(findAgentMatch({ me, others }), { need: "feedback", helperId: "e", offer: "ai_helper" }, "the first servable need, the most recently active person");
+assert.deepEqual(findAgentMatch({ me, others, skip: new Set(["e"]) }), { need: "feedback", helperId: B, offer: "design" });
+assert.deepEqual(findAgentMatch({ me, others, skip: new Set(["e", B]) }), { need: "accountability", helperId: C, offer: null }, "partners are people with the same need");
+assert.equal(findAgentMatch({ me: { ...me, consent: false }, others }), null, "no consent, no match");
+assert.equal(findAgentMatch({ me, others: [passport("d", ["writing", "design"], [], false)] }), null, "people without consent are never proposed");
+assert.equal(findAgentMatch({ me, others, excluded: () => true }), null);
+const agentView = viewAgent(me, { need: "feedback", helperId: "e", offer: "ai_helper" });
+assert.deepEqual(agentView, { ready: true, offers: 1, needs: 3, suggestion: { need: "feedback", offer: "ai_helper", kind: "help" } });
+assert.ok(!JSON.stringify(agentView).includes('"e"'), "the suggestion never names the person");
+assert.equal(viewAgent(null, null).ready, false);
+assert.equal(NEED_KIND.accountability, "partner");
 console.log("nova requests contract ok");

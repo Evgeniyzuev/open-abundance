@@ -5,9 +5,11 @@ import { HeartHandshake } from "lucide-react";
 import { useUserContext } from "@/components/UserProvider";
 import type { MessageKey } from "@/lib/i18n";
 import { MESSAGE_MAX_CHARS, REQUEST_KINDS, REQUEST_MAX_CHARS, type Collection, type RequestKind, type RequestView } from "@/lib/novaRequests";
+import type { AgentView } from "@/lib/novaAgent";
+import { NICHES } from "@/lib/nicheTasks";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
-type State = { available: boolean; mine: RequestView[]; helping: RequestView[]; invited: RequestView[]; collection?: Collection };
+type State = { available: boolean; mine: RequestView[]; helping: RequestView[]; invited: RequestView[]; collection?: Collection; agent?: AgentView };
 
 const KIND_KEY: Record<RequestKind, MessageKey> = {
   advice: "novaRequests.kind.advice",
@@ -27,13 +29,14 @@ const PROBLEM_KEY: Record<string, MessageKey> = {
  * only when both chose to show them, and either side can leave at any step.
  */
 export default function NovaRequestsCard({ active }: { active: boolean }) {
-  const { t, user } = useUserContext();
+  const { t, user, locale } = useUserContext();
   const userId = user?.id ?? null;
   const [state, setState] = useState<State | null>(null);
   const [asking, setAsking] = useState(false);
   const [kind, setKind] = useState<RequestKind>("help");
   const [text, setText] = useState("");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [agentNeed, setAgentNeed] = useState<string | null>(null);
   const [answering, setAnswering] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<MessageKey | null>(null);
@@ -76,8 +79,9 @@ export default function NovaRequestsCard({ active }: { active: boolean }) {
   if (!active || !userId || !state) return null;
 
   async function create() {
-    if (await send("/api/nova/requests", { kind, body: text })) {
+    if (await send("/api/nova/requests", { kind, body: text, ...(agentNeed ? { agentNeed } : {}) })) {
       setText("");
+      setAgentNeed(null);
       setAsking(false);
     }
   }
@@ -95,6 +99,9 @@ export default function NovaRequestsCard({ active }: { active: boolean }) {
     }
   }
   const collection = state.collection;
+  const agent = state.agent;
+  const suggestion = agent?.suggestion ?? null;
+  const offerTitle = suggestion?.offer ? NICHES.find((niche) => niche.key === suggestion.offer)?.title[locale === "ru" ? "ru" : "en"] ?? null : null;
 
   function conversation(view: RequestView) {
     return (
@@ -140,8 +147,23 @@ export default function NovaRequestsCard({ active }: { active: boolean }) {
       <h2 id="nova-requests-title">{t("novaRequests.title")}</h2>
       <p>{t("novaRequests.rule")}</p>
 
+      {agent && !asking ? (
+        <div className="nova-request-agent">
+          <small>{t("novaRequests.agent.label")}</small>
+          {suggestion ? (
+            <>
+              <p>{offerTitle ? t("novaRequests.agent.foundOffer", { need: t(`help.need.${suggestion.need}` as MessageKey), offer: offerTitle }) : t("novaRequests.agent.found", { need: t(`help.need.${suggestion.need}` as MessageKey) })}</p>
+              <button className="secondary-button" type="button" onClick={() => { setKind(suggestion.kind); setAgentNeed(suggestion.need); setAsking(true); }}>{t("novaRequests.agent.ask")}</button>
+            </>
+          ) : (
+            <p>{agent.ready ? t("novaRequests.agent.searching", { offers: agent.offers, needs: agent.needs }) : t("novaRequests.agent.setup")}</p>
+          )}
+        </div>
+      ) : null}
+
       {asking ? (
         <div className="nova-request-form">
+          {agentNeed ? <p className="nova-request-note">{t("novaRequests.agent.first")}</p> : null}
           <div className="nova-request-kinds" role="group" aria-label={t("novaRequests.kind.label")}>
             {REQUEST_KINDS.map((item) => (
               <button className={item === kind ? "task-done-primary-button" : "secondary-button"} key={item} type="button" aria-pressed={item === kind} onClick={() => setKind(item)}>{t(KIND_KEY[item])}</button>
@@ -150,7 +172,7 @@ export default function NovaRequestsCard({ active }: { active: boolean }) {
           <textarea aria-label={t("novaRequests.placeholder")} maxLength={REQUEST_MAX_CHARS} placeholder={t("novaRequests.placeholder")} rows={3} value={text} onChange={(event) => setText(event.target.value)} />
           <div className="nova-request-actions">
             <button className="task-done-primary-button" type="button" disabled={busy || text.trim().length < 3} onClick={() => void create()}>{t("novaRequests.send")}</button>
-            <button className="text-button" type="button" onClick={() => { setAsking(false); setProblem(null); }}>{t("novaRequests.cancelForm")}</button>
+            <button className="text-button" type="button" onClick={() => { setAsking(false); setAgentNeed(null); setProblem(null); }}>{t("novaRequests.cancelForm")}</button>
           </div>
         </div>
       ) : (

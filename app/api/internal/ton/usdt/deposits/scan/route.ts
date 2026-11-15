@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Address, Cell, TonClient } from "@ton/ton";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { authorizeClaudeOrOperator } from "@/lib/claudeActionsAuth";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import type { Json } from "@/lib/database.types";
 import { loadTonUsdtConfig } from "@/lib/tonUsdt";
@@ -26,8 +27,14 @@ export async function POST(request: NextRequest) { return scan(request); }
 
 async function scan(request: NextRequest) {
   const scannerSecret = process.env.TON_SCANNER_SECRET?.trim();
-  if (!scannerSecret) return jsonResponse({ error: "TON scanner is not configured." }, { status: 503 });
-  if (request.headers.get("x-ton-scanner-secret")?.trim() !== scannerSecret) return jsonResponse({ error: "Unauthorized TON USDT scanner request." }, { status: 401 });
+  // ?rescan=1 (operators) reads the reserve Jetton wallet from its first transaction again; events are unique by
+  // transaction, so nothing is credited twice.
+  const rescan = request.nextUrl.searchParams.get("rescan") === "1";
+  const operator = rescan ? await authorizeClaudeOrOperator(request) : null;
+  if (!operator?.ok) {
+    if (!scannerSecret) return jsonResponse({ error: "TON scanner is not configured." }, { status: 503 });
+    if (request.headers.get("x-ton-scanner-secret")?.trim() !== scannerSecret) return jsonResponse({ error: "Unauthorized TON USDT scanner request." }, { status: 401 });
+  }
   const supabase = createServiceSupabaseClient() as any;
   let leaseId: string | null = null;
   try {
@@ -37,13 +44,12 @@ async function scan(request: NextRequest) {
     if (leaseError) throw new Error(leaseError.message);
     leaseId = claimedLease;
     if (!leaseId) return jsonResponse({ network: config.network, assetCode: "USDT", skipped: true, reason: "scan_already_running" });
-    const { data: cursor, error: cursorError } = await supabase.from("ton_usdt_chain_cursors").select("last_logical_time,last_transaction_hash").eq("network", config.network).eq("master_address", config.masterAddress).eq("deposit_jetton_wallet_address", config.depositJettonWalletAddress).maybeSingle();
+    const { data: storedCursor, error: cursorError } = await supabase.from("ton_usdt_chain_cursors").select("last_logical_time,last_transaction_hash").eq("network", config.network).eq("master_address", config.masterAddress).eq("deposit_jetton_wallet_address", config.depositJettonWalletAddress).maybeSingle();
     if (cursorError) throw new Error(cursorError.message);
-    const page = await loadTransactions(config.endpoint, config.depositJettonWalletAddress, cursor?.last_logical_time ?? null);
-    if (!cursor) {
-      if (page.latestLogicalTime) await saveCursor(supabase, config, page.latestLogicalTime, page.latestTransactionHash);
-      return jsonResponse({ network: config.network, assetCode: "USDT", skipped: true, reason: "cursor_initialized", cursor: page.latestLogicalTime });
-    }
+    // A Jetton wallet without a cursor is a new reserve wallet: it is read from its first transaction, so the
+    // first payment to a new wallet is not lost.
+    const cursor = !storedCursor || rescan ? { last_logical_time: "0" } : storedCursor;
+    const page = await loadTransactions(config.endpoint, config.depositJettonWalletAddress, cursor.last_logical_time === "0" ? null : cursor.last_logical_time);
     const transactions = page.transactions.filter((tx) => {
       const lt = tx.transaction_id?.lt?.trim();
       return Boolean(lt && /^\d+$/.test(lt) && BigInt(lt) > BigInt(cursor.last_logical_time));

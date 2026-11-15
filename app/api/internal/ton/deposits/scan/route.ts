@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import type { Json } from "@/lib/database.types";
+import { authorizeClaudeOrOperator } from "@/lib/claudeActionsAuth";
 import { createServiceSupabaseClient } from "@/lib/serverSupabase";
 import {
   extractTonTextComment,
@@ -73,9 +74,15 @@ export async function POST(request: NextRequest) {
 async function scan(request: NextRequest) {
   const scannerSecret = process.env.TON_SCANNER_SECRET?.trim();
   const suppliedSecret = request.headers.get("x-ton-scanner-secret")?.trim();
-  if (!scannerSecret) return jsonResponse({ error: "TON scanner is not configured." }, { status: 503 });
-  if (!suppliedSecret || suppliedSecret !== scannerSecret) {
-    return jsonResponse({ error: "Unauthorized TON scanner request." }, { status: 401 });
+  // ?rescan=1 reads the reserve address from its first transaction again. Stored events are unique by transaction,
+  // so nothing is credited twice. It is for operators: after a wallet change or a missed payment.
+  const rescan = request.nextUrl.searchParams.get("rescan") === "1";
+  const operator = rescan ? await authorizeClaudeOrOperator(request) : null;
+  if (!operator?.ok) {
+    if (!scannerSecret) return jsonResponse({ error: "TON scanner is not configured." }, { status: 503 });
+    if (!suppliedSecret || suppliedSecret !== scannerSecret) {
+      return jsonResponse({ error: "Unauthorized TON scanner request." }, { status: 401 });
+    }
   }
 
   const supabase = createServiceSupabaseClient();
@@ -93,7 +100,7 @@ async function scan(request: NextRequest) {
     leaseId = claimedLease;
     if (!leaseId) return jsonResponse({ network: config.network, skipped: true, reason: "scan_already_running" });
 
-    const { data: cursor, error: cursorError } = await supabase
+    const { data: storedCursor, error: cursorError } = await supabase
       .from("ton_chain_cursors")
       .select("last_logical_time,last_transaction_hash")
       .eq("network", config.network)
@@ -101,29 +108,14 @@ async function scan(request: NextRequest) {
       .maybeSingle();
     if (cursorError) throw new Error(cursorError.message);
 
+    // A reserve address without a cursor is a new wallet: its transactions are read from the first one. Skipping
+    // to the latest transaction here used to lose the first payment made to a new wallet.
+    const cursor = !storedCursor || rescan ? { last_logical_time: "0" } : storedCursor;
     const transactionPage = await loadTransactions(
       config.toncenter_api_url,
       config.deposit_address,
-      cursor?.last_logical_time ?? null
+      cursor.last_logical_time === "0" ? null : cursor.last_logical_time
     );
-
-    if (!cursor) {
-      if (transactionPage.latestLogicalTime) {
-        await saveCursor(
-          supabase,
-          config.network,
-          config.deposit_address,
-          transactionPage.latestLogicalTime,
-          transactionPage.latestTransactionHash
-        );
-      }
-      return jsonResponse({
-        network: config.network,
-        skipped: true,
-        reason: "cursor_initialized",
-        cursor: transactionPage.latestLogicalTime
-      });
-    }
 
     const newTransactions = transactionPage.transactions
       .filter((transaction) => {

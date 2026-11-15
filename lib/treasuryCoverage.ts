@@ -85,12 +85,17 @@ export async function buildTreasuryCoverageReport(supabase: AnySupabase): Promis
   let usdtRate: number | null = null;
   const usdtConfig = await loadTonUsdtConfig(supabase as never).catch(() => null);
   if (usdtConfig?.depositJettonWalletAddress) {
+    const client = new TonClient({ endpoint: usdtConfig.rpcEndpoint, apiKey: usdtConfig.apiKey, timeout: 15_000 });
+    const jettonWallet = Address.parse(usdtConfig.depositJettonWalletAddress);
     try {
-      const client = new TonClient({ endpoint: usdtConfig.rpcEndpoint, apiKey: usdtConfig.apiKey, timeout: 15_000 });
-      const result = await client.runMethod(Address.parse(usdtConfig.depositJettonWalletAddress), "get_wallet_data");
+      const result = await client.runMethod(jettonWallet, "get_wallet_data");
       usdtBalance = Number(result.stack.readBigNumber()) / 10 ** usdtConfig.decimals;
     } catch {
-      errors.push("usdt_balance_unavailable");
+      // A reserve wallet that never received USDT has no Jetton wallet contract yet: that is a zero balance,
+      // not an unknown one. Any other failure stays an error, so a network problem never reads as "empty".
+      const state = await client.getContractState(jettonWallet).then((value) => value.state, () => null);
+      if (state === "uninitialized") usdtBalance = 0;
+      else errors.push("usdt_balance_unavailable");
     }
     const rate = await resolveTonUsdtPriceResolution().catch(() => null);
     usdtRate = rate?.snapshot ? Number(rate.snapshot.rate) : null;

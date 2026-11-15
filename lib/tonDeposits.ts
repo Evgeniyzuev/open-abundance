@@ -324,6 +324,15 @@ function calculateDeviationPercent(leftRate: string, rightRate: string): number 
   return Math.abs(left - right) / midpoint * 100;
 }
 
+/**
+ * An open invoice keeps the reserve address it was created with. After the reserve wallet is replaced such an
+ * invoice is stale: it must not be shown or paid, and a new one is issued for the current address.
+ */
+export function isStaleDepositAddress(invoiceAddress: unknown, currentAddress: unknown): boolean {
+  const current = normalizeTonAddress(currentAddress);
+  return Boolean(current) && normalizeTonAddress(invoiceAddress) !== current;
+}
+
 export function normalizeTonAddress(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();

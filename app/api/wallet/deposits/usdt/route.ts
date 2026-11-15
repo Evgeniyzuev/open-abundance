@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { buildTonUsdtTransferLink, friendlyWalletAddress, loadTonUsdtConfig, normalizeTonUsdtAddress, parseTonUsdtUnits } from "@/lib/tonUsdt";
+import { isStaleDepositAddress } from "@/lib/tonDeposits";
 import { boostDepositScan } from "@/lib/depositScanBoost";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     const invoiceCode = `oa_usdt_${crypto.randomUUID()}`;
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString();
     const db = supabase as any;
-    const { data: rows, error: createError } = await db.rpc("create_or_reuse_ton_usdt_deposit_invoice", {
+    const issue = (replace: boolean) => db.rpc("create_or_reuse_ton_usdt_deposit_invoice", {
       p_user_id: user.id,
       p_network: config.network,
       p_master_address: config.masterAddress,
@@ -39,8 +40,13 @@ export async function POST(request: NextRequest) {
       p_deposit_jetton_wallet_address: config.depositJettonWalletAddress,
       p_expected_amount_units: expectedAmountUnits,
       p_expires_at: expiresAt,
-      p_replace_active: body.replaceActive === true
+      p_replace_active: replace
     });
+    let { data: rows, error: createError } = await issue(body.replaceActive === true);
+    // A waiting invoice issued for a replaced reserve wallet is exchanged for one with the current address.
+    if (!createError && rows?.[0]?.reused && rows[0].status === "waiting" && isStaleDepositAddress(rows[0].deposit_owner_address, config.depositOwnerAddress)) {
+      ({ data: rows, error: createError } = await issue(true));
+    }
     let invoice = rows?.[0];
     if (createError || !invoice) return jsonResponse({ error: createError?.message ?? "Failed to create TON USDT invoice." }, { status: 500 });
 
@@ -71,7 +77,11 @@ export async function GET(request: NextRequest) {
     const { data: invoices, error: invoicesError } = await query;
     if (invoicesError) return jsonResponse({ error: invoicesError.message }, { status: 500 });
     if (!activeOnly) return jsonResponse({ invoices: invoices ?? [] });
-    const invoice = invoices?.[0] ?? null;
+    let invoice = invoices?.[0] ?? null;
+    if (invoice?.status === "waiting") {
+      const current = await loadTonUsdtConfig(supabase as any).catch(() => null);
+      if (current?.ready && isStaleDepositAddress(invoice.deposit_owner_address, current.depositOwnerAddress)) invoice = null;
+    }
     const { data: event, error: eventError } = invoice
       ? await db.from("ton_usdt_chain_events").select("transaction_hash,amount_units,status,rejection_reason,settled_usd_amount,settled_at,usdt_usd_rate,rate_provider,finalized_at,sender_binding_result").eq("invoice_code", invoice.invoice_code).order("settled_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle()
       : { data: null, error: null };

@@ -3,7 +3,7 @@ import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import { boostDepositScan } from "@/lib/depositScanBoost";
 import { getAuthenticatedUser } from "@/lib/serverSupabase";
 import { tonAmountToNano } from "@/lib/tonAmount";
-import { loadTonDepositConfig, normalizeTonAddress } from "@/lib/tonDeposits";
+import { isStaleDepositAddress, loadTonDepositConfig, normalizeTonAddress } from "@/lib/tonDeposits";
 import { commentPayload, jettonTransferPayload, nanoFromTon, tonConnectChain } from "@/lib/tonConnectPayload";
 import { loadTonUsdtConfig, normalizeTonUsdtAddress, parseTonUsdtUnits, tonUsdtJettonWalletOf } from "@/lib/tonUsdt";
 
@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
       const nano = amount ? tonAmountToNano(amount) : expected;
       if (!nano) return json({ error: "Enter the amount in TON.", code: "amount" }, 400);
       if (!normalizeTonAddress(invoice.deposit_address)) return json({ error: "TON deposit is not available.", code: "unavailable" }, 400);
+      // An invoice issued for a replaced reserve wallet must not be paid: the old address is no longer watched.
+      if (isStaleDepositAddress(invoice.deposit_address, config.deposit_address)) return json({ error: "The invoice is no longer open. Create a new one.", code: "invoice_closed" }, 409);
       return json({
         transaction: {
           validUntil: Math.floor(Date.now() / 1000) + VALID_FOR_SECONDS,

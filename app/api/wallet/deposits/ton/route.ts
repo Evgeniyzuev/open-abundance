@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
 import {
   buildTonTransferLink,
+  isStaleDepositAddress,
   loadTonDepositConfig,
   parsePositiveNanoTon,
   postgresNumericToString
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString();
     const invoiceCode = `oa_ton_${crypto.randomUUID()}`;
 
-    const { data: invoiceRows, error: createError } = await supabase.rpc(
+    const issue = (replace: boolean) => supabase.rpc(
       "create_or_reuse_ton_deposit_invoice",
       {
         p_user_id: user.id,
@@ -75,9 +76,15 @@ export async function POST(request: NextRequest) {
         p_deposit_address: config.deposit_address,
         p_expected_amount_nano: expectedAmountNano,
         p_expires_at: expiresAt,
-        p_replace_active: replaceActive
+        p_replace_active: replace
       }
     );
+    let { data: invoiceRows, error: createError } = await issue(replaceActive);
+    // A waiting invoice issued for a replaced reserve wallet is exchanged for one with the current address.
+    const reusedInvoice = invoiceRows?.[0];
+    if (!createError && reusedInvoice?.reused && reusedInvoice.status === "waiting" && isStaleDepositAddress(reusedInvoice.deposit_address, config.deposit_address)) {
+      ({ data: invoiceRows, error: createError } = await issue(true));
+    }
     const invoice = invoiceRows?.[0];
 
     if (createError || !invoice) {
@@ -116,7 +123,11 @@ export async function GET(request: NextRequest) {
     const { data: invoices, error: invoicesError } = await query;
     if (invoicesError) return jsonResponse({ error: invoicesError.message }, { status: 500 });
     if (activeOnly) {
-      const invoice = invoices?.[0] ?? null;
+      let invoice: NonNullable<typeof invoices>[number] | null = invoices?.[0] ?? null;
+      if (invoice?.status === "waiting") {
+        const config = await loadTonDepositConfig(supabase).catch(() => null);
+        if (config && isStaleDepositAddress(invoice.deposit_address, config.deposit_address)) invoice = null;
+      }
       const { data: event, error: eventError } = invoice
         ? await supabase
             .from("ton_chain_events")

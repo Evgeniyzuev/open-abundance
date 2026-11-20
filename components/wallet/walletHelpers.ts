@@ -142,13 +142,13 @@ export async function updateMarketplaceListing(listingId: string, input: Marketp
   return payload.listing;
 }
 
-export async function createMarketplaceDeal(listingId: string): Promise<void> {
+export async function createMarketplaceDeal(listingId: string, installment = false): Promise<void> {
   const token = await getAccessToken();
   const response = await fetch("/api/marketplace/deals", {
     method: "POST",
     cache: "no-store",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ listingId, idempotencyKey: crypto.randomUUID() })
+    body: JSON.stringify({ listingId, idempotencyKey: crypto.randomUUID(), ...(installment ? { installment: true } : {}) })
   });
   const payload = (await response.json()) as { deal?: MarketplaceDeal; error?: string };
   if (!response.ok || payload.error || !payload.deal) throw new Error(payload.error ?? "Failed to create marketplace deal.");

@@ -577,7 +577,7 @@ export function MarketplacePanel({
   deals: MarketplaceDeal[];
   dealSavingId: string | null;
   onCancel: (listingId: string) => void;
-  onBuy: (listingId: string) => void;
+  onBuy: (listingId: string, installment?: boolean) => void;
   onExchange?: (listingId: string) => void;
   exchangeRefreshKey?: number;
   onExchangeChanged?: () => void;
@@ -623,7 +623,7 @@ export function MarketplacePanel({
           t={t}
           busy={savingId === openListing.id || dealSavingId === openListing.id}
           onClose={() => setOpenListingId(null)}
-          onBuy={() => { setOpenListingId(null); onBuy(openListing.id); }}
+          onBuy={(installment) => { setOpenListingId(null); onBuy(openListing.id, installment); }}
           onExchange={onExchange ? () => { setOpenListingId(null); onExchange(openListing.id); } : undefined}
           onEdit={() => { setOpenListingId(null); onView(openListing.id); }}
           onCancel={() => { setOpenListingId(null); onCancel(openListing.id); }}

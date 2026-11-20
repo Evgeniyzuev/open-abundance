@@ -129,7 +129,8 @@
     "db:pull": "pnpm dlx supabase db pull",
     "db:push": "pnpm dlx supabase db push",
     "db:types": "pnpm dlx supabase gen types typescript --project-id bsikxrsguwketlloflgi --schema public > lib/database.types.ts",
-    "db:dump": "pnpm dlx supabase db dump --schema public -f supabase/schema.sql"
+    "db:dump": "pnpm dlx supabase db dump --schema public -f supabase/schema.sql",
+    "test:core-installments": "node --experimental-strip-types scripts/verify-core-installments-contract.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.80",

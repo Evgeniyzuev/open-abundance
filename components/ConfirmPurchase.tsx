@@ -8,11 +8,14 @@ import type { MessageKey } from "@/lib/i18n";
  * "Are you sure?" window before money moves: what is being bought, for how much, and where the money goes.
  * The buy button of the Shop and the Market opens it; only its confirm button starts the purchase.
  */
-export default function ConfirmPurchase({ title, price, note, busy = false, onConfirm, onCancel }: {
+export default function ConfirmPurchase({ title, price, note, detail, confirmLabel, busy = false, onConfirm, onCancel }: {
   title: string;
   /** The price already formatted for the screen. */
   price: string;
   note?: MessageKey;
+  /** One more line under the note, already translated (for example the «Взять и купить» split). */
+  detail?: string;
+  confirmLabel?: string;
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -26,9 +29,10 @@ export default function ConfirmPurchase({ title, price, note, busy = false, onCo
         <div><dt>{t("purchase.confirm.price")}</dt><dd>{price}</dd></div>
       </dl>
       {note ? <p className="confirm-purchase-note">{t(note)}</p> : null}
+      {detail ? <p className="confirm-purchase-note">{detail}</p> : null}
       <div className="modal-action-row">
         <button className="secondary-button" type="button" disabled={busy} onClick={onCancel}>{t("app.common.cancel")}</button>
-        <button className="challenge-primary-action" type="button" disabled={busy} onClick={onConfirm}>{busy ? t("app.common.loading") : t("purchase.confirm.pay", { amount: price })}</button>
+        <button className="challenge-primary-action" type="button" disabled={busy} onClick={onConfirm}>{busy ? t("app.common.loading") : confirmLabel ?? t("purchase.confirm.pay", { amount: price })}</button>
       </div>
     </Sheet>
   );

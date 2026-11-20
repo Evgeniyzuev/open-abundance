@@ -2150,3 +2150,5 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + var(--
 .nova-request-agent { display: grid; gap: 6px; justify-items: start; border-radius: 14px; padding: 10px 12px; background: var(--accent-soft); }
 .nova-request-agent small { color: var(--blue); font-size: .72rem; font-weight: 800; text-transform: uppercase; }
 .nova-requests-card .nova-request-agent p { color: var(--text); }
+.installment-line { display: grid; gap: 2px; margin: -4px 4px 10px; }
+.installment-line small { color: var(--muted); font-size: .8rem; line-height: 1.35; }

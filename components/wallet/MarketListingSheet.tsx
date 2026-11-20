@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeftRight, Pencil, ShoppingBag, Trash2 } from "lucide-react";
 import ConfirmPurchase from "@/components/ConfirmPurchase";
+import { useUserContext } from "@/components/UserProvider";
+import { previewBuy, type BuyPreview } from "@/lib/coreInstallments";
+import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import Sheet from "@/components/ui/Sheet";
 import { UserNameWithLevel } from "@/components/UserLevelBadge";
 import type { AppLocale, MessageKey } from "@/lib/i18n";
@@ -46,12 +49,28 @@ export function MarketListingSheet({
   t: TFunction;
   busy: boolean;
   onClose: () => void;
-  onBuy: () => void;
+  onBuy: (installment: boolean) => void;
   onExchange?: () => void;
   onEdit?: () => void;
   onCancel: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const { wallet, core } = useUserContext();
+  const [installments, setInstallments] = useState<{ eligible: boolean; limit: number } | null>(null);
+  useEffect(() => {
+    if (own) return;
+    let alive = true;
+    fetchWithSupabaseAuth("/api/wallet/installments", { cache: "no-store" }, { authRequired: true })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => { if (alive && data?.available) setInstallments({ eligible: Boolean(data.eligible), limit: Number(data.limit ?? 0) }); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [own]);
+  const preview: BuyPreview | null = installments
+    ? previewBuy({ price: Number(listing.price_amount), wallet: Number(wallet?.balance ?? 0), limit: installments.limit, core: Number(core?.balance ?? 0), humanityConfirmed: installments.eligible })
+    : null;
+  const onCredit = preview?.kind === "installment";
+  const money = (value: number) => formatAdaptiveMoney(value, locale);
   const image = listingImage(listing);
   const price = formatAdaptiveMoney(Number(listing.price_amount), locale);
   const kind = listing.listing_kind ?? "digital_asset";
@@ -96,7 +115,7 @@ export function MarketListingSheet({
           ) : (
             <>
               <button className="task-done-primary-button" type="button" disabled={busy} onClick={() => setConfirming(true)}>
-                <ShoppingBag size={16} />{busy ? t("app.common.loading") : `${t("market.buy")} · ${price}`}
+                <ShoppingBag size={16} />{busy ? t("app.common.loading") : `${onCredit ? t("installment.buy") : t("market.buy")} · ${price}`}
               </button>
               {onExchange ? (
                 <button className="secondary-button" type="button" onClick={onExchange}><ArrowLeftRight size={16} />{t("market.exchange.short")}</button>
@@ -104,6 +123,9 @@ export function MarketListingSheet({
             </>
           )}
         </div>
+        {!own && preview?.kind === "installment" ? <small>{t("installment.hint", { now: money(preview.payNow), later: money(preview.installment), days: preview.days })}</small> : null}
+        {!own && preview?.kind === "too_small" ? <small>{t("installment.tooSmall", { limit: money(preview.limit) })}</small> : null}
+        {!own && preview?.kind === "humanity_required" ? <small>{t("installment.humanity")}</small> : null}
         <small className="market-sheet-terms">{t("market.termsVersion")}: {listing.terms_version ?? 1}{listing.terms_hash ? ` · ${listing.terms_hash.slice(0, 12)}…` : ""}</small>
       </div>
       {confirming ? (
@@ -111,8 +133,10 @@ export function MarketListingSheet({
           title={listing.title}
           price={price}
           note="purchase.confirm.noteMarket"
+          detail={preview?.kind === "installment" ? t("installment.confirm", { now: money(preview.payNow), later: money(preview.installment), days: preview.days }) : undefined}
+          confirmLabel={onCredit ? t("installment.buy") : undefined}
           busy={busy}
-          onConfirm={() => { setConfirming(false); onBuy(); }}
+          onConfirm={() => { setConfirming(false); onBuy(onCredit); }}
           onCancel={() => setConfirming(false)}
         />
       ) : null}

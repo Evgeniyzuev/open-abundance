@@ -25,6 +25,7 @@ import { useWalletFees } from "@/lib/useWalletFees";
 import { ExchangeOfferDialog } from "@/components/MarketExchange";
 import HistoryCounterparty from "@/components/wallet/HistoryCounterparty";
 import type { WalletTab, WalletCalculatorRequest, CoreHistoryRow, WalletHistoryRow, ChallengeProgressResponse, CoreGrowthPlanResponse, CalculatorMode, TargetKind, TermUnit, WalletRecipient, MarketplaceListing, MarketplaceListingInput, MarketplaceDeal, EconomyPeriodType, EconomyMetricKey, EconomyVisibilityRow, EconomyMetricRow } from "@/components/wallet/walletTypes";
+import InstallmentLine from "@/components/wallet/InstallmentLine";
 import { loadCoreHistory, formatHistoryDay, coreHistoryLabel, coreHistoryDetail, historyBalanceText, historyDetail, loadWalletHistory, loadMarketplaceData, loadMarketplaceDeals, loadMarketplaceListing, updateMarketplaceListing, createMarketplaceDeal, marketplaceDealAction, createMarketplaceListing, cancelMarketplaceListing, getAccessToken, formatPercent, formatPercentCompact, formatDate, formatDay, shortId, formatFixedUsd, formatCryptoDepositDetails, formatCryptoWithdrawalDetails, parseNumber, isValidPercentString, formatInputNumber, formatDuration, formatTargetSummary, targetCalculationDays } from "@/components/wallet/walletHelpers";
 import { MarketplaceListingDetailModal, MarketplaceEditModal, SellItemModal, TonWithdrawalModal, TonDepositModal, WalletTransferModal, TopupCoreModal, FinanceState } from "@/components/wallet/WalletModals";
 import { EconomyMetricsPanel, HistoryPanel, ReinvestPanel, CoreCalculatorPanel, BalancePanel, CoreLevelProgress, MarketplacePanel } from "@/components/wallet/WalletPanels";
@@ -649,11 +650,11 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
     }
   }
 
-  async function handleBuyListing(listingId: string) {
+  async function handleBuyListing(listingId: string, installment = false) {
     setMarketDealSavingId(listingId);
     setMarketError(null);
     try {
-      await createMarketplaceDeal(listingId);
+      await createMarketplaceDeal(listingId, installment);
       const [payload, deals] = await Promise.all([loadMarketplaceData(), loadMarketplaceDeals()]);
       setMarketListings(payload.listings ?? []);
       setMarketOpenListingCount(payload.openListingCount);
@@ -724,6 +725,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
             meta={wallet ? t("app.common.updated", { date: formatDate(wallet.updated_at, locale) }) : t("app.common.created")}
             adaptiveAmount
           />
+          <InstallmentLine refreshKey={wallet?.balance} />
           {wallet && core ? (
             <>
               <div className="wallet-action-grid">
@@ -1004,7 +1006,7 @@ export default function WalletApp({ active, activeTab, calculatorRequest, refres
           deals={marketDeals}
           dealSavingId={marketDealSavingId}
           onCancel={(listingId) => { void handleCancelListing(listingId); }}
-          onBuy={(listingId) => { void handleBuyListing(listingId); }}
+          onBuy={(listingId, installment) => { void handleBuyListing(listingId, installment); }}
           onExchange={myActiveListings.length ? (listingId) => setExchangeTargetId(listingId) : undefined}
           exchangeRefreshKey={exchangeRefreshKey}
           onExchangeChanged={() => { void reloadMarketAfterExchange(); }}

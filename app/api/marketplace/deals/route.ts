@@ -100,18 +100,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Idempotency key is required." }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
-    const { data: result, error: rpcError } = await (supabase as any).rpc("create_marketplace_deal_with_key", {
-      p_idempotency_key: idempotencyKey,
-      p_listing_id: listingId,
-      p_buyer_user_id: user.id
-    });
+    // «Взять и купить»: the shortfall becomes an installment that the buyer's Core income repays.
+    const installment = body.installment === true;
+    const { data: result, error: rpcError } = installment
+      ? await (createServiceSupabaseClient() as any).rpc("create_marketplace_deal_on_installment", {
+          p_idempotency_key: idempotencyKey,
+          p_listing_id: listingId,
+          p_buyer_user_id: user.id
+        })
+      : await (supabase as any).rpc("create_marketplace_deal_with_key", {
+          p_idempotency_key: idempotencyKey,
+          p_listing_id: listingId,
+          p_buyer_user_id: user.id
+        });
 
     if (rpcError) {
       return NextResponse.json({ error: rpcError.message }, { status: 500, headers: NO_STORE_HEADERS });
     }
 
     if (result?.error) {
-      return NextResponse.json({ error: result.error }, { status: 400, headers: NO_STORE_HEADERS });
+      return NextResponse.json({ error: result.error, code: result.code ?? null, limit: result.limit ?? null }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     await autoServeOaProduct(result?.deal_id, result?.idempotent === true);

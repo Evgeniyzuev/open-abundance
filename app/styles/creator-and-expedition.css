@@ -528,3 +528,18 @@
 .chest-bar-mark.key.used { background: var(--surface-muted); color: var(--muted); border-color: var(--line); }
 .chest-bar-mark.chest { width: 20px; height: 20px; filter: grayscale(0.7); opacity: 0.75; }
 .chest-bar-mark.chest.reached { filter: none; opacity: 1; animation: chest-pop 0.6s ease-out; }
+
+/* Story entry «Один свободный день» (components/FirstStory.tsx): the character's world fills up with each choice. */
+.first-story-world { min-height: 92px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; border-radius: 10px; padding: 12px; background: linear-gradient(180deg, #1d2550, #0b0f1f 80%, #10301f); font-size: 2rem; }
+.first-story-hero { font-size: 2.6rem; }
+.first-story-item { animation: first-story-pop 0.45s ease-out; }
+@keyframes first-story-pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .first-story-item { animation: none; } }
+.first-story-looks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.first-story-looks .quest-choice { text-align: center; font-size: 1.8rem; }
+.first-story-wish { font-weight: 900; font-size: 1.15rem; }
+.first-story-world-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.first-story-step { display: grid; gap: 4px; border-radius: 10px; padding: 10px 12px; background: rgba(255, 214, 107, 0.12); }
+.first-story-step span { color: var(--muted); font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; }
+.first-story-skip { justify-self: center; }
+.first-story .challenge-note { color: var(--muted) !important; text-align: center; }

@@ -30,6 +30,8 @@ import {
 } from "@/lib/onboardingContent";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { FirstStepQuest } from "@/components/QuestScenes";
+import { FirstStory } from "@/components/FirstStory";
+import { storyEntryEnabled } from "@/lib/firstStory";
 import { readLocalGuest } from "@/lib/guestIdentity";
 import {
   clearGuestQuest,
@@ -283,6 +285,15 @@ function OnboardingApp({
   const appLocaleRef = useRef(appLocale);
   appLocaleRef.current = appLocale;
   const [step, setStep] = useState<StepId>(initialStep);
+  // The story entry replaces the first-step question where turned on (/?story=1 for now, docs/SIMPLE_CORE_LOOP_PLAN.md).
+  const [storyEntry, setStoryEntry] = useState(false);
+  useEffect(() => {
+    try {
+      setStoryEntry(storyEntryEnabled(window.location.search, (key) => window.localStorage.getItem(key), (key, value) => window.localStorage.setItem(key, value)));
+    } catch {
+      setStoryEntry(new URLSearchParams(window.location.search).get("story") === "1");
+    }
+  }, []);
 
   // While onboarding is on screen it has its own language: follow it with <html lang> and dir (right-to-left for Arabic).
   // On leaving, hand both back to the app language (the provider only re-applies them when its own locale changes).
@@ -524,6 +535,17 @@ function OnboardingApp({
               <span>{onboardingText(onboardingContent.guest.questEyebrow, locale)}</span>
               {inviter ? <strong className="onboarding-invited">{onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)}</strong> : null}
             </div>
+            {storyEntry && !guestMotives?.length ? (
+              <FirstStory
+                locale={locale}
+                onDone={() => {
+                  setGuestPlayed(true);
+                  setQuestAnswered(true);
+                  openAuthScreen();
+                }}
+                onSkip={openAuthScreen}
+              />
+            ) : (
             <FirstStepQuest
               art={GUEST_QUEST_ART}
               guest
@@ -537,7 +559,8 @@ function OnboardingApp({
                 openAuthScreen();
               }}
             />
-            {questAnswered ? null : <button className="challenge-secondary-action onboarding-quest-skip" type="button" onClick={openAuthScreen}>{onboardingText(onboardingContent.guest.skip, locale)}</button>}
+            )}
+            {questAnswered || (storyEntry && !guestMotives?.length) ? null : <button className="challenge-secondary-action onboarding-quest-skip" type="button" onClick={openAuthScreen}>{onboardingText(onboardingContent.guest.skip, locale)}</button>}
           </section>
         ) : null}
 

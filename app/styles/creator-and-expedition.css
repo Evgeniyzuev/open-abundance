@@ -543,6 +543,7 @@
 .life-look { display: grid; justify-items: center; gap: 4px; border: 1px solid rgba(159, 176, 255, 0.35); border-radius: 12px; padding: 8px 4px; background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; font-weight: 800; }
 .life-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .life-cards.count-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.life-cards.count-3 .life-card-label { font-size: 0.78rem; }
 .life-card { min-height: 132px; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; perspective: 700px; cursor: pointer; }
 .life-card:disabled { cursor: default; }
 .life-card-inner { position: relative; display: block; width: 100%; height: 100%; min-height: 132px; transition: transform 0.55s ease; transform-style: preserve-3d; }
@@ -570,3 +571,17 @@
 .life-overlay-body { max-width: 520px; margin: 40px auto 0; }
 .life-overlay .life-choices { min-height: calc(100dvh - 80px); align-content: start; border-radius: 16px; }
 .life-overlay-close { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 1; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.12); color: #eef1ff; }
+.life-icon { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; flex: none; }
+.life-wish-row .life-icon, .life-reason .life-icon, .life-sphere .life-icon { width: 32px; height: 32px; border-radius: 10px; }
+.life-dots { display: flex; gap: 4px; }
+.life-dots i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.14); }
+.life-dots i.done { background: rgba(255, 255, 255, 0.55); }
+.life-dots i.now { background: var(--sphere, #9fb0ff); }
+.life-sphere { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: var(--sphere, #9fb0ff); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.life-nova { display: grid; gap: 4px; border-radius: 14px; padding: 12px 14px; background: rgba(159, 176, 255, 0.12); }
+.life-nova strong { color: #9fb0ff; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.life-nova p { margin: 0; font-size: 1.02rem; font-weight: 700; line-height: 1.4; }
+.life-verdict { display: grid; gap: 8px; }
+.life-reasons, .life-wishes { display: grid; gap: 8px; }
+.life-reason, .life-wish-row { display: flex; align-items: center; gap: 10px; min-height: 48px; border: 1px solid rgba(159, 176, 255, 0.3); border-radius: 12px; padding: 8px 10px; background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; font-weight: 800; text-align: start; }
+.life-wish-row.selected { border-color: #3ccf7a; background: rgba(60, 207, 122, 0.16); }

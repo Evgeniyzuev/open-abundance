@@ -19,8 +19,8 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
-import { LifeChoices } from "@/components/LifeChoices";
-import { lifeChoicesEnabled } from "@/lib/lifeChoices";
+import { OPEN_LIFE_CHOICES_EVENT } from "@/components/LifeChoices";
+import { lifeChoicesEnabled, lifeUi } from "@/lib/lifeChoices";
 import { AbundanceQuiz, AppInstalledQuest, ChooseWishQuest, ContinueQuestion, CorePowerQuest, FirstStepQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
 import { ABUNDANCE_QUIZ_LOGIC } from "@/lib/abundanceQuiz";
 import { TOPUP_BONUS_LOGIC, TOPUP_BONUS_MAX_USD, TOPUP_BONUS_PERCENT } from "@/lib/stayStreak";
@@ -1590,7 +1590,7 @@ function ChallengeDetailContent({
 
       {needsFirstStep ? (
         lifeChoices && !parseMotives(questMotives).length
-          ? <LifeChoices locale={locale} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
+          ? <button className="challenge-primary-action" type="button" onClick={() => window.dispatchEvent(new CustomEvent(OPEN_LIFE_CHOICES_EVENT))}>{lifeUi("continue", locale)}</button>
           : <FirstStepQuest savedMotives={parseMotives(questMotives)} question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
 

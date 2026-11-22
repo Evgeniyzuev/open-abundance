@@ -41,6 +41,7 @@ function TabLoading() {
   return <div className="tab-loading" aria-busy="true"><Skeleton className="tab-loading-block" /></div>;
 }
 const AiChatApp = dynamic(() => import("@/components/AiChatApp"), { ssr: false, loading: TabLoading });
+const LifeChoicesOverlay = dynamic(() => import("@/components/LifeChoices").then((module) => module.LifeChoicesOverlay), { ssr: false });
 const ChallengesApp = dynamic(() => import("@/components/ChallengesApp"), { ssr: false, loading: TabLoading });
 const GrowthMapApp = dynamic(() => import("@/components/GrowthMapApp"), { ssr: false, loading: TabLoading });
 const ResultsApp = dynamic(() => import("@/components/ResultsApp"), { ssr: false, loading: TabLoading });
@@ -134,7 +135,7 @@ const DEFAULT_NAVIGATION_STATE: NavigationState = {
 };
 
 export default function AppNavigation() {
-  const { authResolved, refreshUserData, t, user } = useUserContext();
+  const { authResolved, locale, refreshUserData, t, user } = useUserContext();
   const [activeMainTab, setActiveMainTab] = useState<MainTabId>(DEFAULT_NAVIGATION_STATE.mainTab);
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTabId>(DEFAULT_NAVIGATION_STATE.homeTab);
   const [activeGoalTab, setActiveGoalTab] = useState<GoalTabId>(DEFAULT_NAVIGATION_STATE.goalTab);
@@ -692,6 +693,7 @@ export default function AppNavigation() {
 
   return (
     <>
+      {user ? <LifeChoicesOverlay locale={locale} userId={user.id} /> : null}
       <div className={`pull-refresh-indicator ${isPulling ? "visible" : ""}`} style={{ transform: `translate(-50%, ${pullDistance}px)` }}>
         {pullDistance >= PULL_THRESHOLD_PX ? t("app.pull.release") : t("app.pull.drag")}
       </div>

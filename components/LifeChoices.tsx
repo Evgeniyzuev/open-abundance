@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import {
+  lifeChoicesEnabled,
   LIFE_SCENES,
   LIFE_STATS,
   LIFE_STORAGE,
@@ -59,11 +61,32 @@ type Phase = "look" | "scenes" | "final";
  * its consequence (the chosen one green and sharp, the others red and a little foggy) and the character changes.
  * Saves the first-step motive like the old question, so the path and its reward stay the same.
  */
+type Progress = { look: LifeLook; phase: Phase; index: number; answers: LifeAnswers };
+
+function readProgress(): Progress | null {
+  try {
+    const raw = window.localStorage.getItem(LIFE_STORAGE.progress);
+    const value = raw ? (JSON.parse(raw) as Progress) : null;
+    return value && typeof value.index === "number" && value.answers ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function LifeChoices({ locale, onAnswered }: { locale: string; onAnswered: () => void }) {
-  const [look, setLook] = useState<LifeLook>("man");
-  const [phase, setPhase] = useState<Phase>("look");
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<LifeAnswers>({});
+  // Progress is kept on this device, so the cross closes the adventure and it opens again at the same place.
+  const [saved] = useState(() => (typeof window === "undefined" ? null : readProgress()));
+  const [look, setLook] = useState<LifeLook>(saved?.look ?? "man");
+  const [phase, setPhase] = useState<Phase>(saved?.phase ?? "look");
+  const [index, setIndex] = useState(saved?.index ?? 0);
+  const [answers, setAnswers] = useState<LifeAnswers>(saved?.answers ?? {});
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LIFE_STORAGE.progress, JSON.stringify({ look, phase, index, answers }));
+    } catch {
+      // Without storage the adventure starts over next time.
+    }
+  }, [look, phase, index, answers]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stats = lifeStats(answers);
@@ -108,6 +131,7 @@ export function LifeChoices({ locale, onAnswered }: { locale: string; onAnswered
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok || payload.error) throw new Error(payload.error ?? "save_failed");
       trackProductEvent("life_choices_saved", { weakest: summary.weakest, work: answers.work ?? "" });
+      markLifeChoicesDone();
       onAnswered();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "save_failed");
@@ -188,5 +212,89 @@ export function LifeChoices({ locale, onAnswered }: { locale: string; onAnswered
       </div>
       {chosen ? <button className="challenge-primary-action life-next" type="button" onClick={next}>{lifeUi("next", locale)}</button> : null}
     </section>
+  );
+}
+
+function markLifeChoicesDone() {
+  try {
+    window.localStorage.setItem(LIFE_STORAGE.done, "1");
+    window.localStorage.removeItem(LIFE_STORAGE.progress);
+  } catch {
+    // The first quest itself still knows it is done.
+  }
+}
+
+export const OPEN_LIFE_CHOICES_EVENT = "oa:open-life-choices";
+
+/**
+ * The full-screen adventure for a new account (turned on by /?story=1): opens by itself while the first quest is not
+ * answered, once per app visit; the cross closes it and the first quest card has "Continue the adventure".
+ */
+export function LifeChoicesOverlay({ locale, userId }: { locale: string; userId: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const openNow = () => setOpen(true);
+    window.addEventListener(OPEN_LIFE_CHOICES_EVENT, openNow);
+    return () => window.removeEventListener(OPEN_LIFE_CHOICES_EVENT, openNow);
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    let enabled = false;
+    try {
+      enabled = lifeChoicesEnabled(window.location.search, (key) => window.localStorage.getItem(key), (key, value) => window.localStorage.setItem(key, value));
+      if (!enabled || window.localStorage.getItem(LIFE_STORAGE.done) === "1" || window.sessionStorage.getItem(LIFE_STORAGE.closed) === "1") return;
+    } catch {
+      return;
+    }
+    let cancelled = false;
+    void fetchWithSupabaseAuth("/api/challenges", { cache: "no-store" }, { authRequired: true })
+      .then((response) => response.json())
+      .then((payload: { quest?: { motive?: string | null }; challenges?: Array<{ id: string; verification_logic?: string; user_challenge_status?: string | null }> }) => {
+        const first = payload.challenges?.find((item) => item.verification_logic === "first_step_motive");
+        if (cancelled || !first || first.user_challenge_status === "completed" || payload.quest?.motive) return;
+        setChallengeId(first.id);
+        setOpen(true);
+        trackProductEvent("life_choices_opened", { auto: true });
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [open]);
+
+  if (!open) return null;
+
+  function close() {
+    try {
+      window.sessionStorage.setItem(LIFE_STORAGE.closed, "1");
+    } catch {
+      // It may open again on the next screen change.
+    }
+    trackProductEvent("life_choices_closed", {});
+    setOpen(false);
+  }
+
+  return (
+    <div className="life-overlay" role="dialog" aria-modal="true">
+      <button className="life-overlay-close" type="button" aria-label={lifeUi("close", locale)} onClick={close}><X size={22} /></button>
+      <div className="life-overlay-body">
+        <LifeChoices
+          locale={locale}
+          onAnswered={() => {
+            setOpen(false);
+            // The first quest card shows the answer and its reward button (the person claims it, nothing is automatic).
+            window.dispatchEvent(new CustomEvent("oa:open-tab", { detail: { main: "challenges", ...(challengeId ? { challengeId } : {}) } }));
+          }}
+        />
+      </div>
+    </div>
   );
 }

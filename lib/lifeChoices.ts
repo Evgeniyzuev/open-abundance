@@ -143,7 +143,9 @@ export const LIFE_UI: Record<string, Text> = {
   start: t("Начать с этого", "Start here"),
   weakest: t("Слабое место: {stat}. С него и начнём, по шагу в день", "Weak spot: {stat}. We start there, one step a day"),
   wish: t("Желание: {wish}", "Wish: {wish}"),
-  replay: t("Пройти иначе", "Play again")
+  replay: t("Пройти иначе", "Play again"),
+  close: t("Закрыть, продолжить позже", "Close, continue later"),
+  continue: t("Продолжить приключение", "Continue the adventure")
 };
 
 export function lifeUi(key: keyof typeof LIFE_UI, locale: string, values: Record<string, string | number> = {}): string {
@@ -161,4 +163,4 @@ export function lifeChoicesEnabled(search: string, read: (key: string) => string
   return (flag ?? read(FLAG_KEY)) === "1";
 }
 
-export const LIFE_STORAGE = { flag: FLAG_KEY, result: "oa.lifeChoices" } as const;
+export const LIFE_STORAGE = { flag: FLAG_KEY, result: "oa.lifeChoices", progress: "oa.lifeChoicesProgress", done: "oa.lifeChoicesDone", closed: "oa.lifeChoicesClosed" } as const;

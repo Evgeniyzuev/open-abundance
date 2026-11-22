@@ -6,7 +6,9 @@ export const QA_USER_IDS: ReadonlySet<string> = new Set([
   // qa-claude@example.com, created 2026-10-25 for walking the quest path in a browser.
   "3dbbec5f-2f5a-4004-80cd-210405e24113",
   // qa-claude-2@example.com, created 2026-10-26 for walking the first day from a fresh account.
-  "3dbbec5f-2f5a-4004-80cd-210405e24114"
+  "3dbbec5f-2f5a-4004-80cd-210405e24114",
+  // qa-claude-3@example.com, created 2026-11-22 for walking the first-sign-in adventure (/?story=1) from scratch.
+  "3dbbec5f-2f5a-4004-80cd-210405e24115"
 ]);
 
 export function isQaUser(userId: string | null | undefined): boolean {

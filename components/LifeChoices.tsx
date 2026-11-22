@@ -71,7 +71,7 @@ export function LifeCharacter({ look, stats, size = 160 }: { look: LifeLook; sta
       {look === "other" ? <><circle cx="100" cy="56" r="9" fill={hair} /><path d="M78 80 Q80 60 100 60 Q120 60 122 80 Q110 68 100 70 Q90 68 78 80Z" fill={hair} /></> : null}
       {v.tired ? <><path d="M88 82 h8" stroke="#3b2a20" strokeWidth="2.5" strokeLinecap="round" /><path d="M104 82 h8" stroke="#3b2a20" strokeWidth="2.5" strokeLinecap="round" /></> : <><circle cx="92" cy="81" r="2.6" fill="#2a1d16" /><circle cx="108" cy="81" r="2.6" fill="#2a1d16" /></>}
       {v.healthy ? <><circle cx="86" cy="90" r="3.5" fill="rgba(230,110,110,0.35)" /><circle cx="114" cy="90" r="3.5" fill="rgba(230,110,110,0.35)" /></> : null}
-      <path d={v.healthy && !v.tired ? "M92 93 Q100 99 108 93" : "M93 95 Q100 93 107 95"} stroke="#7a3b2e" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+      <path d={v.sad ? "M93 96 Q100 92 107 96" : v.healthy && !v.tired ? "M92 93 Q100 99 108 93" : "M93 95 L107 95"} stroke="#7a3b2e" strokeWidth="2.2" fill="none" strokeLinecap="round" />
       {v.books ? <g><rect x="134" y="176" width="30" height="7" rx="2" fill="#4f9be0" /><rect x="136" y="169" width="26" height="7" rx="2" fill="#e09a4f" /><rect x="133" y="162" width="28" height="7" rx="2" fill="#5fbf7a" /></g> : null}
       {Array.from({ length: v.coins }, (_, index) => <ellipse key={index} cx="52" cy={186 - index * 6} rx="12" ry="4" fill="#f2c14e" stroke="#c99a2e" />)}
       {v.debt ? <g><rect x="34" y="150" width="34" height="18" rx="5" fill="#d9534f" /><text x="51" y="163" fontSize="11" fontWeight="900" textAnchor="middle" fill="#fff">−$</text></g> : null}

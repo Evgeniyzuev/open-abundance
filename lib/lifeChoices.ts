@@ -267,7 +267,9 @@ export function lifeLook(stats: LifeStats) {
     books: stats.skills >= 7,
     coins: stats.money >= 7 ? 3 : stats.money >= LIFE_START ? 1 : 0,
     debt: stats.money <= 2,
-    free: stats.freedom >= 7
+    free: stats.freedom >= 7,
+    // A sad face only when most of life is weak, not for one weak spot.
+    sad: LIFE_STATS.filter((stat) => stats[stat] < LIFE_START).length >= 3
   };
 }
 

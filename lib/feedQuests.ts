@@ -74,7 +74,7 @@ export function isOpenQuest(quest: FeedQuest, viewerLevel: number): boolean {
   if (quest.user_challenge_status === "completed") return false;
   if (quest.quest_placement && CLOSED_PLACEMENTS.has(quest.quest_placement)) return false;
   if (quest.can_accept === false) return false;
-  if (quest.difficulty_level > viewerLevel) return false;
+  if (quest.difficulty_level > viewerLevel && quest.verification_logic !== "first_step_motive") return false;
   if (quest.prerequisite_challenge_id && quest.prerequisite_completed === false) return false;
   return !NOT_FROM_FEED.has(quest.verification_logic ?? "");
 }

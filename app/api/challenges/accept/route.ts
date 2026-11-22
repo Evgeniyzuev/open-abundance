@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { recordProductEvent } from "@/lib/serverAnalytics";
-import { challengeNeedsHumanity, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
+import { challengeNeedsHumanity, challengeNeedsLevel, hasFirstResult, type ChallengeProgressWithCategory } from "@/lib/challengeEligibility";
 import { completedQuestCount, questUnlocked } from "@/lib/questPath";
 
 type AcceptRequest = {
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
   }
 
   const userLevel = Number(coreAccount?.level ?? 1);
-  if (challenge.difficulty_level > userLevel) {
+  if (challengeNeedsLevel(challenge, userLevel)) {
     return NextResponse.json({ error: `Challenge requires Core level ${challenge.difficulty_level}.` }, { status: 409 });
   }
 

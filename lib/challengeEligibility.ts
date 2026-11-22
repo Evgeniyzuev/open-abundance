@@ -28,10 +28,19 @@ export function challengeNeedsHumanity(challenge: Pick<ChallengeEligibilityRecor
   return Number(challenge.core_reward_amount ?? 0) + Number(challenge.wallet_reward_amount ?? 0) > HUMANITY_FREE_REWARD;
 }
 
+// The very first quest is open at any Core level: a new account starts at level 0 (Core $1) and the first step is what
+// lifts it to level 1 ("1 + 1 = first level"). Before 2026-11-22 it sat in "almost available" and nobody could take it.
+const LEVEL_FREE_LOGICS = new Set(["first_step_motive"]);
+
+export function challengeNeedsLevel(challenge: Pick<ChallengeEligibilityRecord, "difficulty_level" | "verification_logic">, userLevel: number): boolean {
+  if (LEVEL_FREE_LOGICS.has(String(challenge.verification_logic ?? ""))) return false;
+  return challenge.difficulty_level > userLevel;
+}
+
 export function getChallengeAccessReasons(challenge: ChallengeEligibilityRecord, userLevel: number): ChallengeAccessReason[] {
   const reasons: ChallengeAccessReason[] = [];
 
-  if (challenge.difficulty_level > userLevel) reasons.push("core_level");
+  if (challengeNeedsLevel(challenge, userLevel)) reasons.push("core_level");
   if (challenge.prerequisite_completed === false) {
     reasons.push(challenge.verification_logic === "has_referral" ? "first_result" : "prerequisite");
   }

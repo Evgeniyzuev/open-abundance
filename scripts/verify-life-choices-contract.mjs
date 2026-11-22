@@ -61,3 +61,9 @@ assert.equal(lifeChoicesEnabled("?story=1", read, write), true);
 assert.equal(lifeChoicesEnabled("", read, write), true);
 assert.equal(lifeChoicesEnabled("?story=0", read, write), false);
 console.log("life choices contract ok");
+
+// The first quest is open at level 0 (a new account has Core $1, level 0); other quests keep the level rule.
+const { getChallengeAccessReasons } = await import("../lib/challengeEligibility.ts");
+assert.deepEqual(getChallengeAccessReasons({ difficulty_level: 1, verification_logic: "first_step_motive" }, 0), []);
+assert.deepEqual(getChallengeAccessReasons({ difficulty_level: 1, verification_logic: "has_wish" }, 0), ["core_level"]);
+console.log("first quest level contract ok");

@@ -406,3 +406,28 @@ export function LifeChoicesOverlay({ locale, userId }: { locale: string; userId:
     </div>
   );
 }
+
+/** The first quest card after the adventure: the person's own main wish and sphere, and the reward button. */
+export function LifeChoicesResult({ locale, claimLabel, claiming, onClaim, fallback }: { locale: string; claimLabel: string; claiming: boolean; onClaim: () => void; fallback: React.ReactNode }) {
+  const [main, setMain] = useState<{ sphere: string; title: string } | null | undefined>(undefined);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(LIFE_STORAGE.result);
+      const value = raw ? (JSON.parse(raw) as { main?: { sphere?: string; title?: string } | null }) : null;
+      setMain(value?.main?.sphere && value.main.title ? { sphere: value.main.sphere, title: value.main.title } : null);
+    } catch {
+      setMain(null);
+    }
+  }, []);
+  if (main === undefined) return null;
+  const sphere = main ? LIFE_SPHERES.find((item) => item.key === main.sphere) : null;
+  if (!main || !sphere) return <>{fallback}</>;
+  return (
+    <section className="life-choices life-result" style={{ ["--sphere" as string]: sphere.color }}>
+      <div className="life-sphere"><LifeIcon name={sphere.icon} color={sphere.color} size={20} /><span>{lifeText(sphere.title, locale)}</span></div>
+      <p className="life-sub life-result-label">{lifeUi("yourMain", locale)}</p>
+      <p className="life-title">{main.title}</p>
+      <button className="challenge-primary-action" type="button" disabled={claiming} onClick={onClaim}>{claimLabel}</button>
+    </section>
+  );
+}

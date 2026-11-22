@@ -19,7 +19,7 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
-import { OPEN_LIFE_CHOICES_EVENT } from "@/components/LifeChoices";
+import { LifeChoicesResult, OPEN_LIFE_CHOICES_EVENT } from "@/components/LifeChoices";
 import { lifeChoicesEnabled, lifeUi } from "@/lib/lifeChoices";
 import { AbundanceQuiz, AppInstalledQuest, ChooseWishQuest, ContinueQuestion, CorePowerQuest, FirstStepQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
 import { ABUNDANCE_QUIZ_LOGIC } from "@/lib/abundanceQuiz";
@@ -1591,7 +1591,9 @@ function ChallengeDetailContent({
       {needsFirstStep ? (
         lifeChoices && !parseMotives(questMotives).length
           ? <button className="challenge-primary-action" type="button" onClick={() => window.dispatchEvent(new CustomEvent(OPEN_LIFE_CHOICES_EVENT))}>{lifeUi("continue", locale)}</button>
-          : <FirstStepQuest savedMotives={parseMotives(questMotives)} question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
+          : lifeChoices && parseMotives(questMotives).includes("own")
+            ? <LifeChoicesResult locale={locale} claimLabel={t("quests.firstStep.claim")} claiming={checkStatus === "loading"} onClaim={() => void handleCheck({ proofJustSaved: true })} fallback={<FirstStepQuest savedMotives={parseMotives(questMotives)} question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />} />
+            : <FirstStepQuest savedMotives={parseMotives(questMotives)} question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
 
       {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}
@@ -1688,7 +1690,7 @@ function ChallengeDetailContent({
         />
       ) : null}
 
-      {!completed && !locked && accepted && !needsAppTesting && !needsAcquisition && !needsPeerReviews && !needsAiEssay && !needsAppInstalled && !needsAbundanceQuiz && challenge.verification_logic !== "referral_program" ? (
+      {!completed && !locked && accepted && !needsFirstStep && !needsAppTesting && !needsAcquisition && !needsPeerReviews && !needsAiEssay && !needsAppInstalled && !needsAbundanceQuiz && challenge.verification_logic !== "referral_program" ? (
         <button className="challenge-primary-action" type="button" disabled={checkStatus === "loading"} onClick={() => void handleCheck()}>
           {checkStatus === "loading" ? t("challenges.checking") : t("challenges.check")}
         </button>

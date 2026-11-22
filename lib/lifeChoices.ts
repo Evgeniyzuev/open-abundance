@@ -345,7 +345,8 @@ export const LIFE_UI: Record<string, Text> = {
   weakest: t("Слабое место: {stat}", "Weak spot: {stat}"),
   replay: t("Пройти иначе", "Play again"),
   close: t("Закрыть, продолжить позже", "Close, continue later"),
-  continue: t("Продолжить приключение", "Continue the adventure")
+  continue: t("Продолжить приключение", "Continue the adventure"),
+  yourMain: t("Твоё главное сейчас", "Your main goal now")
 };
 
 export function lifeUi(key: keyof typeof LIFE_UI, locale: string, values: Record<string, string | number> = {}): string {

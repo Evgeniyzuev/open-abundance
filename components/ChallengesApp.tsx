@@ -19,6 +19,8 @@ import CoreLawGrowthChallenge from "@/components/CoreLawGrowthChallenge";
 import AcquisitionChallengePanel from "@/components/AcquisitionChallengePanel";
 import PeerReviewsPanel from "@/components/PeerReviewsPanel";
 import ChallengesExplainer from "@/components/ChallengesExplainer";
+import { LifeChoices } from "@/components/LifeChoices";
+import { lifeChoicesEnabled } from "@/lib/lifeChoices";
 import { AbundanceQuiz, AppInstalledQuest, ChooseWishQuest, ContinueQuestion, CorePowerQuest, FirstStepQuest, NovaBubble, PathMap, PathTree, QuestLeaders, novaLine, type PathMapItem } from "@/components/QuestScenes";
 import { ABUNDANCE_QUIZ_LOGIC } from "@/lib/abundanceQuiz";
 import { TOPUP_BONUS_LOGIC, TOPUP_BONUS_MAX_USD, TOPUP_BONUS_PERCENT } from "@/lib/stayStreak";
@@ -1275,6 +1277,16 @@ function ChallengeDetailContent({
   const locked = !accepted && !completed && (challenge.can_accept === false || accessReasons.length > 0);
   const needsGoalPlan = challenge.verification_logic === "calculate_time_to_goal" && accepted && !completed && !locked;
   const needsFirstStep = challenge.verification_logic === FIRST_STEP_LOGIC && accepted && !completed && !locked;
+  // The visual mini path replaces the first-step question where turned on (/?story=1, docs/SIMPLE_CORE_LOOP_PLAN.md).
+  const [lifeChoices, setLifeChoices] = useState(false);
+  useEffect(() => {
+    if (!needsFirstStep) return;
+    try {
+      setLifeChoices(lifeChoicesEnabled(window.location.search, (key) => window.localStorage.getItem(key), (key, value) => window.localStorage.setItem(key, value)));
+    } catch {
+      setLifeChoices(new URLSearchParams(window.location.search).get("story") === "1");
+    }
+  }, [needsFirstStep]);
   const needsWish = challenge.verification_logic === "has_wish" && accepted && !completed && !locked;
   // Quests with their own step-by-step scene: the generic instructions from the database would repeat or contradict it.
   const needsInvite = challenge.verification_logic === "has_referral" && accepted && !completed && !locked;
@@ -1577,7 +1589,9 @@ function ChallengeDetailContent({
       ) : null}
 
       {needsFirstStep ? (
-        <FirstStepQuest savedMotives={parseMotives(questMotives)} question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
+        lifeChoices && !parseMotives(questMotives).length
+          ? <LifeChoices locale={locale} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
+          : <FirstStepQuest savedMotives={parseMotives(questMotives)} question={displayText(challenge.description, "", locale)} t={t} onAnswered={() => void handleCheck({ proofJustSaved: true })} />
       ) : null}
 
       {needsWish ? <ChooseWishQuest locale={locale} motives={questMotives} t={t} userId={viewerId} onSaved={() => void handleCheck({ proofJustSaved: true })} /> : null}

@@ -529,17 +529,40 @@
 .chest-bar-mark.chest { width: 20px; height: 20px; filter: grayscale(0.7); opacity: 0.75; }
 .chest-bar-mark.chest.reached { filter: none; opacity: 1; animation: chest-pop 0.6s ease-out; }
 
-/* Story entry «Один свободный день» (components/FirstStory.tsx): the character's world fills up with each choice. */
-.first-story-world { min-height: 92px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; border-radius: 10px; padding: 12px; background: linear-gradient(180deg, #1d2550, #0b0f1f 80%, #10301f); font-size: 2rem; }
-.first-story-hero { font-size: 2.6rem; }
-.first-story-item { animation: first-story-pop 0.45s ease-out; }
-@keyframes first-story-pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .first-story-item { animation: none; } }
-.first-story-looks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.first-story-looks .quest-choice { text-align: center; font-size: 1.8rem; }
-.first-story-wish { font-weight: 900; font-size: 1.15rem; }
-.first-story-world-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.first-story-step { display: grid; gap: 4px; border-radius: 10px; padding: 10px 12px; background: rgba(255, 214, 107, 0.12); }
-.first-story-step span { color: var(--muted); font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; }
-.first-story-skip { justify-self: center; }
-.first-story .challenge-note { color: var(--muted) !important; text-align: center; }
+/* Mini path after sign-in (components/LifeChoices.tsx): character + flip cards with consequences. */
+.life-choices { display: grid; gap: 12px; border-radius: 16px; padding: 14px; background: linear-gradient(170deg, #141a33, #0b0f1f); color: #eef1ff; }
+.life-head { display: grid; gap: 2px; }
+.life-step { color: #9fb0ff; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.life-title { margin: 0; font-size: 1.2rem; font-weight: 900; }
+.life-sub { margin: 0; color: #c8cff5; text-align: center; }
+.life-wish { margin: 0; font-weight: 800; text-align: center; }
+.life-stage { display: flex; justify-content: center; border-radius: 12px; padding-top: 6px; background: linear-gradient(180deg, #1d2550, #0b0f1f 75%, #10301f); }
+.life-character { display: block; }
+.life-character * { transition: all 0.5s ease; }
+.life-looks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.life-look { display: grid; justify-items: center; gap: 4px; border: 1px solid rgba(159, 176, 255, 0.35); border-radius: 12px; padding: 8px 4px; background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit; font-weight: 800; }
+.life-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.life-cards.count-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.life-card { min-height: 132px; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; perspective: 700px; cursor: pointer; }
+.life-card:disabled { cursor: default; }
+.life-card-inner { position: relative; display: block; width: 100%; height: 100%; min-height: 132px; transition: transform 0.55s ease; transform-style: preserve-3d; }
+.life-card.flipped .life-card-inner { transform: rotateY(180deg); }
+.life-card-face { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 6px; border-radius: 12px; padding: 8px; backface-visibility: hidden; -webkit-backface-visibility: hidden; text-align: center; }
+.life-card-face.front { border: 1px solid rgba(159, 176, 255, 0.35); background: rgba(255, 255, 255, 0.08); }
+.life-card-face.back { transform: rotateY(180deg); }
+.life-card.picked .back { border: 2px solid #3ccf7a; background: #12442b; box-shadow: 0 0 18px rgba(60, 207, 122, 0.45); }
+.life-card.other .back { border: 1px solid rgba(231, 92, 92, 0.6); background: #4a1a1f; filter: blur(0.8px); opacity: 0.72; }
+.life-card-icon { font-size: 2.2rem; line-height: 1; }
+.life-card-label { font-size: 0.84rem; font-weight: 800; line-height: 1.25; }
+.life-card-effects { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.life-card-effects em { border-radius: 999px; padding: 1px 6px; background: rgba(255, 255, 255, 0.12); font-size: 0.68rem; font-style: normal; font-weight: 800; }
+.life-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+.life-stat { display: grid; gap: 3px; font-size: 0.78rem; font-weight: 800; }
+.life-stat i { display: block; height: 6px; border-radius: 3px; background: #3ccf7a; }
+.life-stat.weak i { background: #e75c5c; }
+.life-stat.weak span { color: #ff9a9a; }
+.life-choices .challenge-note { color: #ff9a9a !important; }
+@media (prefers-reduced-motion: reduce) { .life-card-inner, .life-character * { transition: none; } }
+.life-card:disabled { opacity: 1; color: #eef1ff; }
+.life-card.picked .back .life-card-label { color: #ffffff; }
+.life-stat b { display: block; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }

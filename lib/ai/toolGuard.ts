@@ -12,6 +12,7 @@ import { WATCH_AI_DAY_LIMIT, WATCH_AI_MONTH_LIMIT } from "@/lib/watchCompanion";
 export const AI_TOOL_LIMITS = {
   "tools.organize": { dayLimit: 30, monthLimit: 300 },
   "tools.watch": { dayLimit: WATCH_AI_DAY_LIMIT, monthLimit: WATCH_AI_MONTH_LIMIT },
+  "tools.noticed": { dayLimit: 15, monthLimit: 200 },
   "tools.project": { dayLimit: 3, monthLimit: 20 },
   "tools.alina": { dayLimit: ALINA_DAY_LIMIT, monthLimit: ALINA_MONTH_LIMIT },
   "tools.mark": { dayLimit: ALINA_DAY_LIMIT, monthLimit: ALINA_MONTH_LIMIT }

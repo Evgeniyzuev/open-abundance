@@ -76,6 +76,7 @@
     "test:achievements": "node --experimental-strip-types scripts/verify-achievements-contract.mjs",
     "test:feed-quests": "node --experimental-strip-types scripts/verify-feed-quests-contract.mjs",
     "test:external-image-copy": "node --experimental-strip-types scripts/verify-external-image-copy-contract.mjs",
+    "test:noticed": "node --experimental-strip-types scripts/verify-noticed-contract.mjs",
     "test:life-choices": "node --experimental-strip-types scripts/verify-life-choices-contract.mjs",
     "test:creator-challenges": "node --experimental-strip-types scripts/verify-creator-challenges-contract.mjs",
     "test:growth-stories": "node --experimental-strip-types scripts/verify-growth-stories-contract.mjs",

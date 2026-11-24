@@ -42,6 +42,7 @@ function TabLoading() {
 }
 const AiChatApp = dynamic(() => import("@/components/AiChatApp"), { ssr: false, loading: TabLoading });
 const LifeChoicesOverlay = dynamic(() => import("@/components/LifeChoices").then((module) => module.LifeChoicesOverlay), { ssr: false });
+const NoticedCard = dynamic(() => import("@/components/NoticedCard").then((module) => module.NoticedCard), { ssr: false });
 const ChallengesApp = dynamic(() => import("@/components/ChallengesApp"), { ssr: false, loading: TabLoading });
 const GrowthMapApp = dynamic(() => import("@/components/GrowthMapApp"), { ssr: false, loading: TabLoading });
 const ResultsApp = dynamic(() => import("@/components/ResultsApp"), { ssr: false, loading: TabLoading });
@@ -712,6 +713,7 @@ export default function AppNavigation() {
       <section className="app-content">
         {showHome || (showChallenges && activeChallengeTab === "challenges") ? <CoreJourneyCard onOpen={openCore} /> : null}
         <div className="app-view" hidden={!showHome}>
+          <NoticedCard active={showHome} />
           <NovaDailyCard
             active={showHome}
             onOpenChat={() => { setVisitedHomeViews((current) => ({ ...current, ideas: true })); setActiveHomeTab("ideas"); setActiveMainTab("home"); }}

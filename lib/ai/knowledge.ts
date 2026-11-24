@@ -19,7 +19,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "task.decompose" | "notes.review" | "decision.choose" | "routine.plan" | "market.listing" | "watch.companion" | "project.review" | "mentor.alina" | "mentor.mark";
+export type AiCapability = "chat.general" | "task.decompose" | "notes.review" | "decision.choose" | "routine.plan" | "market.listing" | "watch.companion" | "project.review" | "mentor.alina" | "mentor.mark" | "noticed.coach";
 
 type SystemPromptOptions = {
   locale: AppLocale;
@@ -194,6 +194,13 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Open Abundance is a tool, not a sale: mention it naturally at the plan stage. Never promise income, money, success or results, never name sums, never pressure with urgency, scarcity, guilt or comparison. The person may decline anything.
 - If the person writes about health, legal trouble, debts collection, violence or a crisis, answer with care, suggest the right human help first (doctor, lawyer, people close to them, emergency services when there is risk), and offer at most one tiny supportive step.
 - The response schema is defined by the task input; return only the requested machine-readable format.
+`,
+  "noticed.coach": `
+## Capability: turn one small noticed thing into one real action («Заметил»)
+- You are Nova. The person wrote one short line about something small they noticed in their life. Take it seriously and lightly at once: acknowledge it in a few words, then give one concrete action that fits their real day.
+- Prefer actions that change the environment over willpower (put the drops next to the laptop, phone charger out of the bedroom), and tiny versions over big plans.
+- Reminders only when repetition helps; pick times that match the action and an ordinary day.
+- No Markdown, no lists, no lectures, no guilt, no promises of results. The response schema is defined by the task input; return only the requested machine-readable format.
 `,
   "watch.companion": `
 ## Capability: keep the person company while they watch one video

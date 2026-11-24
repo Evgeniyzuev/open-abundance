@@ -609,3 +609,14 @@
 .noticed-list-text strong { overflow: hidden; font-size: 0.92rem; text-overflow: ellipsis; white-space: nowrap; }
 .noticed-icon { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); }
 .noticed-icon.on { color: var(--accent-fill); background: var(--accent-soft); }
+
+/* Home: secondary cards live under one "More" fold, like item properties in an RPG (founder 2026-11-24). */
+.home-more { display: grid; gap: 12px; }
+.home-more > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; background: var(--surface); cursor: pointer; list-style: none; }
+.home-more > summary::-webkit-details-marker { display: none; }
+.home-more > summary span { display: grid; gap: 2px; }
+.home-more > summary small { color: var(--muted); font-size: 0.8rem; }
+.home-more > summary svg { flex: none; color: var(--muted); transition: transform 0.2s ease; }
+.home-more[open] > summary svg { transform: rotate(180deg); }
+.home-fold-inline > summary { width: fit-content; padding: 6px 0; color: var(--muted); font-size: 0.85rem; font-weight: 800; cursor: pointer; }
+.home-fold-inline[open] > summary { margin-bottom: 6px; }

@@ -3,7 +3,7 @@
 import { DailyChestCard } from "@/components/DailyChests";
 import { DuoJoinPrompt } from "@/components/DuoQuest";
 import type { DayCredit } from "@/lib/dayCredit";
-import { ArrowRight, Bell, CheckCircle2, Compass, Flame, Heart, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, ChevronDown, Compass, Flame, Heart, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import DailySetCard from "@/components/DailySetCard";
@@ -422,6 +422,8 @@ export default function HomeTodayApp({
                 <strong>{formatRoundedMoney(wishJourney.savedAmount, locale)} / {formatRoundedMoney(wishJourney.targetAmount, locale)}</strong>
               </div>
               <div className="today-progress"><span style={{ width: `${Math.min(100, wishJourney.savedAmount / wishJourney.targetAmount * 100)}%` }} /></div>
+              <details className="home-fold-inline">
+              <summary>{t("home.path.more")}</summary>
               <div className="primary-wish-path-metrics">
                 <span><small>{t("home.path.availableIncome")}</small><b>{formatRoundedMoney(wishJourney.dailyAvailableIncome, locale)} / {t("home.path.day")}</b></span>
                 <span><small>{t("home.path.estimatedTime")}</small><b>{wishJourney.estimatedDays === null ? t("home.path.notDetermined") : wishJourney.estimatedDays === 0 ? t("home.path.funded") : `${wishJourney.estimatedDays} ${t("app.common.days.short")}`}</b></span>
@@ -429,6 +431,7 @@ export default function HomeTodayApp({
               <details className="primary-wish-assumptions">
                 <summary>{t("home.path.calculation")}</summary>
                 <p>{t("home.path.calculationDetails", { core: core?.balance ?? 0, reinvest: core?.reinvest_percent ?? 100 })}</p>
+              </details>
               </details>
             </div>
           ) : null}
@@ -453,6 +456,8 @@ export default function HomeTodayApp({
               </>
             )}
           </div>
+          <details className="home-fold-inline" open={startHelpOpen || Boolean(agentNote)}>
+          <summary>{t("home.path.help")}</summary>
           <div className="primary-wish-agent-actions">
             <button type="button" onClick={() => { setAgentNote(null); setStartHelpOpen(true); }}>{t("home.path.help")}</button>
             <button type="button" onClick={() => setAgentNote(t("home.path.pauseReply"))}>{t("home.path.pause")}</button>
@@ -469,6 +474,7 @@ export default function HomeTodayApp({
           ) : null}
           {agentNote ? <p className="primary-wish-agent-note"><Sparkles size={15} />{agentNote}</p> : null}
           <button className="text-button primary-wish-change" type="button" onClick={onOpenWishes}>{t("home.path.allWishes")}</button>
+          </details>
         </section>
       ) : (
         <section className="home-action-card">
@@ -488,8 +494,6 @@ export default function HomeTodayApp({
         </section>
       )}
 
-      <MorningCheckInCard active={active} />
-
       <DailySetCard
         active={active}
         challenge={nextChallenge && !(primaryWish && milestone) ? { id: nextChallenge.id, title: nextChallenge.title[locale] ?? nextChallenge.title.en ?? t("challenges.challenge") } : null}
@@ -497,6 +501,13 @@ export default function HomeTodayApp({
         onOpenChallenge={onOpenChallenge}
         onOpenFeed={onOpenFeed}
       />
+
+      <details className="home-more">
+        <summary>
+          <span><strong>{t("home.more.title")}</strong><small>{t("home.more.hint")}</small></span>
+          <ChevronDown size={18} aria-hidden="true" />
+        </summary>
+      <MorningCheckInCard active={active} />
 
       <WeekRecapPrompt active={active} />
 
@@ -598,6 +609,7 @@ export default function HomeTodayApp({
           </div>
         </details>
       ) : null}
+      </details>
     </section>
   );
 }

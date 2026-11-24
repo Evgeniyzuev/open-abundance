@@ -7,7 +7,7 @@ import HumanityCard from "@/components/HumanityCard";
 import PayRequestEntry from "@/components/PayRequestEntry";
 import ArtifactWatcher from "@/components/ArtifactWatcher";
 import ReferralRewardNotice from "@/components/ReferralRewardNotice";
-import { BookOpen, CheckSquare, FileText, Heart, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Heart, HelpCircle, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ChallengeTab } from "@/components/ChallengesApp";
 import CoreJourneyCard from "@/components/CoreJourneyCard";
@@ -20,6 +20,7 @@ import SelfServeCheckIn from "@/components/SelfServeCheckIn";
 import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import WeeklyWishesCard from "@/components/WeeklyWishesCard";
 import NovaRequestsCard from "@/components/NovaRequestsCard";
+import HomeFold from "@/components/HomeFold";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
 import Skeleton from "@/components/ui/Skeleton";
@@ -719,7 +720,9 @@ export default function AppNavigation() {
             onOpenChat={() => { setVisitedHomeViews((current) => ({ ...current, ideas: true })); setActiveHomeTab("ideas"); setActiveMainTab("home"); }}
             onOpenCore={openCore}
           />
-          <LeadMeetingCard active={showHome} />
+          <HomeFold icon={<Users size={17} />} label={t("leadMeeting.label")} hint={t("home.fold.leadHint")}>
+            <LeadMeetingCard active={showHome} />
+          </HomeFold>
           <HomeTodayApp
             active={showHome}
             onOpenCalculator={openCalculator}
@@ -734,18 +737,24 @@ export default function AppNavigation() {
             onOpenTasks={() => { setActiveGoalTab("checks"); setActiveMainTab("goals"); }}
             todayUnread={todayUnread}
             refreshNonce={refreshNonce}
+            moreSlot={
+              <>
+                <WeeklyWishesCard
+                  active={showHome}
+                  onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+                  onOpenQuests={openNextChallenge}
+                />
+                <NovaRequestsCard active={showHome} />
+              </>
+            }
           />
-          <WeeklyWishesCard
-            active={showHome}
-            onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
-            onOpenQuests={openNextChallenge}
-          />
-          <NovaRequestsCard active={showHome} />
           <InstallPingAck />
           <NicknameNotice active={showHome} />
           <SelfServeCheckIn active={showHome} />
           <HumanityCard active={showHome} />
-          <WishOutcomeCheck active={showHome} />
+          <HomeFold icon={<HelpCircle size={17} />} label={t("home.fold.outcome")} hint={t("home.fold.outcomeHint")}>
+            <WishOutcomeCheck active={showHome} />
+          </HomeFold>
         </div>
         <KeepAliveView active={showNotes} visited>
           <NotesApp />

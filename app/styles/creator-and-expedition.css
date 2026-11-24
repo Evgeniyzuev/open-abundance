@@ -620,3 +620,18 @@
 .home-more[open] > summary svg { transform: rotate(180deg); }
 .home-fold-inline > summary { width: fit-content; padding: 6px 0; color: var(--muted); font-size: 0.85rem; font-weight: 800; cursor: pointer; }
 .home-fold-inline[open] > summary { margin-bottom: 6px; }
+/* Home folds: one line per secondary card, opened on tap. */
+.home-fold { display: grid; }
+.home-fold[hidden] { display: none; }
+.home-fold:not(:has(.home-fold-body > *)) { display: none; }
+.home-fold > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; border: 1px solid var(--line); border-radius: 16px; padding: 8px 14px; background: var(--surface); cursor: pointer; list-style: none; }
+.home-fold > summary::-webkit-details-marker { display: none; }
+.home-fold[open] > summary { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+.home-fold-icon { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--accent-soft); color: var(--text); overflow: hidden; }
+.home-fold-icon img { width: 30px; height: 30px; object-fit: cover; }
+.home-fold-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.home-fold-text strong { font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-fold-text small { color: var(--muted); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-fold > summary > svg { flex: none; color: var(--muted); transition: transform 0.2s ease; }
+.home-fold[open] > summary > svg { transform: rotate(180deg); }
+.home-fold-body { display: grid; gap: 12px; margin-top: 6px; }

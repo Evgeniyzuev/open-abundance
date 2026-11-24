@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import HomeFold from "@/components/HomeFold";
 import { useUserContext } from "@/components/UserProvider";
 import { formatAdaptiveMoney } from "@/lib/moneyFormat";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
@@ -92,27 +93,32 @@ export default function NovaDailyCard({ active, onOpenChat, onOpenCore }: { acti
   }
 
   return (
-    <section className="home-card self-serve-checkin nova-daily-card" aria-labelledby="nova-daily-title">
-      <div className="nova-daily-head">
-        <Image src="/nova-fox-robot.webp" alt="" width={28} height={28} />
-        <strong>{t("nova.card.from")}</strong>
-        <button
-          className="nova-daily-close"
-          type="button"
-          aria-label={t("app.common.close")}
-          onClick={() => { update({ dismissed: true }); setKind(null); }}
-        ><X size={16} /></button>
-      </div>
-      <h2 id="nova-daily-title">{t(`nova.card.${kind}.title` as never, values)}</h2>
-      <p>{kind === "week" && weekly ? weekly.body : t(`nova.card.${kind}.body` as never, values)}</p>
-      <div className="self-serve-checkin-actions">
-        <button
-          className="secondary-button"
-          type="button"
-          onClick={() => { update({ acted: true }); setKind(null); if (kind === "level") onOpenCore(); else onOpenChat(); }}
-        >{t(`nova.card.${kind}.action` as never)}</button>
-      </div>
-    </section>
+    <HomeFold
+      className="nova-daily-fold"
+      icon={<Image src="/nova-fox-robot.webp" alt="" width={30} height={30} />}
+      label={t(`nova.card.${kind}.title` as never, values)}
+      hint={t("nova.card.from")}
+    >
+      <section className="home-card self-serve-checkin nova-daily-card" aria-label={t("nova.card.from")}>
+        <div className="nova-daily-head">
+          <strong>{t(`nova.card.${kind}.title` as never, values)}</strong>
+          <button
+            className="nova-daily-close"
+            type="button"
+            aria-label={t("app.common.close")}
+            onClick={() => { update({ dismissed: true }); setKind(null); }}
+          ><X size={16} /></button>
+        </div>
+        <p>{kind === "week" && weekly ? weekly.body : t(`nova.card.${kind}.body` as never, values)}</p>
+        <div className="self-serve-checkin-actions">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => { update({ acted: true }); setKind(null); if (kind === "level") onOpenCore(); else onOpenChat(); }}
+          >{t(`nova.card.${kind}.action` as never)}</button>
+        </div>
+      </section>
+    </HomeFold>
   );
 }
 

@@ -4,7 +4,7 @@ import { DailyChestCard } from "@/components/DailyChests";
 import { DuoJoinPrompt } from "@/components/DuoQuest";
 import type { DayCredit } from "@/lib/dayCredit";
 import { ArrowRight, Bell, CheckCircle2, ChevronDown, Compass, Flame, Heart, RefreshCw, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useUserContext } from "@/components/UserProvider";
 import DailySetCard from "@/components/DailySetCard";
 import MorningCheckInCard from "@/components/MorningCheckIn";
@@ -104,11 +104,14 @@ type HomeTodayAppProps = {
   onOpenTask: (taskId: string) => void;
   onOpenTasks: () => void;
   todayUnread: boolean;
+  /** Cards from outside (weekly wishes, requests via Nova) that live under «Ещё». */
+  moreSlot?: ReactNode;
 };
 
 export default function HomeTodayApp({
   active,
   refreshNonce,
+  moreSlot,
   onOpenNextChallenge,
   onOpenChallenge,
   onOpenFeed,
@@ -446,14 +449,14 @@ export default function HomeTodayApp({
                 </button>
               </>
             ) : (
-              <>
-                <label htmlFor="primary-wish-milestone">{t("home.path.milestonePrompt")}</label>
+              <details className="home-fold-inline">
+                <summary>{t("home.path.milestonePrompt")}</summary>
                 <small>{t("home.path.milestoneHelp")}</small>
-                <input id="primary-wish-milestone" maxLength={160} placeholder={t("home.path.milestonePlaceholder")} value={milestoneDraft} onChange={(event) => setMilestoneDraft(event.target.value)} />
+                <input id="primary-wish-milestone" aria-label={t("home.path.milestonePrompt")} maxLength={160} placeholder={t("home.path.milestonePlaceholder")} value={milestoneDraft} onChange={(event) => setMilestoneDraft(event.target.value)} />
                 <button className="challenge-primary-action home-primary-action" type="button" disabled={milestoneDraft.trim().length < 3} onClick={saveFirstMilestone}>
                   {t("home.path.saveMilestone")}<ArrowRight size={17} />
                 </button>
-              </>
+              </details>
             )}
           </div>
           <details className="home-fold-inline" open={startHelpOpen || Boolean(agentNote)}>
@@ -609,6 +612,7 @@ export default function HomeTodayApp({
           </div>
         </details>
       ) : null}
+      {moreSlot}
       </details>
     </section>
   );

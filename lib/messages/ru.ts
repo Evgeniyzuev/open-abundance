@@ -1674,7 +1674,7 @@ const ru: Record<string, string> = {
   "home.action.signIn": "Сохранить план через Google",
   "home.action.signInError": "Не удалось начать вход.",
   "home.action.wishTitle": "Выберите ближайшее желание",
-  "home.action.wishDescription": "Закрепите одно желание, чтобы Home показывал конкретный следующий шаг.",
+  "home.action.wishDescription": "Закрепите одно желание, чтобы Главная показывала конкретный следующий шаг.",
   "home.action.wish": "Выбрать желание",
   "home.action.calculatorTitle": "Собери личный Core-план",
   "home.action.calculatorDescription": "Открой калькулятор и закрепи дневной ритм для Today.",

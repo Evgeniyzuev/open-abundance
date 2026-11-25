@@ -56,10 +56,11 @@ assert.equal(lifeWeakest(s), "money");
 const store = new Map();
 const read = (key) => store.get(key) ?? null;
 const write = (key, value) => store.set(key, value);
-assert.equal(lifeChoicesEnabled("", read, write), false);
+assert.equal(lifeChoicesEnabled("", read, write), true);
 assert.equal(lifeChoicesEnabled("?story=1", read, write), true);
 assert.equal(lifeChoicesEnabled("", read, write), true);
 assert.equal(lifeChoicesEnabled("?story=0", read, write), false);
+assert.equal(lifeChoicesEnabled("", read, write), false);
 console.log("life choices contract ok");
 
 // The first quest is open at level 0 (a new account has Core $1, level 0); other quests keep the level rule.

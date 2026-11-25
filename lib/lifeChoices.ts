@@ -357,11 +357,12 @@ export function lifeUi(key: keyof typeof LIFE_UI, locale: string, values: Record
 
 const FLAG_KEY = "oa.storyEntry";
 
-/** The mini path replaces the first-step question where turned on: /?story=1 (QA and the founder) for now. */
+/** The mini path replaces the first-step question for everyone; /?story=0 turns it off on a device. */
 export function lifeChoicesEnabled(search: string, read: (key: string) => string | null, write: (key: string, value: string) => void): boolean {
   const flag = new URLSearchParams(search).get("story");
   if (flag === "1" || flag === "0") write(FLAG_KEY, flag);
-  return (flag ?? read(FLAG_KEY)) === "1";
+  // On for everyone since 2026-11-25 (founder); ?story=0 still turns it off on a device.
+  return (flag ?? read(FLAG_KEY)) !== "0";
 }
 
 export const LIFE_STORAGE = { flag: FLAG_KEY, result: "oa.lifeChoices", progress: "oa.lifeChoicesProgress2", done: "oa.lifeChoicesDone", closed: "oa.lifeChoicesClosed" } as const;

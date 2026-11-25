@@ -1,5 +1,6 @@
 "use client";
 
+import MomentShare from "@/components/MomentShare";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Info, KeyRound } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
@@ -209,6 +210,7 @@ function ChestOpenSheet({ state, onDone }: { state: ChestState; onDone: (next: C
           <p className="chest-reward-label">{t("chests.reward")}</p>
           <strong className="chest-reward-amount">+{money(shown, locale)} Core</strong>
           <NovaCheer text={t(big ? "chests.nova.big" : lineRef.current)} />
+          <MomentShare kind="chest" title={`+${money(result.reward, locale)} Core`} />
           <button className="challenge-primary-action" type="button" onClick={() => onDone(result.state ?? null)}>{t("chests.take")}</button>
         </>
       ) : null}

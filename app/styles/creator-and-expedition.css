@@ -635,3 +635,5 @@
 .home-fold > summary > svg { flex: none; color: var(--muted); transition: transform 0.2s ease; }
 .home-fold[open] > summary > svg { transform: rotate(180deg); }
 .home-fold-body { display: grid; gap: 12px; margin-top: 6px; }
+.moment-share { display: grid; justify-items: center; }
+.moment-share-button { display: inline-flex; align-items: center; gap: 8px; }

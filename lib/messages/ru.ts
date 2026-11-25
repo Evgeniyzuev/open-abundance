@@ -1662,6 +1662,7 @@ const ru: Record<string, string> = {
   "home.fold.leadHint": "Ритм встреч и цель недели",
   "home.fold.outcome": "Приблизило ли к желанию?",
   "home.fold.outcomeHint": "Один вопрос, ответ в одно касание",
+  "moment.share": "Поделиться",
   "home.team.title": "Командный контур",
   "home.team.memberAction": "Открытых заданий для тебя: {count}",
   "home.team.leaderQueue": "На проверке у тебя: {count}",

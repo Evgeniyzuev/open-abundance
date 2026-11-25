@@ -272,6 +272,7 @@ const hi: Record<string, string> = {
   "home.fold.leadHint": "मुलाक़ातों की लय और हफ़्ते का लक्ष्य",
   "home.fold.outcome": "क्या इससे इच्छा के क़रीब पहुँचे?",
   "home.fold.outcomeHint": "एक सवाल, एक टैप में जवाब",
+  "moment.share": "शेयर करें",
   "home.team.title": "टीम चक्र",
   "home.team.memberAction": "आपके लिए खुले कार्य: {count}",
   "home.team.leaderQueue": "आपकी समीक्षा की प्रतीक्षा में: {count}",

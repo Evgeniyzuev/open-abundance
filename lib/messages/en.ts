@@ -1662,6 +1662,7 @@ const en = {
   "home.fold.leadHint": "Meeting rhythm and goal of the week",
   "home.fold.outcome": "Did it bring you closer?",
   "home.fold.outcomeHint": "One question, one tap to answer",
+  "moment.share": "Share",
   "home.team.title": "Team loop",
   "home.team.memberAction": "Open tasks for you: {count}",
   "home.team.leaderQueue": "Waiting for your review: {count}",

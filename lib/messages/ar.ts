@@ -272,6 +272,7 @@ const ar: Record<string, string> = {
   "home.fold.leadHint": "إيقاع اللقاءات وهدف الأسبوع",
   "home.fold.outcome": "هل قرّبك من أمنيتك؟",
   "home.fold.outcomeHint": "سؤال واحد، إجابة بلمسة واحدة",
+  "moment.share": "مشاركة",
   "home.team.title": "دورة الفريق",
   "home.team.memberAction": "مهام مفتوحة لك: {count}",
   "home.team.leaderQueue": "بانتظار مراجعتك: {count}",

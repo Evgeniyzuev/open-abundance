@@ -272,6 +272,7 @@ const es: Record<string, string> = {
   "home.fold.leadHint": "Ritmo de reuniones y meta de la semana",
   "home.fold.outcome": "¿Te acercó a tu deseo?",
   "home.fold.outcomeHint": "Una pregunta, un toque para responder",
+  "moment.share": "Compartir",
   "home.team.title": "Ciclo del equipo",
   "home.team.memberAction": "Tareas abiertas para ti: {count}",
   "home.team.leaderQueue": "Esperando tu revisión: {count}",

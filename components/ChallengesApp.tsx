@@ -1,5 +1,6 @@
 "use client";
 
+import MomentShare from "@/components/MomentShare";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, BookOpen, Bot, CalendarDays, CheckCircle2, CircleHelp, Clock3, Compass, HandHeart, Hourglass, KeyRound, Megaphone, PenLine, Rocket, Send, ShieldCheck, Smartphone, Store, Target, Trophy, UserRoundCheck, WalletCards, type LucideIcon, Users } from "lucide-react";
 import Sheet from "@/components/ui/Sheet";
@@ -1929,6 +1930,7 @@ function ChallengeCompleteModal({ challenge, reward, locale, t, onClose, onOpenF
         {reward.claimed && reward.feedPostId ? (
           <QuestShareBox challengeId={challenge.id} logic={challenge.verification_logic} postId={reward.feedPostId} questTitle={displayText(challenge.title, t("challenges.challenge"), locale)} t={t} />
         ) : null}
+        {reward.claimed ? <MomentShare kind="quest" title={displayText(challenge.title, t("challenges.challenge"), locale)} line={reward.coreAmount ? `+${formatTodayMoney(reward.coreAmount, locale)} Core` : undefined} /> : null}
         <div className="challenge-receipt">
           <div className="challenge-receipt-row">
             <span>{t("challenges.receipt.challenge")}</span>

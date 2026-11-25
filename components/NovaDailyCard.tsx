@@ -1,5 +1,6 @@
 "use client";
 
+import MomentShare from "@/components/MomentShare";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -117,6 +118,7 @@ export default function NovaDailyCard({ active, onOpenChat, onOpenCore }: { acti
             onClick={() => { update({ acted: true }); setKind(null); if (kind === "level") onOpenCore(); else onOpenChat(); }}
           >{t(`nova.card.${kind}.action` as never)}</button>
         </div>
+        {kind === "week" && weekly ? <MomentShare kind="week" title={t("nova.card.week.title" as never, values)} line={weekly.body.slice(0, 140)} /> : null}
       </section>
     </HomeFold>
   );

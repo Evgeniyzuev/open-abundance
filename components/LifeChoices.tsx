@@ -1,5 +1,6 @@
 "use client";
 
+import MomentShare from "@/components/MomentShare";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle, ArrowUpToLine, BarChart3, BatteryLow, BookOpen, Bot, Briefcase, CalendarX, Car, Check, CigaretteOff, Clock,
@@ -428,6 +429,7 @@ export function LifeChoicesResult({ locale, claimLabel, claiming, onClaim, fallb
       <p className="life-sub life-result-label">{lifeUi("yourMain", locale)}</p>
       <p className="life-title">{main.title}</p>
       <button className="challenge-primary-action" type="button" disabled={claiming} onClick={onClaim}>{claimLabel}</button>
+      <MomentShare kind="path" title={main.title} />
     </section>
   );
 }

@@ -97,7 +97,8 @@ export default function WordCallsApp({ active }: { active: boolean }) {
     }
   }
 
-  if (!user || !state?.available) return null;
+  if (!user || !state) return null;
+  if (!state.available) return <section className="calls-screen"><header className="challenges-header"><h1>{ui("tab")}</h1></header><p className="calls-intro">{ui("soon")}</p></section>;
 
   const open = state.mine.filter((entry) => entry.status === "taken" || entry.status === "submitted");
   const settled = state.mine.filter((entry) => entry.status !== "taken" && entry.status !== "submitted").slice(0, 5);

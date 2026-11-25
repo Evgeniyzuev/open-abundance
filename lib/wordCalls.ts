@@ -156,7 +156,7 @@ type UiKey =
   | "tab" | "intro" | "missionsTitle" | "missionsHint" | "callsTitle" | "mineTitle" | "voteTitle" | "voteHint" | "galleryTitle"
   | "sealed" | "minutes" | "hours" | "difficulty" | "reward" | "upTo" | "take" | "takeMission" | "taken" | "deadline"
   | "proofText" | "proofUrl" | "submit" | "submitted" | "giveUp" | "kept" | "rejected" | "broken" | "yes" | "no"
-  | "record" | "aiNote" | "challenged" | "passOn" | "empty" | "failed" | "limit" | "galleryEmpty" | "votes" | "notNow" | "visible" | "effortHours";
+  | "record" | "aiNote" | "challenged" | "passOn" | "empty" | "failed" | "limit" | "galleryEmpty" | "votes" | "notNow" | "visible" | "effortHours" | "soon";
 
 const UI: Record<"ru" | "en", Record<UiKey, string>> = {
   ru: {
@@ -200,6 +200,7 @@ const UI: Record<"ru" | "en", Record<UiKey, string>> = {
     votes: "голосов: {n}",
     notNow: "Не сейчас",
     effortHours: "{n} ч",
+    soon: "Вызовы откроются совсем скоро.",
     visible: "Отчёт увидят участники, которые проверяют вызовы"
   },
   en: {
@@ -243,6 +244,7 @@ const UI: Record<"ru" | "en", Record<UiKey, string>> = {
     votes: "votes: {n}",
     notNow: "Not now",
     effortHours: "{n} h",
+    soon: "Calls open very soon.",
     visible: "Members who check calls will see your report"
   }
 };

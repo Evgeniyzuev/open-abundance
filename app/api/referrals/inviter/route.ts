@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_STORE_HEADERS } from "@/lib/httpCache";
+import { inviterDays, type InviterPath } from "@/lib/inviterPath";
 import { personName } from "@/lib/personName";
 import { FIRST_STEP_LOGIC } from "@/lib/questPath";
 import { createServiceSupabaseClient, getAuthenticatedUser } from "@/lib/serverSupabase";
@@ -22,9 +23,16 @@ export async function GET(request: NextRequest) {
     const db = createServiceSupabaseClient();
     const { data: owner } = await db.from("referral_codes").select("user_id").eq("code", code).eq("is_active", true).maybeSingle();
     if (!owner?.user_id) return NextResponse.json({}, { headers: NO_STORE_HEADERS });
-    const { data: profile } = await db.from("user_profiles").select("display_name,username").eq("user_id", owner.user_id).is("deleted_at", null).maybeSingle();
+    const { data: profile } = await db.from("user_profiles").select("display_name,username,level,created_at").eq("user_id", owner.user_id).is("deleted_at", null).maybeSingle();
     const name = profile ? personName(profile, "") : "";
-    return NextResponse.json(name ? { name } : {}, { headers: NO_STORE_HEADERS });
+    if (!name || !profile) return NextResponse.json({}, { headers: NO_STORE_HEADERS });
+    // The inviter's path for the newcomer: only public facts (days, level, completed quests, a public wish).
+    const [{ count: quests }, { data: wish }] = await Promise.all([
+      db.from("user_challenges").select("id", { count: "exact", head: true }).eq("user_id", owner.user_id).eq("status", "completed"),
+      db.from("wishes").select("title").eq("owner_user_id", owner.user_id).eq("visibility", "public").is("deleted_at", null).neq("status", "completed").order("updated_at", { ascending: false }).limit(1).maybeSingle()
+    ]);
+    const path: InviterPath = { days: inviterDays(profile.created_at), level: Number(profile.level ?? 0), quests: quests ?? 0, wish: wish?.title?.trim().slice(0, 60) || null };
+    return NextResponse.json({ name, path }, { headers: NO_STORE_HEADERS });
   } catch {
     return NextResponse.json({}, { headers: NO_STORE_HEADERS });
   }

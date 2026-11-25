@@ -2152,3 +2152,5 @@ body:has(.guest-bar) .post-detail-modal > .modal-close { top: calc(96px + var(--
 .nova-requests-card .nova-request-agent p { color: var(--text); }
 .installment-line { display: grid; gap: 2px; margin: -4px 4px 10px; }
 .installment-line small { color: var(--muted); font-size: .8rem; line-height: 1.35; }
+.onboarding-copy .onboarding-inviter-path { display: grid; gap: 2px; border-radius: 16px; }
+.onboarding-inviter-path small { color: #4a4390; font-size: 0.82rem; font-weight: 700; }

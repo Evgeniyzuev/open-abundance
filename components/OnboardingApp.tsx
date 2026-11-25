@@ -1,5 +1,6 @@
 "use client";
 
+import { cleanInviterPath, inviterPathFacts, inviterPathWish, type InviterPath } from "@/lib/inviterPath";
 import { localeDirection } from "@/lib/locales";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, LogIn, Mail, Sparkles } from "lucide-react";
@@ -260,6 +261,7 @@ function OnboardingApp({
 }) {
   const { locale: appLocale, t } = useUserContext();
   const [inviter, setInviter] = useState<string | null>(null);
+  const [inviterPath, setInviterPath] = useState<InviterPath | null>(null);
   const [guestPlayed, setGuestPlayed] = useState(false);
   // Answered as a guest before a reload: the quest opens on its summary and reward, not on the question again.
   const [guestMotives] = useState(() => readGuestQuest()?.motives);
@@ -273,8 +275,11 @@ function OnboardingApp({
       const pending = guest?.pendingReferral;
       if (cancelled || !pending || pending.claimedAt) return;
       const response = await fetch(`/api/referrals/inviter?code=${encodeURIComponent(pending.referralCode)}`, { cache: "no-store" });
-      const payload = (await response.json().catch(() => ({}))) as { name?: string };
-      if (!cancelled && payload.name) setInviter(payload.name);
+      const payload = (await response.json().catch(() => ({}))) as { name?: string; path?: unknown };
+      if (!cancelled && payload.name) {
+        setInviter(payload.name);
+        setInviterPath(cleanInviterPath(payload.path));
+      }
     }).catch(() => undefined);
     void read();
     const timer = window.setTimeout(() => void read(), 1200);
@@ -478,7 +483,7 @@ function OnboardingApp({
               <h1>{onboardingText(onboardingContent.mission.title, locale)}</h1>
               <p>{onboardingText(onboardingContent.mission.body, locale)}</p>
               <strong className="onboarding-gift">{onboardingText(onboardingContent.mission.gift, locale)}</strong>
-              {inviter ? <strong className="onboarding-invited">{onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)}</strong> : null}
+              {inviter ? <InviterPathCard text={onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)} path={inviterPath} locale={locale} /> : null}
             </div>
             <button className="onboarding-primary-action" type="button" onClick={() => goTo("stories")}>
               {onboardingText(onboardingContent.actions.continue, locale)}
@@ -522,7 +527,7 @@ function OnboardingApp({
           <section className="onboarding-slide onboarding-guest-slide">
             <div className="onboarding-copy">
               <span>{onboardingText(onboardingContent.guest.questEyebrow, locale)}</span>
-              {inviter ? <strong className="onboarding-invited">{onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)}</strong> : null}
+              {inviter ? <InviterPathCard text={onboardingText(onboardingContent.guest.invitedBy, locale).replace("{name}", inviter)} path={inviterPath} locale={locale} /> : null}
             </div>
             <FirstStepQuest
               art={GUEST_QUEST_ART}
@@ -852,3 +857,16 @@ function readOnboardingState(value: unknown): OnboardingState {
   return value as OnboardingState;
 }
 
+/** «Тебя позвала Аня» and, when known, her path: day, level, quests and the wish she walks to (public facts only). */
+function InviterPathCard({ text, path, locale }: { text: string; path: InviterPath | null; locale: string }) {
+  const facts = path ? inviterPathFacts(path, locale) : "";
+  const wish = path ? inviterPathWish(path, locale) : "";
+  if (!facts && !wish) return <strong className="onboarding-invited">{text}</strong>;
+  return (
+    <span className="onboarding-invited onboarding-inviter-path">
+      <strong>{text}</strong>
+      {facts ? <small>{facts}</small> : null}
+      {wish ? <small>{wish}</small> : null}
+    </span>
+  );
+}

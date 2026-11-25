@@ -12,7 +12,7 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
  * «Поделиться» at a key moment: a ready 9:16 / 4:5 card with the person's words and their invitation link, so the story
  * they share brings the next person to the same path.
  */
-export default function MomentShare({ kind, title, line, className }: { kind: MomentKind; title: string; line?: string; className?: string }) {
+export default function MomentShare({ kind, title, line, className, params }: { kind: MomentKind; title: string; line?: string; className?: string; params?: Record<string, string> }) {
   const { t, locale, user } = useUserContext();
   const [link, setLink] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "open" | "failed">("idle");
@@ -25,11 +25,11 @@ export default function MomentShare({ kind, title, line, className }: { kind: Mo
       const response = await fetchWithSupabaseAuth(`/api/referrals/me?ts=${Date.now()}`, { cache: "no-store" }, { authRequired: true });
       const payload = (await response.json().catch(() => ({}))) as { appUrl?: string };
       const base = payload.appUrl || window.location.origin;
-      setLink(momentInviteUrl(base, kind));
+      setLink(momentInviteUrl(base, kind, params));
       setState("open");
       trackProductEvent("moment_share_opened", { kind });
     } catch {
-      setLink(momentInviteUrl(window.location.origin, kind));
+      setLink(momentInviteUrl(window.location.origin, kind, params));
       setState("open");
     }
   }

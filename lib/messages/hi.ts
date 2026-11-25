@@ -400,6 +400,8 @@ const hi: Record<string, string> = {
   "challenges.title": "चुनौतियाँ",
   "challenges.tabs.challenges": "चुनौतियाँ",
   "challenges.tabs.projects": "प्रोजेक्ट",
+  "challenges.tabs.calls": "चुनौतियाँ",
+  "calls.pendingBanner": "आपको चुनौती दी गई है",
   "challenges.loading.description": "चुनौतियाँ तैयार की जा रही हैं।",
   "challenges.offline.description": "उपलब्ध चुनौतियाँ केवल ऑनलाइन दिखती हैं। स्वीकार की गई चुनौतियाँ सिंक के बाद यहाँ दिखेंगी।",
   "challenges.available": "उपलब्ध",

@@ -400,6 +400,8 @@ const zh: Record<string, string> = {
   "challenges.title": "挑战",
   "challenges.tabs.challenges": "挑战",
   "challenges.tabs.projects": "项目",
+  "challenges.tabs.calls": "挑战",
+  "calls.pendingBanner": "有人向你发起了挑战",
   "challenges.loading.description": "正在准备挑战。",
   "challenges.offline.description": "可参加的挑战仅在联网时可见。已接受的挑战将在同步后显示在这里。",
   "challenges.available": "可参加",

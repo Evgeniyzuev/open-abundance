@@ -400,6 +400,8 @@ const ar: Record<string, string> = {
   "challenges.title": "التحديات",
   "challenges.tabs.challenges": "التحديات",
   "challenges.tabs.projects": "المشاريع",
+  "challenges.tabs.calls": "التحديات",
+  "calls.pendingBanner": "لقد تم تحديك",
   "challenges.loading.description": "جارٍ تجهيز التحديات.",
   "challenges.offline.description": "التحديات المتاحة تظهر عند الاتصال بالإنترنت فقط. ستظهر التحديات المقبولة هنا بعد المزامنة.",
   "challenges.available": "المتاحة",

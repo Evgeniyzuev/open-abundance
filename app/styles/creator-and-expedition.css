@@ -637,3 +637,26 @@
 .home-fold-body { display: grid; gap: 12px; margin-top: 6px; }
 .moment-share { display: grid; justify-items: center; }
 .moment-share-button { display: inline-flex; align-items: center; gap: 8px; }
+/* «Вызовы» and sealed missions */
+.calls-screen { display: grid; gap: 14px; }
+.calls-record { color: var(--muted); font-weight: 800; }
+.calls-intro, .calls-hint { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
+.calls-section { display: grid; gap: 10px; }
+.calls-section > h2 { margin: 6px 2px 0; font-size: 1.1rem; }
+.calls-title { font-size: 1.02rem; }
+.calls-call p, .calls-open p, .calls-vote p, .calls-gallery-item p { margin: 0; line-height: 1.4; overflow-wrap: anywhere; }
+.calls-facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.calls-facts > span { border-radius: 999px; padding: 4px 10px; background: var(--surface-muted); color: var(--text); font-size: 0.8rem; font-weight: 700; }
+.calls-missions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.calls-mission { background: linear-gradient(160deg, var(--surface) 0%, var(--accent-soft) 100%); }
+.calls-seal { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; letter-spacing: 0.02em; }
+.calls-status { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: var(--muted); }
+.calls-settled.kept .calls-status { color: #1f9d55; }
+.calls-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.calls-actions .challenge-secondary-action { display: inline-flex; align-items: center; gap: 6px; }
+.calls-field { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.calls-field textarea, .calls-field input { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--surface); color: var(--text); font: inherit; }
+.calls-vote a, .calls-gallery-item a { font-size: 0.82rem; overflow-wrap: anywhere; }
+.calls-vote small, .calls-gallery-item small, .calls-open small { color: var(--muted); }
+.calls-challenged { border: 2px solid #ff9f7a; }
+.home-fold-banner { display: flex; align-items: center; gap: 10px; min-height: 48px; border: 2px solid #ff9f7a; border-radius: 16px; padding: 8px 14px; background: var(--surface); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; text-align: left; }

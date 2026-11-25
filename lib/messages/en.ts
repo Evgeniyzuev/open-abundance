@@ -1542,6 +1542,8 @@ const en = {
   "challenges.title": "Quests",
   "challenges.tabs.challenges": "Quests",
   "challenges.tabs.projects": "Projects",
+  "challenges.tabs.calls": "Calls",
+  "calls.pendingBanner": "You've been challenged",
   "projects.title": "Projects",
   "projects.project": "Project",
   "projects.no_projects": "No open projects yet.",

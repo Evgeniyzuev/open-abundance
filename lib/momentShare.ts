@@ -43,9 +43,10 @@ export function momentImagePath(card: { kind: MomentKind; title: string; line?: 
 }
 
 /** The invitation link with the moment as utm_campaign, so analytics can tell which moments bring people. */
-export function momentInviteUrl(appUrl: string, kind: MomentKind): string {
+export function momentInviteUrl(appUrl: string, kind: MomentKind, params: Record<string, string> = {}): string {
   try {
     const url = new URL(appUrl);
+    for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
     url.searchParams.set("utm_source", "moment");
     url.searchParams.set("utm_campaign", kind);
     return url.toString();

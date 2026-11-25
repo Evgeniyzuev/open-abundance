@@ -1542,6 +1542,8 @@ const ru: Record<string, string> = {
   "challenges.title": "Задания",
   "challenges.tabs.challenges": "Задания",
   "challenges.tabs.projects": "\u041f\u0440\u043e\u0435\u043a\u0442\u044b",
+  "challenges.tabs.calls": "Вызовы",
+  "calls.pendingBanner": "Тебе бросили вызов",
   "projects.title": "\u041f\u0440\u043e\u0435\u043a\u0442\u044b",
   "projects.project": "\u041f\u0440\u043e\u0435\u043a\u0442",
   "projects.no_projects": "\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u043e\u0442\u043a\u0440\u044b\u0442\u044b\u0445 \u043f\u0440\u043e\u0435\u043a\u0442\u043e\u0432.",

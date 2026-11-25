@@ -71,6 +71,9 @@ export default async function InvitePage({ params, searchParams }: { params: { c
   // «A task for two»: the app offers to join the friend's duo after sign-in.
   const duo = searchParams.duo;
   if (typeof duo === "string" && /^[a-z0-9]{6,16}$/.test(duo)) target.set("duo", duo);
+  // «Вызов»: a friend challenged this person to the same call; the app opens it after sign-in.
+  const call = searchParams.call;
+  if (typeof call === "string" && /^[a-z0-9_]{3,40}$/.test(call)) target.set("call", call);
   const href = `/?${target.toString()}`;
 
   return (

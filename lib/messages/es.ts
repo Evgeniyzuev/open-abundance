@@ -400,6 +400,8 @@ const es: Record<string, string> = {
   "challenges.title": "Retos",
   "challenges.tabs.challenges": "Retos",
   "challenges.tabs.projects": "Proyectos",
+  "challenges.tabs.calls": "Retos",
+  "calls.pendingBanner": "Te lanzaron un reto",
   "challenges.loading.description": "Preparando los retos.",
   "challenges.offline.description": "Los retos disponibles solo se ven con conexión. Los retos aceptados aparecerán aquí tras la sincronización.",
   "challenges.available": "Disponibles",

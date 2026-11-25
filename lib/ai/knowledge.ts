@@ -19,7 +19,7 @@ export const AI_KNOWLEDGE_SOURCE_DOCUMENTS = [
   "docs/COORDINATOR_PILOT_DESIGN.md",
 ] as const;
 
-export type AiCapability = "chat.general" | "task.decompose" | "notes.review" | "decision.choose" | "routine.plan" | "market.listing" | "watch.companion" | "project.review" | "mentor.alina" | "mentor.mark" | "noticed.coach";
+export type AiCapability = "chat.general" | "task.decompose" | "notes.review" | "decision.choose" | "routine.plan" | "market.listing" | "watch.companion" | "project.review" | "mentor.alina" | "mentor.mark" | "noticed.coach" | "calls.judge";
 
 type SystemPromptOptions = {
   locale: AppLocale;
@@ -194,6 +194,11 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Open Abundance is a tool, not a sale: mention it naturally at the plan stage. Never promise income, money, success or results, never name sums, never pressure with urgency, scarcity, guilt or comparison. The person may decline anything.
 - If the person writes about health, legal trouble, debts collection, violence or a crisis, answer with care, suggest the right human help first (doctor, lawyer, people close to them, emergency services when there is risk), and offer at most one tiny supportive step.
 - The response schema is defined by the task input; return only the requested machine-readable format.
+`,
+  "calls.judge": `
+## Capability: check a report on a call («Вызов») or a mission
+- You are Nova. A member gave their word to do a small challenge and wrote how it went. Judge only whether the report plausibly shows it happened; you never see links or photos, so judge the text.
+- Be generous with honest, concrete reports and short with empty ones. Never shame. The note is one short, warm sentence that the member and the voters will read.
 `,
   "noticed.coach": `
 ## Capability: turn one small noticed thing into one real action («Заметил»)

@@ -7,9 +7,11 @@ import HumanityCard from "@/components/HumanityCard";
 import PayRequestEntry from "@/components/PayRequestEntry";
 import ArtifactWatcher from "@/components/ArtifactWatcher";
 import ReferralRewardNotice from "@/components/ReferralRewardNotice";
-import { BookOpen, CheckSquare, FileText, Heart, HelpCircle, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { BookOpen, CheckSquare, FileText, Flame, Heart, HelpCircle, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { ChallengeTab } from "@/components/ChallengesApp";
+import type { ChallengeTab as ChallengeListTab } from "@/components/ChallengesApp";
+
+type ChallengeTab = ChallengeListTab | "calls";
 import CoreJourneyCard from "@/components/CoreJourneyCard";
 import type { AppTestingNavigationTarget } from "@/components/AppTestingSurvey";
 import InstallPingAck from "@/components/InstallPingAck";
@@ -21,6 +23,7 @@ import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import WeeklyWishesCard from "@/components/WeeklyWishesCard";
 import NovaRequestsCard from "@/components/NovaRequestsCard";
 import HomeFold from "@/components/HomeFold";
+import { PENDING_CALL_KEY } from "@/lib/wordCalls";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
 import Skeleton from "@/components/ui/Skeleton";
@@ -43,6 +46,7 @@ function TabLoading() {
 }
 const AiChatApp = dynamic(() => import("@/components/AiChatApp"), { ssr: false, loading: TabLoading });
 const LifeChoicesOverlay = dynamic(() => import("@/components/LifeChoices").then((module) => module.LifeChoicesOverlay), { ssr: false });
+const WordCallsApp = dynamic(() => import("@/components/WordCallsApp"), { ssr: false });
 const NoticedCard = dynamic(() => import("@/components/NoticedCard").then((module) => module.NoticedCard), { ssr: false });
 const ChallengesApp = dynamic(() => import("@/components/ChallengesApp"), { ssr: false, loading: TabLoading });
 const GrowthMapApp = dynamic(() => import("@/components/GrowthMapApp"), { ssr: false, loading: TabLoading });
@@ -114,7 +118,8 @@ const walletTabs: TopTab[] = [
 
 const challengeTabs: TopTab[] = [
   { id: "challenges", titleKey: "challenges.tabs.challenges", icon: Trophy },
-  { id: "projects", titleKey: "challenges.tabs.projects", icon: Rocket }
+  { id: "projects", titleKey: "challenges.tabs.projects", icon: Rocket },
+  { id: "calls", titleKey: "challenges.tabs.calls", icon: Flame }
 ];
 
 const socialTabs: TopTab[] = [
@@ -308,6 +313,23 @@ export default function AppNavigation() {
     return true;
   }, []);
 
+  // «Вызовы»: a friend's challenge link (?call=<key>) is kept on the device until the person takes or dismisses it;
+  // a notification link (?view=challenges&tab=calls) opens the tab.
+  const [pendingCall, setPendingCall] = useState(false);
+  useEffect(() => {
+    if (!user || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const call = params.get("call");
+    try {
+      if (call && /^[a-z0-9_]{3,40}$/.test(call)) window.localStorage.setItem(PENDING_CALL_KEY, call);
+      setPendingCall(Boolean(window.localStorage.getItem(PENDING_CALL_KEY)));
+    } catch { /* without storage the challenge is just not remembered */ }
+    if (params.get("tab") === "calls") { setActiveChallengeTab("calls"); setActiveMainTab("challenges"); }
+    const cleared = () => setPendingCall(false);
+    window.addEventListener("oa:pending-call-cleared", cleared);
+    return () => window.removeEventListener("oa:pending-call-cleared", cleared);
+  }, [user]);
+
   // The "Artifact opened" window (and other places) ask to open a screen by name.
   useEffect(() => {
     const openTab = (event: Event) => {
@@ -323,7 +345,7 @@ export default function AppNavigation() {
         walletTab: main === "wallet" && sub ? (sub as WalletTabId) : current.walletTab,
         socialTab: main === "people" && sub ? (sub as SocialTabId) : current.socialTab
       });
-      if (main === "challenges") setActiveChallengeTab("challenges");
+      if (main === "challenges") setActiveChallengeTab(sub === "calls" && !detail?.challengeId ? "calls" : "challenges");
       // The feed opens a quest from a story or the quest of the day.
       if (main === "challenges" && detail?.challengeId) {
         setChallengeFocusId(detail.challengeId);
@@ -714,6 +736,11 @@ export default function AppNavigation() {
       <section className="app-content">
         {showHome || (showChallenges && activeChallengeTab === "challenges") ? <CoreJourneyCard onOpen={openCore} /> : null}
         <div className="app-view" hidden={!showHome}>
+          {pendingCall ? (
+            <button className="home-fold-banner" type="button" onClick={() => { setActiveChallengeTab("calls"); setActiveMainTab("challenges"); }}>
+              <Flame size={18} aria-hidden="true" /><span>{t("calls.pendingBanner")}</span>
+            </button>
+          ) : null}
           <NoticedCard active={showHome} />
           <NovaDailyCard
             active={showHome}
@@ -786,10 +813,11 @@ export default function AppNavigation() {
           />
         </KeepAliveView>
         {showResults ? <ResultsApp /> : null}
-        <KeepAliveView active={showChallenges} visited={visitedServerViews.challenges}>
+        {showChallenges && activeChallengeTab === "calls" ? <WordCallsApp active /> : null}
+        <KeepAliveView active={showChallenges && activeChallengeTab !== "calls"} visited={visitedServerViews.challenges}>
           <ChallengesApp
-            active={showChallenges}
-            activeTab={activeChallengeTab}
+            active={showChallenges && activeChallengeTab !== "calls"}
+            activeTab={activeChallengeTab === "calls" ? "challenges" : activeChallengeTab}
             focusNextChallengeNonce={challengeFocusNonce}
             focusChallengeId={challengeFocusId}
             challengesUnread={challengesUnread}

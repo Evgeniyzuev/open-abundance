@@ -814,7 +814,6 @@ export default function AppNavigation() {
               <Flame size={18} aria-hidden="true" /><span>{t("calls.pendingBanner")}</span>
             </button>
           ) : null}
-          <NoticedCard active={showHome} />
           {pathHome ? (
             <HomeFold icon={<Sparkles size={17} />} label={pathUi("more", locale)} hint={pathUi("moreHint", locale)}>
               {homeRest}
@@ -838,6 +837,7 @@ export default function AppNavigation() {
           <AiChatApp active={showIdeas} contentPostId={aiContentPostId} contentPostNonce={aiContentNonce} prompt={aiPrompt} />
         </KeepAliveView>
         <KeepAliveView active={showChecks} visited>
+          <div className="quick-note-slot"><NoticedCard active={showChecks} /></div>
           <TasksApp openTaskRequest={taskOpenRequest} />
         </KeepAliveView>
         <KeepAliveView active={showMap} visited={visitedServerViews.map}>

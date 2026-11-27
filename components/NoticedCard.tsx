@@ -10,7 +10,7 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 
 const COPY = {
   ru: {
-    label: "Заметил",
+    label: "Быстрая заметка",
     placeholder: "Что заметил? Мысль, желание…",
     thinking: "Нова думает…",
     remind: "Напоминать",
@@ -20,7 +20,7 @@ const COPY = {
     mine: "Мои действия"
   },
   en: {
-    label: "Noticed",
+    label: "Quick note",
     placeholder: "Noticed something? A thought…",
     thinking: "Nova is thinking…",
     remind: "Remind me",
@@ -32,7 +32,7 @@ const COPY = {
 } as const;
 
 /**
- * «Заметил» on Home: one line for any small thing; Nova answers with one action and reminder times. Hidden until the
+ * «Быстрая заметка» (was «Заметил» on Home) at the top of Желания → Задачи: one line for any small thing; Nova answers with one action and reminder times. Hidden until the
  * noticed_entries migration exists (GET answers available:false).
  */
 export function NoticedCard({ active }: { active: boolean }) {

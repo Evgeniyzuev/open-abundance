@@ -584,6 +584,8 @@
 .life-result-label { text-align: start; }
 
 /* «Заметил» on Home (components/NoticedCard.tsx): one line in, one action out. */
+.quick-note-slot { width: min(100vw, 610px); margin: 0 auto; padding: 4px 10px 12px; }
+.quick-note-slot:empty { display: none; }
 .noticed-card { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 18px; padding: 12px; background: var(--surface); }
 .noticed-label { color: var(--muted); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
 .noticed-input { display: flex; align-items: flex-end; gap: 8px; border-radius: 14px; padding: 6px 6px 6px 12px; background: var(--surface-soft); border: 1px solid var(--line); }

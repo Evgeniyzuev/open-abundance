@@ -51,9 +51,10 @@ for (const width of [300, 340, 380]) {
 const store = new Map();
 const read = (key) => store.get(key) ?? null;
 const write = (key, value) => store.set(key, value);
+assert.equal(p.pathHomeEnabled("", read, write), true);
+assert.equal(p.pathHomeEnabled("?path=0", read, write), false);
 assert.equal(p.pathHomeEnabled("", read, write), false);
 assert.equal(p.pathHomeEnabled("?path=1", read, write), true);
 assert.equal(p.pathHomeEnabled("", read, write), true);
-assert.equal(p.pathHomeEnabled("?path=0", read, write), false);
 assert.equal(p.pathUi("reward", "ru", { amount: "$1" }), "+$1 Core");
 console.log("path trail contract ok");

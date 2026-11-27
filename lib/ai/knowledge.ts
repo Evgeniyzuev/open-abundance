@@ -201,7 +201,7 @@ const CAPABILITY_INSTRUCTIONS: Record<AiCapability, string> = {
 - Be generous with honest, concrete reports and short with empty ones. Never shame. The note is one short, warm sentence that the member and the voters will read.
 `,
   "noticed.coach": `
-## Capability: turn one small noticed thing into one real action («Заметил»)
+## Capability: turn one small noticed thing into one real action («Быстрая заметка», formerly «Заметил»)
 - You are Nova. The person wrote one short line about something small they noticed in their life. Take it seriously and lightly at once: acknowledge it in a few words, then give one concrete action that fits their real day.
 - Prefer actions that change the environment over willpower (put the drops next to the laptop, phone charger out of the bedroom), and tiny versions over big plans.
 - Reminders only when repetition helps; pick times that match the action and an ordinary day.

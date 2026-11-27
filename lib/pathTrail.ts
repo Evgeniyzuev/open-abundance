@@ -124,11 +124,11 @@ function smoothPath(points: Array<{ x: number; y: number }>): string {
   return d;
 }
 
-/** The trail Home is turned on by /?path=1 (QA and the founder first) and off by /?path=0, remembered on the device. */
+/** The trail Home is on for everyone (founder 2026-11-27); /?path=0 turns it off and /?path=1 back on, remembered on the device. */
 export function pathHomeEnabled(search: string, read: (key: string) => string | null, write: (key: string, value: string) => void): boolean {
   const flag = new URLSearchParams(search).get("path");
   if (flag === "1" || flag === "0") write(PATH_FLAG_KEY, flag);
-  return (flag ?? read(PATH_FLAG_KEY)) === "1";
+  return (flag ?? read(PATH_FLAG_KEY)) !== "0";
 }
 
 export const PATH_FLAG_KEY = "oa.pathHome";

@@ -724,6 +724,18 @@ export default function AppNavigation() {
     setShareTargetDraft(null);
   }
 
+  const homeNotices = (
+    <>
+      <InstallPingAck />
+      <NicknameNotice active={showHome} />
+      <SelfServeCheckIn active={showHome} />
+      <HumanityCard active={showHome} />
+      <HomeFold icon={<HelpCircle size={17} />} label={t("home.fold.outcome")} hint={t("home.fold.outcomeHint")}>
+        <WishOutcomeCheck active={showHome} />
+      </HomeFold>
+    </>
+  );
+
   // Everything Home showed before «Путь»; with the trail on it lives under one fold, nothing removed.
   const homeRest = (
     <>
@@ -760,6 +772,7 @@ export default function AppNavigation() {
           </>
         }
       />
+      {pathHome ? homeNotices : null}
     </>
   );
 
@@ -807,13 +820,7 @@ export default function AppNavigation() {
               {homeRest}
             </HomeFold>
           ) : homeRest}
-          <InstallPingAck />
-          <NicknameNotice active={showHome} />
-          <SelfServeCheckIn active={showHome} />
-          <HumanityCard active={showHome} />
-          <HomeFold icon={<HelpCircle size={17} />} label={t("home.fold.outcome")} hint={t("home.fold.outcomeHint")}>
-            <WishOutcomeCheck active={showHome} />
-          </HomeFold>
+          {pathHome ? null : homeNotices}
         </div>
         <KeepAliveView active={showNotes} visited>
           <NotesApp />

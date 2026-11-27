@@ -11,7 +11,7 @@ import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 const COPY = {
   ru: {
     label: "Заметил",
-    placeholder: "Что заметил? Мысль, усталость, желание…",
+    placeholder: "Что заметил? Мысль, желание…",
     thinking: "Нова думает…",
     remind: "Напоминать",
     reminding: "Напоминаю",
@@ -21,7 +21,7 @@ const COPY = {
   },
   en: {
     label: "Noticed",
-    placeholder: "What did you notice? A thought, a wish…",
+    placeholder: "Noticed something? A thought…",
     thinking: "Nova is thinking…",
     remind: "Remind me",
     reminding: "Reminding",

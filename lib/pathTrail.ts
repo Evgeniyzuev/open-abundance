@@ -83,6 +83,7 @@ export function layoutTrail(nodes: TrailNode[], width: number, step = 76): { poi
   const destination = { x: Math.round(center + amplitude * Math.sin(rows * 1.15 + 0.4) * 0.5), y: 22 };
 
   const sidePoints: TrailPoint[] = [];
+  const destinationPoint = destination;
   let lastMain = mainPoints.find((point) => point.node.state === "current") ?? mainPoints[mainPoints.length - 1] ?? { x: center, y: height - 34 };
   let sideIndex = 0;
   for (const node of nodes) {
@@ -91,10 +92,18 @@ export function layoutTrail(nodes: TrailNode[], width: number, step = 76): { poi
       if (point && point.node.state !== "done") { lastMain = point; sideIndex = 0; }
       continue;
     }
-    // Side points stack up beside their anchor, on the roomier side, zig-zagging a little so they never overlap.
+    // Side points sit beside their anchor on the roomier side; candidates are tried until one clears every point.
     const direction = lastMain.x > center ? -1 : 1;
-    const offset = 64 + (sideIndex % 2) * 34;
-    sidePoints.push({ node, x: Math.round(Math.min(width - 22, Math.max(22, lastMain.x + direction * offset))), y: Math.round(Math.max(20, lastMain.y - 6 - sideIndex * 42)) });
+    const taken = [...mainPoints, ...sidePoints, destinationPoint];
+    const candidates: Array<{ x: number; y: number }> = [];
+    for (const dy of [0, -46, -92, 46, -138, 92, -184]) {
+      for (const side of [direction, -direction]) {
+        for (const dx of [64, 100, 136, 172]) candidates.push({ x: lastMain.x + side * dx, y: lastMain.y - 6 + dy });
+      }
+    }
+    const fits = (point: { x: number; y: number }) => point.x >= 22 && point.x <= width - 22 && point.y >= 20 && point.y <= height - 20 && taken.every((other) => Math.hypot(other.x - point.x, other.y - point.y) >= 46);
+    const spot = candidates.find(fits) ?? candidates[0];
+    sidePoints.push({ node, x: Math.round(Math.min(width - 22, Math.max(22, spot.x))), y: Math.round(Math.max(20, spot.y)) });
     sideIndex += 1;
   }
 

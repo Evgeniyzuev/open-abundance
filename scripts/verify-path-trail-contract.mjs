@@ -39,6 +39,15 @@ assert.ok(ys.every((y, index) => index === 0 || y < ys[index - 1]), "the trail c
 assert.ok(layout.path.startsWith("M") && layout.donePath.startsWith("M"));
 assert.ok(layout.goal.y < Math.min(...ys));
 
+// A busy day (3 words given, 2 sealed missions, a chest) still leaves every point clear of the others.
+const busy = p.buildTrail({ quests: quests.slice(0, 6).map((quest, index) => ({ ...quest, status: index < 1 ? "completed" : quest.status })), currentQuestId: "b", calls: [1, 2, 3].map((n) => ({ id: `k${n}`, title: "c", kind: n === 3 ? "mission" : "call", status: "taken", reward: 0.3 })), sealed: [{ id: "s1", reward: 0.2 }, { id: "s2", reward: 0.2 }], chestOpenable: true });
+for (const width of [300, 340, 380]) {
+  const placed = p.layoutTrail(busy, width).points;
+  for (let i = 0; i < placed.length; i += 1) for (let j = i + 1; j < placed.length; j += 1) {
+    assert.ok(Math.hypot(placed[i].x - placed[j].x, placed[i].y - placed[j].y) >= 40, `points apart at ${width}: ${placed[i].node.id} / ${placed[j].node.id}`);
+  }
+}
+
 const store = new Map();
 const read = (key) => store.get(key) ?? null;
 const write = (key, value) => store.set(key, value);

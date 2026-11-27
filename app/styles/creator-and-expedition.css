@@ -664,7 +664,7 @@
 :root { --path-trail: #c9cde0; --path-task: #006bc7; --path-call: #ff8a5b; --path-seal: #22253a; --path-chest: #f2b233; }
 :root[data-theme="dark"] { --path-trail: #3a3f52; --path-task: #4ea4ff; --path-seal: #e8eaf4; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --path-trail: #3a3f52; --path-task: #4ea4ff; --path-seal: #e8eaf4; } }
-.path-home { display: grid; gap: 12px; }
+.path-home { display: grid; gap: 12px; width: min(100%, 610px); margin: 0 auto; padding: 0 6px; }
 .path-eyebrow { font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
 .path-destination { position: relative; overflow: hidden; display: grid; gap: 8px; text-align: left; border: 0; border-radius: 20px; padding: 16px; min-height: 120px; align-content: end; color: #fff; font: inherit; cursor: pointer; background: linear-gradient(145deg, #675dff, #0a84ff 58%, #34c759); }
 .path-destination > * { position: relative; }
@@ -703,3 +703,4 @@
 .path-props strong { font-size: 1.1rem; line-height: 1.3; }
 .path-label { position: absolute; transform: translate(-50%, 30px); max-width: 60%; text-align: center; z-index: 1; padding: 5px 10px; border-radius: 12px; background: var(--surface); color: var(--text); font-size: 0.8rem; font-weight: 800; line-height: 1.2; box-shadow: 0 6px 16px -10px rgba(0, 0, 0, 0.4); pointer-events: none; }
 .path-node.current::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+.noticed-input textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

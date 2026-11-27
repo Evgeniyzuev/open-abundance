@@ -132,7 +132,7 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
       <button className="path-destination" type="button" onClick={onOpenWishes}>
         {/* eslint-disable-next-line @next/next/no-img-element -- wish covers come from any host the person chose */}
         {wish?.image_url ? <img className="path-destination-cover" alt="" src={wish.image_url} /> : null}
-        <span className="path-eyebrow">{ui("myWish")}{sphere ? ` · ${sphere.title[locale === "ru" ? "ru" : "en"]}` : ""}</span>
+        <span className="path-eyebrow">{ui("myWish")}{wish && sphere ? ` · ${sphere.title[locale === "ru" ? "ru" : "en"]}` : ""}</span>
         <strong>{wish?.title ?? ui("chooseWish")}</strong>
         {journey.targetAmount ? (
           <>

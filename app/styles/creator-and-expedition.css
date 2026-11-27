@@ -660,3 +660,46 @@
 .calls-vote small, .calls-gallery-item small, .calls-open small { color: var(--muted); }
 .calls-challenged { border: 2px solid #ff9f7a; }
 .home-fold-banner { display: flex; align-items: center; gap: 10px; min-height: 48px; border: 2px solid #ff9f7a; border-radius: 16px; padding: 8px 14px; background: var(--surface); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; text-align: left; }
+/* «Путь»: Home as one trail to the main wish (components/PathHome.tsx) */
+:root { --path-trail: #c9cde0; --path-task: #006bc7; --path-call: #ff8a5b; --path-seal: #22253a; --path-chest: #f2b233; }
+:root[data-theme="dark"] { --path-trail: #3a3f52; --path-task: #4ea4ff; --path-seal: #e8eaf4; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --path-trail: #3a3f52; --path-task: #4ea4ff; --path-seal: #e8eaf4; } }
+.path-home { display: grid; gap: 12px; }
+.path-eyebrow { font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
+.path-destination { position: relative; overflow: hidden; display: grid; gap: 8px; text-align: left; border: 0; border-radius: 20px; padding: 16px; min-height: 120px; align-content: end; color: #fff; font: inherit; cursor: pointer; background: linear-gradient(145deg, #675dff, #0a84ff 58%, #34c759); }
+.path-destination > * { position: relative; }
+.path-destination-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.path-destination::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8, 20, 40, 0.05), rgba(8, 20, 40, 0.7)); }
+.path-destination > span, .path-destination > strong, .path-destination > small { z-index: 1; }
+.path-destination strong { font-size: 1.35rem; line-height: 1.1; text-wrap: balance; }
+.path-bar { height: 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.35); overflow: hidden; }
+.path-bar b { display: block; height: 100%; border-radius: 6px; background: #fff; }
+.path-map { position: relative; width: 100%; max-width: 520px; justify-self: center; }
+.path-map svg { display: block; }
+.path-nova { position: absolute; right: 4px; top: 0; z-index: 2; width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--surface); padding: 0; overflow: hidden; background: var(--surface); box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.4); cursor: pointer; }
+.path-nova img { width: 100%; height: 100%; object-fit: cover; }
+.path-goal-star { position: absolute; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #34c759; color: #fff; }
+.path-node { position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; color: #fff; background: var(--node); cursor: pointer; box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.5); }
+.path-node.ahead { background: var(--surface); color: var(--muted); border: 3px solid var(--path-trail); }
+.path-node.current { width: 44px; height: 44px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--node) 25%, transparent); }
+.path-node.call, .path-node.mission { box-shadow: 0 0 0 5px color-mix(in srgb, var(--path-call) 25%, transparent); }
+.path-node.sealed { border-radius: 9px; transform: translate(-50%, -50%) rotate(45deg); background: var(--path-seal); color: var(--surface); border: 0; }
+.path-node.sealed svg { transform: rotate(-45deg); }
+.path-node.chest { border-radius: 10px; }
+.path-node.side { width: 30px; height: 30px; }
+.path-hero { position: absolute; transform: translate(-50%, -118%); pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .path-node.current, .path-node.chest { animation: path-pulse 2.4s ease-in-out infinite; }
+  @keyframes path-pulse { 50% { box-shadow: 0 0 0 11px color-mix(in srgb, var(--node) 12%, transparent); } }
+}
+.path-next { display: grid; gap: 8px; border-radius: 20px; padding: 14px; background: var(--surface); box-shadow: 0 12px 30px -18px rgba(0, 0, 0, 0.35); }
+.path-next strong { font-size: 1.08rem; line-height: 1.25; }
+.path-next .path-eyebrow { color: var(--muted); }
+.path-chip { justify-self: start; border-radius: 999px; padding: 3px 10px; background: var(--accent-soft); color: var(--accent-fill); font-size: 0.8rem; font-weight: 800; }
+.path-next .challenge-primary-action, .path-props .challenge-primary-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.path-backpack { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 46px; border: 1px solid var(--line); border-radius: 16px; padding: 8px 14px; background: var(--surface); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; }
+.path-backpack span { display: inline-flex; align-items: center; gap: 8px; }
+.path-props { display: grid; gap: 10px; padding-bottom: 8px; }
+.path-props strong { font-size: 1.1rem; line-height: 1.3; }
+.path-label { position: absolute; transform: translate(-50%, 30px); max-width: 60%; text-align: center; z-index: 1; padding: 5px 10px; border-radius: 12px; background: var(--surface); color: var(--text); font-size: 0.8rem; font-weight: 800; line-height: 1.2; box-shadow: 0 6px 16px -10px rgba(0, 0, 0, 0.4); pointer-events: none; }
+.path-node.current::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: #fff; }

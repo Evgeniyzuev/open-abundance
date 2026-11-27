@@ -23,6 +23,7 @@ import WishOutcomeCheck from "@/components/WishOutcomeCheck";
 import WeeklyWishesCard from "@/components/WeeklyWishesCard";
 import NovaRequestsCard from "@/components/NovaRequestsCard";
 import HomeFold from "@/components/HomeFold";
+import { pathHomeEnabled, pathUi } from "@/lib/pathTrail";
 import { PENDING_CALL_KEY } from "@/lib/wordCalls";
 import HomeTodayApp, { type HomePlanDraft } from "@/components/HomeTodayApp";
 import KeepAliveView from "@/components/KeepAliveView";
@@ -46,6 +47,7 @@ function TabLoading() {
 }
 const AiChatApp = dynamic(() => import("@/components/AiChatApp"), { ssr: false, loading: TabLoading });
 const LifeChoicesOverlay = dynamic(() => import("@/components/LifeChoices").then((module) => module.LifeChoicesOverlay), { ssr: false });
+const PathHome = dynamic(() => import("@/components/PathHome"), { ssr: false });
 const WordCallsApp = dynamic(() => import("@/components/WordCallsApp"), { ssr: false });
 const NoticedCard = dynamic(() => import("@/components/NoticedCard").then((module) => module.NoticedCard), { ssr: false });
 const ChallengesApp = dynamic(() => import("@/components/ChallengesApp"), { ssr: false, loading: TabLoading });
@@ -316,6 +318,13 @@ export default function AppNavigation() {
   // «Вызовы»: a friend's challenge link (?call=<key>) is kept on the device until the person takes or dismisses it;
   // a notification link (?view=challenges&tab=calls) opens the tab.
   const [pendingCall, setPendingCall] = useState(false);
+  // «Путь» instead of Home, behind /?path=1 for now (docs/PATH_EXPERIENCE.md).
+  const [pathHome, setPathHome] = useState(false);
+  useEffect(() => {
+    try {
+      setPathHome(pathHomeEnabled(window.location.search, (key) => window.localStorage.getItem(key), (key, value) => window.localStorage.setItem(key, value)));
+    } catch { /* without storage the old Home stays */ }
+  }, []);
   useEffect(() => {
     if (!user || typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -715,6 +724,45 @@ export default function AppNavigation() {
     setShareTargetDraft(null);
   }
 
+  // Everything Home showed before «Путь»; with the trail on it lives under one fold, nothing removed.
+  const homeRest = (
+    <>
+      <NovaDailyCard
+        active={showHome}
+        onOpenChat={() => { setVisitedHomeViews((current) => ({ ...current, ideas: true })); setActiveHomeTab("ideas"); setActiveMainTab("home"); }}
+        onOpenCore={openCore}
+      />
+      <HomeFold icon={<Users size={17} />} label={t("leadMeeting.label")} hint={t("home.fold.leadHint")}>
+        <LeadMeetingCard active={showHome} />
+      </HomeFold>
+      <HomeTodayApp
+        active={showHome}
+        onOpenCalculator={openCalculator}
+        onOpenNextChallenge={openNextChallenge}
+        onOpenChallenge={openJourneyChallenge}
+        onOpenFeed={openFeed}
+        onOpenToday={openToday}
+        onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
+        onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+        onOpenExpedition={openExpedition}
+        onOpenTask={openTaskFromHome}
+        onOpenTasks={() => { setActiveGoalTab("checks"); setActiveMainTab("goals"); }}
+        todayUnread={todayUnread}
+        refreshNonce={refreshNonce}
+        moreSlot={
+          <>
+            <WeeklyWishesCard
+              active={showHome}
+              onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+              onOpenQuests={openNextChallenge}
+            />
+            <NovaRequestsCard active={showHome} />
+          </>
+        }
+      />
+    </>
+  );
+
   return (
     <>
       {user ? <LifeChoicesOverlay locale={locale} userId={user.id} /> : null}
@@ -734,47 +782,31 @@ export default function AppNavigation() {
         onTabChange={handleTopTabChange}
       />
       <section className="app-content">
-        {showHome || (showChallenges && activeChallengeTab === "challenges") ? <CoreJourneyCard onOpen={openCore} /> : null}
+        {(showHome && !pathHome) || (showChallenges && activeChallengeTab === "challenges") ? <CoreJourneyCard onOpen={openCore} /> : null}
         <div className="app-view" hidden={!showHome}>
+          {pathHome ? (
+            <PathHome
+              active={showHome}
+              refreshNonce={refreshNonce}
+              onOpenChallenge={openJourneyChallenge}
+              onOpenNextChallenge={openNextChallenge}
+              onOpenCalls={() => { setActiveChallengeTab("calls"); setActiveMainTab("challenges"); }}
+              onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+              onOpenCore={openCore}
+              onOpenNova={() => { setVisitedHomeViews((current) => ({ ...current, ideas: true })); setActiveHomeTab("ideas"); setActiveMainTab("home"); }}
+            />
+          ) : null}
           {pendingCall ? (
             <button className="home-fold-banner" type="button" onClick={() => { setActiveChallengeTab("calls"); setActiveMainTab("challenges"); }}>
               <Flame size={18} aria-hidden="true" /><span>{t("calls.pendingBanner")}</span>
             </button>
           ) : null}
           <NoticedCard active={showHome} />
-          <NovaDailyCard
-            active={showHome}
-            onOpenChat={() => { setVisitedHomeViews((current) => ({ ...current, ideas: true })); setActiveHomeTab("ideas"); setActiveMainTab("home"); }}
-            onOpenCore={openCore}
-          />
-          <HomeFold icon={<Users size={17} />} label={t("leadMeeting.label")} hint={t("home.fold.leadHint")}>
-            <LeadMeetingCard active={showHome} />
-          </HomeFold>
-          <HomeTodayApp
-            active={showHome}
-            onOpenCalculator={openCalculator}
-            onOpenNextChallenge={openNextChallenge}
-            onOpenChallenge={openJourneyChallenge}
-            onOpenFeed={openFeed}
-            onOpenToday={openToday}
-            onOpenTeams={() => { setActiveSocialTab("teams"); setActiveMainTab("people"); }}
-            onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
-            onOpenExpedition={openExpedition}
-            onOpenTask={openTaskFromHome}
-            onOpenTasks={() => { setActiveGoalTab("checks"); setActiveMainTab("goals"); }}
-            todayUnread={todayUnread}
-            refreshNonce={refreshNonce}
-            moreSlot={
-              <>
-                <WeeklyWishesCard
-                  active={showHome}
-                  onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
-                  onOpenQuests={openNextChallenge}
-                />
-                <NovaRequestsCard active={showHome} />
-              </>
-            }
-          />
+          {pathHome ? (
+            <HomeFold icon={<Sparkles size={17} />} label={pathUi("more", locale)} hint={pathUi("moreHint", locale)}>
+              {homeRest}
+            </HomeFold>
+          ) : homeRest}
           <InstallPingAck />
           <NicknameNotice active={showHome} />
           <SelfServeCheckIn active={showHome} />

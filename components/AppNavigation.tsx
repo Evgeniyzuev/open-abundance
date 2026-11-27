@@ -7,7 +7,7 @@ import HumanityCard from "@/components/HumanityCard";
 import PayRequestEntry from "@/components/PayRequestEntry";
 import ArtifactWatcher from "@/components/ArtifactWatcher";
 import ReferralRewardNotice from "@/components/ReferralRewardNotice";
-import { BookOpen, CheckSquare, FileText, Flame, Heart, HelpCircle, House, Map, MoreHorizontal, Newspaper, Rocket, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
+import { Backpack, BookOpen, CheckSquare, CircleUserRound, Footprints, FileText, Flame, Heart, HelpCircle, House, Map, MoreHorizontal, MessageCircle, Newspaper, Rocket, Route, ShoppingBag, Sparkles, Trophy, TrendingUp, UserRound, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ChallengeTab as ChallengeListTab } from "@/components/ChallengesApp";
 
@@ -131,6 +131,44 @@ const socialTabs: TopTab[] = [
   { id: "teams", titleKey: "social.teams.title", icon: Users },
   { id: "profile", titleKey: "profile.title", icon: UserRound }
 ];
+
+// «Один путь» (founder 2026-11-27, docs/PATH_EXPERIENCE.md): four places instead of five tabs. Each top tab still opens
+// an existing screen ("main.sub"), so ?view= links and every screen stay as they were; /?path=0 brings the old tabs back.
+type PlaceId = "path" | "trails" | "nova" | "stock";
+type PlaceTab = { id: string; titleKey: MessageKey; icon: LucideIcon };
+const places: Array<{ id: PlaceId; titleKey: MessageKey; icon: LucideIcon; tabs: PlaceTab[] }> = [
+  { id: "path", titleKey: "app.nav.path", icon: Route, tabs: [
+    { id: "home.home", titleKey: "app.nav.path", icon: Route },
+    { id: "goals.desires", titleKey: "app.nav.desires", icon: Heart },
+    { id: "challenges.challenges", titleKey: "challenges.tabs.challenges", icon: Trophy },
+    { id: "challenges.calls", titleKey: "challenges.tabs.calls", icon: Flame },
+    { id: "goals.map", titleKey: "app.nav.map", icon: Map }
+  ] },
+  { id: "trails", titleKey: "app.nav.trails", icon: Footprints, tabs: [
+    { id: "people.feed", titleKey: "social.feed.title", icon: Newspaper },
+    { id: "people.blog", titleKey: "social.blog.title", icon: BookOpen },
+    { id: "people.people", titleKey: "social.people.title", icon: UserRound },
+    { id: "people.teams", titleKey: "social.teams.title", icon: Users },
+    { id: "challenges.projects", titleKey: "challenges.tabs.projects", icon: Rocket },
+    { id: "people.profile", titleKey: "profile.title", icon: CircleUserRound }
+  ] },
+  { id: "nova", titleKey: "app.nav.nova", icon: Sparkles, tabs: [
+    { id: "home.ideas", titleKey: "app.nav.novaChat", icon: MessageCircle },
+    { id: "goals.checks", titleKey: "app.nav.checks", icon: CheckSquare },
+    { id: "goals.notes", titleKey: "app.nav.notes", icon: FileText },
+    { id: "goals.results", titleKey: "app.nav.results", icon: TrendingUp }
+  ] },
+  { id: "stock", titleKey: "app.nav.stock", icon: Backpack, tabs: [
+    { id: "wallet.core", titleKey: "wallet.core", icon: CoreSeedIcon },
+    { id: "wallet.wallet", titleKey: "app.nav.wallet", icon: Wallet },
+    { id: "wallet.market", titleKey: "app.nav.market", icon: ShoppingBag },
+    { id: "wallet.p2p", titleKey: "app.nav.p2p", icon: Wallet }
+  ] }
+];
+
+function placeOf(screen: string): PlaceId {
+  return places.find((place) => place.tabs.some((tab) => tab.id === screen))?.id ?? "path";
+}
 
 const PULL_THRESHOLD_PX = 72;
 const NAV_HIDE_DELTA_PX = 8;
@@ -586,8 +624,11 @@ export default function AppNavigation() {
   const showChallenges = activeMainTab === "challenges";
   const showWallet = activeMainTab === "wallet";
   const showPeople = activeMainTab === "people";
-  const topTabs = getTopTabs(activeMainTab);
-  const activeTopTab = getActiveTopTab(activeMainTab, activeHomeTab, activeGoalTab, activeChallengeTab, activeWalletTab, activeSocialTab);
+  const activeSubTab = getActiveTopTab(activeMainTab, activeHomeTab, activeGoalTab, activeChallengeTab, activeWalletTab, activeSocialTab);
+  const activeScreen = `${activeMainTab}.${activeSubTab ?? ""}`;
+  const activePlace = places.find((place) => place.id === placeOf(activeScreen)) ?? places[0];
+  const topTabs = pathHome ? activePlace.tabs : getTopTabs(activeMainTab);
+  const activeTopTab = pathHome ? activeScreen : activeSubTab;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setDailyUnreadVersion((value) => value + 1), 60_000);
@@ -615,7 +656,22 @@ export default function AppNavigation() {
     setVisitedHomeViews((current) => ({ ...current, ideas: true }));
   }, [showIdeas]);
 
+  function screenUnread(screen: string): boolean {
+    return (screen === "home.home" && todayUnread) || (screen === "challenges.challenges" && challengesUnread) || (screen === "home.ideas" && novaUnread);
+  }
+
+  function openScreen(screen: string) {
+    const [main, sub] = screen.split(".");
+    if (main === "home") setActiveHomeTab(sub as HomeTabId);
+    if (main === "goals") setActiveGoalTab(sub as GoalTabId);
+    if (main === "challenges") setActiveChallengeTab(sub as ChallengeTab);
+    if (main === "wallet") setActiveWalletTab(sub as WalletTabId);
+    if (main === "people") setActiveSocialTab(sub as SocialTabId);
+    setActiveMainTab(main as MainTabId);
+  }
+
   function handleTopTabChange(tab: string) {
+    if (pathHome) return openScreen(tab);
     if (activeMainTab === "home") setActiveHomeTab(tab as HomeTabId);
     if (activeMainTab === "goals") setActiveGoalTab(tab as GoalTabId);
     if (activeMainTab === "challenges") setActiveChallengeTab(tab as ChallengeTab);
@@ -795,6 +851,7 @@ export default function AppNavigation() {
         unreadNova={novaUnread}
         onExpand={() => setTopNavExpanded(true)}
         onTabChange={handleTopTabChange}
+        unreadOf={pathHome ? screenUnread : undefined}
       />
       <section className="app-content">
         {(showHome && !pathHome) || (showChallenges && activeChallengeTab === "challenges") ? <CoreJourneyCard onOpen={openCore} /> : null}
@@ -897,6 +954,9 @@ export default function AppNavigation() {
         unreadToday={todayUnread}
         onExpand={() => setBottomNavExpanded(true)}
         onTabChange={openMainDestination}
+        placeItems={pathHome ? places.map((place) => ({ id: place.id, titleKey: place.titleKey, icon: place.icon, unread: place.tabs.some((tab) => screenUnread(tab.id)) })) : undefined}
+        activePlace={activePlace.id}
+        onPlace={(place) => openScreen(places.find((item) => item.id === place)?.tabs[0].id ?? "home.home")}
       />
       {authResolved && shareTargetDraft && (!shareTargetDraft.url || !user) ? (
         <Sheet bare dismissible={false} className="small" titleId="share-target-title">
@@ -941,13 +1001,15 @@ type TopTabBarProps = {
   unreadNova: boolean;
   onExpand: () => void;
   onTabChange: (tab: string) => void;
+  /** «Один путь» tabs carry "main.sub" ids and say themselves which one has news. */
+  unreadOf?: (tab: string) => boolean;
 };
 
-function TopTabBar({ activeMainTab, activeTab, collapsed, tabs, t, unreadChallenges, unreadToday, unreadNova, onExpand, onTabChange }: TopTabBarProps) {
-  const unread = Boolean(
-    (activeMainTab === "challenges" && tabs.some((tab) => tab.id === "challenges") && unreadChallenges) ||
-      (activeMainTab === "home" && tabs.some((tab) => tab.id === "home") && unreadToday)
-  );
+function TopTabBar({ activeMainTab, activeTab, collapsed, tabs, t, unreadChallenges, unreadToday, unreadNova, onExpand, onTabChange, unreadOf }: TopTabBarProps) {
+  const tabUnread = (id: string) => unreadOf
+    ? unreadOf(id)
+    : (activeMainTab === "challenges" && id === "challenges" && unreadChallenges) || (activeMainTab === "home" && id === "home" && unreadToday) || (activeMainTab === "home" && id === "ideas" && unreadNova);
+  const unread = tabs.some((tab) => tabUnread(tab.id));
 
   return (
     <nav className={`glass-tabbar top-tabbar ${collapsed ? "nav-collapsed" : ""}`} aria-label={t("app.nav.top")}>
@@ -966,7 +1028,7 @@ function TopTabBar({ activeMainTab, activeTab, collapsed, tabs, t, unreadChallen
             icon={tab.icon}
             key={tab.id}
             title={t(tab.titleKey)}
-            unread={(activeMainTab === "challenges" && tab.id === "challenges" && unreadChallenges) || (activeMainTab === "home" && tab.id === "home" && unreadToday) || (activeMainTab === "home" && tab.id === "ideas" && unreadNova)}
+            unread={tabUnread(tab.id)}
             unreadLabel={t("app.nav.newActivity")}
             onClick={() => onTabChange(tab.id)}
           />
@@ -1014,11 +1076,15 @@ type BottomTabBarProps = {
   unreadToday: boolean;
   onExpand: () => void;
   onTabChange: (tab: MainTabId) => void;
+  /** «Один путь»: four places instead of the five main tabs. */
+  placeItems?: Array<{ id: string; titleKey: MessageKey; icon: LucideIcon; unread: boolean }>;
+  activePlace?: string;
+  onPlace?: (place: string) => void;
 };
 
-function BottomTabBar({ activeTab, collapsed, t, unreadChallenges, unreadToday, onExpand, onTabChange }: BottomTabBarProps) {
-  const activeItem = mainTabs.find((tab) => tab.id === activeTab) ?? mainTabs[0];
-  const unread = (activeTab === "challenges" && unreadChallenges) || (activeTab === "home" && unreadToday);
+function BottomTabBar({ activeTab, collapsed, t, unreadChallenges, unreadToday, onExpand, onTabChange, placeItems, activePlace, onPlace }: BottomTabBarProps) {
+  const activeItem = placeItems?.find((item) => item.id === activePlace) ?? mainTabs.find((tab) => tab.id === activeTab) ?? mainTabs[0];
+  const unread = placeItems ? placeItems.some((item) => item.unread) : (activeTab === "challenges" && unreadChallenges) || (activeTab === "home" && unreadToday);
 
   return (
     <nav className={`glass-tabbar bottom-tabbar ${collapsed ? "nav-collapsed" : ""}`} aria-label={t("app.nav.bottom")}>
@@ -1030,6 +1096,19 @@ function BottomTabBar({ activeTab, collapsed, t, unreadChallenges, unreadToday, 
           label={t("app.nav.expandBottom")}
           onClick={onExpand}
         />
+      ) : placeItems ? (
+        placeItems.map((item) => (
+          <TabButton
+            active={item.id === activePlace}
+            icon={item.icon}
+            key={item.id}
+            title={t(item.titleKey)}
+            unread={item.unread}
+            showLabel
+            unreadLabel={t("app.nav.newActivity")}
+            onClick={() => onPlace?.(item.id)}
+          />
+        ))
       ) : (
         mainTabs.map((tab) => (
           <TabButton

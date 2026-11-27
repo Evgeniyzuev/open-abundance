@@ -20,6 +20,7 @@ export default function Sheet({
   as = "section",
   bare = false,
   children,
+  backCloses = false,
   className = "",
   closeLabel = "",
   dismissible = true,
@@ -33,6 +34,8 @@ export default function Sheet({
   ariaLabel?: string;
   as?: "section" | "form";
   bare?: boolean;
+  /** The system Back closes this sheet too, as it does a full-screen one (a half sheet on its own screen, e.g. Home's trail). */
+  backCloses?: boolean;
   children: ReactNode;
   className?: string;
   closeLabel?: string;
@@ -54,8 +57,9 @@ export default function Sheet({
 
   // A full-screen sheet is a history layer: Back closes it, and every in-app close goes through history too.
   const requestCloseRef = useRef<(() => void) | undefined>(undefined);
-  const closeLayer = useHistoryLayer(fullscreen && canDismiss, () => onCloseRef.current?.());
-  const requestClose = fullscreen && canDismiss ? closeLayer : onClose;
+  const layered = (fullscreen || backCloses) && canDismiss;
+  const closeLayer = useHistoryLayer(layered, () => onCloseRef.current?.());
+  const requestClose = layered ? closeLayer : onClose;
   requestCloseRef.current = requestClose;
   const edgeSwipe = useEdgeSwipeBack(closeLayer);
 

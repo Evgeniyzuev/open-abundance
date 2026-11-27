@@ -76,6 +76,13 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
     return () => { cancelled = true; };
   }, [active, userId, locale, refreshNonce]);
 
+  // Leaving Home (a tab, Back) closes its sheets, so they do not wait on a hidden screen.
+  useEffect(() => {
+    if (active) return;
+    setSelected(null);
+    setChestOpen(false);
+  }, [active]);
+
   useEffect(() => {
     const sync = () => { setWish(readPrimaryWish(userId ?? undefined)); setLife(readLife()); };
     sync();
@@ -121,10 +128,19 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
 
   function act(node: TrailNode) {
     trackProductEvent("path_step_opened", { kind: node.kind, state: node.state });
+    const go = () => {
+      if (node.kind === "chest") setChestOpen(true);
+      else if (node.kind === "task") onOpenChallenge(node.ref);
+      else onOpenCalls();
+    };
+    if (!selected) return go();
+    // The open sheet holds a history entry: let its Back land first, then move on, so no stray entry is left behind
+    // (otherwise Back from the quest needed two presses to reach Home).
+    let done = false;
+    const run = () => { if (done) return; done = true; window.removeEventListener("popstate", run); window.setTimeout(go, 0); };
+    window.addEventListener("popstate", run);
+    window.setTimeout(run, 400);
     setSelected(null);
-    if (node.kind === "chest") setChestOpen(true);
-    else if (node.kind === "task") onOpenChallenge(node.ref);
-    else onOpenCalls();
   }
 
   return (
@@ -188,7 +204,7 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
       </button>
 
       {selected ? (
-        <Sheet title={ui(`kind.${selected.kind}`)} closeLabel="×" onClose={() => setSelected(null)}>
+        <Sheet backCloses title={ui(`kind.${selected.kind}`)} closeLabel="×" onClose={() => setSelected(null)}>
           <div className="path-props">
             <span className="path-eyebrow">{ui(`state.${selected.state}`)}</span>
             <strong>{selected.kind === "sealed" ? ui("sealedTitle") : selected.kind === "chest" ? ui("chestTitle") : selected.title}</strong>
@@ -203,7 +219,7 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
       ) : null}
 
       {chestOpen ? (
-        <Sheet title={ui("kind.chest")} closeLabel="×" onClose={() => setChestOpen(false)}>
+        <Sheet backCloses title={ui("kind.chest")} closeLabel="×" onClose={() => setChestOpen(false)}>
           <div className="path-props"><ChestIcon size={40} /><DailyChestCard inline refreshKey={refreshNonce} /></div>
         </Sheet>
       ) : null}

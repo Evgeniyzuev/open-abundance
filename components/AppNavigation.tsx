@@ -442,6 +442,8 @@ export default function AppNavigation() {
       : { ...DEFAULT_NAVIGATION_STATE, mainTab: "people", socialTab: "feed" };
     suppressHistoryPushRef.current = true;
     applyNavigationState(nextState);
+    // The entry the app opened on keeps this screen, so Back to it shows Home (or the feed), not Notes.
+    writeNavigationStateToHistory(nextState, "replace");
     // Until "First step" is done the app opens on the quest log, where it is the active quest. Not cancelled when the
     // user object is replaced by a refresh (the ref above keeps this from running again); only a different account
     // drops the answer.
@@ -1202,7 +1204,8 @@ function writeNavigationStateToHistory(state: NavigationState, mode: "push" | "r
 
 function getNavigationViewParam(state: NavigationState): string | null {
   if (state.mainTab === "home") {
-    return state.homeTab === DEFAULT_NAVIGATION_STATE.homeTab ? null : `home.${state.homeTab}`;
+    // Home has its own address: a bare address is Notes, so Back to Home used to land on Notes.
+    return state.homeTab === DEFAULT_NAVIGATION_STATE.homeTab ? "home" : `home.${state.homeTab}`;
   }
 
   if (state.mainTab === "goals") {

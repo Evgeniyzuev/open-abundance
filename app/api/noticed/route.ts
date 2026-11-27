@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const result = await generateAiJson<NoticedPlan>({
       systemPrompt: buildAiSystemPrompt({ locale, capability: "noticed.coach" }),
       userPrompt: noticedPrompt(text, locale, ((recentRows ?? []) as Array<{ text: string }>).map((row) => row.text)),
-      maxOutputTokens: 300,
+      maxOutputTokens: 1_200,
       validate: (value) => {
         const normalized = normalizeNoticedPlan(value);
         if (!normalized) throw new Error("No usable plan.");

@@ -217,7 +217,7 @@ async function submit(request: NextRequest, body: Record<string, unknown>, local
     const result = await generateAiJson<Verdict>({
       systemPrompt: buildAiSystemPrompt({ locale, capability: "calls.judge" }),
       userPrompt: verdictPrompt({ title: pickText(call?.title, locale), rule: pickText(call?.rule, locale), proofText, proofUrl, locale }),
-      maxOutputTokens: 160,
+      maxOutputTokens: 800,
       validate: (value) => {
         const normalized = normalizeVerdict(value);
         if (!normalized) throw new Error("No verdict.");

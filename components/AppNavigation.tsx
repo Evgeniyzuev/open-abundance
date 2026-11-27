@@ -88,6 +88,7 @@ type NavigationState = {
   goalTab: GoalTabId;
   walletTab: WalletTabId;
   socialTab: SocialTabId;
+  challengeTab: ChallengeTab;
 };
 
 const mainTabs: MainTab[] = [
@@ -178,7 +179,8 @@ const DEFAULT_NAVIGATION_STATE: NavigationState = {
   homeTab: "home",
   goalTab: "notes",
   walletTab: "wallet",
-  socialTab: "feed"
+  socialTab: "feed",
+  challengeTab: "challenges"
 };
 
 export default function AppNavigation() {
@@ -336,7 +338,8 @@ export default function AppNavigation() {
     homeTab: activeHomeTab,
     goalTab: activeGoalTab,
     walletTab: activeWalletTab,
-    socialTab: activeSocialTab
+    socialTab: activeSocialTab,
+    challengeTab: activeChallengeTab
   };
   navigationStateRef.current = navigationState;
 
@@ -350,6 +353,7 @@ export default function AppNavigation() {
     setActiveGoalTab(nextState.goalTab);
     setActiveWalletTab(nextState.walletTab);
     setActiveSocialTab(nextState.socialTab);
+    setActiveChallengeTab(nextState.challengeTab);
     return true;
   }, []);
 
@@ -390,7 +394,8 @@ export default function AppNavigation() {
         homeTab: current.homeTab,
         goalTab: main === "goals" && sub ? (sub as GoalTabId) : current.goalTab,
         walletTab: main === "wallet" && sub ? (sub as WalletTabId) : current.walletTab,
-        socialTab: main === "people" && sub ? (sub as SocialTabId) : current.socialTab
+        socialTab: main === "people" && sub ? (sub as SocialTabId) : current.socialTab,
+        challengeTab: main === "challenges" ? (sub === "calls" && !detail?.challengeId ? "calls" : sub === "projects" ? "projects" : "challenges") : current.challengeTab
       });
       if (main === "challenges") setActiveChallengeTab(sub === "calls" && !detail?.challengeId ? "calls" : "challenges");
       // The feed opens a quest from a story or the quest of the day.
@@ -475,7 +480,10 @@ export default function AppNavigation() {
     if (!authResolved || !user || journeyEntryUserRef.current === user.id || typeof window === "undefined") return;
     journeyEntryUserRef.current = user.id;
     if (new URLSearchParams(window.location.search).has(VIEW_QUERY_PARAM)) return;
-    const nextState: NavigationState = readPrimaryWish(user.id)
+    // With «Путь» the app always opens on the trail, wish or not (it offers to choose one).
+    let trail = false;
+    try { trail = pathHomeEnabled(window.location.search, (key) => window.localStorage.getItem(key), () => undefined); } catch { /* storage off */ }
+    const nextState: NavigationState = trail || readPrimaryWish(user.id)
       ? { ...DEFAULT_NAVIGATION_STATE, mainTab: "home", homeTab: "home" }
       : { ...DEFAULT_NAVIGATION_STATE, mainTab: "people", socialTab: "feed" };
     suppressHistoryPushRef.current = true;
@@ -509,7 +517,7 @@ export default function AppNavigation() {
     }
 
     writeNavigationStateToHistory(navigationStateRef.current, "push");
-  }, [activeGoalTab, activeHomeTab, activeMainTab, activeSocialTab, activeWalletTab]);
+  }, [activeChallengeTab, activeGoalTab, activeHomeTab, activeMainTab, activeSocialTab, activeWalletTab]);
 
   // Sticky in-page bars (feed filters, wish tabs) hide completely while the top bar is folded (app/styles/screens.css).
   const topNavCollapsed = navHidden && !topNavExpanded;
@@ -732,6 +740,14 @@ export default function AppNavigation() {
     setActiveMainTab("goals");
   }
 
+  // A quest opened from the trail: closing its card (cross or Back) returns to the trail in the same press.
+  const questFromPathRef = useRef(false);
+  function closeQuestFromPath() {
+    if (!questFromPathRef.current) return;
+    questFromPathRef.current = false;
+    if (navigationStateRef.current.mainTab === "challenges") window.history.back();
+  }
+
   function openJourneyChallenge(id: string) {
     setChallengeFocusId(id);
     setChallengeFocusNonce((value) => value + 1);
@@ -860,7 +876,7 @@ export default function AppNavigation() {
             <PathHome
               active={showHome}
               refreshNonce={refreshNonce}
-              onOpenChallenge={openJourneyChallenge}
+              onOpenChallenge={(id) => { questFromPathRef.current = true; openJourneyChallenge(id); }}
               onOpenNextChallenge={openNextChallenge}
               onOpenCalls={() => { setActiveChallengeTab("calls"); setActiveMainTab("challenges"); }}
               onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
@@ -927,6 +943,7 @@ export default function AppNavigation() {
             onNavigateTesting={navigateFromAppTesting}
             refreshNonce={refreshNonce}
             onRefresh={() => requestServerRefresh("challenges")}
+            onFocusedClosed={closeQuestFromPath}
           />
         </KeepAliveView>
         <KeepAliveView active={showWallet} visited={visitedServerViews.wallet}>
@@ -1228,14 +1245,15 @@ function parseNavigationView(view: string | null): NavigationState {
   }
 
   if (mainTab === "challenges") {
-    return { ...DEFAULT_NAVIGATION_STATE, mainTab: "challenges" };
+    return { ...DEFAULT_NAVIGATION_STATE, mainTab: "challenges", challengeTab: subTab === "calls" || subTab === "projects" ? subTab : "challenges" };
   }
 
   if (mainTab === "goals") {
     return {
       ...DEFAULT_NAVIGATION_STATE,
       mainTab: "goals",
-      goalTab: isGoalTabId(subTab) ? subTab : DEFAULT_NAVIGATION_STATE.goalTab
+      // A bare ?view=goals was the old «Желания» tab.
+      goalTab: isGoalTabId(subTab) ? subTab : "desires"
     };
   }
 
@@ -1273,7 +1291,10 @@ function writeNavigationStateToHistory(state: NavigationState, mode: "push" | "r
   }
 
   const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-  if (mode === "push") {
+  // A sheet's own entry on top (its action opened another screen): the new screen takes that entry over, so Back from
+  // it returns to the screen under the sheet in one press instead of landing on a dead entry first.
+  const layers = (window.history.state as Record<string, unknown> | null)?.openAbundanceLayers;
+  if (mode === "push" && !(Array.isArray(layers) && layers.length > 0)) {
     window.history.pushState({ view: nextView }, "", nextUrl);
     return;
   }
@@ -1288,7 +1309,7 @@ function getNavigationViewParam(state: NavigationState): string | null {
   }
 
   if (state.mainTab === "goals") {
-    return state.goalTab === DEFAULT_NAVIGATION_STATE.goalTab ? null : `goals.${state.goalTab}`;
+    return `goals.${state.goalTab}`;
   }
 
   if (state.mainTab === "wallet") {
@@ -1297,6 +1318,10 @@ function getNavigationViewParam(state: NavigationState): string | null {
 
   if (state.mainTab === "people") {
     return state.socialTab === DEFAULT_NAVIGATION_STATE.socialTab ? "people" : `people.${state.socialTab}`;
+  }
+
+  if (state.mainTab === "challenges") {
+    return state.challengeTab === "challenges" ? "challenges" : `challenges.${state.challengeTab}`;
   }
 
   return state.mainTab;
@@ -1308,7 +1333,8 @@ function isSameNavigationState(left: NavigationState, right: NavigationState): b
     left.homeTab === right.homeTab &&
     left.goalTab === right.goalTab &&
     left.walletTab === right.walletTab &&
-    left.socialTab === right.socialTab
+    left.socialTab === right.socialTab &&
+    left.challengeTab === right.challengeTab
   );
 }
 

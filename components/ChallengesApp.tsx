@@ -230,6 +230,8 @@ type ChallengesAppProps = {
   challengesUnread?: boolean;
   focusNextChallengeNonce?: number;
   focusChallengeId?: string | null;
+  /** The card opened by focusChallengeId was closed (cross or Back) without opening another one. */
+  onFocusedClosed?: () => void;
   onChallengesViewed?: () => void;
   onTodayViewed?: () => void;
   onOpenFeedDrafts: () => void;
@@ -240,7 +242,7 @@ type ChallengesAppProps = {
   onRefresh: () => Promise<void>;
 };
 
-export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, focusChallengeId = null, onChallengesViewed, onTodayViewed, onOpenFeedDrafts, onOpenCore, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
+export default function ChallengesApp({ active, activeTab, challengesUnread = false, focusNextChallengeNonce = 0, focusChallengeId = null, onFocusedClosed, onChallengesViewed, onTodayViewed, onOpenFeedDrafts, onOpenCore, onNavigateTesting, refreshNonce, todayUnread = false, onRefresh }: ChallengesAppProps) {
   const [acceptedChallenges, setAcceptedChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
@@ -482,6 +484,16 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     if (active && activeTab === "challenges" && today) onTodayViewed?.();
   }, [active, activeTab, onTodayViewed, today]);
 
+  const focusedOpenRef = useRef<string | null>(null);
+  const onFocusedClosedRef = useRef(onFocusedClosed);
+  onFocusedClosedRef.current = onFocusedClosed;
+  useEffect(() => {
+    const focused = focusedOpenRef.current;
+    if (!focused || expandedChallengeId === focused) return;
+    focusedOpenRef.current = null;
+    if (expandedChallengeId === null) onFocusedClosedRef.current?.();
+  }, [expandedChallengeId]);
+
   useEffect(() => {
     if (!active || !focusNextChallengeNonce || handledFocusNextChallengeRef.current === focusNextChallengeNonce) return;
 
@@ -500,6 +512,7 @@ export default function ChallengesApp({ active, activeTab, challengesUnread = fa
     setCompletedOpen(completedChallenges.some((challenge) => challenge.id === nextChallenge.id));
     setMoreOpen(moreChallenges.some((challenge) => challenge.id === nextChallenge.id));
     setExpandedChallengeId(nextChallenge.id);
+    focusedOpenRef.current = focusChallengeId ? nextChallenge.id : null;
     requestAnimationFrame(() => {
       const row = document.getElementById(`challenge-${nextChallenge.id}`);
       row?.scrollIntoView({ block: "start", behavior: "auto" });

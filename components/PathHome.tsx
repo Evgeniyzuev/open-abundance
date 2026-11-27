@@ -128,19 +128,12 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
 
   function act(node: TrailNode) {
     trackProductEvent("path_step_opened", { kind: node.kind, state: node.state });
-    const go = () => {
-      if (node.kind === "chest") setChestOpen(true);
-      else if (node.kind === "task") onOpenChallenge(node.ref);
-      else onOpenCalls();
-    };
-    if (!selected) return go();
-    // The open sheet holds a history entry: let its Back land first, then move on, so no stray entry is left behind
-    // (otherwise Back from the quest needed two presses to reach Home).
-    let done = false;
-    const run = () => { if (done) return; done = true; window.removeEventListener("popstate", run); window.setTimeout(go, 0); };
-    window.addEventListener("popstate", run);
-    window.setTimeout(run, 400);
+    // The open sheet's history entry is taken over by the next screen (writeNavigationStateToHistory), so one Back
+    // from there returns here.
     setSelected(null);
+    if (node.kind === "chest") setChestOpen(true);
+    else if (node.kind === "task") onOpenChallenge(node.ref);
+    else onOpenCalls();
   }
 
   return (

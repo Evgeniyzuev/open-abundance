@@ -177,7 +177,14 @@ export function startCamera(map: StarMap, width: number, height: number): Camera
   const y = current.y / 2;
   // Wide enough that the nearest constellations show around the trail: there is more to explore.
   const span = Math.max(380, (Math.abs(current.y) + 160) / 0.62);
-  return { x, y, zoom: clampZoom(Math.min(width, height) / span), angle: 0 };
+  const trailZoom = clampZoom(Math.min(width, height) / span);
+  // A tall box (full screen) can hold the whole sky: then fit every star and centre on all of them.
+  const xs = map.stars.map((star) => star.x);
+  const ys = map.stars.map((star) => star.y);
+  const [left, right, top, bottom] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const fitZoom = clampZoom(Math.min(width / (right - left + 90), height / (bottom - top + 110)));
+  if (fitZoom >= trailZoom) return { x: (left + right) / 2, y: (top + bottom) / 2, zoom: fitZoom, angle: 0 };
+  return { x, y, zoom: trailZoom, angle: 0 };
 }
 
 /** Zoom by `factor` keeping the world point under the screen point `at` in place. */

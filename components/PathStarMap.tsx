@@ -168,7 +168,11 @@ export default function PathStarMap({ map, labels, ui, onSelect }: Props) {
         ctx.textBaseline = "top";
         ctx.fillStyle = star.kind === "fog" ? "rgba(200,206,235,0.75)" : "rgba(255,255,255,0.92)";
         // At most two short lines, so a long title never runs into a constellation name.
-        for (const [index, line] of wrapTitle(title, star.kind === "goal" ? 20 : 22).entries()) ctx.fillText(line, spot.x, spot.y + radius + 6 + index * (star.kind === "goal" ? 17 : 15));
+        // The goal's title sits above it: the trail comes in from below.
+        const lines = wrapTitle(title, star.kind === "goal" ? 20 : 22);
+        const lineHeight = star.kind === "goal" ? 17 : 15;
+        const firstY = star.kind === "goal" ? spot.y - radius - 8 - lines.length * lineHeight : spot.y + radius + 6;
+        lines.forEach((line, index) => ctx.fillText(line, spot.x, firstY + index * lineHeight));
       }
     }
 

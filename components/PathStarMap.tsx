@@ -198,7 +198,15 @@ export default function PathStarMap({ map, labels, ui, onSelect }: Props) {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
 
+  const tapStar = useRef<ReturnType<typeof hitStar>>(null);
+  function onClick() {
+    const star = tapStar.current;
+    tapStar.current = null;
+    if (star) onSelect(star);
+  }
+
   function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
+    tapStar.current = null;
     event.currentTarget.setPointerCapture(event.pointerId);
     const point = local(event);
     pointers.current.set(event.pointerId, point);
@@ -246,7 +254,9 @@ export default function PathStarMap({ map, labels, ui, onSelect }: Props) {
       const camera = cameraRef.current;
       if (wasTap && camera) {
         const star = hitStar(map, camera, size.width, size.height, point);
-        if (star) onSelect(star);
+        // Open the card on the click that follows, not here: on a phone that click comes after the card has
+        // appeared and would land on its backdrop, closing it at once.
+        tapStar.current = star ?? null;
       }
       gesture.current = null;
     } else if (gesture.current) {
@@ -307,6 +317,7 @@ export default function PathStarMap({ map, labels, ui, onSelect }: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onClick={onClick}
         onWheel={onWheel}
         onKeyDown={onKeyDown}
       />

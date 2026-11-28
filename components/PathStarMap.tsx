@@ -78,7 +78,8 @@ export default function PathStarMap({ map, labels, ui, onSelect }: Props) {
     const camera = cameraRef.current;
     if (!canvas || !camera || !size.width) return;
     const ratio = Math.min(2, window.devicePixelRatio || 1);
-    if (canvas.width !== size.width * ratio) { canvas.width = size.width * ratio; canvas.height = size.height * ratio; }
+    // Both sides: full screen changes the height alone, and a stale height left the lower half blank.
+    if (canvas.width !== size.width * ratio || canvas.height !== size.height * ratio) { canvas.width = size.width * ratio; canvas.height = size.height * ratio; }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -166,8 +167,8 @@ export default function PathStarMap({ map, labels, ui, onSelect }: Props) {
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.fillStyle = star.kind === "fog" ? "rgba(200,206,235,0.75)" : "rgba(255,255,255,0.92)";
-        const text = title.length > 28 ? `${title.slice(0, 27)}…` : title;
-        ctx.fillText(text, spot.x, spot.y + radius + 6);
+        // At most two short lines, so a long title never runs into a constellation name.
+        for (const [index, line] of wrapTitle(title, star.kind === "goal" ? 20 : 22).entries()) ctx.fillText(line, spot.x, spot.y + radius + 6 + index * (star.kind === "goal" ? 17 : 15));
       }
     }
 
@@ -337,3 +338,23 @@ export default function PathStarMap({ map, labels, ui, onSelect }: Props) {
   );
 }
 
+function wrapTitle(title: string, width: number): string[] {
+  const words = title.split(" ");
+  const lines: string[] = [];
+  let line = "";
+  let used = 0;
+  for (const word of words) {
+    if (line && `${line} ${word}`.length > width) {
+      lines.push(line);
+      line = "";
+      if (lines.length === 2) break;
+    }
+    line = line ? `${line} ${word}` : word;
+    used += 1;
+  }
+  if (lines.length < 2 && line) lines.push(line);
+  const cut = (text: string) => (text.length > width ? `${text.slice(0, width - 1)}…` : text);
+  const result = lines.map(cut);
+  if (used < words.length && !result[result.length - 1].endsWith("…")) result[result.length - 1] = `${result[result.length - 1].slice(0, width - 1)}…`;
+  return result;
+}

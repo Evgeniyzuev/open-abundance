@@ -1,16 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Backpack, Check, Flame, KeyRound, Lock, Star } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, Backpack } from "lucide-react";
 import { ChestIcon, DailyChestCard, useChestState } from "@/components/DailyChests";
-import { LifeCharacter } from "@/components/LifeChoices";
+import PathStarMap from "@/components/PathStarMap";
 import Sheet from "@/components/ui/Sheet";
 import { useUserContext } from "@/components/UserProvider";
 import { selectJourneyChallenge, type JourneyChallenge } from "@/lib/journeyAction";
-import { LIFE_STORAGE, LIFE_SPHERES, lifeStats, type LifeAnswers, type LifeLook } from "@/lib/lifeChoices";
+import { LIFE_STORAGE, LIFE_SPHERES, type LifeAnswers, type LifeLook } from "@/lib/lifeChoices";
 import { formatRoundedMoney } from "@/lib/moneyFormat";
-import { buildTrail, layoutTrail, nextTrailStep, pathUi, type TrailNode } from "@/lib/pathTrail";
+import { buildTrail, nextTrailStep, pathUi, type TrailNode } from "@/lib/pathTrail";
+import { buildStarMap, type MapItem, type Star } from "@/lib/starMap";
 import { trackProductEvent } from "@/lib/productAnalytics";
 import { fetchWithSupabaseAuth } from "@/lib/supabaseAuthFetch";
 import { calculateWishJourney, PRIMARY_WISH_CHANGED_EVENT, readPrimaryWish, type PrimaryWishSummary } from "@/lib/wishJourney";
@@ -21,9 +23,8 @@ type CallsPayload = {
   mine?: Array<{ id: string; status: string; reward: number; call: { kind: "call" | "mission"; title: string; baseReward: number } | null }>;
   missions?: Array<{ id: string; baseReward: number }>;
 };
+type MapPayload = { wishes?: Array<MapItem & { done: boolean }>; caught?: MapItem[]; own?: MapItem[]; notes?: MapItem[] };
 type StoredLife = { look?: LifeLook; answers?: LifeAnswers; main?: { sphere?: string } | null };
-
-const KIND_COLOR: Record<TrailNode["kind"], string> = { task: "var(--path-task)", call: "var(--path-call)", mission: "var(--path-call)", sealed: "var(--path-seal)", chest: "var(--path-chest)" };
 
 function readLife(): StoredLife | null {
   try {
@@ -38,13 +39,16 @@ function readLife(): StoredLife | null {
  * «Путь»: Home as one trail to the main wish (docs/PATH_EXPERIENCE.md). The wish on top, the trail of quests, calls,
  * sealed missions and the chest in the middle, one next step under it. A tap on a point shows its properties.
  */
-export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpenNextChallenge, onOpenCalls, onOpenWishes, onOpenCore, onOpenNova }: {
+export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpenNextChallenge, onOpenCalls, onOpenWishes, onOpenWish, onOpenNotes, onOpenFeed, onOpenCore, onOpenNova }: {
   active: boolean;
   refreshNonce: number;
   onOpenChallenge: (id: string) => void;
   onOpenNextChallenge: () => void;
   onOpenCalls: () => void;
   onOpenWishes: () => void;
+  onOpenWish: (id: string) => void;
+  onOpenNotes: () => void;
+  onOpenFeed: (tab: "feed" | "blog") => void;
   onOpenCore: () => void;
   onOpenNova: () => void;
 }) {
@@ -54,10 +58,10 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
   const [calls, setCalls] = useState<CallsPayload | null>(null);
   const [wish, setWish] = useState<PrimaryWishSummary | null>(null);
   const [life, setLife] = useState<StoredLife | null>(null);
-  const [selected, setSelected] = useState<TrailNode | null>(null);
+  const [mapData, setMapData] = useState<MapPayload | null>(null);
+  const [selected, setSelected] = useState<Star | null>(null);
   const [chestOpen, setChestOpen] = useState(false);
-  const [width, setWidth] = useState(340);
-  const boxRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { state: chest } = useChestState(refreshNonce);
   const userId = user?.id ?? null;
 
@@ -73,6 +77,10 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
       .then((response) => (response.ok ? response.json() : null))
       .then((payload: CallsPayload | null) => { if (!cancelled) setCalls(payload); })
       .catch(() => undefined);
+    void fetchWithSupabaseAuth("/api/path/map", { cache: "no-store" }, { authRequired: true })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: MapPayload | null) => { if (!cancelled) setMapData(payload ?? {}); })
+      .catch(() => { if (!cancelled) setMapData({}); });
     return () => { cancelled = true; };
   }, [active, userId, locale, refreshNonce]);
 
@@ -89,16 +97,6 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
     window.addEventListener(PRIMARY_WISH_CHANGED_EVENT, sync);
     return () => window.removeEventListener(PRIMARY_WISH_CHANGED_EVENT, sync);
   }, [userId]);
-
-  useEffect(() => {
-    const box = boxRef.current;
-    if (!box) return;
-    const measure = () => setWidth(Math.max(260, Math.min(520, box.clientWidth)));
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(box);
-    return () => observer.disconnect();
-  }, []);
 
   const nodes = useMemo(() => {
     if (!rows) return [];
@@ -117,12 +115,29 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, calls, chest?.openable, core?.level, locale]);
 
-  const layout = useMemo(() => layoutTrail(nodes, width), [nodes, width]);
+  const map = useMemo(() => buildStarMap({
+    goal: { id: wish?.id ?? null, title: wish?.title ?? ui("chooseWish"), image: wish?.image_url ?? null },
+    trail: nodes,
+    wishes: mapData?.wishes ?? [],
+    caught: mapData?.caught ?? [],
+    own: mapData?.own ?? [],
+    notes: mapData?.notes ?? []
+    // ui depends only on locale
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [nodes, mapData, wish?.id, wish?.title, wish?.image_url, locale]);
+  const mapLabels = useMemo(() => {
+    const labels: Record<string, string> = { aria: ui("mapAria") };
+    for (const id of ["path", "calls", "wishes", "caught", "own", "notes"] as const) {
+      labels[`cluster.${id}`] = ui(`cluster.${id}`);
+      labels[`fog.${id}`] = ui(`fog.${id}`);
+    }
+    return labels;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
   const next = nextTrailStep(nodes);
   const journey = calculateWishJourney({ coreBalance: core?.balance ?? 0, reinvestPercent: core?.reinvest_percent ?? 100, targetAmount: wish?.target_amount ?? null, walletBalance: wallet?.balance ?? 0 });
   const progress = journey.targetAmount ? Math.min(100, (journey.savedAmount / journey.targetAmount) * 100) : 0;
   const sphere = life?.main?.sphere ? LIFE_SPHERES.find((item) => item.key === life.main?.sphere) : null;
-  const current = layout.points.find((point) => point.node.state === "current") ?? layout.points.find((point) => !point.node.side && point.node.state === "done");
 
   if (!user) return null;
 
@@ -135,6 +150,37 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
     else if (node.kind === "task") onOpenChallenge(node.ref);
     else onOpenCalls();
   }
+
+  /** The one action of a star on the map. */
+  function actStar(star: Star) {
+    trackProductEvent("path_star_opened", { kind: star.kind, state: star.state });
+    setSelected(null);
+    if (star.kind === "task" || (star.kind === "fog" && star.cluster === "path")) return onOpenChallenge(star.ref);
+    if (star.kind === "chest") return setChestOpen(true);
+    if (star.kind === "call" || star.kind === "mission" || star.kind === "sealed") return onOpenCalls();
+    if (star.kind === "goal") return onOpenWishes();
+    if (star.kind === "wish") return onOpenWish(star.ref);
+    if (star.kind === "caught" || star.kind === "own") return router.push(`/d/${star.ref}`);
+    if (star.kind === "note") return onOpenNotes();
+    // A fog star opens the place where that kind of star is made.
+    if (star.ref === "calls") return onOpenCalls();
+    if (star.ref === "wishes") return onOpenWishes();
+    if (star.ref === "caught") return onOpenFeed("feed");
+    if (star.ref === "own") return onOpenFeed("blog");
+    if (star.ref === "notes") return onOpenNotes();
+  }
+
+  const starKind = (star: Star) => (star.kind === "fog" ? (star.cluster === "path" ? "kind.task" : `cluster.${star.ref}`) : `kind.${star.kind}`) as Parameters<typeof pathUi>[0];
+  const starTitle = (star: Star) => star.kind === "sealed" ? ui("sealedTitle") : star.kind === "chest" ? ui("chestTitle") : star.kind === "fog" && star.cluster !== "path" ? ui(`fog.${star.ref}` as Parameters<typeof pathUi>[0]) : star.title;
+  const starAction = (star: Star) => (
+    star.kind === "task" || (star.kind === "fog" && star.cluster === "path") ? "go"
+      : star.kind === "chest" ? "goChest"
+        : star.kind === "sealed" ? "goSealed"
+          : star.kind === "call" || star.kind === "mission" ? "goCall"
+            : star.kind === "goal" || star.kind === "wish" ? "goWish"
+              : star.kind === "caught" || star.kind === "own" ? "goPost"
+                : star.kind === "note" ? "goNote" : "goExplore"
+  ) as Parameters<typeof pathUi>[0];
 
   return (
     <section className="path-home" aria-label={ui("myWish")}>
@@ -151,35 +197,17 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
         ) : null}
       </button>
 
-      <div className="path-map" ref={boxRef}>
+      <div className="path-map-wrap">
         <button className="path-nova" type="button" aria-label={ui("nova")} onClick={onOpenNova}>
           <Image src="/nova-fox-robot.webp" alt="" width={40} height={40} />
         </button>
-        <svg width={width} height={layout.height} viewBox={`0 0 ${width} ${layout.height}`} aria-hidden="true">
-          <path d={layout.path} fill="none" stroke="var(--path-trail)" strokeWidth={10} strokeLinecap="round" strokeDasharray="1 16" />
-          {layout.donePath ? <path d={layout.donePath} fill="none" stroke="var(--path-task)" strokeWidth={5} strokeLinecap="round" opacity={0.5} /> : null}
-        </svg>
-        <span className="path-goal-star" style={{ left: layout.goal.x, top: layout.goal.y }} aria-hidden="true"><Star size={16} /></span>
-        {layout.points.map(({ node, x, y }) => (
-          <button
-            key={node.id}
-            className={`path-node ${node.kind} ${node.state}${node.side ? " side" : ""}`}
-            type="button"
-            style={{ left: x, top: y, ["--node" as string]: KIND_COLOR[node.kind] }}
-            aria-label={`${ui(`kind.${node.kind}`)}: ${node.title || ui("sealedTitle")}`}
-            onClick={() => setSelected(node)}
-          >
-            {node.state === "done" ? <Check size={15} /> : node.kind === "call" || node.kind === "mission" ? <Flame size={16} /> : node.kind === "sealed" ? <Lock size={14} /> : node.kind === "chest" ? <KeyRound size={15} /> : null}
-          </button>
-        ))}
-        {current && current.node.state === "current" ? (
-          <span className="path-label" style={{ left: Math.min(width * 0.7, Math.max(width * 0.3, current.x)), top: current.y }}>{current.node.title}</span>
-        ) : null}
-        {current && life?.look ? (
-          <span className="path-hero" style={{ left: current.x, top: current.y }} aria-hidden="true">
-            <LifeCharacter look={life.look} stats={lifeStats(life.answers ?? {})} size={46} />
-          </span>
-        ) : null}
+        <PathStarMap
+          map={map}
+          labels={mapLabels}
+          ui={{ zoomIn: ui("zoomIn"), zoomOut: ui("zoomOut"), reset: ui("resetView"), expand: ui("expandMap"), collapse: ui("collapseMap") }}
+          onSelect={(star) => { trackProductEvent("path_star_tapped", { kind: star.kind }); setSelected(star); }}
+        />
+        <p className="path-map-hint">{ui("mapHint")}</p>
       </div>
 
       <div className="path-next">
@@ -197,14 +225,16 @@ export default function PathHome({ active, refreshNonce, onOpenChallenge, onOpen
       </button>
 
       {selected ? (
-        <Sheet backCloses title={ui(`kind.${selected.kind}`)} closeLabel="×" onClose={() => setSelected(null)}>
+        <Sheet backCloses title={ui(starKind(selected))} closeLabel="×" onClose={() => setSelected(null)}>
           <div className="path-props">
-            <span className="path-eyebrow">{ui(`state.${selected.state}`)}</span>
-            <strong>{selected.kind === "sealed" ? ui("sealedTitle") : selected.kind === "chest" ? ui("chestTitle") : selected.title}</strong>
+            {/* eslint-disable-next-line @next/next/no-img-element -- wish covers come from any host the person chose */}
+            {selected.image ? <img className="path-props-cover" alt="" src={selected.image} /> : null}
+            {["task", "call", "mission", "sealed", "chest", "fog"].includes(selected.kind) ? <span className="path-eyebrow">{ui(`state.${selected.state}` as Parameters<typeof pathUi>[0])}</span> : null}
+            <strong>{starTitle(selected)}</strong>
             {selected.reward ? <span className="path-chip">{ui("reward", { amount: money.format(selected.reward) })}</span> : null}
-            {selected.state !== "done" ? (
-              <button className="challenge-primary-action" type="button" onClick={() => act(selected)}>
-                {ui(selected.kind === "chest" ? "goChest" : selected.kind === "sealed" ? "goSealed" : selected.kind === "task" ? "go" : "goCall")}<ArrowRight size={17} />
+            {selected.state !== "done" || selected.kind === "wish" || selected.kind === "task" ? (
+              <button className="challenge-primary-action" type="button" onClick={() => actStar(selected)}>
+                {ui(starAction(selected))}<ArrowRight size={17} />
               </button>
             ) : null}
           </div>

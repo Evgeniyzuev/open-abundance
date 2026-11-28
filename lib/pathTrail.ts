@@ -133,7 +133,11 @@ export function pathHomeEnabled(search: string, read: (key: string) => string | 
 
 export const PATH_FLAG_KEY = "oa.pathHome";
 
-type UiKey = "myWish" | "chooseWish" | "change" | "toGoal" | "next" | "nothing" | "pickNext" | "open" | "kind.task" | "kind.call" | "kind.mission" | "kind.sealed" | "kind.chest" | "state.done" | "state.current" | "state.open" | "state.ahead" | "sealedTitle" | "chestTitle" | "go" | "goCall" | "goSealed" | "goChest" | "more" | "moreHint" | "backpack" | "reward" | "nova";
+type UiKey = "myWish" | "chooseWish" | "change" | "toGoal" | "next" | "nothing" | "pickNext" | "open" | "kind.task" | "kind.call" | "kind.mission" | "kind.sealed" | "kind.chest" | "state.done" | "state.current" | "state.open" | "state.ahead" | "sealedTitle" | "chestTitle" | "go" | "goCall" | "goSealed" | "goChest" | "more" | "moreHint" | "backpack" | "reward" | "nova"
+  | "kind.goal" | "kind.wish" | "kind.caught" | "kind.own" | "kind.note" | "state.fog"
+  | "cluster.path" | "cluster.calls" | "cluster.wishes" | "cluster.caught" | "cluster.own" | "cluster.notes"
+  | "fog.path" | "fog.calls" | "fog.wishes" | "fog.caught" | "fog.own" | "fog.notes"
+  | "goWish" | "goPost" | "goNote" | "goExplore" | "mapAria" | "mapHint" | "zoomIn" | "zoomOut" | "resetView" | "expandMap" | "collapseMap";
 
 const UI: Record<"ru" | "en", Record<UiKey, string>> = {
   ru: {
@@ -143,7 +147,13 @@ const UI: Record<"ru" | "en", Record<UiKey, string>> = {
     "state.done": "пройдено", "state.current": "сейчас", "state.open": "слово дано", "state.ahead": "впереди",
     sealedTitle: "Запечатано. Суть откроется, когда согласишься", chestTitle: "Сундук ждёт ключа",
     go: "Открыть задание", goCall: "К вызову", goSealed: "Посмотреть миссии", goChest: "Открыть сундук",
-    more: "Ещё на сегодня", moreHint: "Нова, встреча с лидом, цель дня, задачи, лента", backpack: "Рюкзак", reward: "+{amount} Core", nova: "Нова"
+    more: "Ещё на сегодня", moreHint: "Нова, встреча с лидом, цель дня, задачи, лента", backpack: "Рюкзак", reward: "+{amount} Core", nova: "Нова",
+    "kind.goal": "Главное желание", "kind.wish": "Желание", "kind.caught": "Зацепило", "kind.own": "Моё", "kind.note": "Быстрая заметка", "state.fog": "ещё не открыто",
+    "cluster.path": "Тропа", "cluster.calls": "Вызовы", "cluster.wishes": "Желания", "cluster.caught": "Зацепило", "cluster.own": "Моё", "cluster.notes": "Заметки",
+    "fog.path": "Откроется дальше по тропе", "fog.calls": "Возьми вызов, и здесь загорится звезда", "fog.wishes": "Добавь ещё желание", "fog.caught": "Поставь ♥ истории, которая зацепила", "fog.own": "Расскажи свою историю", "fog.notes": "Запиши быструю заметку",
+    goWish: "Открыть желание", goPost: "Открыть", goNote: "К заметкам", goExplore: "Открыть место",
+    mapAria: "Карта пути: желание в центре, тропа заданий и созвездия вокруг", mapHint: "Двигай пальцем, разводи двумя, чтобы приблизить и повернуть. Тапни звезду.",
+    zoomIn: "Приблизить", zoomOut: "Отдалить", resetView: "Вернуть вид", expandMap: "На весь экран", collapseMap: "Свернуть карту"
   },
   en: {
     myWish: "My wish", chooseWish: "Choose the wish you are walking to", change: "Change", toGoal: "{saved} of {target}",
@@ -152,7 +162,13 @@ const UI: Record<"ru" | "en", Record<UiKey, string>> = {
     "state.done": "done", "state.current": "now", "state.open": "word given", "state.ahead": "ahead",
     sealedTitle: "Sealed. It opens once you agree", chestTitle: "A chest is waiting for its key",
     go: "Open the quest", goCall: "Go to the call", goSealed: "See the missions", goChest: "Open the chest",
-    more: "More for today", moreHint: "Nova, lead meeting, daily goal, tasks, feed", backpack: "Backpack", reward: "+{amount} Core", nova: "Nova"
+    more: "More for today", moreHint: "Nova, lead meeting, daily goal, tasks, feed", backpack: "Backpack", reward: "+{amount} Core", nova: "Nova",
+    "kind.goal": "Main wish", "kind.wish": "Wish", "kind.caught": "Caught me", "kind.own": "Mine", "kind.note": "Quick note", "state.fog": "not opened yet",
+    "cluster.path": "Trail", "cluster.calls": "Calls", "cluster.wishes": "Wishes", "cluster.caught": "Caught me", "cluster.own": "Mine", "cluster.notes": "Notes",
+    "fog.path": "Opens further along the trail", "fog.calls": "Take a call and a star lights up here", "fog.wishes": "Add another wish", "fog.caught": "Give a ♥ to a story that caught you", "fog.own": "Tell your own story", "fog.notes": "Write a quick note",
+    goWish: "Open the wish", goPost: "Open", goNote: "To notes", goExplore: "Open the place",
+    mapAria: "Path map: the wish in the centre, the quest trail and constellations around it", mapHint: "Drag to move, pinch to zoom and turn. Tap a star.",
+    zoomIn: "Zoom in", zoomOut: "Zoom out", resetView: "Reset view", expandMap: "Full screen", collapseMap: "Close full screen"
   }
 };
 

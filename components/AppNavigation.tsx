@@ -880,6 +880,9 @@ export default function AppNavigation() {
               onOpenNextChallenge={openNextChallenge}
               onOpenCalls={() => { setActiveChallengeTab("calls"); setActiveMainTab("challenges"); }}
               onOpenWishes={() => { setActiveGoalTab("desires"); setActiveMainTab("goals"); }}
+              onOpenWish={openWishJourney}
+              onOpenNotes={() => { setActiveGoalTab("checks"); setActiveMainTab("goals"); }}
+              onOpenFeed={(tab) => { setActiveSocialTab(tab); setActiveMainTab("people"); }}
               onOpenCore={openCore}
               onOpenNova={() => { setVisitedHomeViews((current) => ({ ...current, ideas: true })); setActiveHomeTab("ideas"); setActiveMainTab("home"); }}
             />

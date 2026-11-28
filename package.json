@@ -136,6 +136,7 @@
     "test:inviter-path": "node --experimental-strip-types scripts/verify-inviter-path-contract.mjs",
     "test:moment-share": "node --experimental-strip-types scripts/verify-moment-share-contract.mjs",
     "test:word-calls": "node --experimental-strip-types scripts/verify-word-calls-contract.mjs",
+    "test:star-map": "node --experimental-strip-types scripts/verify-star-map-contract.mjs",
     "test:path-trail": "node --experimental-strip-types scripts/verify-path-trail-contract.mjs"
   },
   "dependencies": {
